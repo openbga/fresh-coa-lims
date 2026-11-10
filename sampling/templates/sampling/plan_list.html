@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Approved sampling plans state how many containers and how much material to sample for each material and stage.</p>{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'sampling:plan_new' %}">New sampling plan</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "catalog/includes/tabs.html" with label="Sampling sections" %}
+<section class="card vr-table-card" aria-labelledby="list-heading">
+  <h2 class="visually-hidden" id="list-heading">Sampling plans</h2>
+  {% include "catalog/includes/toolbar.html" with label="Filter sampling plans" placeholder="Code, title or material" %}
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <thead><tr>{% include "catalog/includes/sort.html" with label="Plan" key="code" current=sort %}<th scope="col">Material</th><th scope="col">Stage</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for plan in page_obj %}
+        <tr>
+          <th scope="row"><a href="{% url 'sampling:plan' plan.pk %}">{{ plan.code }}</a><br><span class="text-body-secondary">{{ plan.title }}</span></th>
+          <td>{{ plan.material.code }}</td>
+          <td>{{ plan.get_stage_display }}</td>
+          <td class="text-end">{{ plan.versions }}</td>
+          <td>{% if plan.approved %}{% include "includes/status.html" with label="Has approved version" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="No approved version" tone="warning" plain=True %}{% endif %}{% if plan.drafts %}<br>{% include "includes/status.html" with label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "catalog/includes/pagination.html" with noun="sampling plans" %}
+  {% elif filtered %}
+  {% include "catalog/includes/empty.html" with kind="no-results" title="No sampling plans match these filters" body="Change or clear the filters." clear_url=request.path %}
+  {% else %}
+  {% if can_edit %}{% url 'sampling:plan_new' as create_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No sampling plans yet" body="Create the plan for a material and stage." action_url=create_url action_label="New sampling plan" %}
+  {% endif %}
+</section>
+{% endblock %}

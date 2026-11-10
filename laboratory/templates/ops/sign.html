@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Signing page; the shared script upgrades it to a modal dialog. Opening it never signs.{% endcomment %}
+{% block title %}{{ page_title }} · Open Qual IQ{% endblock %}
+{% block page_header %}{% if crumbs %}<div class="vr-page-header">{% include "includes/breadcrumbs.html" with crumbs=crumbs %}</div>{% endif %}{% endblock %}
+{% block content %}
+<section class="card"{% if not denial %} aria-labelledby="sign-title" data-signature-dialog{% endif %}>
+  <div class="card-body">
+    <h1 class="h3" id="sign-title">{{ page_title }}</h1>
+    <p>Record <strong>{{ identifier }}</strong>, revision <strong>{{ revision }}</strong>. {{ meaning_text }}</p>
+    <dl class="vr-facts mb-3">{% for label, value in facts %}<div><dt>{{ label }}</dt><dd>{% include "ops/_cell.html" with cell=value %}</dd></div>{% endfor %}</dl>
+    {% if denial %}
+    <div class="alert alert-danger" role="alert">{% include "includes/status.html" with label="Not permitted" tone="danger" plain=True %}<div>{{ denial }}</div></div>
+    <a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to record</a>
+    {% else %}
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>. Your signature records <strong>{{ meaning }}</strong>; the server records the execution time and binds the signature to revision {{ revision|add:"1" }}, the revision this transition produces.</p>
+    <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}<ul class="errorlist nonfield" role="alert">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      <div class="vr-form-actions"><a class="btn btn-outline-secondary" data-signature-cancel href="{{ cancel_url }}">Cancel</a><button class="btn btn-primary" type="submit">{{ button }}</button></div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}{% if not denial %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endif %}{% endblock %}

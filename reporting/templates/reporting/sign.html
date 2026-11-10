@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="sign-title" data-signature-dialog>
+  <div class="card-body">
+    <h1 id="sign-title" class="h3">{{ heading }}</h1>
+    <p>Your signature records <strong>{{ meaning }}</strong> for {{ target }}. The server binds it to the exact evidence <span class="vr-id text-wrap text-break">{{ evidence_short }}</span> you reviewed and rejects it if anything changed.</p>
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>. The server records the execution time. A laboratory QC disposition is not manufacturer batch release.</p>
+    <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_errors.html" %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      {% for field in form.visible_fields %}{% include "includes/field.html" with field=field %}{% endfor %}
+      <div class="vr-form-actions">
+        <button class="btn btn-primary" type="submit">{{ submit }}</button>
+        <a class="btn btn-outline-secondary" data-signature-cancel href="{{ cancel_url }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endblock %}

@@ -1,0 +1,115 @@
+{% load reporting_tags %}
+{# Renders a frozen snapshot (or live evidence for a preview). Never reads live records. #}
+<article class="card mb-3" aria-labelledby="cert-title">
+  <div class="card-header"><h2 class="card-title" id="cert-title">Certificate of analysis{% if snapshot.report %} · {{ snapshot.report.number }} version {{ snapshot.report.version }}{% else %} · preview{% endif %}</h2></div>
+  <div class="card-body">
+    {% if snapshot.report.kind == "amendment" %}
+    <p class="mb-1"><strong>Amended certificate.</strong> Replaces version {{ snapshot.report.amends_version }}; the earlier version remains on record.</p>
+    <p>Reason for amendment: {{ snapshot.report.reason }}</p>
+    {% endif %}
+    <h3 class="h6 fw-bold mt-4">Material and lot</h3>
+    <dl class="vr-facts">
+      <div><dt>Lot number</dt><dd>{{ snapshot.lot.number }}</dd></div>
+      <div><dt>Material</dt><dd>{{ snapshot.lot.material }}</dd></div>
+      {% if snapshot.report %}<div><dt>Issued to</dt><dd>{{ snapshot.report.recipient|default:"General certificate (no named recipient)" }}</dd></div>{% endif %}
+      <div><dt>Lot received</dt><dd>{{ snapshot.lot.received_at|stamp }} by {{ snapshot.lot.received_by }}</dd></div>
+    </dl>
+    <h3 class="h6 fw-bold mt-4">Decision</h3>
+    {% if snapshot.disposition %}
+    <p>Laboratory QC disposition: <strong>approved</strong> (lot state {{ snapshot.lot.state }}), signed by {{ snapshot.disposition.signer_name }} on {{ snapshot.disposition.signed_at|stamp }}, binding lot record revision {{ snapshot.disposition.revision }}.</p>
+    {% else %}
+    <p>No signed QC disposition is recorded.</p>
+    {% endif %}
+    <p class="vr-muted small">This certificate reports the laboratory QC disposition and test results only. It is not the manufacturer's batch release or qualified-person certification.</p>
+    <h3 class="h6 fw-bold mt-4">Applied rules, specification and methods</h3>
+    <dl class="vr-facts">
+      <div><dt>Rule set</dt><dd>{{ snapshot.rules.code }} version {{ snapshot.rules.version }} (record revision {{ snapshot.rules.revision }}), segment {{ snapshot.rules.segment }}</dd></div>
+      <div><dt>Effective</dt><dd>{{ snapshot.rules.effective_from|stamp }} to {% if snapshot.rules.effective_until %}{{ snapshot.rules.effective_until|stamp }}{% else %}open{% endif %}</dd></div>
+      <div><dt>Required tests</dt><dd>{{ snapshot.rules.required_tests|join:", " }}</dd></div>
+      <div><dt>Specification</dt><dd>{% if snapshot.specification.code %}{{ snapshot.specification.code }} version {{ snapshot.specification.version }}{% elif snapshot.specification %}{% for label, text in snapshot.specification|section_items %}{% if label %}{{ label }}: {% endif %}{{ text }}{% if not forloop.last %}; {% endif %}{% endfor %}{% else %}No approved snapshot was supplied; limits are those recorded with each result.{% endif %}</dd></div>
+      <div><dt>Methods</dt><dd>{% if snapshot.methods %}{% for m in snapshot.methods %}{% if m.code %}<span class="d-block">{{ m.code }} version {{ m.version }}{% if m.document_ref %} · controlled document {{ m.document_ref }}{% endif %}{% if m.suitability_ref %} · suitability ({{ m.suitability_kind }}) {{ m.suitability_ref }}{% endif %}{% if m.requires_batch %} · batch QC required ({{ m.qc_checks|length }} check{{ m.qc_checks|length|pluralize }}){% endif %}</span>{% else %}<span class="d-block">{{ m }}</span>{% endif %}{% endfor %}{% else %}No approved snapshot was supplied.{% endif %}</dd></div>
+    </dl>
+    <h3 class="h6 fw-bold mt-4">Results</h3>
+    {% if snapshot.native %}
+    <div class="vr-table-wrap mb-3" tabindex="0" role="region" aria-label="Reportable results">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col">Sample</th><th scope="col">Method</th><th scope="col">Replicates</th><th scope="col" class="text-end">Reportable result</th><th scope="col">Limits</th><th scope="col">Independent review</th></tr></thead>
+        <tbody>
+        {% for r in snapshot.native.analytical.results %}
+          <tr>
+            <th scope="row">{{ r.test_code }}{% if r.name and r.name != r.test_code %}<br><span class="vr-muted">{{ r.name }}</span>{% endif %}</th>
+            <td>{{ r.sample }}</td>
+            <td>{{ r.method.code }} r{{ r.method.revision }}</td>
+            <td>{% for rep in r.replicates %}{{ rep.value }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+            <td class="text-end">{{ r.reportable }} {{ r.unit }}</td>
+            <td>{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}</td>
+            <td>{% if r.review %}{{ r.review.signer }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not reviewed" tone="warning" plain=True %}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% for sample in snapshot.samples %}
+    <p class="mb-1"><strong>Sample {{ sample.reference }}</strong> · collected {{ sample.collected_at|stamp }}</p>
+    <div class="vr-table-wrap mb-3" tabindex="0" role="region" aria-label="Results for sample {{ sample.reference }}">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col" class="text-end">Result</th><th scope="col">Unit</th><th scope="col">Limits</th><th scope="col">Status</th><th scope="col">Analyst</th><th scope="col">Independent review</th></tr></thead>
+        <tbody>
+        {% for r in sample.results %}
+          <tr>
+            <th scope="row">{{ r.test_code }}</th>
+            <td class="text-end">{{ r.value }}</td>
+            <td>{{ r.unit }}</td>
+            <td>{{ r.lower_limit }} to {{ r.upper_limit }} {{ r.unit }}</td>
+            <td>{% if r.conforms %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Out of limits" tone="danger" plain=True %}{% endif %}</td>
+            <td>{{ r.analyst }}</td>
+            <td>{% if r.review %}{{ r.review.signer_name }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not reviewed" tone="warning" plain=True %}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% empty %}
+    <p>No samples are recorded for this lot.</p>
+    {% endfor %}
+    {% endif %}
+    <h3 class="h6 fw-bold mt-4">Holds and corrections</h3>
+    {% if "holds" in snapshot.sections_supplied %}
+      {% if snapshot.holds %}<ul>{% for hold in snapshot.holds %}<li>{{ hold.description|default:hold.id }} · {{ hold.status }}</li>{% endfor %}</ul>{% else %}<p>No holds in the hold snapshot.</p>{% endif %}
+    {% else %}
+      <p class="vr-muted">A hold snapshot was not available to this system; hold status is not asserted by this certificate.</p>
+    {% endif %}
+    {% if snapshot.native.analytical.investigations %}<p class="mb-1">Investigations linked to this lot:</p><ul>{% for inv in snapshot.native.analytical.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% if snapshot.corrections %}<ul>{% for item in snapshot.corrections %}<li>Correction: {{ item.description }}</li>{% endfor %}</ul>{% endif %}
+    {% if snapshot.report.remarks %}<h3 class="h6 fw-bold mt-4">Remarks</h3><p>{{ snapshot.report.remarks|linebreaksbr }}</p>{% endif %}
+    <h3 class="h6 fw-bold mt-4">Electronic signatures</h3>
+    <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Signature manifestations">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Meaning</th><th scope="col">Signer</th><th scope="col">Date and time</th><th scope="col">Bound to</th></tr></thead>
+        <tbody>
+        {% for sample in snapshot.samples %}{% for r in sample.results %}{% if r.review %}
+          <tr><td>Result {{ sample.reference }} {{ r.test_code }} reviewed</td><td>{{ r.review.signer_name }}</td><td>{{ r.review.signed_at|stamp }}</td><td>Result revision {{ r.review.revision }}</td></tr>
+        {% endif %}{% endfor %}{% endfor %}
+        {% for r in snapshot.native.analytical.results %}{% if r.review %}
+          <tr><td>Test {{ r.sample }} {{ r.test_code }} reviewed</td><td>{{ r.review.signer }}</td><td>{{ r.review.signed_at|stamp }}</td><td>Test record revision {{ r.review.revision }}</td></tr>
+        {% endif %}{% endfor %}
+        {% if snapshot.disposition %}<tr><td>QC disposition approved</td><td>{{ snapshot.disposition.signer_name }}</td><td>{{ snapshot.disposition.signed_at|stamp }}</td><td>Lot revision {{ snapshot.disposition.revision }}</td></tr>{% endif %}
+        {% if snapshot.report %}<tr><td>Certificate {% if snapshot.report.kind == "amendment" %}amended{% else %}issued{% endif %}</td><td>{{ snapshot.report.issued_by }}</td><td>{{ snapshot.report.issued_at|stamp }}</td><td>Certificate version {{ snapshot.report.version }}</td></tr>{% endif %}
+        </tbody>
+      </table>
+    </div>
+    {% if snapshot.evidence_hash %}
+    <details class="mt-3 small" open>
+      <summary>Technical identifiers</summary>
+      <dl class="vr-facts mt-2">
+        {% if snapshot.specification.approved_hash %}<div><dt>Specification hash</dt><dd><span class="vr-id text-wrap text-break">{{ snapshot.specification.approved_hash }}</span></dd></div>{% endif %}
+        {% for m in snapshot.methods %}{% if m.approved_hash %}<div><dt>Method {{ m.code }} v{{ m.version }} hash</dt><dd><span class="vr-id text-wrap text-break">{{ m.approved_hash }}</span></dd></div>{% endif %}{% endfor %}
+        {% if snapshot.native.assignment_hash %}<div><dt>Assignment hash</dt><dd><span class="vr-id text-wrap text-break">{{ snapshot.native.assignment_hash }}</span></dd></div>{% endif %}
+        {% for r in snapshot.native.analytical.results %}{% ifchanged r.requirement_source %}<div><dt>Requirement source</dt><dd><span class="vr-id text-wrap text-break">{{ r.requirement_source }}</span></dd></div>{% endifchanged %}{% endfor %}
+        <div><dt>Evidence SHA-256</dt><dd><span class="vr-id text-wrap text-break">{{ snapshot.evidence_hash }}</span></dd></div>
+      </dl>
+    </details>
+    {% endif %}
+  </div>
+</article>

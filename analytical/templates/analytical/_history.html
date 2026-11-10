@@ -1,0 +1,28 @@
+{% comment %}History and signature panels for a record. Parameters: history (audit events, oldest first), signatures.{% endcomment %}
+<section class="card mb-3" aria-labelledby="signatures-heading">
+  <div class="card-header"><h2 class="card-title" id="signatures-heading">Electronic signatures</h2><span class="vr-count">{{ signatures|length }}</span></div>
+  <div class="card-body">
+    {% if signatures %}
+    <ol class="vr-timeline">
+      {% for s in signatures %}<li class="vr-history-item">
+        <div class="vr-timeline-head"><span class="vr-timeline-title">Signed: {{ s.meaning }}</span><time class="vr-timeline-meta" datetime="{{ s.signed_at|date:'c' }}">{{ s.signed_at|date:"Y-m-d H:i T" }}</time></div>
+        <p class="vr-timeline-meta">{{ s.signer_name }} · bound to record revision {{ s.revision }} · content hash <span class="vr-id">{{ s.content_hash|truncatechars:17 }}</span></p>
+      </li>{% endfor %}
+    </ol>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No signatures yet" body="Signed reviews, authorizations and conclusions appear here with signer, meaning, time and revision." %}
+    {% endif %}
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="history-heading">
+  <div class="card-header"><h2 class="card-title" id="history-heading">History</h2></div>
+  <div class="card-body">
+    {% if history %}
+    <ol class="vr-timeline">
+      {% for event in history %}{% include "includes/history_item.html" with title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
+    </ol>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No history recorded" %}
+    {% endif %}
+  </div>
+</section>

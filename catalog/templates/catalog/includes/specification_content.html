@@ -1,0 +1,13 @@
+<section class="card mb-3" aria-labelledby="content-heading">
+  <div class="card-header"><h2 class="card-title" id="content-heading">Content being approved</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      <div><dt>Material</dt><dd>{{ revision.specification.material }}</dd></div>
+      <div><dt>Stage and scope</dt><dd>{{ revision.specification.get_stage_display }} · {{ revision.specification.scope }}</dd></div>
+      <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
+      <div><dt>Basis</dt><dd>{{ revision.basis|linebreaksbr }}</dd></div>
+      <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
+    </dl>
+    {% with tests=revision.tests.all %}{% if tests %}{% include "catalog/includes/tests_table.html" %}{% else %}<p>No tests yet. Approval requires at least one test.</p>{% endif %}{% endwith %}
+  </div>
+</section>

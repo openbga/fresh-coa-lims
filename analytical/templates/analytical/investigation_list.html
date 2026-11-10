@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Out-of-specification investigations. An open investigation holds its lot until quality signs a conclusion.</p>{% endblock %}
+{% block content %}
+{% include "analytical/_tabs.html" %}
+<section class="card vr-table-card" aria-labelledby="inv-heading">
+  <h2 class="visually-hidden" id="inv-heading">Investigations</h2>
+  <form method="get" class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" role="search">
+    <div><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot or test code"></div>
+    <div><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="open"{% if state == "open" %} selected{% endif %}>Open</option><option value="closed"{% if state == "closed" %} selected{% endif %}>Closed</option><option value="all"{% if state == "all" %} selected{% endif %}>All investigations</option></select></div>
+    <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Show open</a>{% endif %}</div>
+  </form>
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <caption class="visually-hidden">Investigations, newest first</caption>
+      <thead><tr><th scope="col">Investigation</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Test</th><th scope="col">Trigger</th><th scope="col">Opened</th></tr></thead>
+      <tbody>
+        {% for inv in page_obj %}
+        <tr>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a></th>
+          <td>{% include "analytical/_investigation_status.html" with plain=True %}</td>
+          <td><a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></td>
+          <td><a class="vr-id" href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}</td>
+          <td>{{ inv.trigger }}</td>
+          <td class="vr-nowrap"><time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i" }}</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "analytical/_pager.html" with noun="investigations" %}
+  {% elif filtered %}
+  {% include "analytical/_empty.html" with kind="no-results" title="No investigations match" body="Search covers lot numbers and test codes." clear_url=request.path %}
+  {% else %}
+  {% include "analytical/_empty.html" with title="No open investigations" body="A submitted out-of-specification result opens an investigation automatically." %}
+  {% endif %}
+</section>
+{% endblock %}

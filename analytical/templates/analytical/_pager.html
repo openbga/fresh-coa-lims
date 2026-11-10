@@ -1,0 +1,15 @@
+{% comment %}Table footer with count and pager; keeps the current filters. Parameters: page_obj, noun, filtered, params.{% endcomment %}
+{% with paginator=page_obj.paginator %}
+<div class="vr-table-footer vr-pagination">
+  <p class="vr-count">Showing <strong>{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong>{{ paginator.count }}</strong> {{ noun }}{% if filtered %} matching filters{% endif %}</p>
+  {% if paginator.num_pages > 1 %}
+  <nav aria-label="{{ noun|capfirst }} pages">
+    <ul class="pagination pagination-sm mb-0">
+      {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?{{ params }}page={{ page_obj.previous_page_number }}" aria-label="Previous page">{% include "includes/icon.html" with name="chevron-left" %}</a></li>{% else %}<li class="page-item disabled"><span class="page-link" aria-hidden="true">{% include "includes/icon.html" with name="chevron-left" %}</span></li>{% endif %}
+      <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?{{ params }}page={{ page_obj.next_page_number }}" aria-label="Next page">{% include "includes/icon.html" with name="chevron-right" %}</a></li>{% else %}<li class="page-item disabled"><span class="page-link" aria-hidden="true">{% include "includes/icon.html" with name="chevron-right" %}</span></li>{% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+{% endwith %}

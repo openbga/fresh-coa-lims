@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static pagedocs %}<!doctype html>
 
 <html lang="en" data-bs-theme="light">
 <head>
@@ -16,6 +16,7 @@
   {# Tom Select CSS is small and themed in app.css; its script loads only on pages with an enhanced select. #}
   <link rel="stylesheet" href="{% static 'vendor/tom-select/tom-select.bootstrap5.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% if user.is_authenticated %}{% pagedocs_head %}{% endif %}
   {% block extra_css %}{% endblock %}
   <script src="{% static 'vendor/htmx-2.0.11/htmx.min.js' %}" defer></script>
   <script src="{% static 'vendor/bootstrap-5.3.8/js/bootstrap.bundle.min.js' %}" defer></script>
@@ -36,7 +37,7 @@
     {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
     <div class="vr-topbar-end">
       {% include "includes/theme_menu.html" %}
-      {% if user.is_authenticated %}<span>{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% endif %}
+      {% if user.is_authenticated %}<span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
     </div>
   </header>
   {% endblock topbar %}
@@ -49,10 +50,16 @@
       </div>
       <div class="offcanvas-body">
         <ul class="vr-nav-list">
-          <li><a class="vr-navlink" href="/" {% if request.path == '/' or '/lots/' in request.path or '/samples/' in request.path or '/results/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Lots</span></a></li>
+          <li><a class="vr-navlink" href="/" {% if request.resolver_match.namespace == 'quality' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Lots</span></a></li>
           <li><a class="vr-navlink" href="/rules/" {% if '/rules/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="list-check" %}<span>Rule sets</span></a></li>
           <li><a class="vr-navlink" href="/audit/" {% if '/audit/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span>Audit trail</span></a></li>
           <li><a class="vr-navlink" href="/signature-pin/" {% if request.path == '/signature-pin/' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Signature PIN</span></a></li>
+          <li><a class="vr-navlink" href="/sampling/" {% if request.resolver_match.namespace == 'sampling' %}aria-current="page"{% endif %}><span>Sampling and requirements</span></a></li>
+          <li><a class="vr-navlink" href="/catalog/" {% if request.resolver_match.namespace == 'catalog' %}aria-current="page"{% endif %}><span>Specifications and methods</span></a></li>
+          <li><a class="vr-navlink" href="/testing/" {% if request.resolver_match.namespace == 'analytical' %}aria-current="page"{% endif %}><span>Testing and investigations</span></a></li>
+          <li><a class="vr-navlink" href="/stability/" {% if request.resolver_match.namespace == 'stability' %}aria-current="page"{% endif %}><span>Stability and reserves</span></a></li>
+          <li><a class="vr-navlink" href="/laboratory/" {% if request.resolver_match.namespace == 'laboratory' %}aria-current="page"{% endif %}><span>Laboratory operations</span></a></li>
+          <li><a class="vr-navlink" href="/reports/" {% if request.resolver_match.namespace == 'reporting' %}aria-current="page"{% endif %}><span>Certificates of analysis</span></a></li>
           </ul>
       </div>
     </nav>
@@ -78,6 +85,7 @@
     </main>
   </div>
   {% endblock body %}
+  {% if user.is_authenticated %}{% pagedocs_panel %}{% endif %}
   <div class="vr-live" id="vr-live"></div>
   {% include "includes/grid_columns_dialog.html" %}
   {% block extra_js %}{% endblock %}

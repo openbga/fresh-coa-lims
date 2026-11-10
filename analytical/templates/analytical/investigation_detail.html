@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'analytical:investigation_list' as list_url %}{% include "includes/breadcrumbs.html" with section="Investigations" section_url=list_url current=inv.label %}{% endblock %}
+{% block page_heading %}<span class="vr-id">{{ inv.label }}</span> out-of-specification investigation{% endblock %}
+{% block page_meta %}
+<ul class="vr-page-meta">
+  <li>{% include "analytical/_investigation_status.html" with plain=True %}</li>
+  <li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></li>
+  <li>Opened <time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i T" }}</time></li>
+  <li>Revision {{ inv.revision }}</li>
+</ul>
+{% endblock %}
+{% block page_actions %}
+{% if can_enter %}<a class="btn btn-primary" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a>{% endif %}
+{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}
+{% if can_decide %}<a class="btn btn-outline-secondary" href="{% url 'analytical:authorize' inv.pk %}">Authorize retest</a><a class="btn btn-outline-secondary" href="{% url 'analytical:conclude' inv.pk %}">Conclude</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if inv.is_open %}
+<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Lot held" tone="hold" plain=True %}<div>{{ inv.trigger }}. Lot {{ inv.lot.number }} cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.</div></div>
+{% else %}
+<section class="card mb-3" aria-labelledby="conclusion-heading">
+  <div class="card-header"><h2 class="card-title" id="conclusion-heading">Conclusion</h2></div>
+  <div class="card-body"><dl class="vr-facts">
+    <div><dt>Outcome</dt><dd>{{ inv.get_outcome_display }}</dd></div>
+    {% if inv.assignable_cause %}<div><dt>Assignable cause</dt><dd>{{ inv.assignable_cause|linebreaksbr }}</dd></div>{% endif %}
+    <div><dt>Conclusion</dt><dd>{{ inv.conclusion|linebreaksbr }}</dd></div>
+    <div><dt>Closed</dt><dd><time datetime="{{ inv.closed_at|date:'c' }}">{{ inv.closed_at|date:"Y-m-d H:i T" }}</time></dd></div>
+  </dl></div>
+</section>
+{% endif %}
+<section class="card vr-table-card mb-3" aria-labelledby="lineage-heading">
+  <div class="card-header"><h2 class="card-title" id="lineage-heading">Results and lineage</h2><span class="vr-count">{{ used }} of {{ allowed }} retests used</span></div>
+  <div class="card-body">
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col">Kind</th><th scope="col">Sample</th><th scope="col">Replicates</th><th scope="col" class="text-end">Reportable</th><th scope="col">Status</th></tr></thead>
+        <tbody>{% for t in tests %}<tr>
+          <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
+          <td>{% if forloop.first %}Original result{% else %}{{ t.get_kind_display }}{% endif %}</td>
+          <td class="vr-id">{{ t.sample.reference }}</td>
+          <td>{{ t.values|default:"—" }} <span class="vr-muted small">{{ t.spec.unit }}</span></td>
+          <td class="text-end vr-nowrap">{% if t.reportable_value is not None %}{{ t.reportable_display }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="entries-heading">
+  <div class="card-header"><h2 class="card-title" id="entries-heading">Investigation record</h2><span class="vr-count">{{ entries|length }}</span></div>
+  <div class="card-body">
+    {% if entries %}
+    <ol class="vr-timeline">{% for e in entries %}{% include "includes/history_item.html" with title=e.get_kind_display at=e.created_at actor=e.author reason=e.text detail=e.external_reference %}{% endfor %}</ol>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No laboratory assessment yet" body="Record the Phase I laboratory assessment before any retest is authorized or a conclusion is signed." %}
+    {% endif %}
+  </div>
+</section>
+{% include "analytical/_history.html" %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=inv.label %}{% endblock %}

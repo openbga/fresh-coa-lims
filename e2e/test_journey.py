@@ -14,7 +14,9 @@ from quality.models import Lot
 
 
 @pytest.mark.django_db(transaction=True)
-def test_lot_to_signed_disposition(live_server):
+def test_lot_to_signed_disposition(live_server, settings):
+    # Synthetic regression for the retained development-only manual result path.
+    settings.DEBUG = True
     password = "Synthetic-browser-login-2026!"
     pin = "12345678"
     users = {}
@@ -77,6 +79,7 @@ def test_lot_to_signed_disposition(live_server):
         page.goto(lot_url)
         page.get_by_role("link", name="Review result").click()
         expect(page.get_by_role("dialog")).to_be_visible()
+        page.get_by_label("Signing username").fill("reviewer")
         page.get_by_label(re.compile(r"^Signature PIN\b")).fill(pin)
         page.get_by_label(re.compile(r"^Reason\b")).fill("Independent synthetic review")
         page.get_by_role("button", name="Sign reviewed", exact=True).click()
@@ -84,6 +87,7 @@ def test_lot_to_signed_disposition(live_server):
         login("qa")
         page.goto(lot_url)
         page.get_by_role("link", name="Review disposition").click()
+        page.get_by_label("Signing username").fill("qa")
         page.get_by_label(re.compile(r"^Signature PIN\b")).fill(pin)
         page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic disposition")
         page.get_by_role("button", name="Sign approved", exact=True).click()

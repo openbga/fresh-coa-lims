@@ -21,12 +21,12 @@ def require_role(actor, *roles):
 
 def set_pin(*, actor, pin, password):
     """Self-service enrollment/replacement requires login password reauthentication."""
-    if not actor.is_active or not actor.check_password(password):
-        raise PermissionDenied("Password confirmation failed.")
     if not pin.isascii() or not pin.isdigit() or len(pin) < 8 or len(pin) > 32:
         raise ValidationError("Use 8–32 digits for your signature PIN.")
     with transaction.atomic():
-        get_user_model().objects.select_for_update().get(pk=actor.pk)
+        actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
+        if not actor.is_active or not actor.check_password(password):
+            raise PermissionDenied("Password confirmation failed.")
         PINCredential.objects.update_or_create(
             user=actor,
             defaults={"encoded": make_password(pin), "failures": 0, "locked_until": None},
@@ -45,6 +45,7 @@ def verify_pin(actor, pin):
         raise RuntimeError("Call signing outside an enclosing transaction.")
     error = None
     with transaction.atomic():
+        actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
         credential = PINCredential.objects.select_for_update().filter(user=actor).first()
         if credential is None:
             error = "Enroll a signature PIN first."
@@ -72,9 +73,13 @@ def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, perm
     require_role(actor, permission)
     if not reason.strip() or not meaning.strip():
         raise ValidationError("Meaning and reason are required.")
+    from .session_control import signing_context
+
+    authentication_context = signing_context(actor)
     encoded = verify_pin(actor, pin)
     with transaction.atomic():
-        # Serialize signing against PIN revocation/replacement.
+        # User -> credential lock order matches PIN replacement/verification and role changes.
+        actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
         credential = PINCredential.objects.select_for_update().get(user=actor)
         require_role(actor, permission)
         if credential.encoded != encoded or (
@@ -85,7 +90,10 @@ def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, perm
         if locked.revision != expected_revision:
             raise ValidationError("Record changed. Reload and review before signing.")
         before = snapshot(locked)
+        signing_timestamp = timezone.now()
+        locked._signing_timestamp = signing_timestamp
         apply(locked)
+        authentication_context = signing_context(actor)
         locked.revision += 1
         locked.full_clean()
         locked.save()
@@ -100,6 +108,8 @@ def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, perm
         )
         ElectronicSignature.objects.create(
             signer=actor,
+            signed_at=signing_timestamp,
+            authentication_context=authentication_context,
             signer_name=actor.get_full_name() or actor.get_username(),
             meaning=meaning,
             object_type=locked._meta.label_lower,

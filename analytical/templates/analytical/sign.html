@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Signing page and progressive dialog (static/js/signature-dialog.js). Context: page_title, form,
+submit_label, meaning, record (has revision), record_label, crumbs, cancel_url, summary.
+{% endcomment %}
+{% block page_header %}<div class="vr-page-header">{% include "includes/breadcrumbs.html" with crumbs=crumbs %}</div>{% endblock %}
+{% block content %}
+<section class="card" aria-labelledby="sign-title" data-signature-dialog>
+  <div class="card-body">
+    <h1 id="sign-title" class="h3">{{ page_title }}</h1>
+    <p>Your signature records <strong>{{ meaning }}</strong> for <strong class="vr-id">{{ record_label }}</strong> at record revision <strong>{{ record.revision }}</strong>. If the record changes before you sign, the server refuses the signature and you must review again.</p>
+    {% include "analytical/_summary.html" %}
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>. The server records the execution time and binds the signature to the resulting revision {{ record.revision|add:"1" }}. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+    <form class="vr-form" method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {{ form }}
+      <div class="vr-form-actions">
+        <a class="btn btn-link" data-signature-cancel href="{{ cancel_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endblock %}

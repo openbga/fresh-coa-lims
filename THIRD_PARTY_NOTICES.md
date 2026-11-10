@@ -7,6 +7,7 @@ files in the image. Do not strip those files or the notices in bundled browser a
 
 | Component | Upstream license / source |
 | --- | --- |
+| WeasyPrint | BSD-3-Clause; https://github.com/Kozea/WeasyPrint/blob/main/LICENSE |
 | Django | BSD-3-Clause; https://github.com/django/django/blob/main/LICENSE |
 | Psycopg / psycopg-binary | LGPL-3.0-only; https://www.psycopg.org/psycopg3/docs/basic/install.html |
 | Gunicorn | MIT; https://github.com/benoitc/gunicorn/blob/master/LICENSE |

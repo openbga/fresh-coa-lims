@@ -1,0 +1,10 @@
+{% comment %}Batch QC checks of a method version. Parameters: checks, editable (draft and can_edit), revision.{% endcomment %}
+<h3 class="h6 mt-3">Batch QC checks</h3>
+{% if checks %}
+<div class="vr-table-wrap"><table class="table vr-table">
+  <caption class="visually-hidden">Batch QC checks of {{ revision }}</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">Limits (inclusive)</th>{% if editable and can_edit %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
+  <tbody>{% for check in checks %}<tr><th scope="row"><span class="vr-id">{{ check.code }}</span> {{ check.name }}</th><td>{% if check.lower_limit is not None %}≥ {{ check.lower_limit.normalize }}{% endif %}{% if check.lower_limit is not None and check.upper_limit is not None %} and {% endif %}{% if check.upper_limit is not None %}≤ {{ check.upper_limit.normalize }}{% endif %} {{ check.unit }}</td>{% if editable and can_edit %}<td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:qc_check_remove' revision.pk check.pk %}">Remove<span class="visually-hidden"> {{ check.code }}</span></a></td>{% endif %}</tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No QC checks yet. Approval requires at least one.</p>{% endif %}
+{% if editable and can_edit %}<p><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:qc_check_new' revision.pk %}">Add QC check<span class="visually-hidden"> to version {{ revision.version }}</span></a></p>{% endif %}

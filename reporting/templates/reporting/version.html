@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load reporting_tags %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% url 'reporting:detail' report.pk as record_url %}{% include "includes/breadcrumbs.html" with section="Certificates" section_url=list_url record=report.number record_url=record_url current="Version" %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta">{% if is_current %}{% include "includes/status.html" with label="Current version" tone="success" %}{% else %}{% include "includes/status.html" with label="Superseded" tone="neutral" %}{% endif %} Issued <time datetime="{{ version.issued_at|date:'c' }}">{{ version.issued_at|date:"Y-m-d H:i:s T" }}</time></p>{% endblock %}
+{% block page_actions %}<a class="btn btn-primary" href="{% url 'reporting:pdf' report.pk version.number %}">{% include "includes/icon.html" with name="download" %} Download PDF</a> <a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk version.number %}?inline=1" target="_blank" rel="noopener">Open PDF</a>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="integrity-heading">
+  <div class="card-header"><h2 class="card-title" id="integrity-heading">Issued record</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      <div><dt>Signature</dt><dd>{% if signature %}{{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at|date:"Y-m-d H:i:s T" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}</dd></div>
+      <div><dt>Size</dt><dd>{{ version.pdf_size }} bytes</dd></div>
+      {% if version.supersedes_id %}<div><dt>Amends</dt><dd><a href="{% url 'reporting:version' report.pk version.supersedes.number %}">Version {{ version.supersedes.number }}</a></dd></div>{% endif %}
+      {% if version.superseded_by %}<div><dt>Superseded by</dt><dd><a href="{% url 'reporting:version' report.pk version.superseded_by.number %}">Version {{ version.superseded_by.number }}</a></dd></div>{% endif %}
+    </dl>
+    <p class="small mt-3 mb-1 text-break">PDF SHA-256 <span class="vr-id text-wrap text-break">{{ version.pdf_sha256 }}</span></p>
+    <p class="small mb-2 text-break">Evidence SHA-256 <span class="vr-id text-wrap text-break">{{ version.evidence_hash }}</span></p>
+    <p class="vr-muted small mb-0">Shown from the frozen snapshot stored at issue, never from today's records.</p>
+  </div>
+</section>
+{% include "reporting/_certificate.html" %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=report.number %}{% endblock %}

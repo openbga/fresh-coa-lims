@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% comment %}Full-page create/change form. Context: page_title, form (optionally grouped()), crumbs, cancel_url, submit_label, submit_tone, intro, facts.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_intro %}{% if intro %}<p class="vr-page-intro">{{ intro }}</p>{% endif %}{% endblock %}
+{% block content %}
+{% if facts %}
+<section class="card mb-3" aria-labelledby="facts-heading">
+  <div class="card-header"><h2 class="card-title" id="facts-heading">Record</h2></div>
+  <div class="card-body"><dl class="vr-facts mb-0">{% for label, value in facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl></div>
+</section>
+{% endif %}
+<form class="vr-form" method="post" novalidate>
+  {% csrf_token %}
+  {% include "includes/form_errors.html" with form=form %}
+  <p class="vr-form-note">Fields marked <span class="vr-req" aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. The change is recorded in the audit trail with your reason.</p>
+  {% if form.grouped %}
+  {% for legend, fields in form.grouped %}
+  <fieldset class="vr-form-section">
+    <legend>{{ legend }}</legend>
+    {% for field in fields %}{{ field.as_field_group }}{% endfor %}
+  </fieldset>
+  {% endfor %}
+  {% else %}
+  {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+  {% endif %}
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  <div class="vr-form-actions">
+    <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+    <button class="btn btn-{{ submit_tone|default:'primary' }}" type="submit">{{ submit_label }}</button>
+  </div>
+</form>
+{% endblock %}

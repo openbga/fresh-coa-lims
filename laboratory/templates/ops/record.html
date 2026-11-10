@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% comment %}Generic record page. Context from laboratory.ui.record_page.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ identifier }}</span> {% include "ops/_cell.html" with cell=state %}</p>{% endblock %}
+{% block page_actions %}{% for action in actions %}<a class="btn {% if action.primary %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{{ action.href }}">{{ action.label }}</a>{% endfor %}{% endblock %}
+{% block content %}
+{% if notice %}<div class="alert alert-{{ notice.tone }}" role="{% if notice.tone == 'danger' or notice.tone == 'warning' %}alert{% else %}status{% endif %}">{% include "includes/status.html" with label=notice.label tone=notice.tone plain=True %}<div>{{ notice.text }}</div></div>{% endif %}
+<section class="card mb-3" aria-labelledby="facts-heading">
+  <div class="card-header"><h2 class="card-title h5 mb-0" id="facts-heading">Details</h2></div>
+  <div class="card-body"><dl class="vr-facts">{% for label, value in facts %}<div><dt>{{ label }}</dt><dd>{% include "ops/_cell.html" with cell=value %}</dd></div>{% endfor %}</dl></div>
+</section>
+{% for section in sections %}
+<section class="card vr-table-card mb-3" aria-labelledby="section-{{ forloop.counter }}">
+  <div class="card-header"><h2 class="card-title h5 mb-0" id="section-{{ forloop.counter }}">{{ section.title }}</h2></div>
+  <div class="card-body">
+    {% if section.note %}<p class="text-body-secondary mb-2">{{ section.note }}</p>{% endif %}
+    {% if section.rows %}
+    <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="section-{{ forloop.counter }}">
+      <thead><tr>{% for column in section.columns %}<th scope="col"{% if column.1 %} class="text-end"{% endif %}>{{ column.0 }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in section.rows %}<tr>{% for cell in row %}{% if forloop.first %}<th scope="row">{% include "ops/_cell.html" %}</th>{% else %}<td{% if cell.numeric %} class="text-end"{% endif %}>{% include "ops/_cell.html" %}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="text-body-secondary mb-0">{{ section.empty }}</p>{% endif %}
+  </div>
+</section>
+{% endfor %}
+<section class="card vr-table-card mb-3" aria-labelledby="signatures-heading">
+  <div class="card-header"><h2 class="card-title h5 mb-0" id="signatures-heading">Signatures</h2></div>
+  <div class="card-body">
+    {% if signatures %}
+    <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="signatures-heading">
+      <thead><tr><th scope="col">Signer</th><th scope="col">Meaning</th><th scope="col">Signed (server time)</th><th scope="col">Record</th><th scope="col" class="text-end">Bound revision</th><th scope="col">Content hash</th></tr></thead>
+      <tbody>{% for s in signatures %}<tr><th scope="row">{{ s.signer_name }}</th><td>{{ s.meaning|capfirst }}</td><td><time datetime="{{ s.signed_at|date:'c' }}">{{ s.signed_at|date:"Y-m-d H:i:s T" }}</time></td><td>{{ s.object_type }} {{ s.object_id }}</td><td class="text-end">{{ s.revision }}</td><td><code>{{ s.content_hash|slice:":12" }}</code></td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="text-body-secondary mb-0">No signatures yet.</p>{% endif %}
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="history-heading">
+  <div class="card-header"><h2 class="card-title h5 mb-0" id="history-heading">History</h2></div>
+  <div class="card-body">
+    {% if history %}<ol class="vr-timeline">{% for event in history %}{% include "includes/history_item.html" with title=event.action at=event.occurred_at actor=event.actor reason=event.reason changes=event.changes %}{% endfor %}</ol>
+    {% else %}<p class="text-body-secondary mb-0">No history recorded.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=identifier %}{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% comment %}Signing action for a controlled revision. Context: kind, revision, form, blocked, crumbs, cancel_url, detail_template.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ revision }}</span> · record revision {{ revision.revision }} · {% include "catalog/includes/revision_status.html" with status=revision.status %}</p>{% endblock %}
+{% block content %}
+{% include detail_template %}
+<section class="card" aria-labelledby="sign-title">
+  <div class="card-body">
+    <h2 id="sign-title" class="card-title">Sign approval</h2>
+    {% if blocked %}
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div>{{ blocked }} Independent approval cannot be bypassed by any role, including administrators.</div></div>
+    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ revision }}</a></p>
+    {% else %}
+    <p>Your signature records the meaning <strong>approved</strong> for {{ kind|lower }} <strong>{{ revision }}</strong> exactly as shown above, at record revision <strong>{{ revision.revision }}</strong>. The server records the time and binds the signature to the resulting revision {{ revision.revision|add:"1" }} and a hash of its content. If anyone changes the draft before you sign, signing fails and you must review again.</p>
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_errors.html" with form=form %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="vr-form-actions">
+        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Sign and approve</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

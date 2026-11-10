@@ -1,0 +1,6 @@
+{% comment %}Empty state. Parameters: title, body, optional action_url/action_label, clear_url.{% endcomment %}
+<div class="vr-empty">
+  <h3 class="vr-empty-title">{{ title }}</h3>
+  <p class="vr-empty-body">{{ body }}</p>
+  {% if action_url or clear_url %}<div class="vr-empty-actions">{% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}{% if clear_url %}<a class="btn btn-outline-secondary" href="{{ clear_url }}">Clear filters</a>{% endif %}</div>{% endif %}
+</div>

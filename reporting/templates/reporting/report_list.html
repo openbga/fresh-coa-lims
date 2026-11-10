@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Versioned, immutable certificates built from signed QC disposition evidence.</p>{% endblock %}
+{% block page_actions %}{% if can_issue %}<a class="btn btn-primary" href="{% url 'reporting:new' %}">New certificate of analysis</a>{% endif %}{% endblock %}
+{% block content %}
+<form method="get" class="vr-grid-toolbar mb-3" role="search" aria-label="Filter certificates">
+  <div class="vr-field">
+    <label class="form-label" for="q">Search</label>
+    <input class="form-control" id="q" name="q" value="{{ query }}" placeholder="Number, lot, material or recipient">
+  </div>
+  <div class="vr-field">
+    <label class="form-label" for="status">Status</label>
+    <select class="form-select" id="status" name="status">
+      <option value="">All statuses</option>
+      {% for value, label in status_choices %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <div class="vr-filter-actions">
+    <button class="btn btn-outline-secondary" type="submit">Apply filters</button>
+    {% if filtered %}<a class="btn btn-link" href="{% url 'reporting:list' %}">Clear filters</a>{% endif %}
+  </div>
+</form>
+<section class="card vr-table-card" aria-labelledby="coa-table-heading">
+  <h2 class="visually-hidden" id="coa-table-heading">Certificates of analysis</h2>
+  <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Certificates of analysis, scrollable">
+    <table class="table vr-table">
+      <thead>
+        <tr>
+          <th scope="col"><a href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if status %}status={{ status }}&{% endif %}sort={% if sort == 'number' %}-{% endif %}number">Certificate</a></th>
+          <th scope="col"><a href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if status %}status={{ status }}&{% endif %}sort={% if sort == 'lot' %}-{% endif %}lot">Lot</a></th>
+          <th scope="col">Material</th>
+          <th scope="col">Issued to</th>
+          <th scope="col"><a href="?{% if query %}q={{ query|urlencode }}&{% endif %}{% if status %}status={{ status }}&{% endif %}sort={% if sort == 'status' %}-{% endif %}status">Status</a></th>
+          <th scope="col" class="text-end">Version</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for report in page_obj %}
+        <tr>
+          <th scope="row"><a href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></th>
+          <td>{{ report.lot.number }}</td>
+          <td>{{ report.lot.material }}</td>
+          <td>{{ report.recipient|default:"General" }}</td>
+          <td>{% include "includes/status.html" with label=report.status_label tone=report.tone plain=True %}</td>
+          <td class="text-end">{{ report.version_count|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="vr-empty">
+          {% if filtered %}
+            <p class="vr-empty-title">No certificates match these filters.</p>
+            <p class="vr-empty-body">Change the search or <a href="{% url 'reporting:list' %}">clear the filters</a>.</p>
+          {% else %}
+            <p class="vr-empty-title">No certificates of analysis yet.</p>
+            <p class="vr-empty-body">A certificate can be issued once a lot has a signed QC disposition.{% if can_issue %} <a href="{% url 'reporting:new' %}">Start a certificate</a>.{% endif %}</p>
+          {% endif %}
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="vr-table-footer">
+    <span class="vr-count">{{ page_obj.paginator.count }} certificate{{ page_obj.paginator.count|pluralize }}</span>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav aria-label="Pages">
+      {% if page_obj.has_previous %}<a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+      {% if page_obj.has_next %}<a href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

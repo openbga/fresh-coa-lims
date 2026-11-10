@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Analytical runs for one method revision with their QC checks. Tests are submitted only when batch QC passes.</p>{% endblock %}
+{% block page_actions %}{% if can_create %}<a class="btn btn-primary" href="{% url 'analytical:batch_new' %}">{% include "includes/icon.html" with name="plus-lg" %}New QC batch</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "analytical/_tabs.html" %}
+<section class="card vr-table-card" aria-labelledby="batches-heading">
+  <h2 class="visually-hidden" id="batches-heading">QC batches</h2>
+  <form method="get" class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" role="search">
+    <div><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Batch number or method"></div>
+    <div><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="">All batches</option>{% for key, label in states %}<option value="{{ key }}"{% if key == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
+  </form>
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <caption class="visually-hidden">QC batches, newest first</caption>
+      <thead><tr><th scope="col">Batch</th><th scope="col">QC status</th><th scope="col">Method</th><th scope="col">Created</th><th scope="col">Created by</th></tr></thead>
+      <tbody>
+        {% for b in page_obj %}
+        <tr>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:batch_detail' b.pk %}">{{ b.number }}</a></th>
+          <td>{% include "analytical/_qc_status.html" with status=b.status state=b.state plain=True %}</td>
+          <td>{{ b.method_code }} rev. {{ b.method.revision }}</td>
+          <td class="vr-nowrap"><time datetime="{{ b.created_at|date:'c' }}">{{ b.created_at|date:"Y-m-d H:i" }}</time></td>
+          <td>{{ b.created_by.get_full_name|default:b.created_by.get_username }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "analytical/_pager.html" with noun="batches" %}
+  {% elif filtered %}
+  {% include "analytical/_empty.html" with kind="no-results" title="No batches match these filters" body="Search covers batch numbers and method codes." clear_url=request.path %}
+  {% else %}
+  {% if can_create %}{% url 'analytical:batch_new' as create_url %}{% endif %}
+  {% include "analytical/_empty.html" with title="No QC batches yet" body="Create a batch for an approved batch method, record its QC checks and add tests to it." action_url=create_url action_label="New QC batch" %}
+  {% endif %}
+</section>
+{% endblock %}

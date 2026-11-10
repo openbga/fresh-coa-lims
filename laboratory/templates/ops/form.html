@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_intro %}{% if intro %}<p class="vr-page-intro">{{ intro }}</p>{% endif %}{% endblock %}
+{% block content %}
+<form class="vr-form" method="post" novalidate>
+  {% csrf_token %}
+  <div class="vr-form-section vr-narrow">{{ form }}</div>
+  <div class="vr-form-actions"><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Cancel</a><button class="btn btn-primary" type="submit">{{ submit }}</button></div>
+</form>
+{% endblock %}

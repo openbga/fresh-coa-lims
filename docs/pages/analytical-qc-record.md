@@ -1,0 +1,48 @@
+---
+title: Record QC result
+urls: analytical:qc_record
+views: analytical.views.qc_record
+templates: analytical/form.html, analytical/_summary.html
+models: analytical.QCBatch, analytical.QCResult
+reviewed: 2026-11-10
+---
+
+## Purpose
+
+Record the result of one QC check of a batch.
+
+## Who can use it
+
+- Sign-in required. **Analysts** only; others receive 403.
+- An unknown check code gives 404.
+
+## Layout
+
+- Heading "Record CHECK · BATCH". Summary: Batch, QC check, Acceptance, Unit.
+- Form: **Observed value**, **Original record**, **Cancel**, **Record QC result**.
+
+## Actions
+
+| Action | Shown when | Who | Result |
+|---|---|---|---|
+| **Record QC result** | Always | Analyst | Saves; "CHECK recorded."; returns to the batch |
+| **Cancel** | Always | Analyst | Returns to the batch |
+
+## Fields
+
+| Field | Model field | Type / units | Required | Meaning and use |
+|---|---|---|---|---|
+| Observed value | `QCResult.value` | Decimal, 8 decimals, unit from the check | Yes | "Exact value as read; at most 8 decimal places. Never enter a nondetect as zero." |
+| Original record | `QCResult.raw_reference` | Text, max 200 | Yes | Notebook page, instrument file or worksheet |
+
+## Rules and hidden logic
+
+- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the batch record with the warning "QC entries for this batch are closed." (batch not Open, or a test in it already submitted).
+- **Preconditions**: batch Open ("This batch is closed to QC entries."); no test in the batch submitted ("QC cannot change after test results in this batch are submitted."); check not already recorded ("This QC check is recorded. Correct it instead.").
+- **Blank record**: "Record where the original QC observation is kept."
+- **Effect**: batch revision rises by 1; `qc.recorded` is audited with whether the value conforms. A failing value is saved and sets batch QC to failed.
+- The batch recorder counts as data author for independence: they cannot review or reject tests or the batch.
+
+## Related pages
+
+- QC batch record (return target).

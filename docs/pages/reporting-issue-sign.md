@@ -1,0 +1,57 @@
+---
+title: Sign and issue certificate
+urls: reporting:issue_sign
+views: reporting.views.issue_sign
+templates: reporting/sign.html
+models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
+reviewed: 2026-11-10
+---
+
+## Purpose
+
+Signs and issues version 1 of a certificate of analysis for a released lot, with your signature PIN. The signature binds the exact evidence you reviewed.
+
+## Who can use it
+
+- Sign-in required. Only the **quality** role; others receive 403.
+- You cannot sign for a lot on which you recorded the lot, a sample or a result; the attempt is refused (status 403) and nothing is signed.
+
+## Layout
+
+- **Dialog** (a full page without JavaScript): heading "Sign and issue certificate", a statement of what your signature records, your name as signer, a link to enrol or change your signature PIN, any error summary, the form, and **Sign and issue certificate** / **Cancel**.
+- Opening the page never signs. With JavaScript it opens as a modal, focus goes to the PIN (or the error), Escape or **Cancel** leaves without signing.
+
+## Actions
+
+| Action | Shown when | Who | Result |
+|---|---|---|---|
+| **Sign and issue certificate** | Always | Quality | Creates version 1, its PDF and signature, then opens the certificate record with "<number> version 1 issued." |
+| **Cancel** | Always | Quality | Returns to the review page without changes |
+| Enrol or change your signature PIN | Always | Any | Opens [Signature PIN](/signature-pin/) |
+
+## Fields
+
+| Field | Model field | Type / units | Required | Meaning and use |
+|---|---|---|---|---|
+| Issued to | `Report.recipient` | Text, max 160 | No | Recipient named on the certificate; blank means a general certificate |
+| Remarks on the certificate | `ReportVersion.remarks` | Text, max 1000 | No | Printed on the certificate |
+| Reason for issuing | `ReportVersion.reason` | Text, max 2000 | Yes | Kept in the audit trail and signature; not printed on a first issue |
+| Evidence hash (hidden) | — | SHA-256 | Yes | The evidence you reviewed; must still match |
+| Signing username | — | Text, max 150 | Yes | Must be your own username |
+| Signature PIN | — | Masked digits | Yes | Re-enter for every signing; never refilled after an error |
+
+## Rules and hidden logic
+
+- **Arriving here**: the link must carry the current evidence hash and the evidence must have no blockers; otherwise you are sent back to the review page with a warning.
+- **Draft record**: submitting creates (or reuses) the certificate record for this lot and recipient first, and writes `report.opened`. It stays as "Not issued" if signing fails. The lot must be released: "A certificate needs a lot with a signed QC disposition."
+- **Checks under lock at signing**: this record and the lot are locked; evidence is collected again and must equal the hash you reviewed ("The evidence changed since you reviewed it. Review again."); all blockers are re-evaluated ("Certificate cannot be issued:" plus reasons); you must not be an author ("You cannot issue a certificate for records you authored."); a certificate already issued for this lot and recipient is refused ("This certificate is already issued; amend it instead.").
+- **Atomic**: the PDF is rendered, the version stored, the signature (meaning `issued`) and audit event `signed.issued` written together. A rendering failure ("The certificate could not be rendered: …") or any other failure leaves no version, signature or audit event of the issue.
+- **Credentials**: a wrong PIN or username is refused ("Signature PIN was not accepted.", "Enter your own signing username and PIN."); failed PIN attempts are counted and audited even though signing is rejected, and repeated failures lock the PIN.
+- **Time**: the issue time printed on the certificate is the server's signing time, identical to the signature's.
+- **Immutable**: the issued version, its PDF bytes and hashes cannot be changed or deleted.
+- Invalid form input is returned with errors and your entries (except the PIN), status 422.
+
+## Related pages
+
+- Review certificate (where you come from), the certificate record.
+- [Signature PIN](/signature-pin/)

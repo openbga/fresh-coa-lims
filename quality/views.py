@@ -34,11 +34,17 @@ def lot_list(request):
 def lot_detail(request, pk):
     access(request.user)
     lot = get_object_or_404(Lot.objects.select_related("rules"), pk=pk)
+    from sampling.services import current_assignment
+
+    assignment = current_assignment(lot)
     return render(
         request,
         "quality/lot_detail.html",
         {
             "lot": lot,
+            "can_issue_coa": request.user.groups.filter(name="quality").exists(),
+            "reports": lot.reports.all(),
+            "assignment": assignment,
             "samples": lot.samples.prefetch_related("results__analyst"),
             "signatures": ElectronicSignature.objects.filter(
                 object_type="quality.lot", object_id=str(lot.pk)
@@ -120,12 +126,13 @@ def sign(request, pk, action):
     lot = obj.sample.lot if is_review else obj
     form = SigningForm(request.POST or None, initial={"expected_revision": obj.revision})
     if request.method == "POST" and form.is_valid():
+        signing_data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
 
         def commit():
             if is_review:
-                services.review_result(actor=request.user, result=obj, **form.cleaned_data)
+                services.review_result(actor=request.user, result=obj, **signing_data)
             else:
-                services.dispose_lot(actor=request.user, lot=obj, **form.cleaned_data)
+                services.dispose_lot(actor=request.user, lot=obj, **signing_data)
             return True
 
         if perform(form, commit):

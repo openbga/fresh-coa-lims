@@ -1,0 +1,2 @@
+{% comment %}Key facts of the record an action applies to. Parameters: summary (label, value pairs).{% endcomment %}
+{% if summary %}<dl class="vr-facts">{% for label, value in summary %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}

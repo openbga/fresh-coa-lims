@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Required tests by lot and sample, from assignment through independent review. Assign tests from a lot's testing page.</p>{% endblock %}
+{% block content %}
+{% include "analytical/_tabs.html" %}
+<section class="card vr-table-card" aria-labelledby="tests-heading">
+  <h2 class="visually-hidden" id="tests-heading">Tests</h2>
+  <form method="get" class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" role="search">
+    <div><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot, sample or test code"></div>
+    <div><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select">{% for key, label in states %}<option value="{{ key }}"{% if key == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
+  </form>
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <caption class="visually-hidden">Analytical tests, newest first</caption>
+      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Sample</th><th scope="col">Code</th><th scope="col">Kind</th><th scope="col" class="text-end">Reportable</th><th scope="col">Batch</th><th scope="col">Assigned</th></tr></thead>
+      <tbody>
+        {% for t in page_obj %}
+        <tr>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
+          <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>
+          <td><a class="vr-id" href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a></td>
+          <td class="vr-id">{{ t.sample.reference }}</td>
+          <td>{{ t.test_code }}</td>
+          <td>{{ t.get_kind_display }}</td>
+          <td class="text-end vr-nowrap">{% if t.reportable_value is not None %}{{ t.reportable_display }} <span class="vr-muted small">{{ t.spec.unit }}</span>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{% if t.batch %}<a class="vr-id" href="{% url 'analytical:batch_detail' t.batch_id %}">{{ t.batch.number }}</a>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td class="vr-nowrap"><time datetime="{{ t.created_at|date:'c' }}">{{ t.created_at|date:"Y-m-d H:i" }}</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "analytical/_pager.html" with noun="tests" %}
+  {% elif filtered %}
+  {% include "analytical/_empty.html" with kind="no-results" title="No tests match these filters" body="Search covers lot numbers, sample references and test codes." clear_url=request.path %}
+  {% else %}
+  {% url 'quality:lot_list' as lots_url %}
+  {% include "analytical/_empty.html" with title="No tests assigned yet" body="Open a quarantined lot's testing page and assign its required tests to a sample." action_url=lots_url action_label="Material lots" %}
+  {% endif %}
+</section>
+{% endblock %}

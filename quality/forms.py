@@ -61,6 +61,7 @@ class ResultForm(StyledForm):
 
 
 class SigningForm(StyledForm):
+    signature_username = forms.CharField(label="Signing username", max_length=150)
     pin = forms.CharField(
         label="Signature PIN",
         widget=forms.PasswordInput(attrs={"autocomplete": "off", "inputmode": "numeric"}),

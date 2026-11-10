@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Methods link each test to a controlled procedure and evidence that it is suitable for its intended use.</p>{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_new' %}">New method</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "catalog/includes/tabs.html" with label="Specifications and methods sections" %}
+<section class="card vr-table-card" aria-labelledby="list-heading">
+  <h2 class="visually-hidden" id="list-heading">Methods</h2>
+  {% include "catalog/includes/toolbar.html" with label="Filter methods" placeholder="Code or title" %}
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <thead><tr>{% include "catalog/includes/sort.html" with label="Method" key="code" current=sort %}<th scope="col">Title</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for method in page_obj %}
+        <tr>
+          <th scope="row"><a href="{% url 'catalog:method' method.pk %}">{{ method.code }}</a></th>
+          <td>{{ method.title }}</td>
+          <td class="text-end">{{ method.versions }}</td>
+          <td>{% if method.approved %}{% include "includes/status.html" with label="Has approved version" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="No approved version" tone="warning" plain=True %}{% endif %}{% if method.drafts %}<br>{% include "includes/status.html" with label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "catalog/includes/pagination.html" with noun="methods" %}
+  {% elif filtered %}
+  {% include "catalog/includes/empty.html" with kind="no-results" title="No methods match these filters" body="Change or clear the filters." clear_url=request.path %}
+  {% else %}
+  {% if can_edit %}{% url 'catalog:method_new' as create_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No methods yet" body="Add the first method and link its controlled procedure and suitability evidence." action_url=create_url action_label="New method" %}
+  {% endif %}
+</section>
+{% endblock %}

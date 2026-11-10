@@ -1,0 +1,47 @@
+---
+title: Stability protocols
+urls: stability:protocol_list
+views: stability.views.protocol_list
+templates: ops/list.html
+models: stability.Protocol
+reviewed: 2026-11-10
+---
+
+## Purpose
+
+Product-specific stability protocols. Conditions and schedules come from an approved protocol, never from a default.
+
+## Who can use it
+
+- Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
+- Reading is allowed for these roles; the New control is hidden from roles that cannot use it and the server refuses them with 403.
+
+## Layout
+
+- **Header**: title, short introduction and a **New protocol** button for Analyst, Quality.
+- **Toolbar**: **Search** (code, title or product) and **Status** (All, Draft, Approved, Superseded). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Protocol (code and version, links to the record), Title, Product, State, Approved (date). Sort by Protocol (default), Product or Approved. Sortable headers toggle ascending/descending.
+- **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
+- **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
+
+## Actions
+
+| Action | Shown when | Who | Result |
+|---|---|---|---|
+| **New protocol** | Your role can create it | Analyst, Quality | Opens the New protocol form |
+| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
+
+## Fields
+
+| Field | Model field | Type / units | Required | Meaning and use |
+|---|---|---|---|---|
+| State | `Protocol.state` | Draft / Approved / Superseded | — | Approved versions are frozen; approving a new version supersedes the old |
+
+## Rules and hidden logic
+
+- Version numbers rise per code.
+
+## Related pages
+
+- [Stability studies](/stability/studies/)

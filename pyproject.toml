@@ -10,6 +10,7 @@ dependencies = [
   "gunicorn>=26.2,<27",
   "whitenoise>=6.12,<7",
   "dj-database-url>=3,<4",
+  "weasyprint>=70,<71",
 ]
 
 [dependency-groups]
@@ -21,7 +22,7 @@ e2e = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
-testpaths = ["tests", "accounts/tests"]
+testpaths = ["tests", "accounts/tests", "catalog/tests", "sampling/tests", "analytical/tests", "laboratory/tests", "stability/tests", "reporting/tests", "pagedocs/tests"]
 
 
 [tool.ruff]

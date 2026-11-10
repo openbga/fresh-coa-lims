@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% comment %}Work-queue overview: counts link to filtered lists. Context: page_title, intro, queues.{% endcomment %}
+{% block page_dateline %}{% include "includes/dateline.html" %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">{{ intro }}</p>{% endblock %}
+{% block content %}
+<section class="card vr-table-card" aria-labelledby="queues-heading">
+  <h2 class="visually-hidden" id="queues-heading">Work queues</h2>
+  <div class="vr-table-wrap"><table class="table table-hover vr-table" aria-labelledby="queues-heading">
+    <thead><tr><th scope="col">Queue</th><th scope="col" class="text-end">Records</th><th scope="col">Attention</th></tr></thead>
+    <tbody>{% for queue in queues %}<tr><th scope="row"><a class="vr-row-link" href="{{ queue.href }}">{{ queue.label }}</a></th><td class="text-end">{{ queue.count }}</td><td>{% if queue.count %}{% include "includes/status.html" with label="Needs attention" tone=queue.tone plain=True %}{% else %}{% include "includes/status.html" with label="Clear" tone="neutral" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

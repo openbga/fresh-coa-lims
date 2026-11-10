@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% include "includes/breadcrumbs.html" with section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endblock %}
+{% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% endblock %}
+{% block page_meta %}
+<ul class="vr-page-meta">
+  <li>{% include "analytical/_test_status.html" with plain=True %}</li>
+  <li>{{ test.get_kind_display }}</li>
+  <li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' test.lot_id %}">{{ test.lot.number }}</a> · sample <span class="vr-id">{{ test.sample.reference }}</span></li>
+  <li>Revision {{ test.revision }}</li>
+</ul>
+{% endblock %}
+{% block page_actions %}
+{% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">Sign review</a>{% endif %}
+{% if can_return %}<a class="btn btn-outline-secondary" href="{% url 'analytical:test_return' test.pk %}">Return test</a>{% endif %}
+{% if can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% endif %}
+{% if can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">Record observation</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if triggered %}
+<div class="alert alert-danger" role="status">{% include "analytical/_investigation_status.html" with inv=triggered plain=True %}<div>This result opened <a href="{% url 'analytical:investigation_detail' triggered.pk %}">{{ triggered.label }}</a>. It cannot be corrected or returned; the investigation decides whether it is invalid.</div></div>
+{% endif %}
+{% if test.investigation %}
+<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Investigation test" tone="info" plain=True %}<div>Authorized under <a href="{% url 'analytical:investigation_detail' test.investigation_id %}">{{ test.investigation.label }}</a>. All results stay attached to the investigation; none replaces the original until quality concludes.</div></div>
+{% endif %}
+<div class="row g-3">
+<div class="col-xl-8">
+<section class="card vr-table-card mb-3" aria-labelledby="obs-heading">
+  <div class="card-header"><h2 class="card-title" id="obs-heading">Observations</h2><span class="vr-count">{{ current_count }} of {{ spec.replicates }}</span></div>
+  <div class="card-body">
+    {% if observations %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Replicate</th><th scope="col" class="text-end">Value ({{ spec.unit }})</th><th scope="col">Within limits</th><th scope="col">Original record</th><th scope="col">Recorded</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {% for o in observations %}
+          <tr>
+            <th scope="row">{{ o.replicate }}{% if not o.is_current %} <span class="vr-muted small">superseded</span>{% elif o.supersedes %} <span class="vr-muted small">correction</span>{% endif %}</th>
+            <td class="text-end vr-nowrap">{% if o.is_current %}{{ o.value_text }}{% else %}<del class="vr-prior">{{ o.value_text }}</del>{% endif %}</td>
+            <td>{% if o.in_limits %}{% include "includes/status.html" with label="Yes" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="No" tone="danger" plain=True %}{% endif %}</td>
+            <td>{{ o.raw_reference }}{% if o.reason %}<div class="small vr-muted">{{ o.reason }}</div>{% endif %}</td>
+            <td class="vr-nowrap">{{ o.recorded_by.get_full_name|default:o.recorded_by.get_username }}<div class="small vr-muted"><time datetime="{{ o.recorded_at|date:'c' }}">{{ o.recorded_at|date:"Y-m-d H:i T" }}</time></div></td>
+            <td>{% if can_correct and o.is_current %}<a href="{% url 'analytical:observation_correct' o.pk %}">Correct<span class="visually-hidden"> replicate {{ o.replicate }}</span></a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% if spec.method.requires_batch and not test.batch %}
+    {% include "analytical/_empty.html" with title="No observations yet" body="This method runs in a QC batch. Add the test to an open batch before recording results." %}
+    {% else %}
+    {% include "analytical/_empty.html" with title="No observations yet" body="Record each replicate with the location of its original record." %}
+    {% endif %}
+    {% endif %}
+    {% if can_submit %}
+    <form method="post" action="{% url 'analytical:test_detail' test.pk %}" class="vr-form mt-3">
+      {% csrf_token %}
+      {{ submit_form }}
+      <div class="vr-form-actions"><button class="btn btn-primary" type="submit">Submit for review</button></div>
+      <p class="vr-form-note">Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the lot.</p>
+    </form>
+    {% elif test.state == "open" and current_count == spec.replicates and not qc_ready %}
+    <p class="vr-form-note mt-3">Results cannot be submitted until the test's QC batch is open and its QC passes.</p>
+    {% elif test.state == "submitted" and not qc_ready %}
+    <p class="vr-form-note mt-3">Review is blocked: the test's QC batch no longer passes.</p>
+    {% endif %}
+  </div>
+</section>
+{% include "analytical/_history.html" %}
+</div>
+<div class="col-xl-4">
+<section class="card mb-3" aria-labelledby="spec-heading">
+  <div class="card-header"><h2 class="card-title" id="spec-heading">Specification and result</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      <div><dt>Test code</dt><dd>{{ test.test_code }}</dd></div>
+      <div><dt>Specification revision</dt><dd>{{ spec.source }}<div class="small vr-muted">Snapshot hash <span class="vr-id">{{ test.requirement_hash|truncatechars:17 }}</span></div></dd></div>
+      <div><dt>Limits</dt><dd>{{ limits }}{% if spec.replicate_limits %}<div class="small vr-muted">Each replicate and the reportable value must conform.</div>{% endif %}</dd></div>
+      <div><dt>Method</dt><dd>{{ spec.method.code }} revision {{ spec.method.revision }}</dd></div>
+      <div><dt>Replicates</dt><dd>{{ spec.replicates }}; {% if spec.reporting_decimals is None %}exact mean compared without rounding{% else %}mean rounded half-up to {{ spec.reporting_decimals }} decimal place{{ spec.reporting_decimals|pluralize }}{% endif %}</dd></div>
+      <div><dt>QC batch</dt><dd>{% if test.batch %}<a class="vr-id" href="{% url 'analytical:batch_detail' test.batch_id %}">{{ test.batch.number }}</a> {% include "analytical/_qc_status.html" with status=batch_status state=test.batch.state plain=True %}{% elif spec.method.requires_batch %}<span class="vr-muted">Not yet assigned</span>{% else %}<span class="vr-muted">Not required by method</span>{% endif %}</dd></div>
+      <div><dt>Mean</dt><dd>{% if test.mean_value is not None %}{{ test.mean_value.normalize }} {{ spec.unit }}{% else %}<span class="vr-muted">Not calculated</span>{% endif %}</dd></div>
+      <div><dt>Reportable</dt><dd>{% if test.reportable_value is not None %}<strong>{{ test.reportable_display }} {{ spec.unit }}</strong>{% else %}<span class="vr-muted">Calculated on submission</span>{% endif %}</dd></div>
+      {% if test.submitted_by %}<div><dt>Submitted by</dt><dd>{{ test.submitted_by.get_full_name|default:test.submitted_by.get_username }}</dd></div>{% endif %}
+      {% if test.parent %}<div><dt>Replaces</dt><dd><a class="vr-id" href="{% url 'analytical:test_detail' test.parent_id %}">{{ test.parent.label }}</a></dd></div>{% endif %}
+      {% if children %}<div><dt>Linked tests</dt><dd>{% for c in children %}<a class="vr-id" href="{% url 'analytical:test_detail' c.pk %}">{{ c.label }}</a> {{ c.get_kind_display|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd></div>{% endif %}
+    </dl>
+  </div>
+</section>
+</div>
+</div>
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=test.label %}{% endblock %}

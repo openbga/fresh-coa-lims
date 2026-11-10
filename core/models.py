@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class AuditEvent(models.Model):
@@ -49,11 +50,12 @@ class RuleSet(models.Model):
 class ElectronicSignature(models.Model):
     signer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     signer_name = models.CharField(max_length=256)
-    signed_at = models.DateTimeField(auto_now_add=True)
+    signed_at = models.DateTimeField(default=timezone.now, editable=False)
     meaning = models.CharField(max_length=80)
     object_type = models.CharField(max_length=100)
     object_id = models.CharField(max_length=64)
     revision = models.PositiveIntegerField()
+    authentication_context = models.JSONField(default=dict)
     content_hash = models.CharField(max_length=64)
     content = models.JSONField()
     audit_event = models.OneToOneField(AuditEvent, on_delete=models.PROTECT)

@@ -17,7 +17,9 @@ PIN = "12345678"
 
 
 @pytest.fixture
-def journey(django_user_model):
+def journey(django_user_model, settings):
+    # The foundation manual-limit path is retained only for synthetic development use.
+    settings.DEBUG = True
     people = {}
     for role in ["analyst", "reviewer", "quality"]:
         user = django_user_model.objects.create_user(role, password="test-password-2026")

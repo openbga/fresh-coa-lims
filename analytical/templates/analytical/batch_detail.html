@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'analytical:batch_list' as list_url %}{% include "includes/breadcrumbs.html" with section="QC batches" section_url=list_url current=batch.number %}{% endblock %}
+{% block page_heading %}<span class="vr-id">{{ batch.number }}</span>{% endblock %}
+{% block page_meta %}
+<ul class="vr-page-meta">
+  <li>{% include "analytical/_qc_status.html" with state=batch.state plain=True %}</li>
+  <li>{{ batch.method_code }} revision {{ batch.method.revision }}</li>
+  <li>Created by {{ batch.created_by.get_full_name|default:batch.created_by.get_username }}</li>
+  <li>Revision {{ batch.revision }}</li>
+</ul>
+{% endblock %}
+{% block page_actions %}{% if can_reject %}<a class="btn btn-outline-danger" href="{% url 'analytical:batch_reject' batch.pk %}">Reject batch</a>{% endif %}{% endblock %}
+{% block content %}
+{% if batch.state == "open" and status == "failed" %}
+<div class="alert alert-danger" role="status">{% include "includes/status.html" with label="QC failed" tone="danger" plain=True %}<div>Tests in this batch cannot be submitted or reviewed. Correct a transcription error with a reason, or have a reviewer reject the batch: its tests are then invalidated with linked reruns, and any out-of-limit value opens an investigation.</div></div>
+{% endif %}
+<section class="card vr-table-card mb-3" aria-labelledby="qc-heading">
+  <div class="card-header"><h2 class="card-title" id="qc-heading">QC checks</h2><span class="vr-count">{{ checks|length }}</span></div>
+  <div class="card-body">
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Check</th><th scope="col">Acceptance</th><th scope="col" class="text-end">Result</th><th scope="col">Status</th><th scope="col">Original record</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {% for row in checks %}
+          <tr>
+            <th scope="row">{{ row.check.name }}<div class="small vr-muted fw-normal">{{ row.check.code }}</div></th>
+            <td class="vr-nowrap">{% if row.check.lower is not None %}≥ {{ row.check.lower }}{% endif %}{% if row.check.lower is not None and row.check.upper is not None %} and {% endif %}{% if row.check.upper is not None %}≤ {{ row.check.upper }}{% endif %} {{ row.check.unit }}</td>
+            <td class="text-end vr-nowrap">{% if row.result %}{{ row.result.value_text }} <span class="vr-muted small">{{ row.result.unit }}</span>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+            <td>{% if row.conforms is None %}{% include "includes/status.html" with label="Not recorded" tone="warning" plain=True %}{% elif row.conforms %}{% include "includes/status.html" with label="Passes" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Fails" tone="danger" plain=True %}{% endif %}</td>
+            <td>{% if row.result %}{{ row.result.raw_reference }}<div class="small vr-muted">{{ row.result.recorded_by.get_full_name|default:row.result.recorded_by.get_username }}, <time datetime="{{ row.result.recorded_at|date:'c' }}">{{ row.result.recorded_at|date:"Y-m-d H:i T" }}</time></div>{% endif %}</td>
+            <td>{% if can_qc %}{% if row.result %}<a href="{% url 'analytical:qc_correct' row.result.pk %}">Correct<span class="visually-hidden"> {{ row.check.name }}</span></a>{% else %}<a href="{% url 'analytical:qc_record' batch.pk row.check.code %}">Record<span class="visually-hidden"> {{ row.check.name }}</span></a>{% endif %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if corrections %}
+    <h3 class="h6 mt-3">Corrections</h3>
+    <ul class="small mb-0">{% for c in corrections %}<li>{{ c.check_code }}: <del class="vr-prior">{{ c.supersedes.value_text }}</del> → {{ c.value_text }} {{ c.unit }} — {{ c.reason }} ({{ c.recorded_by.get_full_name|default:c.recorded_by.get_username }}, <time datetime="{{ c.recorded_at|date:'c' }}">{{ c.recorded_at|date:"Y-m-d H:i T" }}</time>)</li>{% endfor %}</ul>
+    {% endif %}
+    {% if frozen and batch.state == "open" %}<p class="vr-form-note mt-2">QC entries are frozen once a test in this batch is submitted.</p>{% endif %}
+  </div>
+</section>
+<section class="card vr-table-card mb-3" aria-labelledby="tests-heading">
+  <div class="card-header"><h2 class="card-title" id="tests-heading">Tests in this batch</h2><span class="vr-count">{{ tests|length }}</span></div>
+  <div class="card-body">
+    {% if tests %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col">Lot</th><th scope="col">Sample</th><th scope="col">Code</th><th scope="col">Status</th></tr></thead>
+        <tbody>{% for t in tests %}<tr><th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th><td class="vr-id">{{ t.lot.number }}</td><td class="vr-id">{{ t.sample.reference }}</td><td>{{ t.test_code }}</td><td>{% include "analytical/_test_status.html" with test=t plain=True %}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No tests in this batch" body="Open a test that uses this method and choose Add to QC batch." %}
+    {% endif %}
+  </div>
+</section>
+{% include "analytical/_history.html" %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=batch.number %}{% endblock %}

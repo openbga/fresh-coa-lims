@@ -29,7 +29,15 @@ class RuleForm(StyledForm):
     reason = forms.CharField(widget=forms.Textarea)
 
 
-class SignForm(StyledForm):
+class SignatureIdentityForm(StyledForm):
+    signature_username = forms.CharField(
+        label="Signing username",
+        max_length=150,
+        widget=forms.TextInput(attrs={"autocomplete": "off"}),
+    )
+
+
+class SignForm(SignatureIdentityForm):
     revision = forms.IntegerField(widget=forms.HiddenInput)
     pin = forms.CharField(widget=forms.PasswordInput, label="Signature PIN")
     reason = forms.CharField(widget=forms.Textarea)

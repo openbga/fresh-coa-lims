@@ -1,0 +1,8 @@
+{% comment %}Server-side search toolbar. Parameters: label, placeholder, query, filtered, and optional block of extra selects via "stages"/"stage" or "statuses"/"status".{% endcomment %}
+<form class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" method="get" role="search" aria-label="{{ label }}">
+  <div><label class="form-label" for="list-q">Search</label><input class="form-control" id="list-q" name="q" type="search" value="{{ query }}" placeholder="{{ placeholder }}"></div>
+  {% if stages %}<div><label class="form-label" for="list-stage">Stage</label><select class="form-select" id="list-stage" name="stage"><option value="">All stages</option>{% for value, text in stages %}<option value="{{ value }}"{% if value == stage %} selected{% endif %}>{{ text }}</option>{% endfor %}</select></div>{% endif %}
+  {% if statuses %}<div><label class="form-label" for="list-status">Status</label><select class="form-select" id="list-status" name="status"><option value="">All statuses</option>{% for value, text in statuses %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ text }}</option>{% endfor %}</select></div>{% endif %}
+  {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+  <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
+</form>

@@ -1,0 +1,50 @@
+---
+title: Return equipment to service
+urls: laboratory:equipment_return
+views: laboratory.views.equipment_return
+templates: ops/sign.html
+models: laboratory.Equipment, core.ElectronicSignature
+reviewed: 2026-11-10
+---
+
+## Purpose
+
+Approve returning equipment to service after assessing the impact of its failure or removal, with meaning **approved**.
+
+## Who can use it
+
+- Sign-in required. Role: Quality.
+- A user who is not permitted (wrong role or not independent) sees the reason and no PIN control (403).
+
+## Layout
+
+- A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+
+## Actions
+
+| Action | Shown when | Who | Result |
+|---|---|---|---|
+| **Sign and approve** | Not denied | Role: Quality | Signs with meaning **approved**; returns to the record with a confirmation message |
+| **Cancel** / Escape | Always | Any | Returns to the record; nothing is signed |
+
+## Fields
+
+| Field | Model field | Type / units | Required | Meaning and use |
+|---|---|---|---|---|
+| Description / Current state | — | Display | — | The equipment and its fitness label |
+| Signing username | — | Text | Yes | Must equal your own username |
+| Impact assessment | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
+| Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |
+| Expected revision (hidden) | `Equipment.revision` | Integer | Yes | Revision shown when the page opened |
+
+## Rules and hidden logic
+
+- **Preconditions**: currently out of service ("Equipment is already in service."); you are not the person who removed it ("The person who removed equipment from service cannot return it."); the latest counting calibration is a pass ("A passing calibration after any failure must be independently accepted first.") and not expired ("The latest accepted calibration has expired."); approved current qualification when required ("Approved, current qualification evidence is required.").
+- The impact assessment you type is stored with the failed calibrations and the recorded uses since the last accepted passing calibration before the earliest failure that no signed return to service has assessed yet ("Failed calibrations assessed: …", "Affected uses assessed: …"). A later passing calibration does not shrink that list; if the lists change while you sign: "Recorded uses or failures changed while you assessed them. Reload and reassess." Qualification must be approved and inside its validity dates.
+- **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).
+- **Stale page**: if the record changed after the page opened: "Record changed. Reload and review before signing."
+- **Effect**: one transaction applies the change, raises the record revision by 1, writes the audit event `signed.<meaning>` and an immutable signature bound to the new revision.
+
+## Related pages
+
+- Equipment record

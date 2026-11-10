@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% comment %}Action form page. Context: page_title, form, submit_label, crumbs, cancel_url, summary.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block content %}
+{% if summary %}<section class="card mb-3" aria-label="Record"><div class="card-body">{% include "analytical/_summary.html" %}</div></section>{% endif %}
+<form class="vr-form" method="post" novalidate>
+  {% csrf_token %}
+  <p class="vr-form-note">Fields marked <span class="vr-req" aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. The server records the time and your identity.</p>
+  <fieldset class="vr-form-section">
+    <legend class="visually-hidden">{{ page_title }}</legend>
+    {{ form }}
+  </fieldset>
+  <div class="vr-form-actions">
+    <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+    <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
+  </div>
+</form>
+{% endblock %}

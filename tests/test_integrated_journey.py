@@ -1,0 +1,501 @@
+"""Cross-package acceptance using approved service-created policy, never fixture providers."""
+
+import hashlib
+from datetime import timedelta
+from decimal import Decimal
+
+import pytest
+from django.contrib.auth.models import Group
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import DatabaseError, transaction
+from django.utils import timezone
+
+from analytical import gates
+from analytical import services as analytical
+from catalog import services as catalog
+from core.models import ElectronicSignature
+from core.services import approve_rule, save_rule, set_pin
+from laboratory import services as laboratory
+from quality import services as quality
+from quality.models import Result
+from reporting import services as reporting
+from reporting.models import ReportVersion
+from sampling import services as sampling
+
+pytestmark = pytest.mark.django_db(transaction=True)
+PIN = "84621357"
+PASSWORD = "Synthetic-integration-login-2026!"
+
+
+def approve(revision, actor):
+    revision.refresh_from_db()
+    return catalog.approve_revision(
+        actor=actor,
+        pin=PIN,
+        revision=revision,
+        expected_revision=revision.revision,
+        reason="Independent synthetic configuration review",
+    )
+
+
+@pytest.fixture
+def integrated(django_user_model, settings):
+    # This is the production adapter. No analytical.fixtures or approval-row shortcuts.
+    assert settings.ANALYTICAL_REQUIREMENT_PROVIDER == (
+        "config.integrations.CatalogRequirementProvider"
+    )
+    people = {}
+    for name, roles in {
+        "author": ["quality"],
+        "approver": ["quality"],
+        "analyst": ["analyst", "quality", "reviewer"],
+        "reviewer": ["reviewer"],
+    }.items():
+        person = django_user_model.objects.create_user(
+            username=f"synthetic_{name}",
+            password=PASSWORD,
+            first_name="Synthetic",
+            last_name=name.title(),
+        )
+        person.groups.add(*[Group.objects.get_or_create(name=r)[0] for r in roles])
+        set_pin(actor=person, pin=PIN, password=PASSWORD)
+        people[name] = person
+    author, approver = people["author"], people["approver"]
+    start, end = timezone.now() - timedelta(days=1), timezone.now() + timedelta(days=365)
+    rules = save_rule(
+        actor=author,
+        code="synthetic-integrated",
+        segment="chemical",
+        policy={
+            "required_tests": ["assay"],
+            "review_meaning": "reviewed",
+            "disposition_meaning": "approved",
+        },
+        effective_from=start,
+        effective_until=end,
+        reason="Synthetic integration policy",
+    )
+    rules = approve_rule(
+        actor=approver,
+        pin=PIN,
+        rule=rules,
+        expected_revision=rules.revision,
+        reason="Independent synthetic policy review",
+    )
+    material = catalog.create_material(
+        actor=author,
+        code="synthetic-powder",
+        name="Synthetic reference powder",
+        kind="raw_material",
+        reason="Synthetic master data",
+    )
+    method, method_revision = catalog.create_method(
+        actor=author,
+        code="synthetic-assay",
+        title="Synthetic assay",
+        technique="Gravimetry",
+        document_ref="SOP-SYN-001 rev 1",
+        suitability_kind="validation",
+        suitability_ref="VAL-SYN-001 rev 1",
+        requires_batch=False,
+        effective_from=start,
+        effective_until=end,
+        reason="Explicit no-batch synthetic method",
+    )
+    method_revision = approve(method_revision, approver)
+    _, spec_revision = catalog.create_specification(
+        actor=author,
+        code="synthetic-spec",
+        title="Synthetic incoming specification",
+        material=material,
+        stage="incoming",
+        scope="general",
+        basis="Synthetic test limits",
+        effective_from=start,
+        effective_until=end,
+        reason="Synthetic specification",
+    )
+    catalog.add_test_line(
+        actor=author,
+        revision=spec_revision,
+        reason="Synthetic numeric assay",
+        code="assay",
+        name="Assay",
+        method=method,
+        result_type="numeric",
+        unit="%",
+        lower_limit=Decimal("98"),
+        upper_limit=Decimal("102"),
+        lower_inclusive=True,
+        upper_inclusive=True,
+        reporting_decimals=2,
+        replicates=1,
+        replicate_limits=True,
+        max_retests=0,
+        required=True,
+    )
+    spec_revision = approve(spec_revision, approver)
+    _, plan_revision = sampling.create_plan(
+        actor=author,
+        code="synthetic-plan",
+        title="Synthetic sampling plan",
+        material=material,
+        stage="incoming",
+        basis="all",
+        minimum_quantity=Decimal("10"),
+        quantity_unit="g",
+        instructions="Take one identified sample from each container.",
+        rationale="Synthetic single-container lot only",
+        effective_from=start,
+        effective_until=end,
+        reason="Synthetic sampling plan",
+    )
+    plan_revision = approve(plan_revision, approver)
+    qualification = laboratory.record_qualification(
+        actor=author,
+        user=people["analyst"],
+        activity=method.code,
+        evidence_ref="QUAL-SYN-001 rev 1",
+        valid_from=start.date(),
+        valid_until=end.date(),
+        reason="Synthetic analyst training evidence",
+    )
+    qualification = laboratory.approve_qualification(
+        actor=approver,
+        pin=PIN,
+        qualification=qualification,
+        expected_revision=qualification.revision,
+        reason="Independent training evidence review",
+    )
+    lot = quality.receive_lot(
+        actor=people["analyst"],
+        number="SYN-INTEGRATED-001",
+        material=material.name,
+        rules=rules,
+        reason="Synthetic integrated receipt",
+    )
+    return {
+        "people": people,
+        "lot": lot,
+        "material": material,
+        "method": method_revision,
+        "spec": spec_revision,
+        "plan": plan_revision,
+        "qualification": qualification,
+    }
+
+
+def assign_and_sample(data):
+    actor = data["people"]["analyst"]
+    assignment = sampling.assign_requirements(
+        actor=actor,
+        lot=data["lot"],
+        material=data["material"],
+        stage="incoming",
+        reason="Assign approved synthetic policy",
+    )
+    assert assignment.status == "ready"
+    record = sampling.record_sampling(
+        actor=actor,
+        lot=data["lot"],
+        reference="SYN-INTEGRATED-S001",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=Decimal("10"),
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Synthetic controlled sampling",
+    )
+    return record.sample
+
+
+def observed_test(data, sample, value):
+    tests, holds = analytical.assign_tests(
+        actor=data["people"]["analyst"],
+        sample=sample,
+        reason="Assign frozen required tests",
+    )
+    assert holds == [], holds
+    assert len(tests) == 1
+    test = tests[0]
+    assignment = sampling.current_assignment(data["lot"])
+    spec = data["spec"]
+    assert assignment.specification_revision_id == spec.pk
+    assert assignment.payload_hash == catalog.digest(assignment.payload)
+    assert test.requirement["source"] == (
+        f"catalog:{spec.specification.code}@v{spec.version}#rev{spec.pk}"
+        f"/lot-req:{assignment.payload_hash[:16]}"
+    )
+    assert test.requirement["method"]["requires_batch"] is False
+    analytical.record_observation(
+        actor=data["people"]["analyst"],
+        test=test,
+        value=Decimal(value),
+        raw_reference="RAW-SYN-001 rev 1",
+        reason="Synthetic original observation",
+    )
+    test.refresh_from_db()
+    return analytical.submit_test(
+        actor=data["people"]["analyst"],
+        test=test,
+        expected_revision=test.revision,
+        reason="Submit synthetic observation",
+    )
+
+
+def dispose(data, actor):
+    lot = data["lot"]
+    lot.refresh_from_db()
+    return quality.dispose_lot(
+        actor=actor,
+        pin=PIN,
+        lot=lot,
+        expected_revision=lot.revision,
+        reason="Synthetic independent QC disposition",
+    )
+
+
+def test_approved_catalog_to_native_review_disposition_and_immutable_pdf(integrated):
+    data, people = integrated, integrated["people"]
+    sample = assign_and_sample(data)
+    test, investigation = observed_test(data, sample, "100.25")
+    assert investigation is None
+    with pytest.raises(ValidationError, match="own"):
+        analytical.review_test(
+            actor=people["analyst"],
+            pin=PIN,
+            test=test,
+            expected_revision=test.revision,
+            reason="Self review denied",
+        )
+    test = analytical.review_test(
+        actor=people["reviewer"],
+        pin=PIN,
+        test=test,
+        expected_revision=test.revision,
+        reason="Independent original-data review",
+    )
+    assert gates.lot_blockers(data["lot"]) == []
+    assert people["analyst"].pk in gates.lot_author_ids(data["lot"])
+    assert not Result.objects.filter(sample__lot=data["lot"]).exists()
+    with pytest.raises((PermissionDenied, ValidationError), match="own|author"):
+        dispose(data, people["analyst"])
+    lot = dispose(data, people["approver"])
+    assert lot.state == "released"
+    assert lot.disposition_evidence["assignment_hash"]
+    assert lot.disposition_evidence["analytical"]["blockers"] == []
+    evidence, evidence_hash, blockers = reporting.preview(lot)
+    assert blockers == [], blockers
+    assert "100.25" in str(evidence)
+    assert data["spec"].approved_hash in str(evidence)
+    report = reporting.issue_report(
+        actor=people["approver"],
+        pin=PIN,
+        lot=lot,
+        recipient="Synthetic quality recipient",
+        evidence_hash=evidence_hash,
+        reason="Independent synthetic certificate issue",
+    )
+    version = report.versions.get(number=1)
+    pdf = reporting.read_pdf(actor=people["reviewer"], version=version)
+    assert pdf.startswith(b"%PDF-") and hashlib.sha256(pdf).hexdigest() == version.pdf_sha256
+    signature = reporting.signature_for(version)
+    assert signature.signed_at == version.issued_at
+    assert signature.content["current_pdf_sha256"] == version.pdf_sha256
+    assert ElectronicSignature.objects.filter(
+        object_type="analytical.analyticaltest", object_id=str(test.pk)
+    ).exists()
+    with pytest.raises(DatabaseError), transaction.atomic():
+        ReportVersion.objects.filter(pk=version.pk).update(pdf=b"changed")
+    version.refresh_from_db()
+    assert reporting.read_pdf(actor=people["reviewer"], version=version) == pdf
+
+
+def test_oos_native_evidence_cannot_be_bypassed_by_legacy_results(integrated, settings):
+    data, people = integrated, integrated["people"]
+    # Historical development-only foundation data exists before native policy is assigned.
+    # It must never become a substitute for the native result/investigation after assignment.
+    settings.DEBUG = True
+    sample = quality.add_sample(
+        actor=people["analyst"],
+        lot=data["lot"],
+        reference="SYN-LEGACY-S001",
+        collected_at=timezone.now(),
+        reason="Synthetic historical foundation sample",
+    )
+    legacy = quality.record_result(
+        actor=people["analyst"],
+        sample=sample,
+        test_code="assay",
+        value=Decimal("100"),
+        unit="%",
+        lower_limit=Decimal("98"),
+        upper_limit=Decimal("102"),
+        reason="Synthetic historical foundation result",
+    )
+    quality.review_result(
+        actor=people["reviewer"],
+        pin=PIN,
+        result=legacy,
+        expected_revision=legacy.revision,
+        reason="Synthetic legacy review",
+    )
+    assignment = sampling.assign_requirements(
+        actor=people["analyst"],
+        lot=data["lot"],
+        material=data["material"],
+        stage="incoming",
+        reason="Adopt approved native requirements",
+    )
+    assert assignment.status == "ready"
+    test, investigation = observed_test(data, sample, "90")
+    assert investigation is not None and not test.conforms
+    assert gates.lot_blockers(data["lot"])
+    with pytest.raises(ValidationError):
+        dispose(data, people["approver"])
+    data["lot"].refresh_from_db()
+    assert data["lot"].state == "quarantine"
+    assert not ElectronicSignature.objects.filter(
+        object_type="quality.lot", object_id=str(data["lot"].pk)
+    ).exists()
+    assert reporting.preview(data["lot"])[2]
+
+
+def test_each_native_sample_requires_its_own_reviewed_results(integrated):
+    data, people = integrated, integrated["people"]
+    first = assign_and_sample(data)
+    test, _ = observed_test(data, first, "100")
+    analytical.review_test(
+        actor=people["reviewer"],
+        pin=PIN,
+        test=test,
+        expected_revision=test.revision,
+        reason="Independent first-sample review",
+    )
+    second = sampling.record_sampling(
+        actor=people["analyst"],
+        lot=data["lot"],
+        reference="SYN-INTEGRATED-S002",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=Decimal("10"),
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Second independent synthetic sample",
+    ).sample
+    problems = gates.lot_blockers(data["lot"])
+    assert any(second.reference in problem for problem in problems)
+    with pytest.raises(ValidationError, match=second.reference):
+        dispose(data, people["approver"])
+    data["lot"].refresh_from_db()
+    assert data["lot"].state == "quarantine"
+
+
+def test_holds_block_disposition_and_post_release_certificate(integrated):
+    from stability import services as stability
+
+    sample = assign_and_sample(integrated)
+    test, _ = observed_test(integrated, sample, "100")
+    analytical.review_test(
+        actor=integrated["people"]["reviewer"],
+        pin=PIN,
+        test=test,
+        expected_revision=test.revision,
+        reason="Independent check",
+    )
+    hold = stability.place_hold(
+        actor=integrated["people"]["analyst"],
+        lot=integrated["lot"],
+        kind="quality",
+        reason="Synthetic quality hold",
+    )
+    with pytest.raises(ValidationError, match="hold"):
+        dispose(integrated, integrated["people"]["approver"])
+    stability.release_hold(
+        actor=integrated["people"]["approver"],
+        pin=PIN,
+        hold=hold,
+        expected_revision=hold.revision,
+        reason="Independent hold resolution",
+    )
+    lot = dispose(integrated, integrated["people"]["approver"])
+    stability.place_hold(
+        actor=integrated["people"]["analyst"],
+        lot=lot,
+        kind="quality",
+        reason="New post-release evidence",
+    )
+    _, _, problems = reporting.preview(lot)
+    assert any("hold" in problem.lower() for problem in problems)
+
+
+def test_native_results_cannot_replace_sampling_provenance(integrated):
+    data, people = integrated, integrated["people"]
+    sampling.assign_requirements(
+        actor=people["analyst"],
+        lot=data["lot"],
+        material=data["material"],
+        stage="incoming",
+        reason="Approved requirement assignment",
+    )
+    sample = quality.add_sample(
+        actor=people["analyst"],
+        lot=data["lot"],
+        reference="SYN-UNPROVEN-SAMPLE",
+        collected_at=timezone.now(),
+        reason="Basic receipt alone is not sampling-plan evidence",
+    )
+    test, _ = observed_test(data, sample, "100")
+    analytical.review_test(
+        actor=people["reviewer"],
+        pin=PIN,
+        test=test,
+        expected_revision=test.revision,
+        reason="Review result only",
+    )
+    assert gates.lot_blockers(data["lot"]) == []
+    with pytest.raises(ValidationError, match="no sampling record"):
+        dispose(data, people["approver"])
+
+
+def test_revoked_method_qualification_blocks_native_observation(integrated, settings):
+    data, people = integrated, integrated["people"]
+    assert settings.ANALYTICAL_ELIGIBILITY_CHECK == "config.integrations.require_qualified_analyst"
+    sample = assign_and_sample(data)
+    tests, holds = analytical.assign_tests(
+        actor=people["analyst"],
+        sample=sample,
+        reason="Assign test while analyst is qualified",
+    )
+    assert holds == [] and len(tests) == 1
+    test = tests[0]
+    qualification = data["qualification"]
+    assert qualification.state == "approved"
+    assert qualification.activity == test.spec.method.code
+    revoked = laboratory.revoke_qualification(
+        actor=people["approver"],
+        pin=PIN,
+        qualification=qualification,
+        expected_revision=qualification.revision,
+        reason="Synthetic method authorization withdrawn before observation",
+    )
+    assert revoked.state == "revoked" and revoked.revoked_at
+    data["lot"].refresh_from_db()
+    lot_revision, test_revision = data["lot"].revision, test.revision
+    with pytest.raises(ValidationError, match="No approved, current qualification"):
+        analytical.record_observation(
+            actor=people["analyst"],
+            test=test,
+            value=Decimal("100"),
+            raw_reference="RAW-SYN-BLOCKED-001",
+            reason="Attempt after qualification revoked",
+        )
+    test.refresh_from_db()
+    data["lot"].refresh_from_db()
+    assert test.revision == test_revision
+    assert data["lot"].revision == lot_revision
+    assert not test.current_observations().exists()

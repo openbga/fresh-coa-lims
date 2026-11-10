@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -53,6 +54,8 @@ def add_sample(*, actor, lot, reference, collected_at, reason):
 def record_result(*, actor, sample, reason, **values):
     require_role(actor, "analyst")
     lot = Lot.objects.select_for_update().get(pk=sample.lot_id)
+    if not settings.DEBUG or lot.qc_assignments.exists():
+        raise ValidationError("Record observations through approved native testing requirements.")
     if lot.state != "quarantine":
         raise ValidationError("Only quarantined lots accept results.")
     if values["test_code"] not in effective_rules(lot.rules):
@@ -102,7 +105,38 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
     def apply(locked):
         if locked.state != "quarantine":
             raise ValidationError("This lot has already been dispositioned.")
+        from stability.gates import lot_blockers as hold_blockers
+
+        if problems := hold_blockers(locked):
+            raise ValidationError(problems)
         required = set(effective_rules(locked.rules))
+        from analytical.gates import lot_author_ids, lot_blockers, lot_evidence
+        from analytical.models import AnalyticalTest
+        from sampling.services import current_assignment, current_requirements
+        from sampling.services import lot_blockers as sampling_blockers
+
+        assignment = current_assignment(locked)
+        native = assignment is not None or AnalyticalTest.objects.filter(lot=locked).exists()
+        if native or not settings.DEBUG:
+            current_requirements(locked)  # missing or held applicability is a hard stop
+            if not locked.samples.exists():
+                raise ValidationError("The lot requires a sampled and tested record.")
+            problems = sampling_blockers(locked) + lot_blockers(locked)
+            if problems:
+                raise ValidationError(problems)
+            if actor.pk in lot_author_ids(locked):
+                raise ValidationError("You cannot disposition a lot containing your own results.")
+            if Result.objects.filter(sample__lot=locked).exists():
+                raise ValidationError(
+                    "Mixed foundation and native evidence requires reconciliation."
+                )
+            locked.disposition_evidence = {
+                "assignment_id": assignment.pk,
+                "assignment_hash": assignment.payload_hash,
+                "analytical": lot_evidence(locked),
+            }
+            locked.state = "released"
+            return
         samples = list(locked.samples.all())
         if not samples:
             raise ValidationError("The lot requires a sample and reviewed results.")

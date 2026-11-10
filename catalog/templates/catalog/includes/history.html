@@ -1,0 +1,11 @@
+{% comment %}History panel with attributed audit events, oldest first. Parameters: history (AuditEvent queryset).{% endcomment %}
+<section class="card mt-3" aria-labelledby="history-heading">
+  <div class="card-header"><h2 class="card-title" id="history-heading">History</h2></div>
+  <div class="card-body">
+    {% if history %}
+    <ol class="vr-timeline">
+      {% for event in history %}{% include "includes/history_item.html" with title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
+    </ol>
+    {% else %}<p class="mb-0">No recorded history.</p>{% endif %}
+  </div>
+</section>

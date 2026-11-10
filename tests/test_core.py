@@ -277,3 +277,25 @@ def test_non_object_policy_rejected(people):
 
     with pytest.raises(ValidationError):
         validate_policy(["required_tests", "review_meaning", "disposition_meaning"])
+
+
+def test_callback_and_signature_share_server_timestamp(rule, people):
+    from core.services import sign_transition
+
+    observed = []
+
+    def apply(locked):
+        observed.append(locked._signing_timestamp)
+        locked.status = "approved"
+
+    sign_transition(
+        actor=people[1],
+        pin=PIN,
+        obj=rule,
+        expected_revision=1,
+        meaning="approved",
+        reason="Timestamp contract",
+        permission="quality",
+        apply=apply,
+    )
+    assert ElectronicSignature.objects.get().signed_at == observed[0]

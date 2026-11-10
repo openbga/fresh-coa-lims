@@ -1,0 +1,10 @@
+{% load static %}<aside class="pagedocs-panel" id="pagedocs-panel" aria-label="Page documentation" data-pagedocs-panel data-pagedocs-endpoint="{{ endpoint }}">
+  <div class="pagedocs-splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pagedocs-panel" aria-label="Resize page documentation" data-pagedocs-splitter></div>
+  <div class="pagedocs-header">
+    <p class="pagedocs-kicker">{% include "includes/icon.html" with name="journal-text" %}<span>Page documentation</span></p>
+    <a class="btn btn-sm vr-topbar-btn pagedocs-full" href="{{ full_url }}" data-pagedocs-full title="Open as a full page">{% include "includes/icon.html" with name="file-earmark-text" %}<span class="visually-hidden">Open documentation as a full page</span></a>
+    <button class="btn btn-sm vr-topbar-btn" type="button" aria-label="Close page documentation" data-pagedocs-close>{% include "includes/icon.html" with name="x-lg" %}</button>
+  </div>
+  <div class="pagedocs-body" data-pagedocs-body aria-live="polite"><p class="text-body-secondary">Loading documentation…</p></div>
+</aside>
+<script src="{% static 'pagedocs/pagedocs.js' %}" defer></script>

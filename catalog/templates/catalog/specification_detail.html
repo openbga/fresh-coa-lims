@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta">{{ spec.title }}</p>{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:specification_version_new' spec.pk %}">New version</a>{% endif %}{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="facts-heading">
+  <div class="card-header"><h2 class="card-title" id="facts-heading">Applicability</h2></div>
+  <div class="card-body"><dl class="vr-facts mb-0">
+    <div><dt>Material</dt><dd>{{ spec.material }}</dd></div>
+    <div><dt>Stage</dt><dd>{{ spec.get_stage_display }}</dd></div>
+    <div><dt>Scope</dt><dd>{{ spec.scope }}{% if spec.scope != "general" %} (overlay; never merged with other scopes){% endif %}</dd></div>
+  </dl></div>
+</section>
+<section class="card vr-table-card" aria-labelledby="versions-heading">
+  <div class="card-header"><h2 class="card-title" id="versions-heading">Versions</h2></div>
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Effective</th><th scope="col" class="text-end">Tests</th><th scope="col">Author</th><th scope="col">Approval</th></tr></thead>
+      <tbody>
+        {% for revision in revisions %}
+        <tr>
+          <th scope="row"><a href="{% url 'catalog:specification_revision' revision.pk %}">Version {{ revision.version }}</a></th>
+          <td>{% include "catalog/includes/revision_status.html" with status=revision.status plain=True %}</td>
+          <td>{% include "catalog/includes/effective.html" %}</td>
+          <td class="text-end">{{ revision.test_count }}</td>
+          <td>{{ revision.author.get_full_name|default:revision.author.username }}</td>
+          <td>{% include "catalog/includes/signatures.html" with signatures=revision.signature_list %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% include "catalog/includes/history.html" %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=spec.code %}{% endblock %}

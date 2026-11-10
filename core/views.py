@@ -75,44 +75,143 @@ def rule_approve(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def audit(request):
+    import uuid
+
+    from django import forms
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import PermissionDenied
+    from django.core.paginator import Paginator
+    from django.db.models import Prefetch
+    from django.urls import reverse
+
+    from .models import AuditReview
+
     require_role(request.user, "quality", "auditor")
+
+    class AuditFilters(forms.Form):
+        object_type = forms.CharField(required=False, label="Record type", max_length=100)
+        object_id = forms.CharField(required=False, label="Record ID", max_length=64)
+        actor = forms.ModelChoiceField(
+            required=False,
+            empty_label="All actors",
+            queryset=get_user_model()
+            .objects.filter(auditevent__isnull=False)
+            .distinct()
+            .order_by("username"),
+        )
+        action = forms.ChoiceField(
+            required=False,
+            choices=[("", "All actions")]
+            + [
+                (value, value)
+                for value in AuditEvent.objects.order_by("action")
+                .values_list("action", flat=True)
+                .distinct()
+            ],
+        )
+        date_from = forms.DateField(
+            required=False, label="From date", widget=forms.DateInput(attrs={"type": "date"})
+        )
+        date_to = forms.DateField(
+            required=False, label="Through date", widget=forms.DateInput(attrs={"type": "date"})
+        )
+
+        def clean(self):
+            values = super().clean()
+            if (
+                values.get("date_from")
+                and values.get("date_to")
+                and values["date_from"] > values["date_to"]
+            ):
+                raise forms.ValidationError("From date must be on or before through date.")
+            return values
+
+    filters = AuditFilters(request.GET)
+    for field in filters.fields.values():
+        field.widget.attrs["class"] = (
+            "form-select" if isinstance(field.widget, forms.Select) else "form-control"
+        )
     events = AuditEvent.objects.select_related("actor").order_by("-occurred_at", "-id")
-    if request.GET.get("object_type"):
-        events = events.filter(object_type=request.GET["object_type"])
-    if request.GET.get("object_id"):
-        events = events.filter(object_id=request.GET["object_id"])
+    valid_filters = filters.is_valid()
+    if valid_filters:
+        values = filters.cleaned_data
+        for field in ("object_type", "object_id", "actor", "action"):
+            if values[field]:
+                events = events.filter(**{field: values[field]})
+        if values["date_from"]:
+            events = events.filter(occurred_at__date__gte=values["date_from"])
+        if values["date_to"]:
+            events = events.filter(occurred_at__date__lte=values["date_to"])
+    else:
+        events = events.none()
+
+    params = request.GET.copy()
+    params.pop("export", None)
+    params.pop("page", None)
+    base_query = params.urlencode()
+    page = Paginator(
+        events.prefetch_related(
+            Prefetch(
+                "auditreview_set",
+                queryset=AuditReview.objects.select_related("reviewer").order_by(
+                    "-reviewed_at", "-pk"
+                ),
+                to_attr="reviews",
+            )
+        ),
+        50,
+    ).get_page(request.GET.get("page"))
     error = ""
+    conclusion = request.POST.get("conclusion", "")
+    selected_ids = request.POST.getlist("events")
     if request.method == "POST":
         try:
-            review_audit(
-                actor=request.user,
-                event_ids=request.POST.getlist("events"),
-                conclusion=request.POST.get("conclusion", ""),
-            )
-            messages.success(request, "Audit review recorded.")
-            return redirect("core:audit")
-        except (ValidationError, ValueError) as exc:
-            error = str(exc)
-    if request.GET.get("export") == "csv":
+            if not valid_filters:
+                raise ValidationError("Correct the filters before recording a review.")
+            if not selected_ids or len(selected_ids) > 50:
+                raise ValidationError("Select between 1 and 50 events on this page.")
+            selected = {str(uuid.UUID(value)) for value in selected_ids}
+            visible = {str(event.pk) for event in page}
+            if not selected.issubset(visible) or len(selected) != len(selected_ids):
+                raise ValidationError("Select only the events displayed on this page.")
+            review_audit(actor=request.user, event_ids=list(selected), conclusion=conclusion)
+            messages.success(request, f"Independent review recorded for {len(selected)} events.")
+            params["page"] = page.number
+            return redirect(f"{reverse('core:audit')}?{params.urlencode()}")
+        except (ValidationError, PermissionDenied, ValueError) as exc:
+            error = "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+
+    if request.method == "GET" and request.GET.get("export") == "csv" and valid_filters:
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="audit.csv"'
         writer = csv.writer(response)
         writer.writerow(["ID", "Time", "Actor", "Action", "Record", "Before", "After", "Reason"])
-        for e in events.iterator():
-            # Neutralize spreadsheet formula interpretation in user-entered strings.
+        for event in events.iterator():
             row = [
-                str(e.pk),
-                str(e.occurred_at),
-                e.actor.username,
-                e.action,
-                f"{e.object_type}:{e.object_id}",
-                str(e.before),
-                str(e.after),
-                e.reason,
+                str(event.pk),
+                str(event.occurred_at),
+                event.actor.username,
+                event.action,
+                f"{event.object_type}:{event.object_id}",
+                str(event.before),
+                str(event.after),
+                event.reason,
             ]
-            writer.writerow(["'" + v if v.startswith(("=", "+", "-", "@")) else v for v in row])
+            writer.writerow(
+                ["'" + value if value.startswith(("=", "+", "-", "@")) else value for value in row]
+            )
         return response
-    from django.core.paginator import Paginator
-
-    page = Paginator(events, 50).get_page(request.GET.get("page"))
-    return render(request, "core/audit.html", {"page": page, "error": error})
+    return render(
+        request,
+        "core/audit.html",
+        {
+            "page": page,
+            "filters": filters,
+            "error": error,
+            "conclusion": conclusion,
+            "selected_ids": selected_ids,
+            "base_query": base_query,
+            "filtered": any(request.GET.get(key) for key in filters.fields),
+        },
+        status=422 if error or not valid_filters else 200,
+    )

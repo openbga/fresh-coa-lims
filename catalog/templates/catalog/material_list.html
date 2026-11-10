@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Controlled materials and products that specifications and sampling plans apply to.</p>{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:material_new' %}">New material</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "catalog/includes/tabs.html" with label="Specifications and methods sections" %}
+<section class="card vr-table-card" aria-labelledby="list-heading">
+  <h2 class="visually-hidden" id="list-heading">Materials</h2>
+  {% include "catalog/includes/toolbar.html" with label="Filter materials" placeholder="Code or name" %}
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <thead><tr>{% include "catalog/includes/sort.html" with label="Material" key="code" current=sort %}{% include "catalog/includes/sort.html" with label="Name" key="name" current=sort %}<th scope="col">Kind</th><th scope="col" class="text-end">Specifications</th><th scope="col">Created</th></tr></thead>
+      <tbody>
+        {% for material in page_obj %}
+        <tr>
+          <th scope="row"><span class="vr-id">{{ material.code }}</span></th>
+          <td>{{ material.name }}</td>
+          <td>{{ material.get_kind_display }}</td>
+          <td class="text-end">{% if material.spec_count %}<a href="{% url 'catalog:specifications' %}?q={{ material.code|urlencode }}">{{ material.spec_count }}</a>{% else %}0{% endif %}</td>
+          <td class="vr-nowrap"><time datetime="{{ material.created_at|date:'c' }}">{{ material.created_at|date:"Y-m-d" }}</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "catalog/includes/pagination.html" with noun="materials" %}
+  {% elif filtered %}
+  {% include "catalog/includes/empty.html" with kind="no-results" title="No materials match these filters" body="Change or clear the filters." clear_url=request.path %}
+  {% else %}
+  {% if can_edit %}{% url 'catalog:material_new' as create_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No materials yet" body="Create the first controlled material or product." action_url=create_url action_label="New material" %}
+  {% endif %}
+</section>
+{% endblock %}

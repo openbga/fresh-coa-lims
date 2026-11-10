@@ -1,0 +1,5 @@
+{% comment %}Investigation phase/outcome as text plus tone. Parameters: inv, plain.{% endcomment %}
+{% if inv.phase == "laboratory" %}{% include "includes/status.html" with label="Phase I open · lot held" tone="hold" plain=plain %}
+{% elif inv.phase == "full" %}{% include "includes/status.html" with label="Phase II open · lot held" tone="hold" plain=plain %}
+{% elif inv.outcome == "confirmed" %}{% include "includes/status.html" with label="Closed · OOS confirmed" tone="danger" plain=plain %}
+{% else %}{% include "includes/status.html" with label="Closed · original invalidated" tone="neutral" plain=plain %}{% endif %}

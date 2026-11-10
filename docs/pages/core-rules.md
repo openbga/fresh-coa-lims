@@ -1,0 +1,59 @@
+---
+title: Rule sets
+urls: core:rules
+views: core.views.rules
+templates: core/rules.html
+models: core.RuleSet, core.ElectronicSignature
+reviewed: 2026-11-10
+---
+
+## Purpose
+
+List rule set revisions (required tests and signature meanings) and create new draft revisions for independent approval.
+
+## Who can use it
+
+- Sign-in required. Viewing: **admin**, **quality**, **analyst**, **reviewer** or **auditor**; others receive 403.
+- **Create draft**: **admin** or **quality**; other viewers see the form but receive 403 when submitting.
+- **Review and approve**: quality role, not the revision's author.
+
+## Layout
+
+- Title "Rule sets" and a note that presets are synthetic and approved revisions cannot be edited.
+- **Revisions table**: Rule ("code vN"), Segment, Status with any approval signatures, Effective from, Policy, Action. Empty: "No rule revisions yet."
+- **New revision** form with **Create draft**.
+
+## Actions
+
+| Action | Shown when | Who | Result |
+|---|---|---|---|
+| **Review and approve** | Status is draft | Quality, not the author | Opens the rule approval signing page |
+| **Create draft** | Always | Admin, quality | Creates the next version of that code as draft and reloads the page |
+
+## Fields
+
+| Field | Model field | Type / units | Required | Meaning and use |
+|---|---|---|---|---|
+| Code | `RuleSet.code` | Slug | Yes | Rule family; reuse a code to create its next version |
+| Segment | `RuleSet.segment` | Slug | Yes | Industry segment preset label; not a legal policy |
+| Policy | `RuleSet.policy` | JSON | Yes | Exactly `required_tests` (non-empty list), `review_meaning` = reviewed, `disposition_meaning` = approved |
+| Effective from | `RuleSet.effective_from` | Date and time | Yes | Start of the effective interval |
+| Effective until | `RuleSet.effective_until` | Date and time | No to save, yes to approve | End of the interval; must be after the start |
+| Reason | `AuditEvent.reason` | Text | Yes | Why the revision is created |
+| Version (shown in Rule) | `RuleSet.version` | Integer | — | Assigned automatically: last version of the code + 1 |
+| Status | `RuleSet.status` | draft, approved | — | Only approved, effective revisions can be used by lots |
+| Signature line (under Status) | `ElectronicSignature.signer_name`, `meaning`, `signed_at`, `revision` | Text, ISO date-time, integer | — | Approval signature manifestation: signer, meaning, time and bound revision |
+
+## Rules and hidden logic
+
+- **Policy validation**: "Unsupported or missing rule policy keys.", "At least one required test code is needed.", "This foundation supports reviewed and approved signature meanings."
+- **Interval**: "Provide a reason and a valid effective interval." when the end is not after the start.
+- **Effective interval**: start inclusive, end exclusive. Approved revisions and their intervals are immutable; create and approve a non-overlapping replacement before an approved revision expires.
+- **Versioning**: new revisions start as draft; approved revisions are never edited. Creation is serialized so two drafts cannot get the same version.
+- **Order and paging**: the table is not explicitly sorted and not paginated.
+- **Audit**: writes `rule.created` with the revision snapshot.
+
+## Related pages
+
+- Approve rule revision.
+- [Material lots](/): lots choose an approved rule revision.

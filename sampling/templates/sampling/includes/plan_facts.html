@@ -1,0 +1,10 @@
+<dl class="vr-facts mb-0">
+  <div><dt>Material and stage</dt><dd>{{ revision.plan.material }} · {{ revision.plan.get_stage_display }}</dd></div>
+  <div><dt>Containers to sample</dt><dd>{{ revision.get_basis_display }}{% if revision.parameter is not None %} · {{ revision.parameter.normalize }}{% if revision.basis == "percent" %} %{% endif %}{% endif %}{% if revision.composite_allowed %} · compositing allowed{% endif %}</dd></div>
+  <div><dt>Minimum total amount</dt><dd>{{ revision.minimum_quantity.normalize }} {{ revision.quantity_unit }}</dd></div>
+  <div><dt>Instructions</dt><dd>{{ revision.instructions|linebreaksbr }}</dd></div>
+  <div><dt>Rationale</dt><dd>{{ revision.rationale|linebreaksbr }}</dd></div>
+  <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
+  <div><dt>Record revision</dt><dd>{{ revision.revision }}</dd></div>
+  <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
+</dl>

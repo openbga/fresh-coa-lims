@@ -9,6 +9,7 @@ class Lot(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=24, default="quarantine")
+    disposition_evidence = models.JSONField(default=dict, blank=True)
     revision = models.PositiveIntegerField(default=1)
 
     class Meta:

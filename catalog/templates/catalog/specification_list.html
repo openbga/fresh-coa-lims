@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block page_intro %}<p class="vr-page-intro">Approved, effective-dated specifications define the tests and limits each material must meet. Approved versions cannot be changed; create a new version instead.</p>{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:specification_new' %}">New specification</a>{% endif %}{% endblock %}
+{% block content %}
+{% include "catalog/includes/tabs.html" with label="Specifications and methods sections" %}
+<section class="card vr-table-card" aria-labelledby="list-heading">
+  <h2 class="visually-hidden" id="list-heading">Specifications</h2>
+  {% include "catalog/includes/toolbar.html" with label="Filter specifications" placeholder="Code, title or material" %}
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table">
+      <thead><tr>
+        {% include "catalog/includes/sort.html" with label="Specification" key="code" current=sort %}
+        {% include "catalog/includes/sort.html" with label="Material" key="material" current=sort %}
+        <th scope="col">Stage</th><th scope="col">Scope</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th>
+      </tr></thead>
+      <tbody>
+        {% for spec in page_obj %}
+        <tr>
+          <th scope="row"><a href="{% url 'catalog:specification' spec.pk %}">{{ spec.code }}</a><br><span class="text-body-secondary">{{ spec.title }}</span></th>
+          <td>{{ spec.material.code }}</td>
+          <td>{{ spec.get_stage_display }}</td>
+          <td>{{ spec.scope }}</td>
+          <td class="text-end">{{ spec.versions }}</td>
+          <td>{% if spec.approved %}{% include "includes/status.html" with label="Has approved version" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="No approved version" tone="warning" plain=True %}{% endif %}{% if spec.drafts %}<br>{% include "includes/status.html" with label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "catalog/includes/pagination.html" with noun="specifications" %}
+  {% elif filtered %}
+  {% include "catalog/includes/empty.html" with kind="no-results" title="No specifications match these filters" body="Change or clear the filters." clear_url=request.path %}
+  {% else %}
+  {% if can_edit %}{% url 'catalog:specification_new' as create_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No specifications yet" body="Create a material and an approved method first, then the specification that lists its tests and limits." action_url=create_url action_label="New specification" %}
+  {% endif %}
+</section>
+{% endblock %}

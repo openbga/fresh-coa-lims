@@ -1,6 +1,32 @@
-{% extends 'base.html' %}{% block content %}<h1>Audit trail review</h1>
-<form method="get"><label>Record type <input name="object_type" value="{{ request.GET.object_type }}"></label><label>Record ID <input name="object_id" value="{{ request.GET.object_id }}"></label><button class="btn btn-outline-secondary">Filter</button><button name="export" value="csv" class="btn btn-outline-secondary">Export CSV</button></form>
-{% if error %}<p role="alert">{{ error }}</p>{% endif %}<form method="post">{% csrf_token %}
-<div class="table-responsive"><table class="table"><thead><tr><th>Select</th><th>Time / actor</th><th>Action / record</th><th>Before → after</th><th>Reason</th></tr></thead><tbody>{% for e in page %}<tr><td><input type="checkbox" name="events" value="{{ e.pk }}" aria-label="Review event {{ e.pk }}"></td><td>{{ e.occurred_at }} / {{ e.actor }}</td><td>{{ e.action }} / {{ e.object_type }}:{{ e.object_id }}</td><td>{{ e.before }} → {{ e.after }}</td><td>{{ e.reason }}</td></tr>{% empty %}<tr><td colspan="5">No matching events.</td></tr>{% endfor %}</tbody></table></div>
-<label for="conclusion">Review conclusion</label><textarea id="conclusion" name="conclusion" required></textarea><button class="btn btn-primary">Record independent review</button></form>
-<p>Page {{ page.number }} of {{ page.paginator.num_pages }}</p>{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&object_type={{ request.GET.object_type|urlencode }}&object_id={{ request.GET.object_id|urlencode }}">Previous</a>{% endif %} {% if page.has_next %}<a href="?page={{ page.next_page_number }}&object_type={{ request.GET.object_type|urlencode }}&object_id={{ request.GET.object_id|urlencode }}">Next</a>{% endif %}{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Audit trail · Open Qual IQ{% endblock %}
+{% block page_heading %}Audit trail{% endblock %}
+{% block page_intro %}<p class="text-body-secondary">Inspect recorded changes and document independent review of selected events.</p>{% endblock %}
+{% block content %}
+<form method="get" class="card mb-4" aria-label="Filter audit events">
+  <div class="card-body">
+    {% if filters.non_field_errors %}<div class="alert alert-danger" role="alert">{{ filters.non_field_errors }}</div>{% endif %}
+    <div class="row g-3">
+      {% for field in filters %}<div class="col-md-4"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="text-danger" role="alert">{{ field.errors }}</div>{% endif %}</div>{% endfor %}
+    </div>
+    <p class="form-text">Dates include the entire day in the deployment time zone.</p>
+    <div class="d-flex gap-2 mt-3"><button class="btn btn-primary">Filter</button><a class="btn btn-outline-secondary" href="{% url 'core:audit' %}">Clear filters</a><button name="export" value="csv" class="btn btn-outline-secondary">Export filtered CSV</button></div>
+  </div>
+</form>
+{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+<p>{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. Review applies only to the checked events on this page; filters and CSV exports do not record a review.</p>
+<form method="post" aria-label="Record audit review">{% csrf_token %}
+<div class="table-responsive"><table class="table align-top"><caption class="visually-hidden">Audit events and previous independent reviews</caption><thead><tr><th scope="col">Select</th><th scope="col">Time / actor</th><th scope="col">Action / record</th><th scope="col">Original / new values</th><th scope="col">Reason</th><th scope="col">Review status</th></tr></thead><tbody>
+{% for event in page %}<tr>
+<td>{% if event.actor_id == request.user.pk %}<input class="form-check-input" type="checkbox" disabled aria-label="Your own event cannot be reviewed"><span class="d-block small">Your event</span>{% else %}<input class="form-check-input" type="checkbox" name="events" value="{{ event.pk }}" aria-label="Review event {{ event.pk }}" {% if event.pk|stringformat:'s' in selected_ids %}checked{% endif %}>{% endif %}</td>
+<td><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at|date:'Y-m-d H:i:s T' }}</time><br>{{ event.actor }}</td>
+<td>{{ event.action }}<br><span class="small">{{ event.object_type }}:{{ event.object_id }}</span></td>
+<td><details><summary>Inspect values</summary><strong>Original</strong><pre>{{ event.before }}</pre><strong>New</strong><pre>{{ event.after }}</pre></details></td>
+<td>{{ event.reason }}</td>
+<td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|date:'Y-m-d H:i:s T' }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
+</tr>{% empty %}<tr><td colspan="6">{% if filtered %}No events match these filters. Clear or adjust the filters to inspect other records.{% else %}No audit events recorded yet.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="card my-3"><div class="card-body"><label class="form-label" for="conclusion">Review conclusion</label><textarea class="form-control" id="conclusion" name="conclusion" rows="3" required aria-describedby="review-scope">{{ conclusion }}</textarea><p id="review-scope" class="form-text">Record what you checked and any follow-up needed. Previous conclusions remain available. You cannot review your own events.</p><button class="btn btn-primary">Record independent review</button></div></div>
+</form>
+<nav aria-label="Audit events pages" class="d-flex gap-3 align-items-center"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% if page.has_previous %}<a href="?{{ base_query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}{% if page.has_next %}<a href="?{{ base_query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endblock %}

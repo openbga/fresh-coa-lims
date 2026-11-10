@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta">Lot status {{ lot.state|capfirst }} · record revision {{ lot.revision }} · <a href="{% url 'quality:lot_detail' lot.pk %}">Open lot record</a></p>{% endblock %}
+{% block page_actions %}
+{% if can_assign %}<a class="btn btn-outline-secondary" href="{% url 'sampling:assign' lot.pk %}">{% if current %}Change requirements{% else %}Assign requirements{% endif %}</a>{% endif %}
+{% if can_sample %}<a class="btn btn-primary" href="{% url 'sampling:sampling_new' lot.pk %}">Record sampling</a>{% endif %}
+{% endblock %}
+{% block content %}
+{% if not open %}<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Closed" tone="info" plain=True %}<div>This lot is no longer in quarantine. Its requirements and sampling records are read-only.</div></div>{% endif %}
+<section class="card mb-3" aria-labelledby="ready-heading">
+  <div class="card-header"><h2 class="card-title" id="ready-heading">Sampling readiness for QC disposition</h2></div>
+  <div class="card-body">
+    {% if blockers %}
+    <div class="alert alert-warning mb-0" role="status">{% include "includes/status.html" with label="Blocked" tone="hold" plain=True %}<div><p class="mb-1">QC disposition is blocked by sampling until:</p><ul class="mb-0">{% for reason in blockers %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+    {% else %}
+    <p class="mb-0">{% include "includes/status.html" with label="No sampling blockers" tone="success" plain=True %} Every sample has current sampling provenance against the assigned plan. Testing and other gates still apply.</p>
+    {% endif %}
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="req-heading">
+  <div class="card-header"><h2 class="card-title" id="req-heading">Current requirements</h2></div>
+  <div class="card-body">
+    {% if testing_started and open %}<p class="small">{% include "includes/status.html" with label="Fixed" tone="info" plain=True %} Testing has started, so these requirements cannot be reassigned.</p>{% endif %}
+    {% if not current %}
+    {% include "catalog/includes/empty.html" with kind="error" title="Applicability hold: no requirements assigned" body="Assign the approved specification and sampling plan for this lot's material and stage before sampling or testing." %}
+    {% elif current.status == "hold" %}
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Applicability hold" tone="hold" plain=True %}<div><p class="mb-1">This lot cannot be sampled, tested against limits or dispositioned until quality resolves:</p><ul class="mb-0">{% for reason in current.hold_reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+    <dl class="vr-facts mb-0"><div><dt>Requested</dt><dd>{{ current.material }} · {{ current.get_stage_display }} · {{ current.scope }}</dd></div><div><dt>Recorded</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time></dd></div></dl>
+    {% else %}
+    {% with payload=current.payload %}
+    <dl class="vr-facts">
+      <div><dt>Material</dt><dd>{{ payload.material.code }} · {{ payload.material.name }}</dd></div>
+      <div><dt>Stage and scope</dt><dd>{{ current.get_stage_display }} · {{ payload.scope }}</dd></div>
+      <div><dt>Specification</dt><dd><a href="{% url 'catalog:specification_revision' payload.specification.revision_id %}">{{ payload.specification.code }} v{{ payload.specification.version }}</a></dd></div>
+      <div><dt>Sampling plan</dt><dd><a href="{% url 'sampling:plan' current.plan_revision.plan_id %}">{{ payload.sampling_plan.code }} v{{ payload.sampling_plan.version }}</a> · {{ current.plan_revision.get_basis_display }} · at least {{ payload.sampling_plan.minimum_quantity }} {{ payload.sampling_plan.quantity_unit }}</dd></div>
+      {% if payload.rules %}<div><dt>Rule set</dt><dd>{{ payload.rules.code }} v{{ payload.rules.version }} · requires {{ payload.rules.required_tests|join:", " }}</dd></div>{% endif %}
+      <div><dt>Frozen</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time> · <span class="vr-id" title="SHA-256 of the frozen requirements">{{ current.payload_hash|truncatechars:13 }}</span></dd></div>
+    </dl>
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <caption class="visually-hidden">Required tests frozen for this lot</caption>
+        <thead><tr><th scope="col">Test</th><th scope="col">Acceptance criterion</th><th scope="col">Method version</th><th scope="col">Suitability evidence</th><th scope="col">Required</th></tr></thead>
+        <tbody>
+          {% for test in payload.tests %}
+          <tr>
+            <th scope="row"><span class="vr-id">{{ test.code }}</span><br>{{ test.name }}</th>
+            <td>{% if test.result_type == "qualitative" %}{{ test.expected_text }}{% else %}{% if test.lower_limit is not None %}{% if test.lower_inclusive %}≥{% else %}&gt;{% endif %} {{ test.lower_limit }}{% endif %}{% if test.lower_limit is not None and test.upper_limit is not None %} and {% endif %}{% if test.upper_limit is not None %}{% if test.upper_inclusive %}≤{% else %}&lt;{% endif %} {{ test.upper_limit }}{% endif %} {{ test.unit }}{% if test.reporting_decimals is not None %} (rounded to {{ test.reporting_decimals }}){% endif %}{% endif %}</td>
+            <td>{{ test.method.code }} v{{ test.method.version }}<br><span class="text-body-secondary">{{ test.method.document_ref }}</span></td>
+            <td>{{ test.method.suitability_ref }}</td>
+            <td>{% if test.required %}Required{% else %}Information only{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endwith %}
+    {% endif %}
+  </div>
+</section>
+<section class="card vr-table-card mb-3" aria-labelledby="sampling-heading">
+  <div class="card-header"><h2 class="card-title" id="sampling-heading">Sampling records</h2></div>
+  {% if records %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table">
+      <thead><tr><th scope="col">Sample</th><th scope="col">Sampled</th><th scope="col" class="text-end">Containers (sampled / required / total)</th><th scope="col">Amount</th><th scope="col">Plan</th><th scope="col">Deviation</th><th scope="col">Status</th>{% if open and is_analyst %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for record in records %}
+        <tr>
+          <th scope="row">{{ record.sample.reference }}{% if record.purpose == "resample" %}<br><span class="small">Resample of {{ record.resample_of.reference }}</span>{% endif %}{% if record.corrects_id %}<br><span class="small">Corrects record {{ record.corrects_id }}</span>{% endif %}</th>
+          <td><time datetime="{{ record.sampled_at|date:'c' }}">{{ record.sampled_at|date:"Y-m-d H:i T" }}</time><br>{{ record.sampled_by.get_full_name|default:record.sampled_by.username }} · {{ record.location }}{% if record.recorded_by_id != record.sampled_by_id %}<br><span class="small">Recorded by {{ record.recorded_by.get_full_name|default:record.recorded_by.username }}</span>{% endif %}</td>
+          <td class="text-end">{{ record.containers_sampled }} / {{ record.containers_required }} / {{ record.containers_total }}<br><span class="small">{{ record.container_ids }}</span></td>
+          <td>{{ record.quantity.normalize }} {{ record.quantity_unit }}</td>
+          <td>{{ record.plan_revision }}</td>
+          <td>{% if record.deviation %}{% include "includes/status.html" with label="Deviation" tone="warning" plain=True %} {{ record.deviation }}{% if record.review %}<br><span class="small">{{ record.review.get_status_display }}{% if record.review.decided_by %} · {{ record.review.decided_by.get_full_name|default:record.review.decided_by.username }} · <time datetime="{{ record.review.decided_at|date:'c' }}">{{ record.review.decided_at|date:"Y-m-d H:i T" }}</time>{% endif %}</span>{% endif %}{% if record.can_assess %}<br><a class="btn btn-sm btn-outline-secondary mt-1" href="{% url 'sampling:deviation_assess' record.pk %}">Assess deviation<span class="visually-hidden"> for {{ record.sample.reference }}</span></a>{% endif %}{% else %}None{% endif %}</td>
+          <td>{% if record.superseded %}{% include "includes/status.html" with label="Corrected" tone="neutral" plain=True %}{% else %}{% include "includes/status.html" with label="Current" tone="success" plain=True %}{% endif %}</td>
+          {% if open and is_analyst %}<td class="text-end">{% if not record.superseded %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'sampling:sampling_correct' record.pk %}">Correct<span class="visually-hidden"> {{ record.sample.reference }}</span></a>{% endif %}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  {% if can_sample %}{% url 'sampling:sampling_new' lot.pk as sample_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No sampling recorded" body="Record sampling against the assigned plan once requirements are assigned." action_url=sample_url action_label="Record sampling" %}
+  {% endif %}
+</section>
+{% if assignments|length > 1 %}
+<section class="card mb-3" aria-labelledby="assign-heading">
+  <div class="card-header"><h2 class="card-title" id="assign-heading">Earlier requirement assignments</h2></div>
+  <div class="card-body"><ol class="vr-timeline">
+    {% for a in assignments|slice:"1:" %}{% include "includes/history_item.html" with title=a.get_status_display at=a.assigned_at actor=a.assigned_by reason=a.reason detail="Superseded" %}{% endfor %}
+  </ol></div>
+</section>
+{% endif %}
+{% include "catalog/includes/history.html" %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=lot.number %}{% endblock %}

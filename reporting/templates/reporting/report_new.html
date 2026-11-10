@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% include "includes/breadcrumbs.html" with section="Certificates" section_url=list_url current="New certificate of analysis" %}{% endblock %}
+{% block content %}
+<form method="get" class="card vr-form vr-narrow" novalidate>
+  <div class="card-body">
+    {% include "includes/form_errors.html" %}
+    {% for field in form %}{% include "includes/field.html" with field=field %}{% endfor %}
+    <p class="vr-form-note">You review the exact evidence before signing. Opening a lot here does not issue anything.</p>
+    <div class="vr-form-actions">
+      <button class="btn btn-primary" type="submit">Review certificate</button>
+      <a class="btn btn-outline-secondary" href="{% url 'reporting:list' %}">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

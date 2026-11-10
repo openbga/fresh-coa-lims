@@ -1,0 +1,29 @@
+{% comment %}Count, rows per page and pager for a server-paginated list. Parameters: page_obj, noun, filtered.{% endcomment %}
+{% with paginator=page_obj.paginator %}
+<div class="vr-table-footer vr-pagination">
+  <p class="vr-count" role="status">Showing <strong>{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> of <strong>{{ paginator.count }}</strong> {{ noun }}{% if filtered %} matching filters{% endif %}</p>
+  <div class="d-flex flex-wrap align-items-center gap-3">
+    <form class="d-flex align-items-center gap-2" method="get" action="{{ request.path }}">
+      {% for key, values in request.GET.lists %}{% if key != "page" and key != "per_page" %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endif %}{% endfor %}
+      <label class="vr-count text-nowrap" for="per-page">Rows per page</label>
+      <select class="form-select form-select-sm w-auto" id="per-page" name="per_page">{% for size in page_sizes %}<option value="{{ size }}"{% if paginator.per_page == size %} selected{% endif %}>{{ size }}</option>{% endfor %}</select>
+      <button class="btn btn-sm btn-outline-secondary" type="submit">Show</button>
+    </form>
+    {% if paginator.num_pages > 1 %}
+    <nav aria-label="{{ noun|capfirst }} pages">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="{% querystring page=1 %}" aria-label="First page">{% include "includes/icon.html" with name="chevron-double-left" %}</a></li>
+        <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" rel="prev" aria-label="Previous page">{% include "includes/icon.html" with name="chevron-left" %}</a></li>
+        {% endif %}
+        <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}" rel="next" aria-label="Next page">{% include "includes/icon.html" with name="chevron-right" %}</a></li>
+        <li class="page-item"><a class="page-link" href="{% querystring page=paginator.num_pages %}" aria-label="Last page">{% include "includes/icon.html" with name="chevron-double-right" %}</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}

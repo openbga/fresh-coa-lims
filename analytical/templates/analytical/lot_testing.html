@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'quality:lot_detail' lot.pk as lot_url %}{% url 'analytical:test_list' as list_url %}{% include "includes/breadcrumbs.html" with section="Testing" section_url=list_url record=lot.number record_url=lot_url current="Testing" %}{% endblock %}
+{% block page_heading %}<span class="vr-id">{{ lot.number }}</span> testing{% endblock %}
+{% block page_meta %}
+<ul class="vr-page-meta">
+  <li>{% if lot.state == "quarantine" %}{% include "includes/status.html" with label="Quarantine" tone="hold" plain=True %}{% else %}{% include "includes/status.html" with label=lot.state|capfirst tone="neutral" plain=True %}{% endif %}</li>
+  <li>{{ lot.material }}</li>
+  <li>Rule set {{ lot.rules }}</li>
+  <li>Lot revision {{ lot.revision }}</li>
+</ul>
+{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_detail' lot.pk %}">Lot record</a>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="gate-heading">
+  <div class="card-header"><h2 class="card-title" id="gate-heading">Analytical evidence for QC disposition</h2></div>
+  <div class="card-body">
+    {% if blockers %}
+    <div class="alert alert-warning" role="status">
+      {% include "includes/status.html" with label="Blocked" tone="warning" plain=True %}
+      <div><p class="mb-1">QC disposition cannot be approved until these are resolved:</p>
+      <ul class="mb-0 ps-3">{% for b in blockers %}<li>{{ b }}</li>{% endfor %}</ul></div>
+    </div>
+    {% else %}
+    <div class="alert alert-success" role="status">
+      {% include "includes/status.html" with label="Complete" tone="success" plain=True %}
+      <div>Every required test has a reviewed, conforming result and no investigation is open. This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% for sample in samples %}
+<section class="card vr-table-card mb-3" aria-labelledby="sample-{{ sample.pk }}">
+  <div class="card-header"><h2 class="card-title" id="sample-{{ sample.pk }}">Sample <span class="vr-id">{{ sample.reference }}</span></h2><span class="vr-count">{{ sample.tests|length }}</span>
+    {% if can_assign %}
+    <form method="post" action="{% url 'analytical:lot_testing' lot.pk %}" class="ms-auto d-flex gap-2 align-items-center">
+      {% csrf_token %}<input type="hidden" name="sample" value="{{ sample.pk }}"><input type="hidden" name="reason" value="Assign required tests from the lot's approved requirements">
+      <button class="btn btn-sm btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="list-check" %}Assign required tests<span class="visually-hidden"> to {{ sample.reference }}</span></button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <p class="vr-muted small">Collected <time datetime="{{ sample.collected_at|date:'c' }}">{{ sample.collected_at|date:"Y-m-d H:i T" }}</time></p>
+    {% if sample.tests %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col">Code</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col" class="text-end">Reportable</th><th scope="col">Specification</th></tr></thead>
+        <tbody>
+          {% for t in sample.tests %}
+          <tr>
+            <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
+            <td>{{ t.test_code }}</td>
+            <td>{{ t.get_kind_display }}</td>
+            <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>
+            <td class="text-end vr-nowrap">{% if t.reportable_value is not None %}{{ t.reportable_display }} <span class="vr-muted small">{{ t.spec.unit }}</span>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+            <td class="small">{{ t.spec.source }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No tests assigned" body="Assign the lot's required tests to record observations for this sample." %}
+    {% endif %}
+  </div>
+</section>
+{% empty %}
+<section class="card mb-3"><div class="card-body">
+{% url 'quality:lot_detail' lot.pk as lot_url %}
+{% include "analytical/_empty.html" with title="No samples recorded" body="Add a sample to the lot before assigning tests." action_url=lot_url action_label="Lot record" %}
+</div></section>
+{% endfor %}
+
+<section class="card vr-table-card mb-3" aria-labelledby="inv-heading">
+  <div class="card-header"><h2 class="card-title" id="inv-heading">Investigations</h2><span class="vr-count">{{ investigations|length }}</span></div>
+  <div class="card-body">
+    {% if investigations %}
+    <ul class="list-unstyled mb-0">{% for inv in investigations %}<li class="mb-1"><a class="vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a> {% include "analytical/_investigation_status.html" with plain=True %} {{ inv.trigger }}</li>{% endfor %}</ul>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No investigations" body="Out-of-specification results open an investigation here automatically." %}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=lot.number %}{% endblock %}

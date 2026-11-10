@@ -32,6 +32,13 @@ INSTALLED_APPS = [
     "accounts",
     "core",
     "quality",
+    "catalog",
+    "sampling",
+    "reporting",
+    "pagedocs",
+    "analytical",
+    "laboratory",
+    "stability",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -41,6 +48,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "core.session_control.ControlledSessionMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ROOT_URLCONF = "config.urls"
@@ -122,3 +130,16 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"
 )
+
+# Product defaults; deployers validate these against their controlled-access procedures.
+SESSION_IDLE_SECONDS = int(os.environ.get("SESSION_IDLE_SECONDS", "900"))
+SESSION_ABSOLUTE_SECONDS = int(os.environ.get("SESSION_ABSOLUTE_SECONDS", "28800"))
+if not 60 <= SESSION_IDLE_SECONDS <= SESSION_ABSOLUTE_SECONDS:
+    raise RuntimeError("Session limits must satisfy 60 <= idle <= absolute.")
+SESSION_COOKIE_AGE = SESSION_ABSOLUTE_SECONDS
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+FORMS_URLFIELD_ASSUME_HTTPS = True
+
+ANALYTICAL_REQUIREMENT_PROVIDER = "config.integrations.CatalogRequirementProvider"
+ANALYTICAL_ELIGIBILITY_CHECK = "config.integrations.require_qualified_analyst"

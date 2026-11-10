@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ record.sample.reference }}</span> · assessment record revision {{ review.revision }} · {% include "includes/status.html" with label=review.get_status_display tone="warning" %}</p>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="record-heading">
+  <div class="card-header"><h2 class="card-title" id="record-heading">Sampling record being assessed</h2></div>
+  <div class="card-body"><dl class="vr-facts mb-0">
+    <div><dt>Lot</dt><dd>{{ record.lot.number }}</dd></div>
+    <div><dt>Sampled</dt><dd><time datetime="{{ record.sampled_at|date:'c' }}">{{ record.sampled_at|date:"Y-m-d H:i T" }}</time> · {{ record.sampled_by.get_full_name|default:record.sampled_by.username }} · {{ record.location }}</dd></div>
+    <div><dt>Plan</dt><dd>{{ record.plan_revision }} · {{ record.plan_revision.get_basis_display }} · at least {{ record.plan_revision.minimum_quantity.normalize }} {{ record.plan_revision.quantity_unit }}</dd></div>
+    <div><dt>Containers (sampled / required / total)</dt><dd>{{ record.containers_sampled }} / {{ record.containers_required }} / {{ record.containers_total }} · {{ record.container_ids }}</dd></div>
+    <div><dt>Amount</dt><dd>{{ record.quantity.normalize }} {{ record.quantity_unit }}</dd></div>
+    <div><dt>Deviation</dt><dd>{{ record.deviation|linebreaksbr }}</dd></div>
+  </dl></div>
+</section>
+<section class="card" aria-labelledby="sign-title">
+  <div class="card-body">
+    <h2 id="sign-title" class="card-title">Sign deviation assessment</h2>
+    {% if blocked %}
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div>{{ blocked }} Independent assessment cannot be bypassed by any role.</div></div>
+    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ record.lot.number }}</a></p>
+    {% else %}
+    <p>Your signature records whether this sample remains acceptable evidence despite the deviation. Accepting clears the sampling block for this sample; rejecting keeps the lot blocked until the record is corrected or the material is resampled. The server records the time and binds the signature to the resulting assessment revision {{ review.revision|add:"1" }}.</p>
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_errors.html" with form=form %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="vr-form-actions">
+        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Sign assessment</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

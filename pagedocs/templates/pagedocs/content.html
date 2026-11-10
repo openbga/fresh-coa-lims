@@ -1,0 +1,8 @@
+{% if doc %}<article class="pagedocs-doc" data-pagedocs-for="{{ url_name }}">
+  <h2 class="pagedocs-title" id="pagedocs-title" tabindex="-1">{{ doc.title }}</h2>
+  <p class="pagedocs-reviewed">Last reviewed <time datetime="{{ doc.reviewed }}">{{ doc.reviewed }}</time></p>
+  {{ doc.html }}
+</article>{% else %}<article class="pagedocs-doc pagedocs-missing" data-pagedocs-for="{{ url_name }}">
+  <h2 class="pagedocs-title" id="pagedocs-title" tabindex="-1">Not documented yet</h2>
+  <p>This page does not have documentation yet.{% if url_name %} Report the page identifier <code>{{ url_name }}</code> to your system owner so its documentation can be added.{% endif %}</p>
+</article>{% endif %}
