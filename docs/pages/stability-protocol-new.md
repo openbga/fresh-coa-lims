@@ -17,13 +17,13 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 
 ## Layout
 
-- Breadcrumbs, title, introduction, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Protocols, New protocol), title "New protocol", the introduction "Creates the next version of the code. Approved versions are frozen.", the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Create draft** | Always | Analyst or Quality; others receive 403 | Saves, shows a confirmation message and opens the next page; domain refusals appear as an error summary and your entries are kept (status 422) |
+| **Create draft** | Always | Analyst or Quality; others receive 403 | Saves, shows "Draft protocol created. Add conditions and timepoints." and opens the protocol record; domain refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
@@ -31,8 +31,8 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Code | `Protocol.code` | Text, max 60 | Yes | Identifier shared by all versions |
-| Title, Product | `Protocol.title`, `.product` | Text, max 160 | Yes | What the protocol covers |
-| Document ref / Document url | `Protocol.document_ref`, `.document_url` | Text; http(s) link | Ref required | Approved protocol document and revision in the QMS |
+| Title, Product | `Protocol.title`, `.product` | Text, max 160 | Yes | What the protocol covers (product or material under study) |
+| Document ref / Document url | `Protocol.document_ref`, `.document_url` | Text, max 200; http(s) link | Ref required, URL optional | Approved protocol document and revision in the QMS |
 | Test profile ref | `Protocol.test_profile_ref` | Text, max 200 | No | Stable specification/test-profile revision |
 | Basis | `Protocol.basis` | Text | Yes | Why these conditions and schedule apply |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
@@ -40,8 +40,10 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 ## Rules and hidden logic
 
 - The version is the next number for the code. If the latest version is still a draft: "<code> v<n> is still a draft; approve or leave it."
+- The author is you; the author cannot later approve it. A different Quality user must approve.
 - The header cannot be edited after creation; content is added by the author while the protocol is a draft. Event `protocol.created`.
 
 ## Related pages
 
 - [Stability protocols](/stability/protocols/)
+- Protocol record (where you add conditions and timepoints next)

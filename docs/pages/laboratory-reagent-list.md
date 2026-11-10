@@ -19,10 +19,10 @@ Reagent, reference-standard and prepared-solution lots with provenance, independ
 ## Layout
 
 - **Header**: title, short introduction and a **New reagent lot** button for Analyst, Quality.
-- **Toolbar**: **Search** (identifier, name or supplier lot) and **Status** (All, Awaiting release, Released for use, Expiring within 30 days, Released but expired, Rejected). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (identifier, name or supplier lot; case-insensitive "contains") and **Status** (All, Awaiting release, Released for use, Expiring within 30 days, Released but expired, Rejected). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Identifier (links to the record), Name, Kind, Supplier lot, Expiry (last day of use), State. Sort by Identifier (default), Name or Expiry. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
-- **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
+- **Empty states**: "No records yet" ("Record a received reagent or standard lot, or a prepared solution.", with **New reagent lot** for roles that can record); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
 ## Actions
 
@@ -36,10 +36,15 @@ Reagent, reference-standard and prepared-solution lots with provenance, independ
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| State | `ReagentLot.state` | Label | — | Awaiting release, Released, Expiring soon, Expired or Rejected |
+| Status | — | Choice | No | Awaiting release and Rejected match the stored state. Released for use: released and not past expiry. Expiring within 30 days: released, expiry from today to 30 days ahead. Released but expired: released and past expiry |
+| Identifier / Name / Kind / Supplier lot | `ReagentLot.identifier`, `.name`, `.kind`, `.lot_number` | Text; Reagent, Reference standard or Prepared solution | — | Identity; the identifier links to the record |
+| Expiry (last day of use) | `ReagentLot.expiry_date` | Date, inclusive | — | Last day the lot may be used |
+| State | `ReagentLot.state`, `.expiry_date` | Label | — | Rejected, Awaiting release, Expired, Expiring soon (within 30 days) or Released, checked in that order |
 
 ## Rules and hidden logic
 
+- **Order**: Identifier by default; ties break on record number. Unknown sort keys fall back to the default.
+- The State label looks at this lot only. It does not show a rejected, unreleased or expired source lot of a prepared solution, nor a future receipt date; the gate below does.
 - Expiry is the last day of use (inclusive). A lot is usable only when released, not rejected, not past expiry, not dated in the future, and not prepared (directly or through earlier preparations) from a rejected, unreleased or expired source.
 
 ## Related pages

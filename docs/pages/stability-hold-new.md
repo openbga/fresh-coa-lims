@@ -9,28 +9,29 @@ reviewed: 2026-11-10
 
 ## Purpose
 
-Place a hold on a lot (optionally one reserve sample). Protective and immediate.
+Place a hold on a lot (optionally tied to one reserve sample). Placing is protective and immediate; releasing needs a different Quality signer.
 
 ## Who can use it
 
-- Sign-in required. Roles: Analyst, Reviewer or Quality; others receive 403.
+- Sign-in required. Roles: Analyst, Reviewer or Quality; others (including Admin and Auditor) receive 403.
+- Opened with `?reserve=<id>` from a reserve sample, the reserve is attached and the lot is preselected; an unknown reserve returns 404.
 
 ## Layout
 
-- Breadcrumbs, title, introduction, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Holds, New hold), title "New hold", the introduction "Placing a hold is protective and immediate. Releasing it needs a different quality signer.", the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Place hold** | Always | Analyst, Reviewer or Quality; others receive 403 | Saves, shows a confirmation message and opens the next page; domain refusals appear as an error summary and your entries are kept (status 422) |
+| **Place hold** | Always | Analyst, Reviewer or Quality; others receive 403 | Saves, shows the warning "HOLD-n placed." and opens the hold record; domain refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Lot | `Hold.lot` | Any lot | Yes | Preselected when opened from a reserve sample |
+| Lot | `Hold.lot` | Any lot, ordered by number | Yes | Preselected when opened from a reserve sample |
 | Kind | `Hold.kind` | Choice | Yes | Investigation, Regulatory, Legal or Quality |
 | Reference | `Hold.reference` | Text, max 200 | No | Investigation, CAPA or matter ID |
 | Reason for hold | `Hold.reason` | Text, max 2000 | Yes | Also recorded in the audit event |
@@ -39,8 +40,11 @@ Place a hold on a lot (optionally one reserve sample). Protective and immediate.
 
 - While the lot is in quarantine the lot revision rises, so a disposition dialog opened earlier goes stale. A released lot's row is never touched.
 - A reserve sample from a different lot is refused. Event `hold.placed`.
-- The disposition gate that reads active holds is published for the integrator; until it is wired, holds do not stop a disposition by themselves.
+- An active hold makes QC disposition of the lot refuse with the hold identifier, kind and reason; this applies to reserve-specific holds too.
+- Hold state starts Active; the reason is stored trimmed.
+- The page does not check the lot's state, so a hold can also be placed on an already released lot.
 
 ## Related pages
 
 - [Holds](/stability/holds/)
+- Reserve sample record (plain name: starting point for a reserve-specific hold)

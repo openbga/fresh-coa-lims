@@ -9,7 +9,7 @@ reviewed: 2026-11-10
 
 ## Purpose
 
-Holds that block QC disposition and disposal until a different quality signer releases them.
+All holds on lots and reserve samples. A hold blocks QC disposition (and any disposal) until a different Quality signer releases it.
 
 ## Who can use it
 
@@ -18,9 +18,9 @@ Holds that block QC disposition and disposal until a different quality signer re
 
 ## Layout
 
-- **Header**: title, short introduction and a **New hold** button for Analyst, Reviewer, Quality.
-- **Toolbar**: **Search** (lot number, reference or reason) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Hold (links to the record), Lot, Kind, Reference, State, Placed. Sort by Placed (newest first by default) or Lot. Sortable headers toggle ascending/descending.
+- **Header**: title "Holds", introduction and a **New hold** button for Analyst, Reviewer, Quality.
+- **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Hold (links to the record), Lot, Kind, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -36,12 +36,21 @@ Holds that block QC disposition and disposal until a different quality signer re
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
+| Hold | `Hold.pk` | HOLD-n | — | Identifier; links to the record |
+| Lot | `Hold.lot` | Lot number | — | Lot held |
 | Kind | `Hold.kind` | Investigation / Regulatory / Legal / Quality | — | Why the hold exists |
+| Reference | `Hold.reference` | Text | — | Investigation, CAPA or matter ID |
+| State | `Hold.state` | Active / Released | — | Active holds use the hold tone |
+| Placed | `Hold.placed_at` | Date and time | — | When placed |
+| Search / Status | — | Text / All, Active, Released | No | Filters |
 
 ## Rules and hidden logic
 
-- Active holds are shown with the hold tone and text.
+- All holds are listed (no default filter); 25 rows per page by default.
+- The reserve sample a hold is limited to is not a column; open the record to see it.
 
 ## Related pages
 
 - [Reserve samples](/stability/reserves/)
+- [Stability and retention](/stability/)
+- Hold record (plain name: opened from the Hold column)

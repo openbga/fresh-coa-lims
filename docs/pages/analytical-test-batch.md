@@ -38,7 +38,7 @@ Add a test whose method runs in a QC batch to an open batch of the same method r
 ## Rules and hidden logic
 
 - **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "This test cannot be added to a QC batch." (test not Open, method needs no batch, or a batch already assigned).
-- **Preconditions**: batch Open and test Open ("Only open tests can join an open batch."); test has no batch and no observations ("This test already has a batch or recorded observations."); batch has no submitted results ("This batch already has submitted results; start a new batch."); the method requires a batch and matches ("The test's method revision does not match this batch.").
+- **Preconditions**: batch Open and test Open ("Only open tests can join an open batch."); lot in quarantine ("Lot ... is no longer in quarantine."); test has no batch and no observations ("This test already has a batch or recorded observations."); batch has no submitted results ("This batch already has submitted results; start a new batch."); the method requires a batch and matches ("The test's method revision does not match this batch.").
 - **Effect**: test and batch revisions and the lot revision rise by 1; `test.batched` is audited.
 - If the list is empty, create a batch first.
 

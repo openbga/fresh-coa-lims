@@ -16,6 +16,7 @@ Records what was actually sampled from a lot against its assigned sampling plan,
 - Sign-in required. **analyst** role only; others (including quality) receive 403 Forbidden.
 - Requires current requirements in state "Requirements assigned". Otherwise you are redirected to the lot with "Assign approved requirements before recording sampling."
 - You are recorded as the sampler.
+- The page itself does not check the lot state; the lot page only offers the button for quarantined lots, and for a lot no longer in Quarantine the form opens but submitting is refused with "Only quarantined lots accept new samples."
 
 ## Layout
 

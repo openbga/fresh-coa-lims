@@ -44,8 +44,9 @@ Quality signs authorization of one justified retest or resample within the speci
 - **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the investigation with the warning "This investigation is closed.".
 - **Preconditions**: investigation open ("This investigation is closed."); not your own data ("You cannot authorize retesting of your own result."); laboratory assessment recorded ("Record the laboratory assessment first."); allowance left ("The approved specification allows no further retests or resamples."); lot in quarantine.
 - **Allowance**: linked tests that are not Invalidated count; those invalidated by batch rejection do not.
+- **Kind**: "Choose retest or resample." if neither is posted.
 - **Resample**: "Choose the newly collected sample to test."; "A resample must be a new, untested sample of this lot."
-- **Effect**: a new Open test (same code and frozen specification) is linked to the investigation; lot revision rises by 1; `signed.authorized` and an immutable signature are stored.
+- **Effect**: a new Open test (same code and frozen specification) is linked to the investigation, and an "Authorized retest or resample" entry with your justification is added (reference "T-n retest" or "T-n resample"); lot revision rises by 1; `signed.authorized` and an immutable signature are stored.
 - **Stale page, identity, session and PIN** messages as for other signings: "Record changed. Reload and review before signing."; "Enter your own signing username and PIN."; "Session expired. Sign in again before signing."; "Signature PIN was not accepted."; five failures lock for 15 minutes.
 - The retest does not replace the original; only a conclusion can invalidate it.
 

@@ -26,7 +26,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Download PDF** | Always | Any viewer | Saves the stored PDF as `<number>-v<N>.pdf` |
+| **Download PDF** | Always | Any viewer | Saves the stored PDF as `<number>-v<N>.pdf` (name sanitised) |
 | **Open PDF** | Always | Any viewer | Opens the same PDF inline in a new tab |
 | Amends / Superseded by | The version has a neighbour | Any viewer | Opens that version |
 
@@ -45,6 +45,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 - **Stored, not regenerated**: both the page and the PDF come from stored data and bytes; later changes to other records cannot alter them.
 - **PDF endpoint**: GET only (other methods receive 405). Before serving, the bytes are checked against the stored checksum and size; on mismatch you are returned here with "The stored certificate failed its integrity check." and nothing is sent.
+- **Failed or unauthorised**: a user without a viewing role receives 403 for the PDF; the PDF accepts `?inline=1` to open in the browser, otherwise it downloads. The file name keeps only letters, digits, dot, underscore and hyphen.
 - **Audit**: each successful download writes `report.downloaded` with the actor, version and checksum. Responses are marked no-store and private.
 - **Immutable**: versions cannot be edited or deleted; an amendment is a new version.
 - Not enforced by this page: any restriction on who may share a downloaded copy.

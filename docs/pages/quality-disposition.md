@@ -40,7 +40,8 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 
 ## Rules and hidden logic
 
-- **Always checked first**: the lot is still Quarantine ("This lot has already been dispositioned.") and has no active hold ("<hold> (<kind> hold) is active: <reason>").
+- **Always checked first**: the lot is still Quarantine ("This lot has already been dispositioned."), has no active hold ("<hold> (<kind> hold) is active: <reason>"), and its rule set is still approved and effective ("An approved, effective rule revision is required."). These apply to both paths below.
+- **Opening vs. signing**: the page opens for any quality user whatever the lot's state; the state, hold and evidence checks run only when you sign.
 - **Native path** (the lot has a requirement assignment or native tests; always outside DEBUG). Each failing condition is listed as its own message:
 - *Native, requirements*: a current assignment with status Requirements assigned; none assigned or an applicability hold blocks.
 - *Native, samples*: at least one ("The lot requires a sampled and tested record.").
@@ -48,7 +49,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - *Native, analytical evidence*: no open test, none awaiting review, no nonconforming result (unless an investigation invalidated it) and no result against a superseded requirement, no open or confirmed investigation, and a reviewed conforming result for every required test on every sample.
 - *Native, no mixed evidence*: foundation manual results on the lot block ("Mixed foundation and native evidence requires reconciliation.").
 - *Native, frozen evidence*: on release the assignment ID and hash and the analytical evidence snapshot are stored on the lot.
-- **Manual foundation path** (development only: DEBUG and neither assignment nor native tests): at least one sample ("The lot requires a sample and reviewed results."); all required rule-set tests per sample ("Required tests are missing."); every result Reviewed and conforming ("All results must conform and have independent review."); rule set approved and effective.
+- **Manual foundation path** (development only: DEBUG and neither assignment nor native tests): at least one sample ("The lot requires a sample and reviewed results."); all required rule-set tests per sample ("Required tests are missing."); every result Reviewed and conforming ("All results must conform and have independent review.").
 - **Independence**: "You cannot disposition a lot containing your own results." Native authors are users who recorded observations (including corrected originals), submitted tests, recorded batch QC, opened an investigation, or wrote investigative entries. On the manual path, the analysts of the results. Writing rules or specifications, assigning tests, or signing reviews and conclusions is not authorship.
 - **Stale page**: any new sample, test change or hold since opening changes the lot revision: "Record changed. Reload and review before signing."
 - **Identity and PIN**: "Enter your own signing username and PIN." on a mismatch (audited as `signature.identity_denied`); "Enroll a signature PIN first."; "Signature PIN was not accepted."; 5 consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are recorded (`signature.denied`) even though the disposition is refused.

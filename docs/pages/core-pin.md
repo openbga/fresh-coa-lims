@@ -35,6 +35,7 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 ## Rules and hidden logic
 
 - **Format**: 8 to 32 ASCII digits ("Use 8–32 digits for your signature PIN."). The form also rejects fewer than 8 characters.
+- **Other refusals**: non-digit input, fewer than 8 or more than 32 digits shows "Use 8–32 digits for your signature PIN." inline.
 - **Password check**: a wrong login password is refused with a 403 page ("Password confirmation failed."), not an inline error.
 - **Storage**: the PIN is hashed with the standard password hasher; neither the PIN nor its hash is shown or logged. Fields are blank after any error.
 - **Lock reset**: saving clears failed attempts and any temporary PIN lock.

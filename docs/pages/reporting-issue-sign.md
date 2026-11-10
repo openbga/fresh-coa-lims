@@ -14,7 +14,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 ## Who can use it
 
 - Sign-in required. Only the **quality** role; others receive 403.
-- You cannot sign for a lot on which you recorded the lot, a sample or a result; the attempt is refused (status 403) and nothing is signed.
+- You cannot sign for a lot on which you authored records (lot, sample, result or native analytical records). The page still opens, but submitting is refused (status 403) and nothing is signed.
 
 ## Layout
 
@@ -33,7 +33,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Issued to | `Report.recipient` | Text, max 160 | No | Recipient named on the certificate; blank means a general certificate |
+| Issued to | `Report.recipient` | Text, max 160 | No | Customer or consignee named on the certificate; blank means a general one. Spaces around it are trimmed |
 | Remarks on the certificate | `ReportVersion.remarks` | Text, max 1000 | No | Printed on the certificate |
 | Reason for issuing | `ReportVersion.reason` | Text, max 2000 | Yes | Kept in the audit trail and signature; not printed on a first issue |
 | Evidence hash (hidden) | — | SHA-256 | Yes | The evidence you reviewed; must still match |
@@ -42,8 +42,8 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 
 ## Rules and hidden logic
 
-- **Arriving here**: the link must carry the current evidence hash and the evidence must have no blockers; otherwise you are sent back to the review page with a warning.
-- **Draft record**: submitting creates (or reuses) the certificate record for this lot and recipient first, and writes `report.opened`. It stays as "Not issued" if signing fails. The lot must be released: "A certificate needs a lot with a signed QC disposition."
+- **Arriving here**: the link must carry the current evidence hash and the evidence must have no blockers; otherwise you are sent back to the review page with "The evidence changed, or could not support a certificate. Review it again." Authorship is not checked on opening, only on submit.
+- **Draft record**: submitting valid form input creates (or reuses) the certificate record for this lot and recipient first, and writes `report.opened`. It is committed separately, so it stays as "Not issued" if signing fails. Certificate numbers are `CoA-<lot number>-<n>`, with n counting records for the lot. The lot must be released: "A certificate needs a lot with a signed QC disposition."
 - **Checks under lock at signing**: this record and the lot are locked; evidence is collected again and must equal the hash you reviewed ("The evidence changed since you reviewed it. Review again."); all blockers are re-evaluated ("Certificate cannot be issued:" plus reasons); you must not be an author ("You cannot issue a certificate for records you authored."); a certificate already issued for this lot and recipient is refused ("This certificate is already issued; amend it instead.").
 - **Atomic**: the PDF is rendered, the version stored, the signature (meaning `issued`) and audit event `signed.issued` written together. A rendering failure ("The certificate could not be rendered: …") or any other failure leaves no version, signature or audit event of the issue.
 - **Credentials**: a wrong PIN or username is refused ("Signature PIN was not accepted.", "Enter your own signing username and PIN."); failed PIN attempts are counted and audited even though signing is rejected, and repeated failures lock the PIN.

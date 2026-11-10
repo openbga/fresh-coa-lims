@@ -19,7 +19,7 @@ List out-of-specification investigations. An open investigation holds its lot un
 ## Layout
 
 - **Intro**, section tabs (**Tests**, **QC batches**, **Investigations**).
-- **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Show open** when a filter differs from the default.
+- **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Show open** when a search is entered or Status is not Open.
 - **Table** (caption "Investigations, newest first"): Investigation, Status, Lot, Test, Trigger, Opened. Footer count and pager.
 - **Empty states**: "No open investigations" ("A submitted out-of-specification result opens an investigation automatically.") and "No investigations match".
 
@@ -27,7 +27,7 @@ List out-of-specification investigations. An open investigation holds its lot un
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Apply** / **Show open** | Always / filter differs from default | Any viewer | Applies the filter or returns to open investigations |
+| **Apply** / **Show open** | Always / a search is entered or Status is not Open | Any viewer | Applies the filter or returns to open investigations |
 | Investigation, Lot and Test links | Each row | Any viewer | Open the investigation, the lot's testing page or the test |
 
 ## Fields

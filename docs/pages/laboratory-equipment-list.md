@@ -20,9 +20,9 @@ Find equipment and see at a glance whether it is fit for use today.
 
 - **Header**: title, short introduction and a **New equipment** button for Analyst, Quality.
 - **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Asset (links to the record), Description, Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness. Sortable headers toggle ascending/descending.
+- **Table**: Asset (links to the record), Description, Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness (the Fitness sort orders by service state, then asset, not by the label text). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
-- **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
+- **Empty states**: "No records yet" ("Register an instrument to track calibration, qualification and use.", with **New equipment** for roles that can register); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
 ## Actions
 
@@ -37,15 +37,17 @@ Find equipment and see at a glance whether it is fit for use today.
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Search | — | Text, max 100 | No | Matches asset ID, description or category |
-| Status | — | Choice | No | Filters on the fitness label |
-| Calibration due | `Calibration.due_date` | Date (inclusive last day) | — | Due date of the latest deciding calibration |
-| Fitness | `Equipment.state` | Label | — | Ready, Due soon, Calibration overdue, Calibration failed, Not calibrated, Not qualified or Out of service |
+| Status | — | Choice | No | Ready (due in more than 30 days), Calibration due soon (0 to 30 days), Calibration overdue, Not calibrated or qualified (no counted calibration, latest failed, or passing and current but unqualified), Out of service. Overdue, due soon and ready apply to in-service equipment with a passing latest calibration; due soon and ready also need qualification when it is required |
+| Asset / Description / Category / Location | `Equipment.asset_id`, `.description`, `.category`, `.location` | Text | — | Identity; the asset links to the record |
+| Calibration due | `Calibration.due_date` | Date (inclusive last day) | — | Due date of the latest deciding calibration; blank when none. Shows the failed calibration's due date when the latest one failed |
+| Fitness | `Equipment.state` and calibration and qualification evidence | Label | — | Out of service, Not calibrated, Calibration failed, Calibration overdue, Not qualified, Due soon (due within 30 days) or Ready, checked in that order |
 
 ## Rules and hidden logic
 
 - **Order**: asset ID by default; ties break on record number. Unknown sort keys fall back to the default.
 - **Fitness** is derived from the latest calibration that counts (any failure, or a passing one that was independently accepted), the due date, qualification evidence when the equipment requires it, and the service state. A passing calibration awaiting acceptance does not count.
-- Filters run over the whole list, not the current page.
+- Filters run over the whole list, not the current page. Search is a case-insensitive "contains" match.
+- Equipment with a passing calibration that is overdue and also unqualified is labelled and filtered as Calibration overdue.
 
 ## Related pages
 

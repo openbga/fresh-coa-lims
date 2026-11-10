@@ -50,7 +50,7 @@ Corrects a sampling record by adding a linked, newer record. The original stays 
 - **Plan effective at sampling time**: "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at) when the sampled time is outside the plan version's effective period.
 - **Same checks as recording**: required containers and deviation rule against the plan version originally used, plus "More containers sampled than the lot contains." "Sampling time cannot be in the future." "The approved plan states amounts in <unit>."
 - **What is kept**: the sample, assignment, plan version, purpose, original sample (for a resample) and original sampler stay the same; you are stored as the recorder. The sample reference cannot change.
-- **Deviation assessment**: a correction that has a deviation creates a new pending assessment for the correction; the original's assessment no longer counts.
+- **Deviation assessment**: a correction that has a deviation creates a new pending assessment for the correction; the original's assessment no longer counts (the lot page still shows its old status on the corrected row, with no **Assess deviation** button).
 - **Effect**: a new record linked to the original is added, the original shows "Corrected", the lot's record revision increases by 1, and audit event `sampling.corrected` stores the before and after.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept.") plus refusals from the server as form-level errors.
 

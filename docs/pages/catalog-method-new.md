@@ -37,7 +37,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 | Code | `Method.code` | Slug, max 60, unique | Yes | Stable identifier. |
 | Title | `Method.title` | Text, max 200 | Yes | Method title. |
 | Technique | `MethodRevision.technique` | Text, max 120 | Yes | Help: "e.g. HPLC-UV, FTIR, plate count." |
-| Summary | `MethodRevision.summary` | Text | No | Free description; shown on the approval page, not on the method record page. |
+| Summary | `MethodRevision.summary` | Text | No | Free description; shown on the method record (when entered) and on the approval page. |
 | Controlled procedure | `MethodRevision.document_ref` | Text, max 160 | Yes | Help: "Document ID and revision of the approved procedure." |
 | Runs in a QC batch | `MethodRevision.requires_batch` | Checkbox | No | Help: "If set, add the batch QC checks to the draft before approval." |
 | Suitability basis | `MethodRevision.suitability_kind` | Method validation, Compendial method verification, Method transfer, Documented fitness for intended use | Yes | Kind of evidence of suitability for intended use. |

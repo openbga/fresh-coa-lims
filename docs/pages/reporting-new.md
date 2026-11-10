@@ -31,11 +31,12 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Released lot | `Lot.state`, `Lot.number` | Menu | Yes | Only lots with a signed QC disposition ("released"), ordered by lot number |
+| Released lot (`lot`) | `Lot.state`, `Lot.number` | Menu, first entry "Select a lot" | Yes | Every lot whose state is Released, ordered by lot number, including lots that already have certificates. Help text: "Only lots with a signed QC disposition are listed." |
 
 ## Rules and hidden logic
 
 - The form is submitted with GET, so the chosen lot appears in the address.
+- Opening the page with no query shows the empty form. Submitting without a choice shows "This field is required." (status 422).
 - A value that is not a released lot is refused with "Select a valid choice. That choice is not one of the available choices." (status 422).
 - This page never writes data or audit events.
 

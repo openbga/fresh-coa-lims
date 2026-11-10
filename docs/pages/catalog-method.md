@@ -25,6 +25,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **Signatures** under each version: signer, meaning, time, record revision, hash, or "Not signed."
 - **Empty state**: "No versions" ("Create the first version of this method.").
 - **History**: audit events for the method and all its versions (including QC check changes), oldest first.
+- **Foot line**: the method code, when the page was viewed and by whom.
 
 ## Actions
 

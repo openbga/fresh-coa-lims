@@ -13,17 +13,17 @@ Record installation/operational/performance qualification evidence for one instr
 
 ## Who can use it
 
-- Sign-in required. Roles: Analyst, Reviewer or Quality; others receive 403.
+- Sign-in required. Roles: Analyst, Reviewer or Quality; others receive 403. The equipment must exist (404 otherwise).
 
 ## Layout
 
-- Breadcrumbs, title, introduction, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Laboratory, Equipment, the asset, Record qualification), title "Record qualification · ASSET", the introduction "Recording evidence does not qualify anyone. A different quality signer approves it; the person concerned can neither record nor approve their own.", the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Record qualification** | Always | Analyst, Reviewer or Quality; others receive 403 | Saves, shows a confirmation message and opens the next page; domain refusals appear as an error summary and your entries are kept (status 422) |
+| **Record qualification** | Always | Analyst, Reviewer or Quality; others receive 403 | Saves and opens the new qualification record with "Qualification recorded; independent approval needed."; domain refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
@@ -38,12 +38,15 @@ Record installation/operational/performance qualification evidence for one instr
 | Valid until (inclusive) | `Qualification.valid_until` | Date | Yes | Last valid day; cannot precede Valid from |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the evidence |
 
+The label of Stage or intended use differs from the person form ("Activity"); help text: "For example IQ, OQ, PQ or requalification."
+
 ## Rules and hidden logic
 
-- The record starts as Awaiting approval and counts toward fitness only after a different Quality signer approves it and only inside its validity dates.
+- The record is tied to this equipment (there is no person field). It starts as Awaiting approval and counts toward fitness only after a Quality signer other than you approves it, and only from the approval time and inside its validity dates. Equipment registered with "Requires qualification" off ignores this evidence.
+- "Valid until cannot precede valid from." appears on Valid until when the dates are reversed.
 - Event `qualification.recorded`.
 
 ## Related pages
 
-- Equipment record
+- Equipment record (Cancel returns here)
 - [Qualifications](/laboratory/qualifications/)

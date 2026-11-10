@@ -17,26 +17,29 @@ Record that a pull window closed without collection. The pull stays on the study
 
 ## Layout
 
-- Breadcrumbs, title, introduction, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Studies, study, pull), title "Mark missed" with the timepoint, the introduction (a missed pull stays on the study record and cannot be rescheduled silently), the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Mark missed** | Always | Analyst or Quality; others receive 403 | Saves, shows a confirmation message and opens the next page; domain refusals appear as an error summary and your entries are kept (status 422) |
+| **Mark missed** | Always | Analyst or Quality; others receive 403 | Saves, shows the warning "Pull recorded as missed." and returns to the pull record; refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Reason | `Pull.missed_reason` | Text, max 2000 | Yes | Why the pull was missed |
+| Reason | `Pull.missed_reason`; also `AuditEvent.reason` | Text, max 2000 | Yes | Why the pull was missed; stored trimmed on the pull and recorded with the event |
 
 ## Rules and hidden logic
 
 - Messages: "The pull window has not closed yet."; "Only a scheduled pull of an active study can be marked missed."
-- Missed pulls are immutable and cannot be rescheduled. Event `pull.missed`.
+- Allowed only while the pull is Scheduled, the study is Active and today (local date) is after the window's last day. The pull page shows **Mark missed** only then.
+- Sets the pull to Missed and raises the revision by 1. Missed pulls are final and cannot be rescheduled. Event `pull.missed`.
+- A missed pull counts as finished when a study is closed as Completed.
 
 ## Related pages
 
 - Pull record
+- Study record

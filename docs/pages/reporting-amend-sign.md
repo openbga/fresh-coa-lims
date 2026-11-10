@@ -14,11 +14,11 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 ## Who can use it
 
 - Sign-in required. Only the **quality** role; others receive 403.
-- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result (status 403, nothing signed). A different quality user from the original signer may amend.
+- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result (status 403, nothing signed); the page itself still opens. Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
 
 ## Layout
 
-- **Dialog** (full page without JavaScript): heading "Sign and amend certificate", what your signature records ("amended", the new version number), signer, PIN enrolment link, errors, form, **Sign and amend certificate** / **Cancel**. Behaves as [Sign and issue certificate](/reports/).
+- **Dialog** (full page without JavaScript): heading "Sign and amend certificate", what your signature records ("amended", the new version number), signer, PIN enrolment link, errors, form, **Sign and amend certificate** / **Cancel**. Behaves as Sign and issue certificate.
 
 ## Actions
 
@@ -32,7 +32,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Reason for amendment | `ReportVersion.reason` | Text, max 2000 | Yes | Printed on the amended certificate and kept in the audit trail |
-| Remarks on the certificate | `ReportVersion.remarks` | Text, max 1000 | No | Printed; starts with the latest version's remarks |
+| Remarks on the certificate | `ReportVersion.remarks` | Text, max 1000 | No | Printed; starts with the latest version's remarks (a new amendment takes whatever you submit, so blank clears them) |
 | Evidence hash (hidden) | — | SHA-256 | Yes | Evidence you reviewed |
 | Expected version (hidden) | `Report.version_count` | Integer ≥ 1 | Yes | The version you were amending |
 | Signing username | — | Text, max 150 | Yes | Must be your own username |

@@ -33,7 +33,7 @@ One analytical test: its frozen specification, replicate observations, calculate
 |---|---|---|---|
 | **Record observation** | Test Open, lot Quarantine, fewer current values than replicates, and a batch assigned if the method needs one | Analyst | Opens the Record observation form |
 | **Correct** (row) | Test Open, lot Quarantine, row is current | Analyst | Opens the Correct observation form |
-| **Add to QC batch** | Open, method needs a batch, none assigned, no observations | Analyst | Opens the Add to QC batch form |
+| **Add to QC batch** | Open, lot Quarantine, method needs a batch, none assigned, no observations | Analyst | Opens the Add to QC batch form |
 | **Submit for review** | Open, lot Quarantine, current values equal replicates, and QC ready (no batch needed, or its batch is open with QC passed) | Analyst | Posts to this page; freezes the calculation; "Results submitted for independent review." |
 | **Return test** | Submitted and conforming | Reviewer | Opens the Return test form |
 | **Sign review** | Submitted and QC ready | Reviewer | Opens the Sign review page |

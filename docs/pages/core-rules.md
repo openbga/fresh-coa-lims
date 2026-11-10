@@ -27,7 +27,7 @@ List rule set revisions (required tests and signature meanings) and create new d
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Review and approve** | Status is draft | Quality, not the author | Opens the rule approval signing page |
+| **Review and approve** | Status is draft (link shown to every viewer) | Quality, not the author; others get 403 on opening | Opens the rule approval signing page |
 | **Create draft** | Always | Admin, quality | Creates the next version of that code as draft and reloads the page |
 
 ## Fields
@@ -50,7 +50,7 @@ List rule set revisions (required tests and signature meanings) and create new d
 - **Interval**: "Provide a reason and a valid effective interval." when the end is not after the start.
 - **Effective interval**: start inclusive, end exclusive. Approved revisions and their intervals are immutable; create and approve a non-overlapping replacement before an approved revision expires.
 - **Versioning**: new revisions start as draft; approved revisions are never edited. Creation is serialized so two drafts cannot get the same version.
-- **Order and paging**: the table is not explicitly sorted and not paginated.
+- **Order and paging**: the table is not explicitly sorted and not paginated. A refused submission re-renders the page with a form-level error (status 200); success reloads the page with no message.
 - **Audit**: writes `rule.created` with the revision snapshot.
 
 ## Related pages

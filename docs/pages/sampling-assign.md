@@ -38,7 +38,7 @@ Freezes the approved specification, its methods and the sampling plan that apply
 | Material | `LotAssignment.material` | Choice of all materials | Yes | Help: "The controlled material this lot is." Prefilled from the current assignment, or a material whose name or code equals the lot's material as received. |
 | Stage | `LotAssignment.stage` | Incoming material, In-process, Finished product, Stability | Yes | Stage of the material; prefilled from the current assignment. |
 | Scope | `LotAssignment.scope` | Slug, max 60, default "general" | Yes | Help: "general, or a named market/customer overlay." |
-| Reason | `LotAssignment.reason` | Text, max 2000 | Yes | Why requirements are assigned or changed. |
+| Reason | `LotAssignment.reason` | Text, max 2000 | Yes | Why requirements are assigned or changed; stored on the assignment and in its audit event. |
 
 ## Rules and hidden logic
 
@@ -48,7 +48,7 @@ Freezes the approved specification, its methods and the sampling plan that apply
 - **Fixed after testing starts**: tests are bound to the frozen requirements, so a new assignment is refused once any analytical test exists for the lot: "Testing has started on this lot, so its requirements cannot be reassigned. Controlled supersession of requirements after testing is not supported." Nothing is recorded and the lot revision is unchanged. Not supported by this page: controlled supersession of requirements after testing.
 - **Revision**: the lot's record revision increases by 1, so a disposition signing page opened earlier fails as stale.
 - **Audit**: `lot.requirements_assigned` or `lot.requirements_held` with the specification and plan revision, payload hash and your reason.
-- **Reason**: "A reason is required."
+- **Reason**: a blank reason is refused by the form ("This field is required.").
 - A refused submission returns status 422 with the error.
 
 ## Related pages

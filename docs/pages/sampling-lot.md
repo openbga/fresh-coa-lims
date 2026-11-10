@@ -28,8 +28,8 @@ Shows the approved requirements frozen for one lot (specification tests, methods
 - **Current requirements**: when testing has started on a quarantined lot, a "Fixed" note reads "Testing has started, so these requirements cannot be reassigned."
   - No assignment: "Applicability hold: no requirements assigned" and "Assign the approved specification and sampling plan for this lot's material and stage before sampling or testing."
   - On hold: "Applicability hold", "This lot cannot be sampled, tested against limits or dispositioned until quality resolves:" and the reasons, plus Requested and Recorded facts.
-  - Assigned: Material, Stage and scope, Specification (link to its version), Sampling plan (link, basis, "at least" amount), Rule set (when present), Frozen (who, when, shortened hash); then a table Test, Acceptance criterion, Method version, Suitability evidence, Required.
-- **Sampling records**: table Sample, Sampled, "Containers (sampled / required / total)", Amount, Plan, Deviation, Status ("Current" or "Corrected"), and **Correct** for analysts. A resample shows "Resample of <original sample>" under its reference. A deviation shows its assessment status ("Awaiting quality assessment", "Accepted by quality" or "Rejected by quality"), who decided and when, and an **Assess deviation** button. Empty: "No sampling recorded".
+  - Assigned: Material, Stage and scope, Specification (link to its version), Sampling plan (link, basis, "at least" amount), Rule set (when present), Frozen (who, when, shortened hash); then a table Test (code and name), Acceptance criterion, Method version (with controlled procedure), Suitability evidence, Required ("Required" or "Information only").
+- **Sampling records**: table Sample, Sampled, "Containers (sampled / required / total)", Amount, Plan, Deviation, Status ("Current" or "Corrected"), and **Correct** for analysts. A resample shows "Resample of <original sample>" under its reference. A deviation shows its assessment status ("Awaiting quality assessment", "Accepted by quality" or "Rejected by quality"), who decided and when, and an **Assess deviation** button. Empty: "No sampling recorded" ("Record sampling against the assigned plan once requirements are assigned."), with a **Record sampling** button for analysts when requirements are assigned.
 - **Earlier requirement assignments**: shown when more than one assignment exists; each marked "Superseded".
 - **History**: audit events of all assignments, sampling records and deviation assessments.
 
@@ -49,7 +49,7 @@ Shows the approved requirements frozen for one lot (specification tests, methods
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Lot status | `Lot.state` | Quarantine, Released | — | Only quarantined lots accept changes here. |
-| Record revision | `Lot.revision` | Integer | — | Increases when requirements are assigned, samples recorded or corrected; signing pages bind to it. |
+| Record revision | `Lot.revision` | Integer | — | Increases when requirements are assigned, a sample is recorded (once), a record is corrected or a deviation is assessed; signing pages bind to it. |
 | Specification, Sampling plan | `LotAssignment.payload` | "code vN" | — | Versions frozen when requirements were assigned. |
 | Frozen hash | `LotAssignment.payload_hash` | SHA-256, shortened | — | Hash of the frozen requirement content. |
 | Acceptance criterion | payload test line | Decimal limits with unit, or expected text | — | "≥" or ">" lower, "≤" or "<" upper, "(rounded to N)" when rounding applies. |

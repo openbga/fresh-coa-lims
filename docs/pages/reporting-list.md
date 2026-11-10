@@ -18,10 +18,10 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 ## Layout
 
-- **Header**: title, short description and the **New certificate of analysis** button (quality only).
+- **Header**: title, the line "Versioned, immutable certificates built from signed QC disposition evidence." and the **New certificate of analysis** button (quality only).
 - **Filters**: **Search** box, **Status** menu, **Apply filters**, and **Clear filters** (only while a filter is active).
 - **Table**: Certificate, Lot, Material, Issued to, Status, Version. Certificate numbers link to the record.
-- **Footer**: certificate count and, when there is more than one page, Previous / "Page N of M" / Next.
+- **Footer**: "N certificate(s)" (matching the current filters) and, when there is more than one page, Previous / "Page N of M" / Next.
 - **Empty states**: "No certificates of analysis yet." (with a start link for quality users) and, when filters are active, "No certificates match these filters."
 
 ## Actions
@@ -38,7 +38,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Search | `Report.number`, `Lot.number`, `Lot.material`, `Report.recipient` | Text | No | Case-insensitive "contains" match on any of these |
+| Search (`q`) | `Report.number`, `Lot.number`, `Lot.material`, `Report.recipient` | Text | No | Case-insensitive "contains" match on any of these; leading and trailing spaces ignored |
 | Status | `Report.state`, `Report.version_count` | Not issued, Issued, Amended | No | Not issued = record opened, nothing signed; Issued = exactly one version; Amended = more than one |
 | Certificate | `Report.number` | Text | — | Identifier, `CoA-<lot number>-<sequence>` |
 | Lot | `Report.lot` | Lot number | — | Lot the certificate covers |
@@ -48,8 +48,8 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 ## Rules and hidden logic
 
-- **Order and paging**: default order is newest first by creation time; 25 per page. Unknown sort values fall back to creation time. The server filters, sorts and pages the whole list.
-- **Draft records**: a record with status "Not issued" is created when a quality user starts signing for a lot and holds no evidence. It stays if the signing fails.
+- **Order and paging**: default order is newest first by creation time (ties by newest record); 25 per page; an out-of-range page shows the last page. Sorting by Status orders by number of issued versions. Unknown sort values fall back to creation time. The server filters, sorts and pages the whole list; the page accepts GET only.
+- **Draft records**: a record with status "Not issued" is created when a quality user submits the signing form for a released lot and holds no evidence. It stays if the signing fails. Draft records are listed to every viewer.
 - **Authorization**: access is checked on the server for every request; hidden buttons are not the control.
 
 ## Related pages

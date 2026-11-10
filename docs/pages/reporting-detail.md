@@ -20,10 +20,10 @@ One certificate of analysis series: its status, every issued version with who si
 ## Layout
 
 - **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended), "Current: version N", and actions.
-- **Record**: Certificate, Lot (link), Issued to, Opened, and the current PDF SHA-256.
+- **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened, and the current PDF SHA-256.
 - **Versions** (once issued): Version, Kind, Status, Issued, Signed by, Reason, Files.
-- **Certificate**: the current version as issued, from its stored snapshot (see [Review certificate](/reports/)).
-- **History**: audit events for this record, oldest first.
+- **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
+- **History** (quality and auditor only): audit events for this record, oldest first, or "No history yet."
 - A record with no version says "No version has been issued. A draft record holds no evidence."
 
 ## Actions
@@ -56,6 +56,7 @@ One certificate of analysis series: its status, every issued version with who si
 - **One series per lot and recipient**: further certificates for the same lot to a different recipient get their own record; the same recipient is amended, not reissued.
 - **Frozen content**: the certificate shown is the stored snapshot, never regenerated from today's records.
 - **Amendments** add a version that supersedes the previous one; earlier versions stay available.
+- **Footer line**: the certificate number, view time and viewer.
 - **Audit events** shown include `report.opened`, `signed.issued`, `signed.amended` and `report.downloaded`.
 
 ## Related pages

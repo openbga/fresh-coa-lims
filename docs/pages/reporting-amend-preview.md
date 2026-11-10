@@ -20,7 +20,7 @@ Shows what an amended certificate would contain, built from the lot's current ev
 ## Layout
 
 - **Header**: breadcrumbs, title "Amend certificate · number", status "Preview, not issued", evidence hash prefix.
-- **Alerts**: "Cannot issue" reasons, "Not permitted", or "Read only" as on [Review certificate](/reports/); plus an "Amendment" note: it replaces version N, which stays on record, and either lists the evidence sections changed or says the evidence is unchanged since that version.
+- **Alerts**: "Cannot issue" reasons, "Not permitted", or "Read only" as on Review certificate (only one of the three shows); plus an "Amendment" note: it replaces version N, which stays on record, and either lists the evidence sections changed or says the evidence is unchanged since that version.
 - **Certificate preview** of the evidence as it would now be issued.
 
 ## Actions
@@ -34,12 +34,12 @@ Shows what an amended certificate would contain, built from the lot's current ev
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Evidence sections changed | — | Section names | — | Top-level sections of the evidence that differ from the latest version (for example results, holds) |
-| Certificate preview | as [Review certificate](/reports/) | — | — | Same content and blockers |
+| Certificate preview | as Review certificate | — | — | Same content and blockers; the "Certificates already opened" list is not shown |
 
 ## Rules and hidden logic
 
 - Amendments are held to the same blockers as a first issue, so an open hold prevents amending. Not enforced by this page: withdrawal or recall of an issued certificate.
-- Viewing writes no audit event.
+- Viewing writes no audit event. Unknown certificate: 404. GET only.
 
 ## Related pages
 

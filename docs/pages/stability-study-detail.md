@@ -9,7 +9,7 @@ reviewed: 2026-11-10
 
 ## Purpose
 
-A study's lot, protocol and every scheduled pull with its timing status.
+A study's lot, protocol and every scheduled pull with its timing status; where a study is closed.
 
 ## Who can use it
 
@@ -18,7 +18,7 @@ A study's lot, protocol and every scheduled pull with its timing status.
 
 ## Layout
 
-- **Header**: breadcrumbs, title, identifier and status label, action buttons.
+- **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons.
 - **Details**: the facts below.
 - **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due, Overdue, Pulled, Accepted, Missed), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
@@ -28,23 +28,33 @@ A study's lot, protocol and every scheduled pull with its timing status.
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Close study** | Active; you did not start it | Quality | Opens the signing page |
-| **Record pull** / **Mark missed** (in the table) | Pull scheduled; Mark missed only after its window closes | Analyst / Analyst, Quality | Opens the form |
+| **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page |
+| **Record pull** (Next column) | Pull Scheduled and you are an Analyst | Analyst | Opens the form |
+| **Mark missed** (Next column) | Pull Scheduled, today is after its window, and you are Analyst or Quality | Analyst, Quality | Opens the reason form |
+
+Only one link shows in a pull row: Record pull takes precedence for Analysts. The server checks study and pull state and roles again.
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Lot / Protocol | `Study.lot`, `Study.protocol` | Links | — | What is under study |
+| Lot / Protocol | `Study.lot`, `Study.protocol` | Links | — | What is under study (lot number, protocol identifier) |
 | Container and closure, Time zero | `Study.*` | Text, date | — | Study design |
 | Lot rule basis at start | `Study.rule_basis` | Text | — | Rule set code, version and revision at the start |
-| Closed | `Study.closed_at` | Time | — | Signature time of closure |
+| Started by | `Study.created_by` | User | — | Cannot close the study |
+| Closed | `Study.closed_at` | Time | — | Time of closure; blank while Active |
+| Revision | `Study.revision` | Integer | — | Raised by each change |
+| Pulls table | `Pull.*`, `ProtocolTimepoint.*` | Rows | — | Timepoint (condition and label, links to the pull), Due, Window (from to to), Status, Tests (codes), Pulled by, Next. Empty: "No pulls scheduled." |
 
 ## Rules and hidden logic
 
-- Windows are the due date plus or minus the timepoint's window days.
+- Windows are the due date plus or minus the timepoint's window days. Status is Upcoming, Due or Overdue while Scheduled (by today's local date), then Pulled, Accepted or Missed.
+- Pulls are listed by due date, then identifier.
+- A closed study and its pulls are immutable.
 
 ## Related pages
 
 - [Stability studies](/stability/studies/)
+- Protocol record, Lot record (from the links)
+- Close study (signing page)
 - [Stability pulls](/stability/pulls/)

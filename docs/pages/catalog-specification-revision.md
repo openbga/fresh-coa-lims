@@ -25,7 +25,8 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 - **Version facts**: Material, Stage and scope, Effective, Basis, Author, Reason for version.
 - **Tests and acceptance criteria**: table with #, Test (code and name), Method (link), Acceptance criterion, Rounding, Replication, Required, and **Remove** for draft editors. Empty state "No tests yet" ("Approval requires at least one test with an approved method.") with an **Add test** button for quality.
 - **Signatures**: signer, meaning, time, record revision, hash, or "Not signed."
-- **History**: attributed audit events for this version, oldest first, or "No recorded history."
+- **History**: attributed audit events for this version only (not the specification's), oldest first, or "No recorded history."
+- **Foot line**: the version identifier, when the page was viewed and by whom.
 
 ## Actions
 

@@ -9,7 +9,7 @@ reviewed: 2026-11-10
 
 ## Purpose
 
-Product-specific stability protocols. Conditions and schedules come from an approved protocol, never from a default.
+All versions of product-specific stability protocols, draft, approved and superseded. Conditions and schedules come from the approved protocol, never from a universal default.
 
 ## Who can use it
 
@@ -20,7 +20,7 @@ Product-specific stability protocols. Conditions and schedules come from an appr
 
 - **Header**: title, short introduction and a **New protocol** button for Analyst, Quality.
 - **Toolbar**: **Search** (code, title or product) and **Status** (All, Draft, Approved, Superseded). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Protocol (code and version, links to the record), Title, Product, State, Approved (date). Sort by Protocol (default), Product or Approved. Sortable headers toggle ascending/descending.
+- **Table**: Protocol (code and version, links to the record), Title, Product, State, Approved (date). Approved is blank for drafts. Sort by Protocol (code then version, ascending by default), Product or Approved (sorts by creation time, not approval time). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -36,12 +36,19 @@ Product-specific stability protocols. Conditions and schedules come from an appr
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
+| Protocol | `Protocol.code`, `.version` | "CODE vN" | — | Identifier; links to the record |
+| Title / Product | `Protocol.title`, `.product` | Text | — | What the protocol covers |
 | State | `Protocol.state` | Draft / Approved / Superseded | — | Approved versions are frozen; approving a new version supersedes the old |
+| Approved | `Protocol.approved_at` | Date | — | Date of approval |
+| Search / Status | — | Text / All, Draft, Approved, Superseded | No | Search matches code, title or product |
 
 ## Rules and hidden logic
 
-- Version numbers rise per code.
+- Every protocol is listed, with no default filter; 25 rows per page by default.
+- Version numbers rise per code; only one draft per code can exist at a time.
 
 ## Related pages
 
 - [Stability studies](/stability/studies/)
+- [Stability and retention](/stability/)
+- Protocol record (plain name: opened from the Protocol column)

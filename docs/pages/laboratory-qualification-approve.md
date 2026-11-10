@@ -14,11 +14,12 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 ## Who can use it
 
 - Sign-in required. Role: Quality.
-- A user who is not permitted (wrong role or not independent) sees the reason and no PIN control (403).
+- Other roles receive the standard 403 page.
+- A Quality user who recorded the evidence or is the qualified person sees "The recorder and the qualified person cannot approve this qualification."; a record that is not awaiting approval shows "This qualification is approved." (or revoked). Both show the facts, no PIN control, and a **Back to record** link (403).
 
 ## Layout
 
-- A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): QUAL-n and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 
@@ -31,7 +32,7 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Subject / Activity / Valid / Evidence | — | Display | — | From the qualification record |
+| Subject / Activity / Valid / Evidence | `Qualification.user` or `.equipment`, `.activity`, `.valid_from`, `.valid_until`, `.evidence_ref` | Display | — | From the qualification record; Valid reads "start to end" |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Reason for signing | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |
@@ -40,11 +41,12 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 ## Rules and hidden logic
 
 - **Preconditions**: awaiting approval; you are neither the recorder nor the qualified person ("The recorder and the qualified person cannot approve this qualification."); not already expired ("The qualification has already expired.").
-- Eligibility starts at the signature time and ends after the last valid day.
+- Meaning text: "You approve this evidence as showing the subject is qualified for the activity between the stated dates." Success message: "Qualification approved."
+- Eligibility starts at the signature time, not before Valid from, and ends after the last valid day (inclusive).
 - **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).
 - **Stale page**: if the record changed after the page opened: "Record changed. Reload and review before signing."
 - **Effect**: one transaction applies the change, raises the record revision by 1, writes the audit event `signed.<meaning>` and an immutable signature bound to the new revision.
 
 ## Related pages
 
-- Qualification record
+- Qualification record (Cancel returns here)

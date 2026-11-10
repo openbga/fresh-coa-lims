@@ -9,20 +9,20 @@ reviewed: 2026-11-10
 
 ## Purpose
 
-Identified reserve samples with quantity against the configured minimum. Nothing here can be disposed of.
+Identified reserve samples with quantity against the minimum multiple of one test set, plus their retention obligations and holds on each record. Nothing here can be disposed of.
 
 ## Who can use it
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
-- Reading is allowed for these roles; the New control is hidden from roles that cannot use it and the server refuses them with 403.
+- Reading is allowed for these roles; **New reserve sample** is shown only to Analyst and Quality and the server refuses others with 403.
 
 ## Layout
 
 - **Header**: title, short introduction and a **New reserve sample** button for Analyst, Quality.
-- **Toolbar**: **Search** (identifier or lot number) and **Status** (All, Below minimum quantity). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Reserve (links to the record), Lot, Quantity, Retained, Location, Quantity check. Sort by Retained (newest first by default), Identifier or Lot. Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (reserve identifier or lot number, contains, case-insensitive) and **Status** (All, Below minimum quantity). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Reserve (links to the record), Lot, Quantity, Retained, Location, Quantity check. Quantity is the retained amount with its unit. Sort by Retained (newest first by default), Reserve (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
-- **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
+- **Empty states**: "No records yet" ("Record a reserve sample to track its quantity, retention and holds."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
 ## Actions
 
@@ -36,13 +36,17 @@ Identified reserve samples with quantity against the configured minimum. Nothing
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
+| Reserve | `ReserveSample.identifier` | Text, link | — | Opens the record |
+| Quantity / Retained / Location | `ReserveSample.quantity`, `.quantity_unit`, `.retained_on`, `.storage_location` | Decimal with unit, date, text | — | As recorded |
 | Quantity check | `ReserveSample.minimum_multiple` | Label | — | Meets minimum or Below minimum |
 
 ## Rules and hidden logic
 
-- Quantity is compared with the minimum multiple times the quantity for one test set.
+- Quantity is compared with the minimum multiple times the quantity for one test set. The **Below minimum quantity** filter lists reserves with quantity strictly below that product; a reserve at exactly the minimum meets it.
+- Not filtered by lot state or role; every reserve is listed. Page sizes 25, 50, 100.
 
 ## Related pages
 
 - [Holds](/stability/holds/)
-- Reserve record
+- Reserve record (open a row)
+- New reserve sample

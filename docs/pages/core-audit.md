@@ -61,6 +61,7 @@ Inspect recorded changes, export them, and record an independent review of selec
 - **After errors**: the conclusion and the checked visible boxes are kept. **After success**: you return to the same filtered page.
 - **Not a signature**: recording a review is an attributed audit record, not an electronic signature; no PIN is asked.
 - **Effect**: creates an immutable review linked to the events and writes `audit.reviewed`. Earlier conclusions stay visible.
+- **CSV**: columns ID, Time, Actor, Action, Record ("type:id"), Before, After, Reason. Export needs valid filters; with invalid filters the page shows the error instead.
 - **CSV safety**: values starting with `=`, `+`, `-` or `@` are prefixed with `'` to prevent spreadsheet formulas.
 
 ## Related pages
