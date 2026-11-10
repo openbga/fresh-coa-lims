@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Sign in · Open Qual IQ{% endblock %}
+{% block body %}<main id="main" class="container py-5" tabindex="-1"><div class="row justify-content-center"><div class="col-sm-8 col-md-5">
+{% include "includes/brand.html" with variant="entrance" %}
+<h1 class="h3">Sign in</h1><p>Use your individual laboratory account.</p>
+<form method="post">{% csrf_token %}{{ form }}<input type="hidden" name="next" value="{{ next }}"><button class="btn btn-primary" type="submit">Sign in</button></form>
+<p class="text-body-secondary mt-4">Accounts are provisioned by your laboratory administrator.</p>
+</div></div></main>{% endblock %}

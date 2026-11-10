@@ -1,0 +1,85 @@
+{% load static %}<!doctype html>
+
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  {# Synchronous on purpose: sets data-bs-theme from the saved choice before the first paint. #}
+  <script src="{% static 'js/theme-init.js' %}"></script>
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "422", "swap": true}, {"code": "[45]..", "swap": false, "error": true}]}'>
+  <title>{% block title %}{% if page_title %}{{ page_title }} · {% endif %}Open Qual IQ{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.8/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/datatables/colReorder.bootstrap5.min.css' %}">
+  {# Tom Select CSS is small and themed in app.css; its script loads only on pages with an enhanced select. #}
+  <link rel="stylesheet" href="{% static 'vendor/tom-select/tom-select.bootstrap5.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block extra_css %}{% endblock %}
+  <script src="{% static 'vendor/htmx-2.0.11/htmx.min.js' %}" defer></script>
+  <script src="{% static 'vendor/bootstrap-5.3.8/js/bootstrap.bundle.min.js' %}" defer></script>
+  <script src="{% static 'vendor/datatables/dataTables.min.js' %}" defer></script>
+  <script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}" defer></script>
+  <script src="{% static 'vendor/datatables/dataTables.colReorder.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/grid.js' %}" defer></script>
+</head>
+<body class="{% block body_class %}vr-app{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% if user.is_authenticated %} data-vr-user="{{ user.pk }}"{% endif %} data-vr-icons="{% static 'img/icons.svg' %}">
+  <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
+  {% block body %}
+  {% url 'dashboard' as dashboard_url %}
+  {% block topbar %}
+  <header class="vr-topbar">
+    <button class="btn btn-sm vr-topbar-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#vr-nav" aria-controls="vr-nav">{% include "includes/icon.html" with name="list" %}<span>Menu</span></button>
+    {% include "includes/brand.html" with href=dashboard_url|default:"/" %}
+    {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
+    <div class="vr-topbar-end">
+      {% include "includes/theme_menu.html" %}
+      {% if user.is_authenticated %}<span>{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% endif %}
+    </div>
+  </header>
+  {% endblock topbar %}
+  <div class="vr-shell">
+    {% block sidenav %}
+    <nav class="vr-sidenav offcanvas-lg offcanvas-start" id="vr-nav" tabindex="-1" aria-label="Primary">
+      <div class="offcanvas-header d-lg-none">
+        <p class="offcanvas-title h5 mb-0">Open Qual IQ</p>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="vr-nav-list">
+          <li><a class="vr-navlink" href="/" {% if request.path == '/' or '/lots/' in request.path or '/samples/' in request.path or '/results/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Lots</span></a></li>
+          <li><a class="vr-navlink" href="/rules/" {% if '/rules/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="list-check" %}<span>Rule sets</span></a></li>
+          <li><a class="vr-navlink" href="/audit/" {% if '/audit/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span>Audit trail</span></a></li>
+          <li><a class="vr-navlink" href="/signature-pin/" {% if request.path == '/signature-pin/' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Signature PIN</span></a></li>
+          </ul>
+      </div>
+    </nav>
+    {% endblock sidenav %}
+    <main class="vr-main" id="main" tabindex="-1"{% block form_surface_attributes %}{% if form_surface %} data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size }}"{% endif %}{% endblock %}>
+      {% block page_header %}
+      {% if page_title %}<div class="vr-page-header">
+        {% block page_dateline %}{% endblock %}
+        {% block breadcrumbs %}{% endblock %}
+        <div class="vr-page-header-row">
+          <div>
+            <h1 class="vr-page-title">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            {% block page_meta %}{% endblock %}
+            {% block page_intro %}{% endblock %}
+          </div>
+          <div class="vr-page-actions">{% block page_actions %}{% endblock %}</div>
+        </div>
+      </div>
+      {% endif %}{% endblock page_header %}
+      {% include "includes/messages.html" %}
+      {% block content %}{% endblock %}
+      {% block record_foot %}{% endblock %}
+    </main>
+  </div>
+  {% endblock body %}
+  <div class="vr-live" id="vr-live"></div>
+  {% include "includes/grid_columns_dialog.html" %}
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

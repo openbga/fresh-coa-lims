@@ -1,0 +1,115 @@
+name: checks
+on: [push, pull_request]
+jobs:
+  application:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: open_qual
+          POSTGRES_PASSWORD: open_qual
+          POSTGRES_DB: open_qual
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U open_qual" --health-interval 5s --health-retries 10
+    env:
+      DEBUG: "true"
+      DATABASE_URL: postgresql://open_qual:open_qual@127.0.0.1:5432/open_qual
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.7"
+      - name: Install PDF runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
+      - run: uv sync --frozen
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run python manage.py check
+      - run: uv run python manage.py makemigrations --check --dry-run
+      - run: uv run python manage.py migrate --noinput
+      - name: Collect static assets for template-serving tests
+        run: uv run python manage.py collectstatic --noinput
+      - run: uv run pytest
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: open_qual
+          POSTGRES_PASSWORD: open_qual
+          POSTGRES_DB: open_qual_browser
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U open_qual" --health-interval 5s --health-retries 10
+    env:
+      DEBUG: "true"
+      DATABASE_URL: postgresql://open_qual:open_qual@127.0.0.1:5432/open_qual_browser
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.7"
+      - name: Install PDF runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core poppler-utils
+      - run: uv sync --frozen --group e2e
+      - name: Install headless Chromium and system dependencies
+        run: uv run --group e2e playwright install --with-deps --only-shell chromium
+      - name: Collect assets with strict production manifest storage
+        run: uv run --group e2e python manage.py collectstatic --noinput
+      - name: Isolated browser journeys (one worker, disposable test database)
+        run: uv run --group e2e pytest -c e2e/pytest.ini e2e
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: open_qual_ci
+          POSTGRES_PASSWORD: disposable_ci_password
+          POSTGRES_DB: open_qual_container_smoke
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U open_qual_ci -d open_qual_container_smoke" --health-interval 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build application image (no push)
+        run: docker build --tag open-qual-iq:ci .
+      - name: Configure disposable smoke environment
+        run: |
+          cat > "$RUNNER_TEMP/open_qual-smoke.env" <<'ENV'
+          DEBUG=false
+          SECRET_KEY=disposable-ci-only-key-never-for-a-real-deployment-2026
+          DATABASE_URL=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432/open_qual_container_smoke
+          ALLOWED_HOSTS=127.0.0.1,localhost
+          PORT=8000
+          WEB_CONCURRENCY=1
+          REPORT_SYNTHETIC_DATA_NOTICE=true
+          ENV
+      - name: Migrate empty smoke database and check Django
+        run: |
+          docker run --rm --network host --env-file "$RUNNER_TEMP/open_qual-smoke.env" open-qual-iq:ci python manage.py migrate --noinput
+          docker run --rm --network host --env-file "$RUNNER_TEMP/open_qual-smoke.env" open-qual-iq:ci python manage.py check
+      - name: Verify non-root Render SSH prerequisites
+        run: |
+          docker run --rm open-qual-iq:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
+      - name: Start production server and check HTTP endpoints
+        run: |
+          docker run --detach --name open_qual-smoke --network host --env-file "$RUNNER_TEMP/open_qual-smoke.env" open-qual-iq:ci
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/; then break; fi
+            sleep 2
+          done
+          curl --fail --show-error -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/health/
+          curl --fail --show-error -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/
+          curl --fail --show-error -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/accounts/login/ --output /dev/null
+          curl --fail --show-error -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/static/admin/css/base.css --output /dev/null
+      - name: Logs and cleanup
+        if: always()
+        run: |
+          docker logs open_qual-smoke || true
+          docker rm -f open_qual-smoke || true
+          rm -f "$RUNNER_TEMP/open_qual-smoke.env"

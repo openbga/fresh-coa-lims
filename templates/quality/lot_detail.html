@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ lot.number }}{% endblock %}
+{% block page_header %}{% endblock %}
+{% block content %}
+<p><a href="{% url 'quality:lot_list' %}">Material lots</a></p><h1>{{ lot.number }}</h1>
+<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ lot.state|capfirst }}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
+{% if lot.state == 'quarantine' %}<div class="d-flex gap-2 mb-4"><a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">Add sample</a><a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a></div>{% endif %}
+<h2>Samples and results</h2>
+{% for sample in samples %}<section class="card mb-3"><div class="card-body"><h3>{{ sample.reference }}</h3><p>Collected {{ sample.collected_at }} UTC</p>{% if lot.state == 'quarantine' %}<a href="{% url 'quality:result_new' sample.pk %}">Record result</a>{% endif %}
+<div class="table-responsive"><table class="table"><thead><tr><th>Test</th><th>Result</th><th>Limits</th><th>Analyst</th><th>Review</th></tr></thead><tbody>{% for result in sample.results.all %}<tr><td>{{ result.test_code }}</td><td>{{ result.value }} {{ result.unit }}{% if not result.conforms %} <strong>Out of specification</strong>{% endif %}</td><td>{{ result.lower_limit }}–{{ result.upper_limit }} {{ result.unit }}</td><td>{{ result.analyst }}</td><td>{% if result.state == 'recorded' %}<a href="{% url 'quality:review' result.pk %}">Review result</a>{% else %}{{ result.state|capfirst }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No results recorded.</td></tr>{% endfor %}</tbody></table></div></div></section>{% empty %}<p>No samples recorded.</p>{% endfor %}
+<h2>Electronic signatures</h2>
+{% for signature in result_signatures %}<p>Result {{ signature.object_id }} revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% endfor %}
+{% for signature in signatures %}<p>Lot revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% empty %}<p>No lot disposition signature yet.</p>{% endfor %}
+{% endblock %}

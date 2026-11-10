@@ -1,0 +1,35 @@
+# New resources authorized by the owner; provision only after integrated checks pass.
+services:
+  - type: web
+    name: open-qual-iq
+    runtime: docker
+    plan: 1c-2g
+    region: virginia
+    autoDeployTrigger: "off"
+    healthCheckPath: /health/
+    preDeployCommand: python manage.py migrate --noinput
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: open-qual-iq-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: TIME_ZONE
+        value: UTC
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.dummy.EmailBackend
+
+databases:
+  - name: open-qual-iq-db
+    databaseName: open_qual
+    user: open_qual
+    plan: 0.5c-1g
+    region: virginia
+    postgresMajorVersion: "17"
+    diskSizeGB: 5
+    ipAllowList: []
