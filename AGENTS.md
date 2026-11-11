@@ -1,12 +1,12 @@
-# OpenBGA Qualab
+# OpenBGA QLab
 
-The product name is **OpenBGA Qualab** and the repository is [openbga/qualab](https://github.com/openbga/qualab), under the **OpenBGA** organization. Use this name in the application, presentation website and documentation. The support notice is: "Are you looking for support? Contact [bgasoft.com](https://bgasoft.com)."
+The product name is **OpenBGA QLab** and the repository is [openbga/qlab](https://github.com/openbga/qlab), under the **OpenBGA** organization. Use this name in the application, presentation website and documentation. The support notice is: "Are you looking for support? Contact [bgasoft.com](https://bgasoft.com)."
 
 Read `docs/product.md`, `docs/architecture.md`, `docs/ui-standards.md` and relevant source/tests. Regulatory applicability, sources and caveats are in `docs/regulations.md`. Keep documentation for intent and constraints, not a duplicate implementation description.
 
 One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules. Reference repositories are read-only.
 
-Owner decision, 2026-11-11 (replaces the earlier name, licence and repository location): the product is **OpenBGA Qualab**, an open-source project of BGASoft Inc. at <https://github.com/openbga/qualab>, licensed AGPL-3.0-only (`LICENSE` is the unmodified GNU text; never edit it). Use the notice in `NOTICE`. Keep the footer **Source code** link (AGPL-3.0 section 13). Keep nothing in the repository that names, compares or researches other LIMS/LIS/middleware products or vendors; regulatory sources, dependency notices and directly supported instruments/formats are allowed. Owner instruction, 2026-11-11: the README **Project and support** section (BGASoft as maintainer, community use, enterprise support via <https://bgasoft.com/services/open-source-support/>) is the one permitted business notice; keep exactly one, with no prices, service levels or validation/compliance claims.
+Owner decision, 2026-11-11 (replaces the earlier name, licence and repository location): the product is **OpenBGA QLab**, an open-source project of BGASoft Inc. at <https://github.com/openbga/qlab>, licensed AGPL-3.0-only (`LICENSE` is the unmodified GNU text; never edit it). Use the notice in `NOTICE`. Keep the footer **Source code** link (AGPL-3.0 section 13). Keep nothing in the repository that names, compares or researches other LIMS/LIS/middleware products or vendors; regulatory sources, dependency notices and directly supported instruments/formats are allowed. Owner instruction, 2026-11-11: the README **Project and support** section (BGASoft as maintainer, community use, enterprise support via <https://bgasoft.com/services/open-source-support/>) is the one permitted business notice; keep exactly one, with no prices, service levels or validation/compliance claims.
 
 ## Working rules
 

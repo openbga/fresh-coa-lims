@@ -19,7 +19,7 @@ def main():
         ("static/img/mark.svg", "mark.svg"),
     ):
         shutil.copyfile(ROOT / source, assets / name)
-    print(f"Built OpenBGA Qualab presentation: {destination}")
+    print(f"Built OpenBGA QLab presentation: {destination}")
 
 
 if __name__ == "__main__":

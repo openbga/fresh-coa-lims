@@ -1,4 +1,4 @@
-OpenBGA Qualab
+OpenBGA QLab
 Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
 
 This program is free software: you can redistribute it and/or modify it under the terms of the
@@ -10,5 +10,5 @@ OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. T
 grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the
 software.
 
-OpenBGA Qualab is derived from OpenBGA Roots at commit d04a916.
+OpenBGA QLab is derived from OpenBGA Roots at commit d04a916.
 Third-party components retain their own licences; see THIRD_PARTY_NOTICES.md.

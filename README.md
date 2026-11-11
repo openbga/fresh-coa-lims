@@ -1,10 +1,10 @@
-# OpenBGA Qualab
+# OpenBGA QLab
 
-An [OpenBGA](https://github.com/openbga) project. Repository: [openbga/qualab](https://github.com/openbga/qualab).
+An [OpenBGA](https://github.com/openbga) project. Repository: [openbga/qlab](https://github.com/openbga/qlab).
 
-The repository is currently private while we prepare OpenBGA Qualab for open-source release.
+The repository is currently private while we prepare OpenBGA QLab for open-source release.
 
-OpenBGA Qualab is a manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
+OpenBGA QLab is a manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
 
 The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented. The integrated development candidate passed its combined gate on 2026-11-10; this is not a completed MVP or production validation. Use synthetic data only; no regulatory compliance is claimed.
 
@@ -26,7 +26,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 
 ## Presentation website
 
-The static presentation in `website/` introduces OpenBGA Qualab and links to the repository, documentation and support. It uses the application's shared Bootstrap assets and theme. Build and preview it locally:
+The static presentation in `website/` introduces OpenBGA QLab and links to the repository, documentation and support. It uses the application's shared Bootstrap assets and theme. Build and preview it locally:
 
 ```sh
 python3 scripts/build_website.py
@@ -96,15 +96,15 @@ PostgreSQL is required for row locks and immutable-history triggers; SQLite is n
 
 ## Deployment
 
-`Dockerfile`, CI and `render.yaml` define the foundation. The authorized Blueprint describes `openbga-qualab` (Docker, 1c-2g, Virginia) and `openbga-qualab-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. Resource definition does not mean deployment has occurred. Provision only after the integrated checks pass.
+`Dockerfile`, CI and `render.yaml` define the foundation. The authorized Blueprint describes `openbga-qlab` (Docker, 1c-2g, Virginia) and `openbga-qlab-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. Resource definition does not mean deployment has occurred. Provision only after the integrated checks pass.
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 
-The repository moved to <https://github.com/openbga/qualab> on 2026-11-11. The owner must re-link any existing Render service (and its GitHub connection) to that repository; services created before the rename keep their existing names until renamed in the Render dashboard. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
+Deployments must link to <https://github.com/openbga/qlab>. The hosted synthetic demo is <https://openbga-qlab.onrender.com/>. Existing Render services need their repository connection and display name updated when adopting this name. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
 
 ## Project and support
 
-OpenBGA Qualab is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
+OpenBGA QLab is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
 
 **Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
 
@@ -114,7 +114,7 @@ OpenBGA Qualab is an open-source project of [BGASoft](https://bgasoft.com), a la
 
 Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
 
-OpenBGA Qualab is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
+OpenBGA QLab is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
 
 OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. The licence does not grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the software.
 

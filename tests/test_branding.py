@@ -23,8 +23,8 @@ def footer_source_url(response):
 def test_login_page_links_to_source_code(client):
     response = client.get("/accounts/login/")
     assert response.status_code == 200
-    assert footer_source_url(response) == "https://github.com/openbga/qualab"
-    assert "<title>Sign in · OpenBGA Qualab</title>" in response.content.decode()
+    assert footer_source_url(response) == "https://github.com/openbga/qlab"
+    assert "<title>Sign in · OpenBGA QLab</title>" in response.content.decode()
 
 
 def test_workspace_page_shows_brand_and_source_link_outside_main(client, django_user_model):
@@ -34,8 +34,8 @@ def test_workspace_page_shows_brand_and_source_link_outside_main(client, django_
     response = client.get("/audit/")
     assert response.status_code == 200
     body = response.content.decode()
-    assert footer_source_url(response) == "https://github.com/openbga/qualab"
-    assert "OpenBGA Qualab" in body
+    assert footer_source_url(response) == "https://github.com/openbga/qlab"
+    assert "OpenBGA QLab" in body
     # Form dialogs copy <main>; the footer must stay outside it.
     assert body.index('class="vr-app-footer"') > body.index("</main>")
 

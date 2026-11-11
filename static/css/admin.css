@@ -1,4 +1,4 @@
-/* OpenBGA Qualab colours for Django admin (maintenance tooling). Admin keeps its own layout and
+/* OpenBGA QLab colours for Django admin (maintenance tooling). Admin keeps its own layout and
    light/dark modes; only brand-bearing variables change. */
 html[data-theme="light"],
 :root {
