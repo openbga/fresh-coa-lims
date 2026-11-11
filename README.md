@@ -88,4 +88,4 @@ Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS 
 
 ## License and provenance
 
-GPL-3.0-only; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Derived from selected Open Roots IQ platform/design assets and patterns, source baseline `d04a916`, with fresh migrations and manufacturing-specific contracts. No reference repository credentials, runtime data or environmental rule presets are included. Retain original license and dependency notices when distributing.
+AGPL-3.0-only; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Derived from selected Open Roots IQ platform/design assets and patterns, source baseline `d04a916`, with fresh migrations and manufacturing-specific contracts. No reference repository credentials, runtime data or environmental rule presets are included. Retain original license and dependency notices when distributing.

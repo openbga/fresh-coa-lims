@@ -125,7 +125,7 @@ receipt ≈4.8k, laboratory ≈4.6k, commercial ≈3.5k, core ≈1.4k, catalog �
 - `e2e/` (Playwright, separate `pytest.ini`): `conftest.py`, `helpers.py`, `test_form_dialog.py`, `test_theme.py`, `test_sample_list.py`, `test_access.py`,
   `test_admin_access.py`, `test_screenshots.py` are generic; keep one journey per page type and the contrast check for both themes.
 - `config/`: `settings.py` (152 lines, env-driven), `urls.py`, `logging.py`, `wsgi.py`. As-is; edit default DB URL and `INSTALLED_APPS`/urls to the retained apps.
-- Hygiene files: `.gitignore` (ignores `.local/`, `.env*`, `staticfiles/`), `.dockerignore`, `.python-version`, `LICENSE` (GPL-3.0), `THIRD_PARTY_NOTICES.md` (retain,
+- Hygiene files: `.gitignore` (ignores `.local/`, `.env*`, `staticfiles/`), `.dockerignore`, `.python-version`, `LICENSE` (GPL-3.0 at the baseline; AGPL-3.0 since 2026-11-11), `THIRD_PARTY_NOTICES.md` (retain,
   update name), `AGENTS.md`/`CLAUDE.md` (rewrite for OQIQ; see ORIQ rules 1–11 as a template).
 
 ## 3. UI design system (to reproduce faithfully)
@@ -290,7 +290,7 @@ CI (3 jobs, all `on: [push, pull_request]`, actions pinned by SHA): **applicatio
 | Keep client portal / `User.client` | Pending research; decide before first migration | Product research |
 | Accession prefix, roles, `TIME_ZONE`, matrix → material taxonomy | Placeholders until research | Product research |
 | Render plans and spending | Resolved by user 2026-11-10: `1c-2g` web, `0.5c-1g` DB, 5 GB; provision after a passing integrated build (§9) | Coordinator |
-| Keep GPL-3.0-only | Yes (derivative of GPL-3.0-only work; retain LICENSE and notices) | Coordinator (legal) |
+| Keep GPL-3.0-only | Superseded 2026-11-11: Open Roots IQ and Open Qual IQ were both relicensed to AGPL-3.0-only; retain LICENSE and notices | Coordinator (legal) |
 | Palette/mark | Keep palette; new mark/name | Coordinator |
 
 Gaps in this analysis: I did not read every view/template or run any ORIQ checks (read-only task); per-app line counts and import counts come from `wc`/`grep` on non-test, non-migration `*.py`;
