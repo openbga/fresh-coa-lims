@@ -36,6 +36,8 @@ Forms use Django validation with escaped values and CSRF. Preserve nonsecret inp
 | Keyboard | Focus enters the dialog, stays within it, and returns to the opener; Escape/Cancel has no mutation |
 | Manifestation | Display signer, meaning, timestamp and bound revision beside the signed record/history |
 
+Before rendering an action or signing form, check the role, state, authorship and prerequisites already known on GET. Explain an unavailable action and return to its record or review page before requesting a PIN. Reuse domain predicates without mutating evidence; the submitted action must still revalidate current authority and state under its transaction locks.
+
 The signing component is a view of a server-enforced transition. Never offer self-review or suggest that an administrator can bypass independence. A record changed since the dialog opened must require renewed review and PIN entry. Audit review shows actor, action, old/new values, reason and timestamp; distinguish inspecting history from formally recording a review. PINs and hashes never appear in history or exports.
 
 ## Language and accessibility
@@ -45,3 +47,5 @@ Use sentence case and one term per concept. `New <thing>` creates, `Record` adds
 Use semantic headings, real buttons for actions and links for navigation. Provide visible focus, sufficient contrast in both themes, text with status colour, labelled icon-only controls and accessible modal behavior. Keep dense tables readable at normal zoom; allow horizontal table scrolling instead of clipping data. Test the real journey at desktop and narrow widths, with keyboard navigation, validation errors, denied permissions and a failed signing attempt.
 
 Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. Keep field help on forms and page-level explanations in `docs/pages/`; avoid separate per-page help modals. The panel follows navigation and remembers open state and width.
+
+On phone widths, the top bar shows Menu as a labelled icon, reserves room for theme, sign-out and page-documentation controls, and truncates only the brand text if needed. Verify the shell in Linux Chromium as well as the local browser: system-font metrics must not push controls outside the viewport. Do not mask layout overflow with page-wide clipping.

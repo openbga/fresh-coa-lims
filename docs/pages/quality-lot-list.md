@@ -19,6 +19,7 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 
 ## Layout
 
+- **Shared top bar**: Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. The brand text may shorten visually on a narrow screen.
 - **Header**: title "Material lots", a short description and the **New material lot** button.
 - **Search**: one box, "Find lot number", with **Search**.
 - **Lots table**: columns Lot, Material, Rule set, Status. Lot numbers link to the lot record.

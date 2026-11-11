@@ -113,6 +113,7 @@ def native_payload(good):
     payload["native"] = {
         "assignment_id": 1,
         "assignment_hash": "a" * 64,
+        "assignment_verified": True,
         "specification": {"code": "SPEC", "version": 1, "approved_hash": "b" * 64},
         "analytical": {
             "complete": True,
@@ -141,6 +142,9 @@ def test_native_evidence_passes_and_blocks(good):
     payload = native_payload(good)
     assert ev.blockers(payload) == []
     broken = native_payload(good)
+    broken["native"]["assignment_verified"] = False
+    assert any("could not be resolved and verified" in p for p in ev.blockers(broken))
+    broken = native_payload(good)
     broken["native"]["analytical"]["results"][0]["review"] = None
     assert any("no independent signed review" in p for p in ev.blockers(broken))
     broken = native_payload(good)
@@ -156,7 +160,7 @@ def test_native_evidence_passes_and_blocks(good):
 
 def test_native_certificate_renders(people, good):
     from reporting.render import render_certificate
-    from reporting.tests.test_services import pdf_text
+    from reporting.tests.test_services import flat, normalized, pdf_text
 
     payload = native_payload(good)
     payload["evidence_hash"] = ev.canonical_hash(good)
@@ -189,12 +193,20 @@ def test_native_certificate_renders(people, good):
     ]
     data = render_certificate(payload)
     text = pdf_text(data)
-    assert "100.3 mg/g" in text and "no upper limit" in text and "M1 r2" in text
-    assert "SPEC version 1" in text
-    assert "M1 version 2" in text and "controlled document SOP-SYN-1 rev 1" in text
-    assert "suitability (validation) VAL-SYN-1 rev 1" in text
+    spoken = normalized(text)  # wrapping differs by font; see normalized()
+    squashed = flat(text)  # hashes may break anywhere
+    for phrase in (
+        "100.3 mg/g",
+        "no upper limit",
+        "M1 r2",
+        "SPEC version 1",
+        "M1 version 2",
+        "controlled document SOP-SYN-1 rev 1",
+        "suitability (validation) VAL-SYN-1 rev 1",  # complete type, reference and revision
+    ):
+        assert phrase in spoken, phrase
     assert "{'code'" not in text and "revision_id" not in text  # no Python dict repr
-    flat = text.replace("\n", "").replace(" ", "")
-    assert "c" * 64 in flat and "b" * 64 in flat  # hashes kept, in technical identifiers
+    assert "VAL-SYN-1rev1" not in spoken  # token boundaries are really checked
+    assert "c" * 64 in squashed and "b" * 64 in squashed  # hashes kept, in technical identifiers
     assert len([p for p in text.split("\x0c") if p.strip()]) == 1  # compact certificate: one page
     assert "2026-11-10 10:00:00 UTC" in text

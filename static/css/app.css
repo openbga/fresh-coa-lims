@@ -929,6 +929,34 @@ s,
   gap: 0.375rem;
 }
 
+/* Reserve space for every action on phones, including with wider system fonts.
+   Only the brand text may truncate; controls must neither wrap nor leave the viewport. */
+@media (max-width: 575.98px) {
+  .vr-topbar {
+    gap: 0.375rem;
+  }
+
+  .vr-topbar > .vr-brand {
+    min-width: 0;
+  }
+
+  .vr-topbar > .vr-brand span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vr-topbar > .vr-brand img,
+  .vr-topbar > button,
+  .vr-topbar-end {
+    flex-shrink: 0;
+  }
+
+  .vr-topbar-end .vr-topbar-btn {
+    white-space: nowrap;
+  }
+}
+
 /* Quiet icon/text buttons: in the top bar, and the theme menu on entrance pages. */
 .vr-topbar-btn {
   --bs-btn-color: var(--vr-text);

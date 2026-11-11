@@ -58,6 +58,22 @@ def pdf_text(data):
     return out.stdout.decode()
 
 
+def normalized(text):
+    """Extracted PDF text with whitespace runs collapsed to single spaces.
+
+    Line wrapping and indentation depend on the installed fonts (macOS vs the Linux image), so
+    phrases are compared on whitespace-separated tokens: a wrap between words is accepted, but
+    "VAL-SYN-1rev1" is not mistaken for "VAL-SYN-1 rev 1".
+    """
+    return " ".join(text.split())
+
+
+def flat(text):
+    """Extracted text with all whitespace removed; only for strings the layout may split anywhere
+    (64-character hashes break at arbitrary points)."""
+    return "".join(text.split())
+
+
 def test_issue_stores_immutable_version_signature_and_audit(people, lot):
     report = issue(people, lot)
     version = report.versions.get()
