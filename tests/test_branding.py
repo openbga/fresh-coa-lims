@@ -9,7 +9,7 @@ from django.test import override_settings
 pytestmark = pytest.mark.django_db
 
 SOURCE_LINK = re.compile(
-    r'<footer class="vr-app-footer">.*?<a href="(?P<href>[^"]+)"[^>]*>Source code</a>',
+    r'<footer class="vr-app-footer[^"]*">.*?<a href="(?P<href>[^"]+)"[^>]*>Source code</a>',
     re.S,
 )
 
