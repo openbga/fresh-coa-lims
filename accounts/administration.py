@@ -204,6 +204,8 @@ def change_account(
         if user.management_revision != expected_revision:
             raise ValidationError("Account changed. Reload and review before signing.")
         before = safe_snapshot(user)
+        # Written columns; the stored password hash is written only when it is being replaced.
+        changed = ["management_revision", "session_epoch"]
         if action == "roles":
             from django.contrib.auth.models import Group
 
@@ -212,16 +214,19 @@ def change_account(
             user.groups.set([Group.objects.get_or_create(name=r)[0] for r in sorted(roles)])
         elif action == "identity":
             user.first_name, user.last_name, user.email = first_name, last_name, email
+            changed += ["first_name", "last_name", "email"]
         elif action == "deactivate":
             if not user.is_active:
                 raise ValidationError("This account is already inactive.")
             if last_admin(user):
                 raise ValidationError("Keep at least one active account with the admin role.")
             user.is_active = False
+            changed.append("is_active")
         elif action == "reactivate":
             if user.is_active:
                 raise ValidationError("This account is already active.")
             user.is_active = True
+            changed.append("is_active")
         elif action in {"unlock_pin", "reenroll_pin"}:
             credential = PINCredential.objects.select_for_update().filter(user=user).first()
             if credential is None:
@@ -235,25 +240,33 @@ def change_account(
             if temporary_password:
                 validate_password(temporary_password, user)
                 user.set_password(temporary_password)
+                changed.append("password")
             elif not user.has_usable_password():
                 raise ValidationError(
                     "Set a temporary password for an account without a usable password."
                 )
             user.password_change_required = True
+            changed.append("password_change_required")
         user.management_revision += 1
         user.session_epoch += 1
         user.full_clean()
-        user.save()
+        user.save(update_fields=changed)
         return _record(actor, user, f"account.{action}", before, reason, signer_state)
 
 
 @sensitive_variables()
 def change_own_password(*, actor, current_password, password, reason):
+    from .authentication import confirm_password
+
     reason_required(reason)
+    # Commits the failure count or the reset first, so refusing the new password cannot undo it.
+    verified = confirm_password(actor, current_password)
+    if verified is None:
+        raise PermissionDenied("Current password was not accepted.")
     with transaction.atomic():
         account_lock()
         user = get_user_model().objects.select_for_update().get(pk=actor.pk)
-        if not user.is_active or not user.check_password(current_password):
+        if not user.is_active or user.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Current password was not accepted.")
         validate_password(password, user)
         if user.check_password(password):
@@ -263,7 +276,14 @@ def change_own_password(*, actor, current_password, password, reason):
         user.password_change_required = False
         user.management_revision += 1
         user.session_epoch += 1
-        user.save()
+        user.save(
+            update_fields=[
+                "password",
+                "password_change_required",
+                "management_revision",
+                "session_epoch",
+            ]
+        )
         record_event(
             actor=user,
             obj=user,
@@ -272,4 +292,4 @@ def change_own_password(*, actor, current_password, password, reason):
             after=safe_snapshot(user),
             reason=reason,
         )
-        return user
+    return user

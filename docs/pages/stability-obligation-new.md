@@ -4,7 +4,7 @@ urls: stability:obligation_new
 views: stability.views.obligation_new
 templates: ops/form.html
 models: stability.RetentionObligation, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 ## Who can use it
 
 - Sign-in required. Roles: Analyst or Quality; others receive 403.
-- Opened with `?reserve=<id>` (from a reserve sample) the obligation is tied to that reserve and its lot; an unknown reserve returns 404.
+- Opened with `?reserve=<id>` (from a reserve sample) the obligation is tied to that reserve and its lot; an unknown or malformed reserve returns 404.
 - An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
@@ -44,6 +44,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 - Obligations are append-only. An unknown anchor keeps the item retained (the disposal gate reports it as a blocker; no disposal path exists yet) and is counted in the overview queue "Retention anchors not yet known".
 - Retain-until is the anchor plus the months in calendar months; a day past the end of the target month is clamped to its last day.
 - Retention is considered cleared only after the retain-until date has passed.
+- When an anchor date is given, the retain-until date must be a representable calendar date; otherwise "The retention date falls outside the supported calendar." appears beside the months and nothing is saved.
 - Event `retention.recorded` (includes the computed retain-until date).
 - Not enforced by this page: which bases apply to a lot; quality decides and records one obligation per basis.
 

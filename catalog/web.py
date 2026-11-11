@@ -1,4 +1,4 @@
-"""View helpers shared by the catalog and sampling pages (same package owner)."""
+"""View helpers shared by the catalog and sampling pages."""
 
 from functools import reduce
 from operator import or_
@@ -6,8 +6,10 @@ from operator import or_
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import redirect, render
+from psycopg.errors import UniqueViolation
 
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
@@ -17,6 +19,24 @@ from .forms import ApprovalForm, ReasonForm
 from .models import RevisionStatus
 
 READ_ROLES = services.READ_ROLES
+CONFLICT = "Another request saved a conflicting record at the same time. Reload and try again."
+
+# (table, unique constraint) pairs that a concurrent request can legitimately take between this
+# request's own uniqueness check and its insert: codes, applicability keys and sample references,
+# which are created without a parent row lock. Versions, specification tests and QC checks are
+# added under a row lock after their check, so a violation there is a fault, as is one on any
+# other table (audit events, signatures, primary keys). Only these become the conflict message.
+CONCURRENT_DUPLICATES = frozenset(
+    {
+        ("catalog_material", "catalog_material_code_key"),
+        ("catalog_method", "catalog_method_code_key"),
+        ("catalog_specification", "catalog_specification_code_key"),
+        ("catalog_specification", "specification_applicability_unique"),
+        ("sampling_samplingplan", "sampling_samplingplan_code_key"),
+        ("sampling_samplingplan", "sampling_plan_unique"),
+        ("quality_sample", "quality_sample_reference_key"),
+    }
+)
 
 
 def can(user, *roles):
@@ -39,7 +59,21 @@ def run(form, action):
             form.add_error(None, exc.messages)
     except PermissionDenied as exc:
         form.add_error(None, str(exc) or "Your role does not permit this action.")
+    except IntegrityError as exc:
+        # The service transaction rolled back. Only a concurrent duplicate is expected (e.g. a
+        # double submission committed the same code after this request checked it); every other
+        # integrity failure, including any other unique violation, is a fault and is re-raised.
+        if not concurrent_duplicate(exc):
+            raise
+        form.add_error(None, CONFLICT)
     return None
+
+
+def concurrent_duplicate(exc):
+    cause = exc.__cause__
+    if not isinstance(cause, UniqueViolation):
+        return False
+    return (cause.diag.table_name, cause.diag.constraint_name) in CONCURRENT_DUPLICATES
 
 
 def form_status(request, form):

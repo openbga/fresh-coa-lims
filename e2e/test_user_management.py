@@ -2,7 +2,6 @@
 
 import re
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
@@ -25,7 +24,6 @@ TEMP_PASSWORD = "Replacement-lab-member-2026!"
 FINAL_PASSWORD = "Renewed-private-member-2026!"
 USER_PIN = "48261937"
 NEW_USER_PIN = "59827146"
-ARTIFACTS = Path(".local/qa")
 
 
 @pytest.fixture
@@ -98,9 +96,8 @@ def enroll_pin(page, server, password, pin):
     expect(page.get_by_text("Signature PIN saved.", exact=True)).to_be_visible()
 
 
-def test_signed_account_lifecycle(live_server, account_admin, django_user_model):
+def test_signed_account_lifecycle(live_server, account_admin, django_user_model, artifacts):
     admin = account_admin
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         admin_context = browser.new_context(viewport={"width": 1440, "height": 1000})
@@ -221,7 +218,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model)
             expect(page.get_by_text("Active", exact=True)).to_be_visible()
             login(member, live_server, "synthetic_named_member", FINAL_PASSWORD)
             expect(member).to_have_url(live_server.url + "/")
-            page.screenshot(path=str(ARTIFACTS / "admin-management-history.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "admin-management-history.png"), full_page=True)
             page.get_by_role("button", name="Page documentation", exact=True).click()
             panel = page.get_by_role("complementary", name="Page documentation", exact=True)
             expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
@@ -234,17 +231,17 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model)
                 panel.get_by_role("heading", name="Not documented yet", exact=True)
             ).to_have_count(0)
             page.screenshot(
-                path=str(ARTIFACTS / "admin-management-documentation.png"), full_page=True
+                path=str(artifacts / "admin-management-documentation.png"), full_page=True
             )
             panel.get_by_role("button", name="Close page documentation", exact=True).click()
             expect(panel).not_to_be_visible()
             page.set_viewport_size({"width": 390, "height": 844})
-            page.screenshot(path=str(ARTIFACTS / "admin-management-mobile.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "admin-management-mobile.png"), full_page=True)
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.goto(live_server.url + reverse("accounts:user_list"))
             expect(page.get_by_role("heading", name="Users and roles", exact=True)).to_be_visible()
             page.screenshot(
-                path=str(ARTIFACTS / "admin-management-list-mobile.png"), full_page=True
+                path=str(artifacts / "admin-management-list-mobile.png"), full_page=True
             )
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.goto(
@@ -252,14 +249,14 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model)
             )
             expect(page.get_by_label(re.compile(r"^First name\b"))).to_have_value("Synthetic")
             page.screenshot(
-                path=str(ARTIFACTS / "admin-management-form-mobile.png"), full_page=True
+                path=str(artifacts / "admin-management-form-mobile.png"), full_page=True
             )
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         except Exception:
-            page.screenshot(path=str(ARTIFACTS / "admin-management-failure.png"), full_page=True)
-            (ARTIFACTS / "admin-management-failure.html").write_text(page.content())
+            page.screenshot(path=str(artifacts / "admin-management-failure.png"), full_page=True)
+            (artifacts / "admin-management-failure.html").write_text(page.content())
             member.screenshot(
-                path=str(ARTIFACTS / "admin-management-member-failure.png"), full_page=True
+                path=str(artifacts / "admin-management-member-failure.png"), full_page=True
             )
             raise
         finally:
@@ -309,12 +306,11 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model)
             assert secret not in str(signature.content)
 
 
-def test_admin_cannot_remove_last_admin_or_self_escalate(live_server, account_admin):
+def test_admin_cannot_remove_last_admin_or_self_escalate(live_server, account_admin, artifacts):
     admin = account_admin
     before_revision = admin.management_revision
     before_signatures = ElectronicSignature.objects.count()
     before_events = AuditEvent.objects.filter(action__startswith="account.").count()
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1280, "height": 900})
@@ -333,7 +329,7 @@ def test_admin_cannot_remove_last_admin_or_self_escalate(live_server, account_ad
                     "Keep at least one active account with the admin role.", exact=True
                 )
             ).to_be_visible()
-            page.screenshot(path=str(ARTIFACTS / "admin-last-admin-denied.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "admin-last-admin-denied.png"), full_page=True)
             page.goto(detail)
             page.get_by_role("link", name="Assign roles", exact=True).click()
             page.get_by_role("checkbox", name="Quality", exact=True).check()
@@ -347,7 +343,7 @@ def test_admin_cannot_remove_last_admin_or_self_escalate(live_server, account_ad
                 page.get_by_role("heading", name="Access not permitted", exact=True)
             ).to_be_visible()
             page.screenshot(
-                path=str(ARTIFACTS / "admin-self-escalation-denied.png"), full_page=True
+                path=str(artifacts / "admin-self-escalation-denied.png"), full_page=True
             )
         finally:
             browser.close()

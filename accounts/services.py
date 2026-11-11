@@ -3,6 +3,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.views.decorators.debug import sensitive_variables
 
 from core.audit import record_event
 
@@ -44,6 +45,7 @@ def assign_roles(*, actor, user, roles, reason):
     return user
 
 
+@sensitive_variables()
 @transaction.atomic
 def provision_account(*, actor, username, password, first_name, last_name, roles, reason):
     from .administration import account_lock

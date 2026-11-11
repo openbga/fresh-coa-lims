@@ -4,7 +4,7 @@ urls: laboratory:use_new
 views: laboratory.views.use_new
 templates: ops/form.html
 models: laboratory.ResourceUse, quality.Sample, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -40,7 +40,7 @@ Record the equipment and reagents used for a sample, gated by their fitness and 
 ## Rules and hidden logic
 
 - Eligible now means: you have an approved, current qualification for the activity and an active account; each equipment is in service, has a counting calibration that is a pass and not expired, and current approved qualification if it requires one; each lot is released, not rejected, not expired, not dated in the future, and every source lot is released, unrejected and unexpired. Other errors: "A reason is required."
-- Every selected resource and you must be eligible now. If any is not, nothing is recorded as a use and the page shows "Work is blocked: …" naming each refusal (status 422). The refusal is audited as `resource.use_blocked` even though the action is rejected.
+- Every selected resource and you must be eligible now. If any is not, nothing is recorded as a use and the page shows "Work is blocked: …" naming each refusal (status 422). The refusal is audited as `resource.use_blocked` even though the action is rejected. The check runs with your account record, the selected equipment, the reagent lots and their source lots, and your and the equipment's qualification records locked, so a qualification revocation or lot rejection being signed at the same moment is waited for and then applies.
 - On success one use row is written per resource with the evidence relied on, plus the audit event `resource.used`.
 
 ## Related pages

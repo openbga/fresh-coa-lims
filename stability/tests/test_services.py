@@ -1,6 +1,7 @@
 """Protocol, study, pull, reserve, retention and hold contracts against PostgreSQL."""
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -220,8 +221,16 @@ def test_study_schedules_one_pull_per_timepoint(people):
     assert study.rule_basis.startswith("rules-SYN-LOT-1 v1")
     due = {p.timepoint.interval_days: p.due_date for p in study.pulls.all()}
     assert due == {d: study.start_date + timedelta(days=d) for d in (30, 100, 180)}
-    with pytest.raises(ValidationError):
-        started_study(people, protocol=study.protocol, lot=study.lot)
+    # A different identifier, so only the protocol/lot/container scope can refuse it.
+    with pytest.raises(ValidationError, match="Container closure already exists"):
+        started_study(people, protocol=study.protocol, lot=study.lot, identifier="STB-002")
+
+
+def test_unrepresentable_schedule_is_refused_without_a_study(people):
+    protocol = approved_protocol(people, code="SYN-HUGE", intervals=(30, 2_000_000_000))
+    with pytest.raises(ValidationError, match="supported calendar range"):
+        started_study(people, protocol=protocol)
+    assert not Study.objects.exists() and not Pull.objects.exists()
 
 
 def test_pull_window_deviation_future_date_and_state(people):
@@ -306,7 +315,7 @@ def test_accept_requires_independent_reviewer_and_complete_reviewed_testing(peop
     # The documenting analyst and the puller cannot accept, even holding the reviewer role.
     people["analyst"].groups.add(people["reviewer"].groups.get())
     for actor in ("analyst", "analyst2"):
-        with pytest.raises(PermissionDenied, match="pulled or documented"):
+        with pytest.raises(PermissionDenied, match="pulled, documented"):
             accept(people, pull, actor)
     review_sample(people, sample)
     accepted = accept(people, pull)
@@ -315,6 +324,23 @@ def test_accept_requires_independent_reviewer_and_complete_reviewed_testing(peop
     assert signature.meaning == "reviewed" and signature.content["state"] == "accepted"
     with pytest.raises(DatabaseError), transaction.atomic():
         Pull.objects.filter(pk=pull.pk).update(storage_location="elsewhere")
+
+
+def test_test_data_author_holding_reviewer_role_cannot_accept(people):
+    """Acceptance signs over the linked testing outcome, so its data author is excluded too."""
+    study = started_study(people)
+    pull = record(people, pull_for(study, 100))
+    sample = sample_with_result(people, study)  # analyst2 records and submits the data
+    services.attach_pull_evidence(
+        actor=people["analyst"], pull=pull, sample_reference=sample.reference, reason="Linked"
+    )
+    people["analyst2"].groups.add(people["reviewer"].groups.get())
+    pull.refresh_from_db()
+    assert people["analyst2"].pk in services.pull_author_ids(pull)
+    with pytest.raises(PermissionDenied, match="produced test data"):
+        accept(people, pull, "analyst2")
+    assert not ElectronicSignature.objects.filter(object_type="stability.pull").exists()
+    assert accept(people, pull).state == "accepted"
 
 
 def test_out_of_specification_testing_blocks_acceptance(people):
@@ -417,6 +443,8 @@ def test_add_months_clamps_and_crosses_years():
     assert add_months(date(2028, 1, 31), 1) == date(2028, 2, 29)
     assert add_months(date(2026, 11, 10), 14) == date(2028, 1, 10)
     assert add_months(date(2026, 12, 31), 12) == date(2027, 12, 31)
+    assert add_months(date(2028, 2, 29), 12) == date(2029, 2, 28)
+    assert add_months(date(2028, 2, 29), 48) == date(2032, 2, 29)
 
 
 def test_reserve_quantity_check_and_immutability(people):
@@ -629,3 +657,179 @@ def test_tests_created_before_the_pull_do_not_count(people):
     )
     assert evidence == [] and any("before the pull" in b for b in blockers)
     assert sample_evidence(sample, ["identity"], not_before=timezone.now() - timedelta(days=1))[1]
+
+
+def test_chamber_use_waits_for_a_revocation_in_progress_and_is_then_refused(people):
+    import threading
+
+    from laboratory.models import Qualification, ResourceUse
+    from laboratory.tests.test_services import _revoke_and_hold
+
+    chamber = make_equipment(people, "CH-RACE")
+    qualification = Qualification.objects.get(equipment=chamber)
+    pull = pull_for(started_study(people), 100)
+    locked, release = threading.Event(), threading.Event()
+    revoker = threading.Thread(target=_revoke_and_hold, args=(qualification, locked, release))
+    revoker.start()
+    try:
+        assert locked.wait(10)
+        threading.Timer(1.0, release.set).start()
+        with pytest.raises(ValidationError, match="CH-RACE"):
+            record(people, pull, chamber=chamber)
+    finally:
+        release.set()
+        revoker.join()
+    pull.refresh_from_db()
+    assert pull.state == "scheduled"
+    assert not ResourceUse.objects.filter(context_type="stability.pull").exists()
+
+
+@pytest.mark.parametrize("relinked_ref", ["EVID-1", "EVID-2"], ids=["unchanged", "changed"])
+def test_earlier_evidence_recorder_cannot_accept_after_relinking(people, relinked_ref):
+    """Re-linking overwrites the latest recorder; every earlier recorder stays excluded."""
+    study = started_study(people)
+    pull = record(people, pull_for(study, 100))
+    first = people["analyst2"]
+    first.groups.add(people["reviewer"].groups.get())
+    for actor, ref in ((first, "EVID-1"), (people["analyst"], relinked_ref)):
+        pull = services.attach_pull_evidence(
+            actor=actor,
+            pull=pull,
+            external_sample_ref="EXT-1",
+            evidence_ref=ref,
+            reason="Linked",
+        )
+    assert pull.evidence_recorded_by == people["analyst"]
+    assert first.pk in services.pull_author_ids(pull)
+    with pytest.raises(PermissionDenied, match="documented"):
+        accept(people, pull, "analyst2")
+    assert not ElectronicSignature.objects.filter(object_type="stability.pull").exists()
+    assert accept(people, pull).state == "accepted"
+
+
+def test_pull_recording_and_signing_by_the_same_account_do_not_deadlock(people, monkeypatch):
+    from laboratory.models import Qualification, ResourceUse
+    from laboratory.tests.test_services import run_against_signing
+
+    chamber = make_equipment(people, "CH-LOCK")
+    pull = pull_for(started_study(people), 100)
+    outcome = run_against_signing(
+        monkeypatch,
+        services,
+        "equipment_eligibility",
+        people["analyst"],
+        Qualification.objects.get(equipment=chamber),
+        lambda: record(people, pull, chamber=chamber),
+    )
+    assert outcome["signer"] == "committed", outcome
+    assert not isinstance(outcome["action"], Exception), outcome
+    assert ResourceUse.objects.filter(context_type="stability.pull").count() == 1
+
+
+def test_chamber_calibration_and_pull_by_the_same_account_do_not_deadlock(people, monkeypatch):
+    """Calibration holds the chamber until its commit checks the account reference; recording
+    a pull by the same person must not hold the account while it waits for that chamber."""
+    from laboratory import services as laboratory
+    from laboratory.models import Calibration, ResourceUse
+    from laboratory.tests.helpers import accept_new_calibration, run_interleaved
+
+    chamber = make_equipment(people, "CH-CAL")
+    pull = pull_for(started_study(people), 100)
+    outcome = run_interleaved(
+        monkeypatch,
+        laboratory,
+        "record_event",
+        lambda: accept_new_calibration(people, chamber, accept=False),
+        lambda: record(people, pull, chamber=chamber),
+    )
+    assert isinstance(outcome["first"], Calibration), outcome
+    assert isinstance(outcome["second"], Pull), outcome
+    assert ResourceUse.objects.filter(context_type="stability.pull").count() == 1
+
+
+def test_hold_placement_and_release_by_the_same_account_do_not_deadlock(people, monkeypatch):
+    """Placing a hold holds the lot until its commit checks the account reference; a release
+    signed meanwhile by the same person locks the account first and then needs the lot."""
+    from laboratory.tests.helpers import run_interleaved
+
+    lot = make_lot(people)
+    first = services.place_hold(actor=people["analyst"], lot=lot, kind="quality", reason="One")
+    person = people["quality"]
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "record_event",
+        lambda: services.place_hold(actor=person, lot=lot, kind="quality", reason="Two"),
+        lambda: services.release_hold(
+            actor=person, pin=PIN, hold=first, expected_revision=first.revision, reason="Closed"
+        ),
+    )
+    assert isinstance(outcome["first"], Hold), outcome
+    assert isinstance(outcome["second"], Hold), outcome
+    assert outcome["second"].state == Hold.State.RELEASED
+
+
+def test_protocol_draft_and_approval_by_the_same_account_do_not_deadlock(people, monkeypatch):
+    """Starting a draft holds the protocol-series lock until its commit checks the account
+    reference; approving another draft by the same person locks the account first."""
+    from laboratory.tests.helpers import run_interleaved
+
+    approved = approved_protocol(people, code="SYN-A")
+    other = services.create_protocol(
+        actor=people["analyst"],
+        code="SYN-B",
+        title="Synthetic protocol B",
+        product="Synthetic powder",
+        document_ref="DOC-SYN-2 r1",
+        document_url="",
+        test_profile_ref="PROFILE-SYN r1",
+        basis="Synthetic basis",
+        reason="Synthetic draft",
+    )
+    condition = services.add_condition(
+        actor=people["analyst"],
+        protocol=other,
+        label="Long-term",
+        setpoint="Synthetic setpoint",
+        temperature_c=Decimal("25.0"),
+        humidity_pct=Decimal("60.0"),
+        reason="Synthetic condition",
+    )
+    services.add_timepoint(
+        actor=people["analyst"],
+        protocol=other,
+        condition=condition,
+        label="30 days",
+        interval_days=30,
+        window_days=5,
+        test_codes=["identity"],
+        reason="Synthetic timepoint",
+    )
+    other.refresh_from_db()
+    person = people["quality"]
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "record_event",
+        lambda: services.create_protocol(
+            actor=person,
+            code=approved.code,
+            title="Synthetic protocol A, next version",
+            product="Synthetic powder",
+            document_ref="DOC-SYN-1 r2",
+            document_url="",
+            test_profile_ref="PROFILE-SYN r1",
+            basis="Synthetic basis",
+            reason="Next version",
+        ),
+        lambda: services.approve_protocol(
+            actor=person,
+            pin=PIN,
+            protocol=other,
+            expected_revision=other.revision,
+            reason="Independent approval",
+        ),
+    )
+    assert isinstance(outcome["first"], Protocol), outcome
+    assert isinstance(outcome["second"], Protocol), outcome
+    assert outcome["second"].state == Protocol.State.APPROVED

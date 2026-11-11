@@ -28,6 +28,7 @@ from .helpers import (
     make_reagent,
     qualify_analyst,
     qualify_equipment,
+    run_interleaved,
 )
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -873,3 +874,233 @@ def test_noncanonical_or_oversized_context_ids_keep_the_raw_label(client, people
         assert f"quality.sample {ident}" in page
     detail = client.get(reverse("laboratory:equipment_detail", args=[equipment.pk]))
     assert detail.status_code == 200
+
+
+# --- Concurrency regressions -----------------------------------------------------------------
+
+
+def _revoke_and_hold(qualification, locked, release):
+    """Revoke in a separate thread's connection and keep the transaction open until `release`."""
+    from django.db import connection
+
+    try:
+        with transaction.atomic():
+            row = Qualification.objects.select_for_update().get(pk=qualification.pk)
+            row.state = Qualification.State.REVOKED
+            row.revoked_at = timezone.now()
+            row.revision += 1
+            row.save()
+            locked.set()
+            release.wait(10)
+    finally:
+        connection.close()
+
+
+@pytest.mark.parametrize("subject", ["analyst", "equipment"])
+def test_use_waits_for_a_revocation_in_progress_and_is_then_blocked(people, subject):
+    import threading
+
+    equipment = make_equipment(people)
+    analyst_qualification = qualify_analyst(people, people["analyst"])
+    target = (
+        analyst_qualification
+        if subject == "analyst"
+        else Qualification.objects.get(equipment=equipment)
+    )
+    locked, release = threading.Event(), threading.Event()
+    revoker = threading.Thread(target=_revoke_and_hold, args=(target, locked, release))
+    revoker.start()
+    try:
+        assert locked.wait(10)
+        threading.Timer(1.0, release.set).start()
+        with pytest.raises(services.UseBlocked):
+            services.authorize_use(
+                actor=people["analyst"],
+                context_type="quality.sample",
+                context_id=5,
+                activity="HPLC-ASSAY",
+                equipment=[equipment],
+                reason="Run while a revocation is being signed",
+            )
+    finally:
+        release.set()
+        revoker.join()
+    # No use evidence may postdate the revocation it should have respected.
+    assert not ResourceUse.objects.exists()
+
+
+def _lock_like_signing(user, qualification, start, has_account, outcome):
+    """Take the locks a qualification signature takes, in its order: account, then record."""
+    from django.contrib.auth import get_user_model
+    from django.db import connection
+
+    try:
+        assert start.wait(10)
+        with transaction.atomic():
+            get_user_model().objects.select_for_update().get(pk=user.pk)
+            has_account.set()
+            Qualification.objects.select_for_update().get(pk=qualification.pk)
+        outcome["signer"] = "committed"
+    except Exception as exc:
+        outcome["signer"] = exc
+    finally:
+        connection.close()
+
+
+def run_against_signing(monkeypatch, module, hook_name, user, qualification, action):
+    """Run `action` while the same account takes signing locks: the check hook (called after the
+    resource and qualification locks) lets the signer start, then continues. Returns outcomes."""
+    import threading
+    import time
+
+    start, has_account, outcome = threading.Event(), threading.Event(), {}
+    real_hook = getattr(module, hook_name)
+
+    def hook(*args, **kwargs):
+        start.set()
+        if has_account.wait(2):
+            time.sleep(0.5)  # let the signer queue on the qualification row
+        return real_hook(*args, **kwargs)
+
+    monkeypatch.setattr(module, hook_name, hook)
+    signer = threading.Thread(
+        target=_lock_like_signing, args=(user, qualification, start, has_account, outcome)
+    )
+    signer.start()
+    try:
+        outcome["action"] = action()
+    except Exception as exc:
+        outcome["action"] = exc
+    finally:
+        start.set()
+        signer.join(30)
+    return outcome
+
+
+def test_use_and_signing_by_the_same_account_do_not_deadlock(people, monkeypatch):
+
+    equipment = make_equipment(people)
+    qualify_analyst(people, people["analyst"])
+    outcome = run_against_signing(
+        monkeypatch,
+        services,
+        "check_use",
+        people["analyst"],
+        Qualification.objects.get(equipment=equipment),
+        lambda: services.authorize_use(
+            actor=people["analyst"],
+            context_type="quality.sample",
+            context_id=5,
+            activity="HPLC-ASSAY",
+            equipment=[equipment],
+            reason="Run while the same account signs",
+        ),
+    )
+    assert outcome["signer"] == "committed", outcome
+    assert not isinstance(outcome["action"], Exception), outcome
+    assert ResourceUse.objects.count() == 1
+
+
+# --- Lock order across writers and signatures --------------------------------------------------
+# Signing locks the signer's account first. Every unsigned writer here also locks its actor's
+# account first (FOR NO KEY UPDATE), so the same person's write and signature serialize before
+# either holds a record, while foreign-key checks on the account at commit never wait on it.
+
+
+def _use(people, **values):
+    return services.authorize_use(
+        actor=people["analyst"],
+        context_type="quality.sample",
+        context_id=5,
+        activity="HPLC-ASSAY",
+        reason="Concurrent run",
+        **values,
+    )
+
+
+def test_calibration_and_use_by_the_same_account_do_not_deadlock(people, monkeypatch):
+    """Calibration holds the equipment until its commit checks the account reference; a use
+    by the same person must not hold the account while it waits for that equipment."""
+    equipment = make_equipment(people)
+    qualify_analyst(people, people["analyst"])
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "record_event",
+        lambda: accept_new_calibration(people, equipment, accept=False),
+        lambda: _use(people, equipment=[equipment]),
+    )
+    assert isinstance(outcome["first"], Calibration), outcome
+    assert isinstance(outcome["second"], list), outcome
+    assert ResourceUse.objects.count() == 1
+
+
+def test_unsigned_write_and_signature_on_one_record_by_one_account_do_not_deadlock(
+    people, monkeypatch
+):
+    """A rejection holds the lot until its commit checks the account reference; a release
+    signed meanwhile by the same person locks the account first and then needs the lot."""
+    reagent = make_reagent(people, release=False)
+    reviewer = people["reviewer"]
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "record_event",
+        lambda: services.reject_reagent(actor=reviewer, reagent=reagent, reason="Seal broken"),
+        lambda: services.release_reagent(
+            actor=reviewer,
+            pin=PIN,
+            reagent=reagent,
+            expected_revision=reagent.revision,
+            reason="Certificate checked",
+        ),
+    )
+    assert isinstance(outcome["first"], ReagentLot), outcome
+    assert isinstance(outcome["second"], ValidationError), outcome
+    assert "Record changed" in str(outcome["second"])
+    assert ReagentLot.objects.get(pk=reagent.pk).state == ReagentLot.State.REJECTED
+
+
+@pytest.mark.parametrize("writer", ["use", "preparation"])
+def test_lineage_is_locked_in_the_order_release_signing_uses(people, monkeypatch, writer):
+    """Releasing a prepared lot locks it, then its sources; using it or preparing from it must
+    lock the lineage in that same order (newest first) or the two deadlock."""
+    stock = make_reagent(people, "STD-L1", kind="reference_standard")
+    prepared = make_reagent(
+        people,
+        "PREP-L1",
+        kind="prepared_solution",
+        parent=stock,
+        release=False,
+        expiry_date=timezone.localdate() + timedelta(days=3),
+    )
+    qualify_analyst(people, people["analyst"])
+
+    def second():
+        if writer == "use":
+            return _use(people, reagents=[prepared])
+        return make_reagent(
+            people,
+            "PREP-L2",
+            kind="prepared_solution",
+            parent=prepared,
+            release=False,
+            expiry_date=timezone.localdate() + timedelta(days=2),
+        )
+
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "_lock_lineage",
+        lambda: services.release_reagent(
+            actor=people["reviewer"],
+            pin=PIN,
+            reagent=prepared,
+            expected_revision=prepared.revision,
+            reason="Preparation checked",
+        ),
+        second,
+    )
+    assert isinstance(outcome["first"], ReagentLot), outcome
+    assert outcome["first"].state == ReagentLot.State.RELEASED
+    assert not isinstance(outcome["second"], Exception), outcome

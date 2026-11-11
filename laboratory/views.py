@@ -484,7 +484,14 @@ def equipment_return(request, pk):
         denial = "The person who removed equipment from service cannot return it."
     elif item.state != Equipment.State.OUT_OF_SERVICE:
         denial = "Equipment is already in service."
-    form = ImpactSigningForm(request.POST or None, initial={"expected_revision": item.revision})
+    uses, failures = scope = services.impact_scope(item)
+    form = ImpactSigningForm(
+        request.POST or None,
+        initial={
+            "expected_revision": item.revision,
+            "assessed": ImpactSigningForm.scope_token(scope),
+        },
+    )
     return sign_page(
         request,
         form,
@@ -494,7 +501,14 @@ def equipment_return(request, pk):
         meaning_text="You approve returning this equipment to service after assessing the "
         "impact on results produced since its last accepted passing calibration.",
         button="Sign and approve",
-        facts=[("Description", item.description), ("Current state", status(label, tone))],
+        facts=[
+            ("Description", item.description),
+            ("Current state", status(label, tone)),
+            (
+                "Impact scope",
+                f"{len(failures)} failed calibration(s) and {len(uses)} use(s) to assess",
+            ),
+        ],
         revision=item.revision,
         cancel_url=reverse("laboratory:equipment_detail", args=[item.pk]),
         run=lambda d: services.return_to_service(
@@ -503,6 +517,7 @@ def equipment_return(request, pk):
             equipment=item,
             expected_revision=d["expected_revision"],
             impact_assessment=d["reason"],
+            assessed=d["assessed"],
         ),
         success="Equipment returned to service.",
         success_url=reverse("laboratory:equipment_detail", args=[item.pk]),

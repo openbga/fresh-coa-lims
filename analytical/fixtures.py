@@ -1,4 +1,4 @@
-"""Synthetic contract fixtures standing in for Package A's approved specification snapshots.
+"""Synthetic contract fixtures standing in for approved catalog specification snapshots.
 
 These payloads are illustrative test data, not validated methods, compendial limits or segment
 requirements. Replace them by configuring ANALYTICAL_REQUIREMENT_PROVIDER once approved

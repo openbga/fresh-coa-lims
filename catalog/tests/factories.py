@@ -1,10 +1,12 @@
-"""Synthetic fixtures shared by Package A tests. All names and values are fictional."""
+"""Synthetic fixtures shared by catalog and sampling tests. All names and values are fictional."""
 
+import threading
 from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.utils import timezone
 
 from catalog import services
@@ -135,3 +137,32 @@ def approved_specification(author, approver, mat, stage="incoming"):
     qualitative_line(author, revision, identity.method, code="identity")
     numeric_line(author, revision, assay.method, code="assay", reporting_decimals=1)
     return approve(revision, approver)
+
+
+def commit_first_on_save(monkeypatch, model, competitor):
+    """Emulate a concurrent request: just before this request's first insert of ``model``,
+    ``competitor()`` commits a conflicting row on its own connection. Every uniqueness check
+    this request made has passed by then, so only the database constraint can catch it."""
+    real_save = model.save
+    raced = []
+
+    def save(self, *args, **kwargs):
+        if not raced and self._state.adding:
+            raced.append(True)
+            errors = []
+
+            def other_request():
+                try:
+                    competitor()
+                except Exception as exc:  # surfaced in the test below
+                    errors.append(exc)
+                finally:
+                    connection.close()
+
+            thread = threading.Thread(target=other_request)
+            thread.start()
+            thread.join(timeout=30)
+            assert not thread.is_alive() and not errors, errors
+        return real_save(self, *args, **kwargs)
+
+    monkeypatch.setattr(model, "save", save)

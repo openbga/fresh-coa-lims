@@ -8,6 +8,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
+from django.urls import reverse
 from django.utils import timezone
 
 from analytical import gates
@@ -21,6 +22,7 @@ from quality.models import Result
 from reporting import services as reporting
 from reporting.models import ReportVersion
 from sampling import services as sampling
+from sampling.models import SamplingRecord
 
 pytestmark = pytest.mark.django_db(transaction=True)
 PIN = "84621357"
@@ -499,3 +501,135 @@ def test_revoked_method_qualification_blocks_native_observation(integrated, sett
     assert test.revision == test_revision
     assert data["lot"].revision == lot_revision
     assert not test.current_observations().exists()
+
+
+def sampling_author(data, username):
+    """Another analyst who also holds quality: multiple roles never waive independence."""
+    person = type(data["people"]["analyst"]).objects.create_user(
+        username=username, password=PASSWORD, first_name="Synthetic", last_name="Sampler"
+    )
+    person.groups.add(*Group.objects.filter(name__in=["analyst", "quality"]))
+    set_pin(actor=person, pin=PIN, password=PASSWORD)
+    return person
+
+
+def reviewed_lot(data, sample):
+    test, _ = observed_test(data, sample, "100.25")
+    analytical.review_test(
+        actor=data["people"]["reviewer"],
+        pin=PIN,
+        test=test,
+        expected_revision=test.revision,
+        reason="Independent original-data review",
+    )
+    assert gates.lot_blockers(data["lot"]) == []
+
+
+def assert_self_disposition_refused(client, data, person):
+    client.force_login(person)
+    page = client.get(reverse("quality:disposition", args=[data["lot"].pk]))
+    assert page.status_code == 403
+    assert b"own sampling or test data" in page.content
+    assert b'name="pin"' not in page.content  # Explained before any PIN is requested.
+    with pytest.raises(ValidationError, match="own sampling or test data"):
+        dispose(data, person)
+    data["lot"].refresh_from_db()
+    assert data["lot"].state == "quarantine"
+    assert not ElectronicSignature.objects.filter(
+        object_type="quality.lot", object_id=str(data["lot"].pk)
+    ).exists()
+
+
+def test_sampler_with_quality_role_cannot_sign_disposition(integrated, client):
+    data, people = integrated, integrated["people"]
+    sampler = sampling_author(data, "synthetic_sampler")
+    sampling.assign_requirements(
+        actor=people["analyst"],
+        lot=data["lot"],
+        material=data["material"],
+        stage="incoming",
+        reason="Assign approved synthetic policy",
+    )
+    record = sampling.record_sampling(
+        actor=sampler,
+        lot=data["lot"],
+        reference="SYN-INDEPENDENCE-S001",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=Decimal("10"),
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Synthetic controlled sampling",
+    )
+    reviewed_lot(data, record.sample)
+    assert sampler.pk not in gates.lot_author_ids(data["lot"])  # Not an analytical author.
+    assert_self_disposition_refused(client, data, sampler)
+    assert dispose(data, people["approver"]).state == "released"
+
+
+def test_sampling_corrector_with_quality_role_cannot_sign_disposition(integrated, client):
+    data, people = integrated, integrated["people"]
+    corrector = sampling_author(data, "synthetic_corrector")
+    sample = assign_and_sample(data)
+    original = SamplingRecord.objects.get(sample=sample)
+    sampling.correct_sampling(
+        actor=corrector,
+        record=original,
+        reason="Synthetic transcription correction",
+        sampled_at=original.sampled_at,
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=Decimal("12"),
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+    )
+    reviewed_lot(data, sample)
+    assert_self_disposition_refused(client, data, corrector)
+    assert dispose(data, people["approver"]).state == "released"
+
+
+def test_sample_creation_and_hold_release_by_same_account_do_not_deadlock(integrated, monkeypatch):
+    """A sample's deferred actor FK must not cycle with signing's account-before-lot locks."""
+    from laboratory.tests.helpers import run_interleaved
+    from quality.models import Sample
+    from stability import services as stability
+    from stability.models import Hold
+
+    lot, people = integrated["lot"], integrated["people"]
+    actor = people["analyst"]  # Also holds quality; independent of the hold placer.
+    hold = stability.place_hold(
+        actor=people["approver"], lot=lot, kind="quality", reason="Synthetic independent hold"
+    )
+    outcome = run_interleaved(
+        monkeypatch,
+        quality,
+        "record_event",
+        lambda: quality.add_sample(
+            actor=actor,
+            lot=lot,
+            reference="SYN-CONCURRENT-SAMPLE",
+            collected_at=timezone.now(),
+            reason="Synthetic sample during hold review",
+        ),
+        lambda: stability.release_hold(
+            actor=actor,
+            pin=PIN,
+            hold=hold,
+            expected_revision=hold.revision,
+            reason="Synthetic independent hold release",
+        ),
+    )
+    assert isinstance(outcome["first"], Sample), outcome
+    assert isinstance(outcome["second"], Hold), outcome
+    hold.refresh_from_db()
+    assert hold.state == Hold.State.RELEASED
+    assert Sample.objects.get(reference="SYN-CONCURRENT-SAMPLE").created_by == actor
+    assert (
+        ElectronicSignature.objects.filter(
+            object_type="stability.hold", object_id=str(hold.pk), signer=actor
+        ).count()
+        == 1
+    )

@@ -1,4 +1,4 @@
-"""Read-only gates published for QC disposition (integrator), reporting and any disposal path.
+"""Read-only gates published for QC disposition, reporting and any disposal path.
 
 Call inside the disposition/report/disposal transaction after locking the lot row. Holds bump the
 lot revision while the lot is in quarantine, so a signature dialog opened before a hold was placed

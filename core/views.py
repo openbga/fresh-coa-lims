@@ -222,7 +222,10 @@ def audit(request):
                 event.reason,
             ]
             writer.writerow(
-                ["'" + value if value.startswith(("=", "+", "-", "@")) else value for value in row]
+                [
+                    "'" + value if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
+                    for value in row
+                ]
             )
         return response
     return render(

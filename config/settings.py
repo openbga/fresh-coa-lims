@@ -43,6 +43,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    "config.security.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -84,6 +85,12 @@ if test_database_name := os.environ.get("TEST_DATABASE_NAME"):
         raise RuntimeError("TEST_DATABASE_NAME must name a separate test_ database.")
     DATABASES["default"]["TEST"] = {"NAME": test_database_name}
 AUTH_USER_MODEL = "accounts.User"
+# Only the throttled backend: a second backend would accept credentials refused during a lock.
+AUTHENTICATION_BACKENDS = ["accounts.authentication.ThrottledModelBackend"]
+LOGIN_FAILURE_LIMIT = int(os.environ.get("LOGIN_FAILURE_LIMIT", "5"))
+LOGIN_LOCK_SECONDS = int(os.environ.get("LOGIN_LOCK_SECONDS", "900"))
+if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCK_SECONDS < 60:
+    raise RuntimeError("Sign-in throttling needs LOGIN_FAILURE_LIMIT >= 1, LOCK_SECONDS >= 60.")
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -122,8 +129,21 @@ SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = not DEBUG
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-SECURE_HSTS_SECONDS = 3600 if not DEBUG else 0
+# One year once HTTPS is confirmed; subdomain/preload scope is an explicit operator choice.
+SECURE_HSTS_SECONDS = 0 if DEBUG else int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = (
+    os.environ.get("SECURE_HSTS_INCLUDE_SUBDOMAINS", "false").lower() == "true"
+)
+SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "false").lower() == "true"
 X_FRAME_OPTIONS = "DENY"
+# Vendored assets only: no inline script/style, eval, external origins or framing.
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+    "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; "
+    "form-action 'self'; frame-ancestors 'none'"
+)
+DEFAULT_EXCEPTION_REPORTER = "config.security.CredentialExceptionReporter"
+DEFAULT_EXCEPTION_REPORTER_FILTER = "config.security.CredentialExceptionReporterFilter"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 
@@ -131,7 +151,7 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 # AGPL-3.0 section 13: link users to the source of the running version. Point this at your own
 # repository when you deploy a modified version.
-SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/qualab")
+SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/qlab")
 
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"

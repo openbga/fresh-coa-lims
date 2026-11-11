@@ -1,10 +1,10 @@
-<section class="card" aria-labelledby="sign-title" data-signature-dialog>
+<section class="card" aria-labelledby="sign-title"{% if not denial %} data-signature-dialog{% endif %}>
 <div class="card-body">
 <h1 id="sign-title">{{ signing_title }}</h1>
 <p>Your signature records <strong>{{ meaning }}</strong> for lot <strong>{{ lot.number }}</strong>, record revision <strong>{{ record.revision }}</strong>.</p>
 {% if is_review %}<p>{{ record.test_code }}: {{ record.value }} {{ record.unit }} (limits {{ record.lower_limit }}–{{ record.upper_limit }} {{ record.unit }}).</p>{% endif %}
 <p>Signer: {{ request.user.get_full_name|default:request.user.username }}. The server records the execution time and binds your signature to the resulting transition revision {{ record.revision|add:"1" }}.</p>
 <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
-<form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Sign {{ meaning }}</button> <a class="btn btn-outline-secondary" data-signature-cancel href="{% url 'quality:lot_detail' lot.pk %}">Cancel</a></form>
+{% if denial %}<div class="alert alert-danger" role="alert">{{ denial }}</div><a class="btn btn-outline-secondary" href="{% url 'quality:lot_detail' lot.pk %}">Return to the lot</a>{% else %}<form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Sign {{ meaning }}</button> <a class="btn btn-outline-secondary" data-signature-cancel href="{% url 'quality:lot_detail' lot.pk %}">Cancel</a></form>{% endif %}
 </div>
 </section>

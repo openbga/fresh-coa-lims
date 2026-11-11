@@ -1,10 +1,10 @@
 # Operations and recovery
 
-Baseline: 2026-11-10. This runbook covers the PostgreSQL 17 application and its Render deployment configuration. The procedures below are not themselves execution evidence; the bounded rehearsal result is recorded separately here. Keep executed checks, timestamps, operators, source revision, archive checksum and outcomes in restricted operational evidence. Do not place credentials or database archives in Git.
+This runbook covers the PostgreSQL 17 application and its Render deployment configuration. The procedures below are not themselves execution evidence; execute and record them in your own deployment. Keep executed checks, timestamps, operators, source revision, archive checksum and outcomes in restricted operational evidence. Do not place credentials or database archives in Git.
 
-An integrated-schema synthetic rehearsal on 2026-11-10 passed full registered-app migration, isolated PostgreSQL dump/transactional restore, exact table fingerprints, signature/audit binding checks, enabled trigger/function parity, sequence comparison, Django check and migration check. Two PostgreSQL CHECK definitions were rewritten with equivalent casts; their outcomes matched across the tested combinations. The source fingerprint was unchanged during final verification. Restricted evidence is `.local/qa/restore-integrated/report.md`.
+A synthetic restore rehearsal should cover: full migration of every registered app; an isolated PostgreSQL dump and transactional restore; exact table fingerprints; signature and audit binding checks; enabled trigger and function parity; sequence comparison; the Django check and the migration check. Compare any constraint definition that PostgreSQL rewrites on restore and confirm equivalent behavior. Confirm the source fingerprint is unchanged at the end.
 
-The populated fixture contained five draft native segment profiles plus signed legacy foundation rule/result/disposition records and an audit review. It contained no approved native specifications, native analytical observations/QC/OOS, laboratory resources/qualifications, stability records or issued PDFs. Those schemas and guards were restored and compared, but their populated workflows were not exercised. Signatures used the trusted service channel, not interactive username/PIN signing. This rehearsal did not test negative trigger mutations, Render/PITR, encrypted off-machine backups, runtime-role separation, identity recovery or file media restoration, and did not establish RPO/RTO or production recovery acceptance.
+Use a fixture that exercises every populated workflow you rely on: approved native specifications, analytical observations, QC and OOS records, laboratory resources and qualifications, stability records and issued PDFs. Test negative trigger mutations, point-in-time recovery, encrypted off-machine backups, runtime-role separation, identity recovery and file media restoration separately. A rehearsal that uses the trusted service channel does not exercise interactive username/PIN signing. A rehearsal alone does not establish RPO/RTO or production recovery acceptance.
 
 ## Bootstrap account access
 
@@ -58,9 +58,9 @@ Run from the project root against the intended Compose project. Confirm the serv
 docker compose exec -T db psql -U open_qual -d open_qual -X -v ON_ERROR_STOP=1 \
   -c 'SELECT current_database(), current_user, version();'
 umask 077
-mkdir -p .local/backups
+mkdir -p backups
 oq_backup_stamp=$(date -u +%Y%m%dT%H%M%SZ)
-oq_backup_file=".local/backups/openbga-qualab-${oq_backup_stamp}.dump"
+oq_backup_file="./backups/openbga-qlab-${oq_backup_stamp}.dump"
 docker compose exec -T db pg_dump -U open_qual -d open_qual \
   --format=custom --no-owner --no-acl > "$oq_backup_file"
 ```
@@ -73,7 +73,7 @@ docker compose exec -T db pg_restore --list < "$oq_backup_file" \
 shasum -a 256 "$oq_backup_file" > "${oq_backup_file}.sha256"
 ```
 
-The local archive contains account records, PIN/password hashes and sessions, even for a synthetic instance. Keep it restricted and transfer it to the approved encrypted backup destination; an ignored `.local/` directory is not encryption or off-machine protection. Keep a source revision/configuration manifest alongside the encrypted artifact, without secret values. The `--no-owner --no-acl` portability choice means role ownership/grants must be re-established explicitly at restoration.
+The local archive contains account records, PIN/password hashes and sessions, even for a synthetic instance. Keep it restricted and transfer it to the approved encrypted backup destination; an ignored local directory is not encryption or off-machine protection. Keep a source revision/configuration manifest alongside the encrypted artifact, without secret values. The `--no-owner --no-acl` portability choice means role ownership/grants must be re-established explicitly at restoration.
 
 ## Restore rehearsal into a new local database
 
@@ -163,7 +163,7 @@ Zero signatures is meaningful only for a genuinely unsigned source database. Che
 
 ## Render backup and recovery
 
-The Blueprint names `openbga-qualab` and `openbga-qualab-db` (database name/user `open_qual`), with automatic deploys off and database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
+The Blueprint names `openbga-qlab` and `openbga-qlab-db` (database name/user `open_qual`), with automatic deploys off and database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
 
 Paid Render databases provide PITR into a new database instance, allowing validation before switching the web service. Availability depends on the workspace's current recovery window; verify the available point in the dashboard. Managed retention is not the organization's records-retention policy, so retain approved encrypted exports independently. New recovery resources and access changes follow the deployment owner's authorization. [Render recovery and backup procedure](https://render.com/docs/postgresql-backups), accessed 2026-11-10.
 
@@ -171,10 +171,10 @@ For an incident, preserve the original service/database, record the requested re
 
 ## Manual deployment and migrations
 
-The repository moved to <https://github.com/openbga/qualab> on 2026-11-11. Before the next deploy the owner must re-link the Render service's GitHub connection to that repository; resources created before the rename keep their existing names until renamed in the dashboard. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
+The repository is <https://github.com/openbga/qlab>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 
-1. Select the reviewed commit that passed the integrated gate. Record its identifier and a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
-2. Verify that the OpenBGA Qualab web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
+1. Select the reviewed commit whose checks all passed. Record its identifier and a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
+2. Verify that the OpenBGA QLab web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
 3. The configured pre-deploy command is `python manage.py migrate --noinput`. Allow this single serialized migration owner to run; do not launch a second migration from a shell. A failed pre-deploy requires inspection, not bypassing the migration gate.
 4. Inspect deploy/migration logs, then verify `/health/`, `/ready/`, login and authorized read/signing flows using controlled synthetic records. Record outcomes and operator/time.
 5. If code is rolled back, first verify compatibility with the already-migrated schema. Code rollback does not reverse migrations. For incompatible/destructive changes, use the separately rehearsed recovery plan and reconcile lost work.
@@ -199,6 +199,9 @@ This hook does not select equipment or reagent lots or prove their fitness at an
 | Roles | Use signed **Assign roles** or the audited `assign_roles` operator command; both replace the whole role set. Zero roles revokes laboratory authority. Superuser/admin status is not scientific review authority |
 | PIN enrollment/replacement | Owner confirms current login password at `/signature-pin/`; 8–32 digits, Django hash storage and an attributed event. Never retrieve a PIN or reset by editing credential rows |
 | Failed signing | Five failed PIN attempts cause a 15-minute signing lock. Review denied-signature events for misuse. Investigate before repeated recovery; do not clear counters through SQL |
+| Failed sign-in | Password sign-in, PIN enrollment and own password change share one persistent failure counter per account. After `LOGIN_FAILURE_LIMIT` consecutive failures (default 5) password authentication is refused for `LOGIN_LOCK_SECONDS` (default 900), even with the correct password; the lock expires on its own and there is no administrator unlock. Anyone who knows a username can trigger a lock, so add per-address rate limiting at the reverse proxy and review repeated locks |
+| Transport and browser policy | With `DEBUG` off: HTTPS redirect, secure cookies and HSTS for one year (`SECURE_HSTS_SECONDS`; lower it while first verifying HTTPS). `SECURE_HSTS_INCLUDE_SUBDOMAINS` and `SECURE_HSTS_PRELOAD` are opt-in because they affect other hosts. HTML responses carry a same-origin Content-Security-Policy; update it before adding any external script, style or font. The application trusts `X-Forwarded-Proto`, so serve only behind a proxy that overwrites it and never expose the application port directly |
+| Error reports | Credential fields (`password*`, `pin`) are masked in Django error reports. Configure any additional error tracker not to capture request bodies |
 | Signing context | Review displayed identity, record revision, meaning and reason. Each HTTP signature requires username and PIN re-entry matching the authenticated individual; the server rechecks state/authority and commits transition/signature/audit atomically |
 | Session expiry | `SESSION_IDLE_SECONDS=900` (15 minutes) and `SESSION_ABSOLUTE_SECONDS=28800` (8 hours) are the defaults; server expiry requires login again. Existing sessions without login clocks are invalidated; confirm the deployed values |
 | Suspicious access/revocation | Revoke laboratory roles promptly through the audited service and follow the approved account/session incident process. Account-management changes revoke previous sessions on their next request; deactivate when login and all authenticated read access must be refused |

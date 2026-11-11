@@ -4,7 +4,7 @@ urls: stability:study_new
 views: stability.views.study_new
 templates: ops/form.html
 models: stability.Study, stability.Pull, quality.Lot, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -44,6 +44,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 - One study per protocol, lot and container closure; a repeat is refused by the model's uniqueness check.
 - Creates one Pull per protocol timepoint (all conditions), due on Time zero plus the timepoint's interval days; starts Active with revision 1 and records you as the starter (you cannot close it later).
 - Event `study.started` records how many pulls were scheduled and the protocol.
+- Every due date and its window must be a representable calendar date; otherwise the start is refused with "<condition> <timepoint>: the pull date or its window falls outside the supported calendar range from this time zero." and no study or pull is saved.
 - Time zero cannot be in the future: "Time zero cannot be in the future: this workflow records studies that have actually started." (also shown beside the field). Today and historical dates are accepted. This is an application rule for recording an actual start, not a regulatory requirement.
 - Not compared with the lot: Time zero may predate the lot's receipt (historical starts are legitimate) and any lot state, including released lots, is allowed. A planned-study workflow (scheduling a study before it starts) is not supported.
 - Once saved, Time zero and every pull's due date are immutable (the database refuses changes).

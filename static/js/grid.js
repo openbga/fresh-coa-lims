@@ -42,8 +42,8 @@
   }
 
   function enhance(table) {
-    if (table.closest("[data-vr-form-page]") || table.dataset.vrGridReady === "true") {
-      return; // Form grids keep fixed columns and never open another dialog.
+    if (table.dataset.vrGridReady === "true") {
+      return;
     }
     var headerRow = table.tHead && table.tHead.rows[0];
     var body = table.tBodies[0];
@@ -97,9 +97,6 @@
     applyLayout(grid, readLayout(grid.key));
 
     dt.on("columns-reordered", function () { save(grid); });
-    document.querySelectorAll('[data-vr-columns-for="' + table.getAttribute("data-vr-grid") + '"]').forEach(function (button) {
-      button.hidden = Boolean(button.closest("[data-vr-form-page]"));
-    });
   }
 
   function byId(grid, id) {
@@ -246,10 +243,6 @@
   document.addEventListener("click", function (event) {
     var opener = event.target.closest("[data-vr-columns-for]");
     var parts = dialogParts();
-    if (opener && opener.closest("#vr-form-dialog")) {
-      event.preventDefault();
-      return;
-    }
     if (opener && parts && window.bootstrap) {
       dialogGrid = grids[opener.getAttribute("data-vr-columns-for")];
       if (!dialogGrid) {
@@ -293,9 +286,6 @@
   });
 
   function initGrids() {
-    document.querySelectorAll("[data-vr-form-page] [data-vr-columns-for]").forEach(function (button) {
-      button.hidden = true;
-    });
     if (!window.DataTable) {
       return; // Library unavailable: lists still work as plain server-rendered tables.
     }

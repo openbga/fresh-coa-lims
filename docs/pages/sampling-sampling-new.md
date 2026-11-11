@@ -4,7 +4,7 @@ urls: sampling:sampling_new
 views: sampling.views.sampling_new
 templates: catalog/form.html
 models: sampling.SamplingRecord, quality.Sample, sampling.LotAssignment
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -53,7 +53,7 @@ Records what was actually sampled from a lot against its assigned sampling plan,
 
 - **Required containers** come from the approved plan and the number of containers in the lot: fixed number; 1 + square root of N rounded up; every container; or a percentage rounded up, never below 1 and never above the lot size.
 - **Deviation**: when fewer containers than required or less than the plan's minimum amount are recorded, a deviation is required: "Record a deviation: plan requires <N> containers; <M> sampled; plan requires at least <amount> <unit>." (parts shown only for the shortfalls).
-- **Other validations**: "More containers sampled than the lot contains." "Sampling time cannot be in the future." "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at, when the time is outside the plan version's effective period) "The approved plan states amounts in <unit>." "This sample reference already exists." "The assigned sampling plan is not approved." "Only quarantined lots accept new samples." (these last two also appear as the redirect errors above)
+- **Other validations**: "More containers sampled than the lot contains." "Sampling time cannot be in the future." "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at, when the time is outside the plan version's effective period) "The approved plan states amounts in <unit>." "This sample reference already exists." (if another request records the same reference at the same moment: "Another request saved a conflicting record at the same time. Reload and try again.") "The assigned sampling plan is not approved." "Only quarantined lots accept new samples." (these last two also appear as the redirect errors above)
 - **Resample**: "Choose a sampled original sample of this lot to resample." when Resample has no original, or the original belongs to another lot or has no sampling record. "Only a resample names an original sample." when a routine sample names one. Whether a resample is authorised is not decided here.
 - **Deviation assessment**: a record with a deviation creates a pending deviation assessment. Quality must accept it before the lot's sampling stops blocking QC disposition.
 - **Hold**: if requirements are missing or on hold at submission, the hold reasons are shown as the error ("Applicability hold: ..." on the page redirect).

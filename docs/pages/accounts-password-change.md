@@ -4,7 +4,7 @@ urls: accounts:password_change
 views: accounts.views.password_change
 templates: accounts/form.html
 models: accounts.User, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -41,7 +41,7 @@ If required, an information message says **Choose a new password before continui
 
 Django admin’s **Change password** link redirects here. A POST to the old `/admin/password_change/` endpoint also redirects without changing credentials; enter the current/new password and reason on this form.
 
-A wrong current password reports **Current password was not accepted.** Matching the old password reports **Choose a different password.** Confirmation mismatch reports **Passwords do not match.** Validators also reject passwords too similar to the account identity, too short, common or entirely numeric. Errors return status 422; password fields are blank when rerendered.
+A wrong current password reports **Current password was not accepted.** Each wrong current password counts toward the same consecutive-failure limit as sign-in (default five); reaching it pauses password sign-in and this check for the account (default 15 minutes), and during that pause even the correct current password gets the same message. A correct password, here or at sign-in, resets the count, even when the new password is then refused. If the account's password or activation changes between that check and saving, the change is refused with the same message. Matching the old password reports **Choose a different password.** Confirmation mismatch reports **Passwords do not match.** Validators also reject passwords too similar to the account identity, too short, common or entirely numeric. Errors return status 422; password fields are blank when rerendered.
 
 Success increments the account management revision and session generation, clears the required-change flag and writes **account.password_changed** with safe before/after values. The current session is updated to remain signed in; other sessions must sign in again on their next request. The success message is **Password changed. Other sessions have been signed out.** Normal idle and absolute session lifetimes still apply.
 

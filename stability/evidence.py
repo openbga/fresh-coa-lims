@@ -3,7 +3,7 @@
 A pull is accepted only when the required tests on its linked sample are reviewed, conform and
 have no open or confirmed investigation, as published by the analytical module. Change this one
 module if the testing contract moves; nothing else in `stability` reads result tables. The
-foundation `quality.Result` rows are not consulted: the integrator closed that path for new data.
+foundation `quality.Result` rows are not consulted: that path is closed for new data.
 """
 
 from analytical.models import AnalyticalTest, Investigation

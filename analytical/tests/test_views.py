@@ -227,6 +227,12 @@ def test_assign_rejects_sample_from_another_lot(client, people, make_lot):
         reverse("analytical:lot_testing", args=[lot.pk]), {"sample": foreign.pk, "reason": "Assign"}
     )
     assert response.status_code == 404
+    for hostile in ("not-a-number", "1.5", "99999999999999999999999", "9" * 5000):
+        response = client.post(
+            reverse("analytical:lot_testing", args=[lot.pk]), {"sample": hostile, "reason": "x"}
+        )
+        assert response.status_code == 404, hostile
+    assert not AnalyticalTest.objects.exists()
 
 
 def _refused(client, url, reason):

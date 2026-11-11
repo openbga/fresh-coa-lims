@@ -6,8 +6,9 @@ Every evidence change bumps the lot revision so a disposition opened earlier bec
 """
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
+from psycopg.errors import UniqueViolation
 
 from core.audit import record_event
 from core.services import require_role, sign_transition, validate_rules
@@ -28,6 +29,7 @@ ANALYST = "analyst"
 REVIEWER = "reviewer"
 QUALITY = "quality"
 OPEN_STATES = {AnalyticalTest.State.OPEN, AnalyticalTest.State.SUBMITTED}
+BATCH_NUMBER_CONSTRAINT = "analytical_qcbatch_number_key"
 
 
 def _require_reason(reason):
@@ -384,29 +386,43 @@ def create_batch(*, actor, number, method_code, reason):
     if method_code not in methods:
         raise ValidationError("No approved batch method with this code.")
     payload = methods[method_code]
-    with transaction.atomic():
-        if QCBatch.objects.filter(number=number).exists():
-            raise ValidationError("This batch number already exists.")
-        batch = QCBatch.objects.create(
-            number=number,
-            method_code=method_code,
-            method=payload,
-            method_hash=canonical_hash(payload),
-            created_by=actor,
-        )
-        record_event(
-            actor=actor,
-            action="batch.created",
-            obj=batch,
-            after={
-                "number": number,
-                "method": method_code,
-                "revision": payload["revision"],
-                "method_hash": batch.method_hash,
-            },
-            reason=reason,
-        )
-        return batch
+    try:
+        with transaction.atomic():
+            return _create_batch(actor, number, method_code, payload, reason)
+    except IntegrityError as exc:
+        # Only a concurrent insert of the same number is expected; anything else is a real fault.
+        cause = exc.__cause__
+        if not (
+            isinstance(cause, UniqueViolation)
+            and cause.diag.constraint_name == BATCH_NUMBER_CONSTRAINT
+        ):
+            raise
+        raise ValidationError("This batch number already exists.") from exc
+
+
+def _create_batch(actor, number, method_code, payload, reason):
+    if QCBatch.objects.filter(number=number).exists():
+        raise ValidationError("This batch number already exists.")
+    batch = QCBatch.objects.create(
+        number=number,
+        method_code=method_code,
+        method=payload,
+        method_hash=canonical_hash(payload),
+        created_by=actor,
+    )
+    record_event(
+        actor=actor,
+        action="batch.created",
+        obj=batch,
+        after={
+            "number": number,
+            "method": method_code,
+            "revision": payload["revision"],
+            "method_hash": batch.method_hash,
+        },
+        reason=reason,
+    )
+    return batch
 
 
 def assign_to_batch(*, actor, test, batch, reason):

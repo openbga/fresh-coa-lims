@@ -1,10 +1,10 @@
 # UI standards
 
-Baseline: 2026-11-10. These are the OpenBGA Qualab house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+These are the OpenBGA QLab house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
 
 ## Components and theme
 
-The product name is **OpenBGA Qualab** throughout the application shell, sign-in page, browser titles, documentation and newly issued certificates. Existing issued PDF bytes retain their original branding. The repository is [openbga/qualab](https://github.com/openbga/qualab).
+The product name is **OpenBGA QLab** throughout the application shell, sign-in page, browser titles, documentation and newly issued certificates. Existing issued PDF bytes retain their original branding. The repository is [openbga/qlab](https://github.com/openbga/qlab).
 
 Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to Bootstrap variables; the retained prefix is a compatibility choice, not product branding. Use the local pinned assets and retained vendor notices. New pages must not invent a second control, dialog or table framework. No template-specific colours, inline styles or utilities that bypass light/dark theme tokens. Print uses a legible light theme.
 
@@ -17,7 +17,7 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA Qualab name and mark throughout, with manufacturing QC imagery and terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA QLab name and mark throughout, with manufacturing QC imagery and terms.
 
 Sibling list and overview pages put section navigation above the page header, in one consistent
 position independent of title length, descriptions, datelines, messages or available actions.
@@ -28,13 +28,15 @@ actions with the heading and place supporting descriptions below that row; allow
 controls to wrap without clipping. List filters share field widths, labelled controls and a
 wrapping action group, with one field per row on phones.
 
-Every page ends with the shared application footer (`includes/app_footer.html`): product name, licence and the **Source code** link required by AGPL-3.0 section 13. It sits outside `<main>`, so form dialogs never copy it.
+Every page ends with the shared application footer (`includes/app_footer.html`): product name, licence and the **Source code** link required by AGPL-3.0 section 13. It sits outside `<main>`.
+
+Keep sign-in's manufacturing illustration separate from the shared notebook form. Its morning and dusk variants follow the selected theme, while the form, controls and footer retain shared tokens. Hide the decorative scene on narrower screens so fields, validation and account guidance have the available width; keep essential instructions and controls outside the artwork.
 
 ## Lists and forms
 
 Tables expose identity first, status nearby, numbers aligned with units in headings, unambiguous dates and actions last. The server filters, sorts and paginates the entire authorized queryset. DataTables, when used, only manages column presentation. Filters preserve input and have an explicit clear action. Show empty, filtered-empty, denied, failed and successful states with useful next actions; never show a blank table as the only explanation.
 
-Forms use Django validation with escaped values and CSRF. Preserve nonsecret input after errors; never repopulate a PIN. Labels are visible and associated with controls. Required status, format and units are explicit. Link error summaries to fields; do not rely on colour alone. Full-page forms remain usable without JavaScript. HTMX responses preserve focus and messages, and must not hide server errors. Use the shared form dialog where it is supported; do not build separate modal infrastructure for each module.
+Forms use Django validation with escaped values and CSRF. Preserve nonsecret input after errors; never repopulate a PIN. Labels are visible and associated with controls. Required status, format and units are explicit. Link error summaries to fields; do not rely on colour alone. Full-page forms remain usable without JavaScript. HTMX responses preserve focus and messages, and must not hide server errors. Do not build separate modal infrastructure for each module.
 
 ## Signing and review
 
@@ -59,6 +61,6 @@ Use sentence case and one term per concept. `New <thing>` creates, `Record` adds
 
 Use semantic headings, real buttons for actions and links for navigation. Provide visible focus, sufficient contrast in both themes, text with status colour, labelled icon-only controls and accessible modal behavior. Keep dense tables readable at normal zoom; allow horizontal table scrolling instead of clipping data. Test the real journey at desktop and narrow widths, with keyboard navigation, validation errors, denied permissions and a failed signing attempt.
 
-Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. Keep field help on forms and page-level explanations in `docs/pages/`; avoid separate per-page help modals. The panel follows navigation and remembers open state and width.
+Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. Keep field help on forms and page-level explanations in `docs/pages/`; avoid separate per-page help modals. The panel follows navigation and remembers open state and width. On narrow screens the open panel covers the page, and the covered page leaves the keyboard order until the panel closes.
 
 On phone widths, the top bar shows Menu as a labelled icon, reserves room for theme, sign-out and page-documentation controls, and truncates only the brand text if needed. Verify the shell in Linux Chromium as well as the local browser: system-font metrics must not push controls outside the viewport. Do not mask layout overflow with page-wide clipping.

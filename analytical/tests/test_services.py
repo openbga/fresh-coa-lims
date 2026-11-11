@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import DatabaseError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.utils import timezone
 
 from analytical import gates, services
@@ -174,6 +174,29 @@ def test_no_self_review_including_multi_role_and_qc_authors(people, assigned, ba
     review(people, tests["assay"])
 
 
+def test_author_of_a_superseded_correction_cannot_review(people, assigned):
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.0")
+    services.correct_observation(
+        actor=people["multi"],
+        observation=test.observations.get(),
+        value=Decimal("1.1"),
+        raw_reference="NB-1 p3",
+        reason="Transcription",
+    )
+    services.correct_observation(
+        actor=people["analyst"],
+        observation=fresh(test).current_observations().get(),
+        value=Decimal("1.0"),
+        raw_reference="NB-1 p4",
+        reason="Reverted after second check",
+    )
+    submit(people, test)
+    with pytest.raises(ValidationError, match="own test"):
+        review(people, test, who="multi")
+    assert review(people, test).state == "reviewed"
+
+
 def test_roles_are_enforced(people, assigned):
     _, _, tests = assigned
     with pytest.raises(PermissionDenied):
@@ -279,6 +302,62 @@ def test_qc_gates_submission_and_freezes_after_submission(people, assigned, batc
         services.assign_to_batch(
             actor=people["analyst"], test=tests["identity"], batch=batch, reason="late"
         )
+
+
+def test_duplicate_batch_number_is_refused_even_when_submitted_concurrently(
+    people, batch, monkeypatch
+):
+    def create():
+        return services.create_batch(
+            actor=people["analyst"], number=batch.number, method_code="SYN-HPLC", reason="Again"
+        )
+
+    with pytest.raises(ValidationError, match="already exists"):
+        create()
+    # A double submission: the second request checked before the first committed its insert.
+    real_filter = QCBatch.objects.filter
+
+    def unseen(*args, **kwargs):
+        found = real_filter(*args, **kwargs)
+        return found.none() if "number" in kwargs else found
+
+    monkeypatch.setattr(QCBatch.objects, "filter", unseen)
+    with pytest.raises(ValidationError, match="already exists"):
+        create()
+    monkeypatch.undo()
+    assert QCBatch.objects.count() == 1
+    assert AuditEvent.objects.filter(action="batch.created").count() == 1
+
+
+def test_batch_creation_reraises_integrity_errors_other_than_a_duplicate_number(
+    people, monkeypatch
+):
+    """A foreign-key/not-null or audit integrity fault is not reported as a duplicate number."""
+
+    def broken_audit(**kwargs):
+        raise IntegrityError("synthetic not-null failure in audit recording")
+
+    monkeypatch.setattr(services, "record_event", broken_audit)
+    with pytest.raises(IntegrityError, match="synthetic not-null"):
+        services.create_batch(
+            actor=people["analyst"], number="SYN-B-FAULT", method_code="SYN-HPLC", reason="Run"
+        )
+    # A real non-unique constraint violation (foreign key) is not translated either.
+    monkeypatch.undo()
+
+    def orphan(**fields):
+        fields.pop("created_by")
+        batch = QCBatch(created_by_id=0, **fields)  # deferred FK fails at commit
+        batch.save()
+        return batch
+
+    monkeypatch.setattr(services.QCBatch.objects, "create", orphan)
+    with pytest.raises(IntegrityError, match="foreign key"):
+        services.create_batch(
+            actor=people["analyst"], number="SYN-B-FK", method_code="SYN-HPLC", reason="Run"
+        )
+    monkeypatch.undo()
+    assert not QCBatch.objects.exists()
 
 
 def test_rejecting_failed_batch_creates_reruns_and_investigates_oos(people, assigned, batch):
@@ -699,8 +778,8 @@ def test_null_reporting_precision_compares_exact_values():
         spec.evaluate([Decimal("100"), Decimal("100.00000001")])  # mean needs 9 decimals
 
 
-def test_package_a_translator_output_matches_b_contract():
-    """A's frozen test line -> catalog.services.test_requirement -> B parser, without coercion."""
+def test_catalog_translator_output_matches_analytical_contract():
+    """Frozen catalog test line -> catalog.services.test_requirement -> analytical parser, as is."""
     from analytical.contracts import parse_requirement
     from catalog.services import test_requirement as translate
 

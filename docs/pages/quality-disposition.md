@@ -4,7 +4,7 @@ urls: quality:disposition
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: quality.Lot, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -14,18 +14,19 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 ## Who can use it
 
 - Sign-in required. **Quality** role only; others receive 403.
-- Never a user who authored any of the lot's test data, even with the quality role (see Independence).
+- Never a user who authored any of the lot's sampling or test data, even with the quality role (see Independence). Such a user sees the reason, a **Return to the lot** link and no signing form (status 403); no PIN is requested.
 - Requires an enrolled signature PIN.
 
 ## Layout
 
 - A signing dialog (a plain card without JavaScript): meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
+- For a data author, the same card shows the refusal in place of the form, without the dialog behaviour.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Sign approved** | Always | Quality, independent of the lot's data | Lot becomes Released; "Lot released."; returns to the lot record |
+| **Sign approved** | You are not an author of the lot's sampling or test data | Quality, independent of the lot's data | Lot becomes Released; "Lot released."; returns to the lot record |
 | **Cancel** / Escape | Always | Any | Returns to the lot record; nothing is signed |
 
 ## Fields
@@ -41,7 +42,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 ## Rules and hidden logic
 
 - **Always checked first**: the lot is still Quarantine ("This lot has already been dispositioned."), has no active hold ("<hold> (<kind> hold) is active: <reason>"), and its rule set is still approved and effective ("An approved, effective rule revision is required."). These apply to both paths below.
-- **Opening vs. signing**: the page opens for any quality user whatever the lot's state; the state, hold and evidence checks run only when you sign.
+- **Opening vs. signing**: the page opens for any quality user whatever the lot's state; the state, hold and evidence checks run only when you sign. The authorship check runs on opening too, so an author is told before entering a PIN.
 - **Native path** (the lot has a requirement assignment or native tests; always outside DEBUG). Each failing condition is listed as its own message:
 - *Native, requirements*: a current assignment with status Requirements assigned; none assigned or an applicability hold blocks.
 - *Native, samples*: at least one ("The lot requires a sampled and tested record.").
@@ -50,7 +51,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - *Native, no mixed evidence*: foundation manual results on the lot block ("Mixed foundation and native evidence requires reconciliation.").
 - *Native, frozen evidence*: on release the assignment ID and hash and the analytical evidence snapshot are stored on the lot.
 - **Manual foundation path** (development only: DEBUG and neither assignment nor native tests): at least one sample ("The lot requires a sample and reviewed results."); all required rule-set tests per sample ("Required tests are missing."); every result Reviewed and conforming ("All results must conform and have independent review.").
-- **Independence**: "You cannot disposition a lot containing your own results." Native authors are users who recorded observations (including corrected originals), submitted tests, recorded batch QC, opened an investigation, or wrote investigative entries. On the manual path, the analysts of the results. Writing rules or specifications, assigning tests, or signing reviews and conclusions is not authorship.
+- **Independence**: "You cannot disposition a lot containing your own sampling or test data." Authors are users who sampled or recorded any sampling record of the lot, including corrected originals and intermediate corrections; recorded observations (including corrected originals), submitted tests, recorded batch QC, opened an investigation, or wrote investigative entries; and, on the manual path, the analysts of the results. Holding several roles never waives this. Writing rules or specifications, assigning requirements or tests, or signing reviews, assessments and conclusions is not authorship. The check is shown when the page opens and repeated under the lot lock when signing.
 - **Stale page**: any new sample, test change or hold since opening changes the lot revision: "Record changed. Reload and review before signing."
 - **Identity and PIN**: "Enter your own signing username and PIN." on a mismatch (audited as `signature.identity_denied`); "Enroll a signature PIN first."; "Signature PIN was not accepted."; 5 consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are recorded (`signature.denied`) even though the disposition is refused.
 - **Session**: defaults are a 15-minute idle and 8-hour absolute limit; sessions without recorded login times count as expired. On expiry the next request signs you out with "Your session expired. Sign in again to continue." The inline "Session expired. Sign in again before signing." is an extra safeguard at the moment of signing.

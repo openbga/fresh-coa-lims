@@ -1,12 +1,16 @@
-# OpenBGA Qualab
+# OpenBGA QLab
 
-An [OpenBGA](https://github.com/openbga) project. Repository: [openbga/qualab](https://github.com/openbga/qualab).
+[![checks](https://github.com/openbga/qlab/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/qlab/actions/workflows/checks.yml)
 
-The repository is currently private while we prepare OpenBGA Qualab for open-source release.
+OpenBGA QLab is an open-source laboratory information management system (LIMS) for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/qlab/>.
 
-OpenBGA Qualab is a manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
+> **Status: early development (version 0.1.0).** This is not a completed MVP and has not been validated for production or regulated use. Use synthetic data only. No regulatory compliance is claimed.
 
-The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented. The integrated development candidate passed its combined gate on 2026-11-10; this is not a completed MVP or production validation. Use synthetic data only; no regulatory compliance is claimed.
+**Hosted demo:** [OpenBGA QLab on Render](https://openbga-qlab.onrender.com/). Sign in with an assigned demo account; there is no public signup. Use synthetic data only.
+
+## What is implemented
+
+The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented.
 
 | Implemented boundary | Current limit |
 |---|---|
@@ -15,6 +19,8 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | Stability | Protocols, scheduled pulls, acceptance and controlled evidence links; testing of released lots uses external evidence because released lot records remain immutable |
 | Reporting | Signed issuance/amendments with stored PDF bytes, snapshots and checksums; manufacturer batch release remains a separate decision |
 
+## Documentation
+
 | Read | Purpose |
 |---|---|
 | [Product](docs/product.md) | Scope, roles, journeys and product requirements |
@@ -22,27 +28,35 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | [Operations](docs/operations.md) | Backup/restore, manual deployment and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
 | [Regulatory requirements](docs/regulations.md) | Dated regulatory matrix, sources and applicability caveats |
-| [Working instructions](AGENTS.md) | Contributor constraints and verification |
+| [Page documentation](docs/pages/) | One file per staff page; the same text is shown in the in-app documentation panel |
+| [Contributing](CONTRIBUTING.md) | Setup, checks, engineering rules and pull-request expectations |
+| [Security policy](SECURITY.md) | How to report a vulnerability privately; deployment hardening |
+| [Changelog](CHANGELOG.md) | Notable changes |
+| [Working instructions](AGENTS.md) | Rules for coding agents and contributors |
 
-## Presentation website
+## Quick start
 
-The static presentation in `website/` introduces OpenBGA Qualab and links to the repository, documentation and support. It uses the application's shared Bootstrap assets and theme. Build and preview it locally:
+To look at the application without installing Python, run it with Docker Compose. This profile is for local evaluation only: it serves plain HTTP on `127.0.0.1` with `DEBUG=true` and example database credentials. Never use it for a real deployment.
 
 ```sh
-python3 scripts/build_website.py
-python3 -m http.server 8081 --bind 127.0.0.1 --directory .local/website
+docker compose --profile evaluation up --build --wait
+docker compose exec web python manage.py createsuperuser --username admin
+docker compose exec web python manage.py assign_roles admin admin --actor admin --reason 'Initial synthetic instance setup'
+docker compose exec web python manage.py seed_demo --actor admin --journey   # optional synthetic demonstration data
 ```
 
-Open <http://127.0.0.1:8081/>. The generated `.local/website/` directory is a standalone static site; building it does not publish it or change repository visibility.
+Sign in at <http://127.0.0.1:8000/accounts/login/>. Nothing is seeded automatically; [Synthetic demonstration](#synthetic-demonstration) explains what the optional seed creates and the accounts it prompts for. If port 8000 or 55433 is taken, prefix the `up` command with `WEB_PORT=8080 DB_PORT=55434`. Stop with `docker compose --profile evaluation down`; add `--volumes` to delete the local database.
 
 ## Local development
 
-Use Python 3.14, uv and Docker Compose. The PostgreSQL port is **55433**. The example database credentials are local-only. Settings read environment variables; copying `.env.example` alone does not load them.
+Use Python 3.14, [uv](https://docs.astral.sh/uv/) and Docker Compose. The PostgreSQL port is **55433**. The example database credentials are local-only. Settings read environment variables: copy `.env.example` to `.env` (ignored by Git) and export `UV_ENV_FILE=.env` so that every `uv run` command loads it.
+
+CoA PDFs are rendered with WeasyPrint, which needs the Pango libraries from the operating system. On Debian/Ubuntu install `libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0` (the packages the `Dockerfile` installs). On macOS run `brew install pango` and uncomment `DYLD_FALLBACK_LIBRARY_PATH` in your `.env` if Python reports `OSError: cannot load library 'libgobject-2.0-0'`; it has to come from the env file because `uv run` does not pass an exported `DYLD_*` variable on. The PDF text assertions also use `pdftotext` from poppler (`poppler-utils`, or `brew install poppler`) and are skipped without it.
 
 ```sh
-uv sync --frozen
-export DEBUG=true
-export DATABASE_URL=postgresql://open_qual:open_qual@127.0.0.1:55433/open_qual
+uv sync --locked
+cp .env.example .env
+export UV_ENV_FILE=.env
 docker compose up -d db
 uv run python manage.py migrate
 uv run python manage.py collectstatic --noinput
@@ -50,6 +64,8 @@ uv run python manage.py createsuperuser --username admin
 uv run python manage.py assign_roles admin admin --actor admin --reason 'Initial synthetic instance setup'
 uv run python manage.py runserver 127.0.0.1:8000
 ```
+
+### Accounts and roles
 
 **Do not skip `assign_roles` after `createsuperuser`.** The first command creates a Django administrator; the second explicitly grants the laboratory `admin` role and records the bootstrap assignment in the audit trail.
 
@@ -61,7 +77,9 @@ uv run python manage.py create_staff reviewer reviewer --actor admin --reason 'S
 uv run python manage.py create_staff quality quality --actor admin --reason 'Synthetic quality setup'
 ```
 
-The audited `create_staff` command prompts privately for a validated password. Use distinct synthetic actors for analyst, reviewer and quality. Each signer enrolls their own PIN at `/signature-pin/` by confirming their login password. PINs contain 8–32 digits; five failed attempts lock signing for 15 minutes. Never put passwords or PINs into source files or command-line arguments.
+The audited `create_staff` command prompts privately for a validated password. Use distinct synthetic actors for analyst, reviewer and quality. Each signer enrolls their own PIN at `/signature-pin/` by confirming their login password. PINs contain 8–32 digits; five failed attempts lock signing for 15 minutes. Five consecutive failed passwords pause that account's password sign-in for 15 minutes. Never put passwords or PINs into source files or command-line arguments.
+
+### Rules and the native workflow
 
 For manual configuration, run `uv run python manage.py seed_rules --actor quality`. The five seeded segment presets remain **drafts**. They are synthetic identity-test examples, not complete segment policies. A quality actor other than the author must inspect and sign approval before a rule can be used. Approved intervals must have a finite end; schedule non-overlapping replacement revisions before expiry. No automatic retirement or retroactive editing of approved rules is provided. The rule schema accepts required test codes and supported review/disposition meanings. The catalog adds independently approved method/specification revisions, method QC policies and sampling plans; lot assignments preserve their applicability and revision snapshots. Broader market/obligation resolution still needs an approved local policy.
 
@@ -73,7 +91,7 @@ Manual foundation results with analyst-entered limits are available only in `DEB
 
 ## Synthetic demonstration
 
-On a fresh development database, after `createsuperuser` **and** `assign_roles admin admin --actor admin --reason 'Bootstrap account administration'`, run `DEBUG=true uv run python manage.py seed_demo --actor admin --journey` **instead of** manually running `seed_rules` first.
+On a fresh development database, after `createsuperuser` **and** `assign_roles admin admin --actor admin --reason 'Bootstrap account administration'`, run `uv run python manage.py seed_demo --actor admin --journey` (it needs `DEBUG=true`, which the example `.env` sets) **instead of** manually running `seed_rules` first.
 A superuser may run the seed command without an `admin` role, but it warns explicitly and never grants the actor a role. Complete the bootstrap assignment first to give that account workspace access.
 The command privately prompts for synthetic credentials (or reads `DEMO_PASSWORD` and `DEMO_PIN` from the environment), creates five `demo_<role>` users plus the quality-only `demo_config_author`, draft segment rules and draft catalog/sampling profiles. With `--journey`, it also approves an illustrative chemical rule and creates a foundation result awaiting independent review.
 It refuses production mode and non-demo name collisions, including pre-existing rule presets, and never resets existing credentials on rerun. The configuration author is separate from `demo_quality`, who independently approves it; existing seeded authorship is preserved on rerun. Use `demo_reviewer` and `demo_quality` in separate login sessions to finish this minimal development journey. Omit `--journey` to leave all presets as drafts. Catalog/specification/sampling drafts still need an independent quality approver; the seed is not a fully approved native workflow or a validated test panel. Do not seed on deployment.
@@ -83,28 +101,43 @@ It refuses production mode and non-demo name collisions, including pre-existing 
 Run against the Compose PostgreSQL database. pytest creates a separate test database; the local database role must be able to create it. Use a distinct `TEST_DATABASE_NAME=test_...` when another session is testing.
 
 ```sh
-export DEBUG=true
-export DATABASE_URL=postgresql://open_qual:open_qual@127.0.0.1:55433/open_qual
+export UV_ENV_FILE=.env
 uv run ruff check .
+uv run ruff format --check .
 uv run python manage.py check
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py collectstatic --noinput
 uv run pytest
 ```
 
-PostgreSQL is required for row locks and immutable-history triggers; SQLite is not a substitute. Headless browser tooling is in the `e2e` dependency group (`uv sync --group e2e`, then `uv run playwright install --only-shell chromium`). Use an isolated synthetic database/server for browser work. Verification results and local work-package ownership are recorded in the coordinator handoff and `.local/plan/work-packages.md`.
+PostgreSQL is required for row locks and immutable-history triggers; SQLite is not a substitute. Headless browser tooling is in the `e2e` dependency group (`uv sync --group e2e`, then `uv run playwright install --only-shell chromium`). Run the browser journeys with `uv run --group e2e pytest -c e2e/pytest.ini e2e`; they use their own disposable test database, and screenshots go to `build/e2e/` (override with `E2E_ARTIFACTS_DIR`). The CI workflow runs the same checks, the browser journeys and a container smoke test.
+
+## Presentation website
+
+The presentation is published at <https://openbga.github.io/qlab/>. Its source is the static page in `website/`, which introduces OpenBGA QLab and links to the repository, documentation and support, using the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
+
+```sh
+python3 scripts/build_website.py
+python3 -m http.server 8081 --bind 127.0.0.1 --directory build/website
+```
+
+Open <http://127.0.0.1:8081/>. The generated `build/website/` directory is a standalone static site and is ignored by Git.
 
 ## Deployment
 
-`Dockerfile`, CI and `render.yaml` define the foundation. The authorized Blueprint describes `openbga-qualab` (Docker, 1c-2g, Virginia) and `openbga-qualab-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. Resource definition does not mean deployment has occurred. Provision only after the integrated checks pass.
+`Dockerfile`, the CI workflow and `render.yaml` define a container deployment. The example Render Blueprint describes `openbga-qlab` (Docker, 1c-2g, Virginia) and `openbga-qlab-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off; adjust names, sizes and region for your own account. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. The Blueprint is a definition, not evidence that any instance is deployed or validated.
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 
-The repository moved to <https://github.com/openbga/qualab> on 2026-11-11. The owner must re-link any existing Render service (and its GitHub connection) to that repository; services created before the rename keep their existing names until renamed in the Render dashboard. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
+Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
+
+## Contributing
+
+Issues and pull requests are welcome; pull requests target the `develop` branch and `main` holds the released state. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the checks to run and the engineering rules reviewers enforce, and the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md), never in a public issue.
 
 ## Project and support
 
-OpenBGA Qualab is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
+OpenBGA QLab is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
 
 **Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
 
@@ -114,7 +147,7 @@ OpenBGA Qualab is an open-source project of [BGASoft](https://bgasoft.com), a la
 
 Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
 
-OpenBGA Qualab is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
+OpenBGA QLab is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
 
 OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. The licence does not grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the software.
 

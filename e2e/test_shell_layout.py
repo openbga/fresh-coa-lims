@@ -1,7 +1,6 @@
 """The phone shell reserves space for its controls with Linux system-font metrics."""
 
 import re
-from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import Group
@@ -9,7 +8,7 @@ from playwright.sync_api import expect, sync_playwright
 
 
 @pytest.mark.django_db(transaction=True)
-def test_shell_controls_fit_the_viewport(live_server, django_user_model):
+def test_shell_controls_fit_the_viewport(live_server, django_user_model, artifacts):
     password = "Synthetic-shell-browser-2026!"
     user = django_user_model.objects.create_user(username="shell", password=password)
     user.groups.add(Group.objects.get_or_create(name="quality")[0])
@@ -42,7 +41,9 @@ def test_shell_controls_fit_the_viewport(live_server, django_user_model):
                 assert bounds["y"] + bounds["height"] <= bar.bounding_box()["height"]
                 previous_right = bounds["x"] + bounds["width"]
             if width in (390, 1440):
-                artifacts = Path(".local/qa")
-                artifacts.mkdir(parents=True, exist_ok=True)
                 page.screenshot(path=str(artifacts / f"ci-shell-{width}.png"), full_page=True)
+        # Error pages carry the shell, a page title and one level-one heading.
+        page.goto(f"{live_server.url}/no-such-synthetic-page/")
+        expect(page).to_have_title("Page not found · OpenBGA QLab")
+        expect(page.get_by_role("heading", level=1)).to_have_text("Page not found")
         browser.close()

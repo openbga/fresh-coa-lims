@@ -3,10 +3,15 @@ current state, and commits state, attributed audit event (and signature when sig
 
 Independence: the person who recorded evidence, the person it is about, and the signer must be
 different individuals, whatever roles they hold.
+
+Lock order: every unsigned write locks its actor's account first (`lock_account`), as signing
+does; then records, with reagent lineages newest first, as releasing a lot does.
 """
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q, prefetch_related_objects
 from django.utils import timezone
 
 from core.audit import record_event, snapshot
@@ -36,13 +41,25 @@ class UseBlocked(ValidationError):
         super().__init__(messages)
 
 
+def lock_account(actor):
+    """Lock the actor's account row first in every unsigned write, FOR NO KEY UPDATE.
+
+    Signing locks the signer's account (FOR UPDATE) before any record, and this lock conflicts
+    with it, so the same person's write and signature serialize before either holds a record.
+    It does not conflict with the FOR KEY SHARE that foreign-key checks on the account take at
+    commit, so rows referencing the account never wait on it.
+    """
+    get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+
+
 def _lock(model, obj):
     return model.objects.select_for_update().get(pk=obj.pk)
 
 
 def _lock_lineage(reagents):
-    """Lock the reagents' whole source chains, in a fixed order, so a rejection of any ancestor
-    serializes with use and release."""
+    """Lock the reagents' whole source chains, newest first, so a rejection of any ancestor
+    serializes with use and release. Releasing a lot locks it and then its sources (always
+    older), so every lineage lock follows that order."""
     ids, frontier = set(), {r.pk for r in reagents}
     while frontier:
         ids |= frontier
@@ -54,7 +71,7 @@ def _lock_lineage(reagents):
             )
             - ids
         )
-    list(ReagentLot.objects.select_for_update(of=("self",)).filter(pk__in=ids).order_by("pk"))
+    list(ReagentLot.objects.select_for_update(of=("self",)).filter(pk__in=ids).order_by("-pk"))
 
 
 def _bump(obj, **changes):
@@ -72,6 +89,7 @@ def _bump(obj, **changes):
 @transaction.atomic
 def register_equipment(*, actor, reason, **values):
     require_role(actor, *RECORDERS)
+    lock_account(actor)
     equipment = Equipment(created_by=actor, **values)
     equipment.full_clean()
     equipment.save()
@@ -109,6 +127,7 @@ def take_out_of_service(*, actor, equipment, reason):
     require_role(actor, *ANY_SCIENTIFIC)
     if not reason.strip():
         raise ValidationError("State why the equipment is unfit for use.")
+    lock_account(actor)
     equipment = _lock(Equipment, equipment)
     if equipment.state == Equipment.State.OUT_OF_SERVICE:
         raise ValidationError("Equipment is already out of service.")
@@ -116,15 +135,22 @@ def take_out_of_service(*, actor, equipment, reason):
     return equipment
 
 
-def return_to_service(*, actor, pin, equipment, expected_revision, impact_assessment):
-    def impact(locked):
-        uses = list(affected_uses(locked).values_list("pk", flat=True))
-        failures = list(unassessed_failures(locked).values_list("pk", flat=True))
-        return uses, failures
+def impact_scope(equipment):
+    """(affected use ids, unassessed failed calibration ids) a return to service assesses."""
+    uses = list(affected_uses(equipment).values_list("pk", flat=True))
+    failures = list(unassessed_failures(equipment).values_list("pk", flat=True))
+    return uses, failures
 
-    # Shown to the signer now and rechecked under the equipment lock before signing: new uses
-    # cannot slip in because recording a use locks the same equipment row.
-    assessed = impact(equipment)
+
+def return_to_service(
+    *, actor, pin, equipment, expected_revision, impact_assessment, assessed=None
+):
+    # `assessed` is the scope shown to the signer when the page opened (read now if not given).
+    # It is rechecked under the equipment lock before signing: a failure recorded meanwhile
+    # does not change the equipment revision, and recording a use locks the same equipment row.
+    assessed = (
+        impact_scope(equipment) if assessed is None else (list(assessed[0]), list(assessed[1]))
+    )
 
     def apply(locked):
         if locked.state != Equipment.State.OUT_OF_SERVICE:
@@ -133,7 +159,7 @@ def return_to_service(*, actor, pin, equipment, expected_revision, impact_assess
             raise PermissionDenied(
                 "The person who removed equipment from service cannot return it."
             )
-        if impact(locked) != assessed:
+        if impact_scope(locked) != assessed:
             raise ValidationError(
                 "Recorded uses or failures changed while you assessed them. Reload and reassess."
             )
@@ -177,6 +203,7 @@ def return_to_service(*, actor, pin, equipment, expected_revision, impact_assess
 @transaction.atomic
 def record_calibration(*, actor, equipment, reason, **values):
     require_role(actor, *RECORDERS)
+    lock_account(actor)
     equipment = _lock(Equipment, equipment)
     calibration = Calibration(equipment=equipment, recorded_by=actor, **values)
     if calibration.performed_at and calibration.performed_at > timezone.now():
@@ -233,6 +260,7 @@ def record_qualification(*, actor, reason, user=None, equipment=None, **values):
         raise PermissionDenied("You cannot record qualification evidence for yourself.")
     if user is not None and not user.is_active:
         raise ValidationError("The qualified person's account is inactive.")
+    lock_account(actor)
     qualification = Qualification(user=user, equipment=equipment, recorded_by=actor, **values)
     qualification.full_clean()
     qualification.save()
@@ -302,6 +330,7 @@ def receive_reagent(*, actor, reason, **values):
     kind = values["kind"]
     if values["received_on"] > timezone.localdate():
         raise ValidationError("Receipt or preparation cannot be dated in the future.")
+    lock_account(actor)
     if kind == ReagentLot.Kind.PREPARED:
         if parent is None:
             raise ValidationError("A prepared solution needs its source lot.")
@@ -367,6 +396,7 @@ def reject_reagent(*, actor, reagent, reason):
     require_role(actor, *ANY_SCIENTIFIC)
     if not reason.strip():
         raise ValidationError("State why the lot is rejected.")
+    lock_account(actor)
     reagent = _lock(ReagentLot, reagent)
     if reagent.state == ReagentLot.State.REJECTED:
         raise ValidationError("The lot is already rejected.")
@@ -412,12 +442,13 @@ def authorize_use(
     blocked = None
     try:
         with transaction.atomic():
-            # Lock in a fixed order so concurrent state changes cannot interleave with the check.
+            # Lock in a fixed order so concurrent state changes cannot interleave with the check:
+            # account, equipment, reagent lineage, qualifications.
+            lock_account(actor)
             locked_equipment = list(
                 Equipment.objects.select_for_update()
                 .filter(pk__in=[e.pk for e in equipment])
                 .order_by("pk")
-                .prefetch_related("calibrations", "qualifications")
             )
             _lock_lineage(reagents)
             locked_reagents = list(
@@ -426,6 +457,18 @@ def authorize_use(
                 .order_by("pk")
                 .select_related("parent")
             )
+            # Approval and revocation lock the qualification row they sign, so locking the
+            # analyst's and the equipment's rows serializes this check with them. Evidence is
+            # read only after the locks are held.
+            list(
+                Qualification.objects.select_for_update()
+                .filter(
+                    Q(user=actor, activity__iexact=activity.strip())
+                    | Q(equipment__in=locked_equipment)
+                )
+                .order_by("pk")
+            )
+            prefetch_related_objects(locked_equipment, "calibrations", "qualifications")
             findings = check_use(
                 analyst=actor,
                 activity=activity,
