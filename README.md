@@ -100,7 +100,7 @@ PostgreSQL is required for row locks and immutable-history triggers; SQLite is n
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 
-The repository moved to <https://github.com/openbga/qlab> on 2026-11-11. The owner must re-link any existing Render service (and its GitHub connection) to that repository; services created before the rename keep their existing names until renamed in the Render dashboard. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
+Deployments must link to <https://github.com/openbga/qlab>. The hosted synthetic demo is <https://openbga-qlab.onrender.com/>. Existing Render services need their repository connection and display name updated when adopting this name. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
 
 ## Project and support
 
