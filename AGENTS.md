@@ -1,8 +1,10 @@
-# Open Qual IQ
+# OpenBGA Qual
 
 Read `docs/product.md`, `docs/architecture.md`, `docs/ui-standards.md` and relevant source/tests. Research evidence is in `docs/research/`; regulatory applicability comes from `regulations.md` when older functional inferences differ. Keep documentation for intent and constraints, not a duplicate implementation description.
 
-One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules from Open Roots IQ. The reference repository is read-only.
+One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules from OpenBGA Roots. The reference repository is read-only.
+
+Owner decision, 2026-11-11 (replaces the earlier name, licence and repository location): the product is **OpenBGA Qual**, an open-source project of BGASoft Inc. at <https://github.com/openbga/qual>, licensed AGPL-3.0-only (`LICENSE` is the unmodified GNU text; never edit it). Use the notice in `NOTICE`. Keep the footer **Source code** link (AGPL-3.0 section 13). Keep nothing in the repository that names, compares or researches other LIMS/LIS/middleware products or vendors; regulatory sources, dependency notices and directly supported instruments/formats are allowed.
 
 ## Working rules
 

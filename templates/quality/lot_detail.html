@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ lot.number }}{% endblock %}
+{% block title %}{{ lot.number }} · OpenBGA Qual{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}
 <p><a href="{% url 'quality:lot_list' %}">Material lots</a></p><h1>{{ lot.number }}</h1>

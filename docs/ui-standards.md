@@ -1,6 +1,6 @@
 # UI standards
 
-Baseline: 2026-11-10. These are the Open Qual IQ house rules, adapted from Open Roots IQ. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+Baseline: 2026-11-10. These are the OpenBGA Qual house rules, adapted from OpenBGA Roots. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
 
 ## Components and theme
 
@@ -15,7 +15,7 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Keep the new product name and distinct mark throughout; do not retain the reference product's environmental imagery or terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Write the product name as "OpenBGA Qual" with the checkmark mark (`static/img/mark.svg`) throughout; do not retain the reference product's environmental imagery or terms. Every page ends with the shared application footer (`includes/app_footer.html`): product name, licence and the **Source code** link required by AGPL-3.0 section 13. It sits outside `<main>`, so form dialogs never copy it.
 
 ## Lists and forms
 

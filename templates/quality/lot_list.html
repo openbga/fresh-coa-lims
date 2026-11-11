@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Material lots{% endblock %}
+{% block title %}Material lots · OpenBGA Qual{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4"><div><h1>Material lots</h1><p class="text-body-secondary">Receive, test, independently review and disposition manufacturing lots.</p></div>{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">New material lot</a>{% endif %}</div>
