@@ -1,8 +1,8 @@
-# OpenBGA Qualab Blueprint. New resources authorized by the owner; provision only after integrated checks pass.
+# OpenBGA QLab Blueprint. New resources authorized by the owner; provision only after integrated checks pass.
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
 services:
   - type: web
-    name: openbga-qualab
+    name: openbga-qlab
     runtime: docker
     plan: 1c-2g
     region: virginia
@@ -12,7 +12,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: openbga-qualab-db
+          name: openbga-qlab-db
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -26,7 +26,7 @@ services:
         value: django.core.mail.backends.dummy.EmailBackend
 
 databases:
-  - name: openbga-qualab-db
+  - name: openbga-qlab-db
     databaseName: open_qual
     user: open_qual
     plan: 0.5c-1g

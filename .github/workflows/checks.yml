@@ -78,10 +78,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build application image (no push)
-        run: docker build --tag openbga-qualab:ci .
+        run: docker build --tag openbga-qlab:ci .
       - name: Configure disposable smoke environment
         run: |
-          cat > "$RUNNER_TEMP/openbga-qualab-smoke.env" <<'ENV'
+          cat > "$RUNNER_TEMP/openbga-qlab-smoke.env" <<'ENV'
           DEBUG=false
           SECRET_KEY=disposable-ci-only-key-never-for-a-real-deployment-2026
           DATABASE_URL=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432/open_qual_container_smoke
@@ -92,14 +92,14 @@ jobs:
           ENV
       - name: Migrate empty smoke database and check Django
         run: |
-          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qualab-smoke.env" openbga-qualab:ci python manage.py migrate --noinput
-          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qualab-smoke.env" openbga-qualab:ci python manage.py check
+          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci python manage.py migrate --noinput
+          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci python manage.py check
       - name: Verify non-root Render SSH prerequisites
         run: |
-          docker run --rm openbga-qualab:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
+          docker run --rm openbga-qlab:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
       - name: Start production server and check HTTP endpoints
         run: |
-          docker run --detach --name openbga-qualab-smoke --network host --env-file "$RUNNER_TEMP/openbga-qualab-smoke.env" openbga-qualab:ci
+          docker run --detach --name openbga-qlab-smoke --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci
           for attempt in $(seq 1 30); do
             if curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/; then break; fi
             sleep 2
@@ -111,6 +111,6 @@ jobs:
       - name: Logs and cleanup
         if: always()
         run: |
-          docker logs openbga-qualab-smoke || true
-          docker rm -f openbga-qualab-smoke || true
-          rm -f "$RUNNER_TEMP/openbga-qualab-smoke.env"
+          docker logs openbga-qlab-smoke || true
+          docker rm -f openbga-qlab-smoke || true
+          rm -f "$RUNNER_TEMP/openbga-qlab-smoke.env"
