@@ -4,7 +4,7 @@ urls: sampling:deviation_assess
 views: sampling.views.deviation_assess
 templates: sampling/deviation_assess.html
 models: sampling.DeviationReview, sampling.SamplingRecord, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -15,7 +15,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden.
 - The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
-- The person who sampled or recorded the record is blocked: the page opens with status 403, shows "You sampled or recorded this sample; another person must assess." and no form. No role can bypass this.
+- The person who sampled the material, recorded the record or recorded any earlier record it corrects is blocked: the page opens with status 403, shows "You sampled, recorded or corrected this sample; another person must assess." and no form. No role can bypass this.
 - With no assessment for the record you are redirected to the lot with the error "This record has no deviation awaiting assessment." Other non-permission blockers also redirect with an error: "Only deviations of quarantined lots can be assessed.", "This deviation has already been assessed." or "This record was corrected; assess the latest record instead."
 - The signing username you type must equal your signed-in username.
 
@@ -31,7 +31,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Sign assessment** | Not blocked | Quality, not the sampler or recorder | Verifies your PIN, records the decision and signature, shows "Deviation for <sample> accepted." or "Deviation for <sample> rejected." and returns to the lot |
+| **Sign assessment** | Not blocked | Quality, not the sampler or a recorder of this record or an earlier record it corrects | Verifies your PIN, records the decision and signature, shows "Deviation for <sample> accepted." or "Deviation for <sample> rejected." and returns to the lot |
 | **Cancel** | Form shown | Quality | Returns to the lot without signing |
 | Enroll or change your signature PIN | Form shown | Signer | Opens the Signature PIN page |
 
@@ -51,7 +51,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 - **Pending only**: only a pending assessment can be decided. Shown as a redirect when opening the page ("This deviation has already been assessed.") and refused by the server.
 - **Latest record only**: "This record was corrected; assess the latest record instead." A corrected (superseded) record cannot be assessed.
 - **Lot in Quarantine**: "Only deviations of quarantined lots can be assessed."
-- **Independence**: sampler and recorder are refused again at signing: "You sampled or recorded this sample; another person must assess."
+- **Independence**: the sampler and everyone who recorded the record or an earlier record in its correction chain are refused again at signing: "You sampled, recorded or corrected this sample; another person must assess." A correction starts from the values it replaces, so earlier correctors count as authors. The **Assess deviation** button on the lot page is hidden for them.
 - **Stale record**: "Record changed. Reload and review before signing." if the assessment revision changed.
 - **Signature**: meaning is "accepted" or "rejected". It records who, when and the assessment revision it binds to (the revision after the change). Audit event `signed.accepted` or `signed.rejected` with your assessment text is written in the same transaction.
 - **Lot revision**: the lot's record revision increases by 1, so a disposition prepared earlier goes stale.

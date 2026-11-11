@@ -8,13 +8,11 @@
   {# Synchronous on purpose: sets data-bs-theme from the saved choice before the first paint. #}
   <script src="{% static 'js/theme-init.js' %}"></script>
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "422", "swap": true}, {"code": "[45]..", "swap": false, "error": true}]}'>
-  <title>{% block title %}{% if page_title %}{{ page_title }} · OpenBGA Qualab{% else %}OpenBGA Qualab: open-source manufacturing QC LIMS{% endif %}{% endblock %}</title>
+  <title>{% block title %}{% if page_title %}{{ page_title }} · OpenBGA QLab{% else %}OpenBGA QLab: open-source manufacturing QC LIMS{% endif %}{% endblock %}</title>
   <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.8/css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/colReorder.bootstrap5.min.css' %}">
-  {# Tom Select CSS is small and themed in app.css; its script loads only on pages with an enhanced select. #}
-  <link rel="stylesheet" href="{% static 'vendor/tom-select/tom-select.bootstrap5.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% if user.is_authenticated %}{% pagedocs_head %}{% endif %}
   {% block extra_css %}{% endblock %}
@@ -45,7 +43,7 @@
     {% block sidenav %}
     <nav class="vr-sidenav offcanvas-lg offcanvas-start" id="vr-nav" tabindex="-1" aria-label="Primary">
       <div class="offcanvas-header d-lg-none">
-        <p class="offcanvas-title h5 mb-0">OpenBGA Qualab</p>
+        <p class="offcanvas-title h5 mb-0">OpenBGA QLab</p>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body">
@@ -84,7 +82,7 @@
       </div>
     </nav>
     {% endblock sidenav %}
-    <main class="vr-main" id="main" tabindex="-1"{% block form_surface_attributes %}{% if form_surface %} data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size }}"{% endif %}{% endblock %}>
+    <main class="vr-main" id="main" tabindex="-1">
       {% block section_navigation %}{% if tabs %}{% include "includes/section_tabs.html" %}{% endif %}{% endblock %}
       {% block page_header %}
       {% if page_title %}<div class="vr-page-header">

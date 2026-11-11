@@ -9,9 +9,9 @@ from django.utils import timezone
 
 from core.models import AuditEvent
 from stability import services
-from stability.models import Hold, Pull
+from stability.models import Hold, Pull, RetentionObligation
 
-from .helpers import PIN, approved_protocol, make_lot, started_study
+from .helpers import PIN, approved_protocol, make_lot, sample_with_result, started_study
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -359,3 +359,129 @@ def test_time_zero_must_not_be_in_the_future_but_released_and_historical_lots_ar
     assert "cannot be in the future" in body and 'value="Form container"' in body
     ok = client.post(reverse("stability:study_new"), {**data, "start_date": today.isoformat()})
     assert ok.status_code == 302 and Study.objects.filter(identifier="STB-FORM").exists()
+
+
+def test_malformed_reserve_query_is_not_found(client, people):
+    client.force_login(people["quality"])
+    for name in ("hold_new", "obligation_new"):
+        for value in ("abc", "1.5", "-1", "٣", "9" * 30, "9" * 5000):
+            response = client.get(reverse(f"stability:{name}"), {"reserve": value})
+            assert response.status_code == 404, (name, value)
+
+
+def test_schedule_outside_calendar_is_a_form_error(client, people):
+    protocol = approved_protocol(people, intervals=(0,), window=5)
+    lot = make_lot(people)
+    client.force_login(people["analyst"])
+    response = client.post(
+        reverse("stability:study_new"),
+        {
+            "identifier": "STB-OLD",
+            "protocol": protocol.pk,
+            "lot": lot.pk,
+            "container_closure": "Synthetic container",
+            "start_date": "0001-01-01",
+            "reason": "Synthetic",
+        },
+    )
+    assert response.status_code == 422
+    assert "supported calendar range" in response.content.decode()
+    assert not Pull.objects.exists()
+    assert client.get(reverse("stability:pull_list")).status_code == 200
+
+
+def test_retention_date_outside_calendar_is_a_form_error(client, people):
+    lot = make_lot(people)
+    client.force_login(people["analyst"])
+    for anchor, months in (("2026-01-01", "2000000000"), ("9999-12-01", "1")):
+        response = client.post(
+            reverse("stability:obligation_new"),
+            {
+                "lot": lot.pk,
+                "anchor_kind": "expiry",
+                "anchor_date": anchor,
+                "offset_months": months,
+                "basis": "Synthetic basis",
+                "reason": "Synthetic",
+            },
+        )
+        assert response.status_code == 422, (anchor, months)
+        assert "supported calendar" in response.content.decode()
+    assert not RetentionObligation.objects.exists()
+    pending = services.add_obligation(
+        actor=people["analyst"],
+        lot=lot,
+        anchor_kind="last_distribution",
+        offset_months=12,
+        basis="Synthetic basis",
+        reason="Synthetic",
+    )
+    response = client.post(
+        reverse("stability:anchor_set", args=[pending.pk]),
+        {"anchor_date": "9999-06-01", "reason": "Synthetic"},
+    )
+    assert response.status_code == 422
+    pending.refresh_from_db()
+    assert pending.anchor_date is None
+
+
+def test_accept_page_refuses_a_test_data_author_holding_reviewer_role(client, people):
+    study = started_study(people)
+    pull = services.record_pull(
+        actor=people["analyst"],
+        pull=study.pulls.get(timepoint__interval_days=100),
+        pulled_on=timezone.localdate(),
+        quantity="10",
+        quantity_unit="g",
+        storage_location="Synthetic cabinet",
+        reason="Synthetic pull",
+    )
+    sample = sample_with_result(people, study)  # analyst2 authors the test data
+    pull = services.attach_pull_evidence(
+        actor=people["analyst"], pull=pull, sample_reference=sample.reference, reason="Linked"
+    )
+    author = people["analyst2"]
+    author.groups.add(people["reviewer"].groups.get())
+    client.force_login(author)
+    detail = client.get(reverse("stability:pull_detail", args=[pull.pk])).content.decode()
+    assert "Accept pull" not in detail
+    url = reverse("stability:pull_accept", args=[pull.pk])
+    page = client.get(url)
+    assert page.status_code == 403 and "produced test data" in page.content.decode()
+    response = sign_post(client, url, author, pull.revision)
+    assert response.status_code == 403
+    pull.refresh_from_db()
+    assert pull.state == "pulled"
+
+
+def test_accept_page_refuses_an_earlier_evidence_recorder(client, people):
+    study = started_study(people)
+    pull = services.record_pull(
+        actor=people["analyst"],
+        pull=study.pulls.get(timepoint__interval_days=100),
+        pulled_on=timezone.localdate(),
+        quantity="10",
+        quantity_unit="g",
+        storage_location="Synthetic cabinet",
+        reason="Synthetic pull",
+    )
+    first = people["analyst2"]
+    first.groups.add(people["reviewer"].groups.get())
+    for actor in (first, people["analyst"]):  # identical references re-linked by another analyst
+        pull = services.attach_pull_evidence(
+            actor=actor, pull=pull, external_sample_ref="EXT-1", evidence_ref="EVID-1", reason="L"
+        )
+    client.force_login(first)
+    detail = client.get(reverse("stability:pull_detail", args=[pull.pk])).content.decode()
+    assert "Accept pull" not in detail
+    url = reverse("stability:pull_accept", args=[pull.pk])
+    assert client.get(url).status_code == 403
+    assert sign_post(client, url, first, pull.revision).status_code == 403
+    pull.refresh_from_db()
+    assert pull.state == "pulled"
+
+
+def test_oversized_protocol_preselection_is_ignored(client, people):
+    client.force_login(people["analyst"])
+    response = client.get(reverse("stability:study_new"), {"protocol": "9" * 5000})
+    assert response.status_code == 200

@@ -1,4 +1,4 @@
-"""A's frozen requirements, translated, must parse with package B's own contract (or hold)."""
+"""Frozen catalog/sampling requirements, translated, parse with the analytical contract or hold."""
 
 from decimal import Decimal
 
@@ -109,7 +109,7 @@ def lot_with_requirements(people):
     return lot
 
 
-def test_supported_tests_parse_and_unsupported_hold_in_b(people, lot_with_requirements):
+def test_supported_tests_parse_and_unsupported_hold(people, lot_with_requirements):
     payloads = services.test_requirements(lot_with_requirements)
     assert set(payloads) == {"identity", "assay", "impurity", "exact"}  # info-only excluded
     assay = parse_requirement(payloads["assay"])
@@ -123,7 +123,7 @@ def test_supported_tests_parse_and_unsupported_hold_in_b(people, lot_with_requir
             parse_requirement(payloads[code])
 
 
-def test_batch_methods_parse_in_b(people):
+def test_batch_methods_parse_in_analytical_contract(people):
     batch_method(people)
     [method] = catalog.batch_method_requirements()
     parsed = parse_method(method)

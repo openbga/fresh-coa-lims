@@ -142,6 +142,7 @@ def lot_detail(request, pk):
         .order_by("recorded_at", "id")
     )
     corrected = {r.corrects_id for r in records if r.corrects_id}
+    by_pk = {r.pk: r for r in records}
     is_quality = can(request.user, AUTHOR_ROLE)
     for record in records:
         record.superseded = record.pk in corrected
@@ -152,7 +153,7 @@ def lot_detail(request, pk):
             and not record.superseded
             and record.review is not None
             and record.review.status == "pending"
-            and request.user.pk not in {record.sampled_by_id, record.recorded_by_id}
+            and request.user.pk not in services.record_author_ids(record, by_pk)
         )
     is_analyst = can(request.user, "analyst")
     testing = services.testing_started(lot)

@@ -4,7 +4,7 @@ urls: analytical:batch_new
 views: analytical.views.batch_new
 templates: analytical/form.html
 models: analytical.QCBatch
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -39,7 +39,7 @@ Create a QC batch for one approved batch-method revision.
 ## Rules and hidden logic
 
 - **Methods** come from the configured requirement provider; invalid methods and methods that do not require a batch are omitted. Not enforced by this page: approval of the method itself.
-- **Validations**: "No approved batch method with this code."; "This batch number already exists."; "A reason is required."
+- **Validations**: "No approved batch method with this code."; "This batch number already exists." (also when a double submission or another analyst creates the same number at the same moment; only one batch is created); "A reason is required."
 - **Effect**: the method revision and its QC checks are frozen into the batch; the batch starts Open at revision 1. Errors return status 422 and save nothing.
 
 ## Related pages

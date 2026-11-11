@@ -17,7 +17,7 @@ from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 
 @pytest.mark.django_db(transaction=True)
-def test_native_observation_to_signed_certificate(live_server, integrated):
+def test_native_observation_to_signed_certificate(live_server, integrated, artifacts):
     data = integrated
     sample = assign_and_sample(data)
     tests, holds = analytical.assign_tests(
@@ -28,8 +28,7 @@ def test_native_observation_to_signed_certificate(live_server, integrated):
     assert not holds and len(tests) == 1
     test = tests[0]
     lot = data["lot"]
-    screenshots = Path(".local/qa")
-    screenshots.mkdir(parents=True, exist_ok=True)
+    screenshots = artifacts
     errors = []
 
     with sync_playwright() as playwright:

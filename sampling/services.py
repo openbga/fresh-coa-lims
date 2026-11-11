@@ -1,13 +1,15 @@
 """Sampling plans, lot requirement assignment and sampling provenance.
 
-Published contract for other packages:
+Published contract for other apps:
 - ``current_requirements(lot)`` -> frozen requirement payload (tests, methods, limits, plan)
   for the lot's current assignment, or raises ``ApplicabilityHold``. Disposition must treat a hold
   as blocking.
 - ``current_assignment(lot)`` -> latest LotAssignment or None.
 - ``lot_blockers(lot)`` -> sampling reasons blocking QC disposition (call under the lot lock).
-- ``test_requirements(lot)`` -> {test_code: oq.test-requirement/1 payload} for package B, or hold.
-- ``catalog.services.batch_method_requirements()`` -> B method payloads for batch creation.
+- ``lot_author_ids(lot)`` -> ids of everyone who sampled or recorded (including corrections)
+  any sampling record of the lot; they must not sign its QC disposition.
+- ``test_requirements(lot)`` -> {test_code: oq.test-requirement/1 payload} for analytical, or hold.
+- ``catalog.services.batch_method_requirements()`` -> analytical method payloads for batches.
 """
 
 from decimal import ROUND_CEILING, Decimal
@@ -220,7 +222,7 @@ REASSIGNMENT_REFUSED = (
 def testing_started(lot):
     """True when native analytical tests exist for the lot.
 
-    Read through the app registry so A does not import the testing package; the testing package
+    Read through the app registry so sampling does not import the analytical app, which
     locks the same lot row when it creates tests, so this check serializes with test assignment.
     """
     if not apps.is_installed("analytical"):
@@ -273,6 +275,38 @@ def correction_blocker(record):
     return None
 
 
+def record_author_ids(record, records=None):
+    """Samplers and recorders of ``record`` and of every earlier record it corrects.
+
+    A correction starts from the values of the record it replaces, so everyone in the chain is an
+    author of the current values. ``records`` optionally maps pk to already loaded records.
+    """
+    ids = set()
+    while record is not None:
+        ids |= {record.sampled_by_id, record.recorded_by_id}
+        if record.corrects_id is None:
+            break
+        record = (records or {}).get(record.corrects_id) or SamplingRecord.objects.get(
+            pk=record.corrects_id
+        )
+    return ids
+
+
+def lot_author_ids(lot):
+    """Users who sampled or recorded any sampling record of the lot, as a set of user ids.
+
+    Every record counts, including corrected originals and intermediate corrections, so the set
+    covers each correction chain in full. Disposition must not be signed by any of them.
+    """
+    ids = set()
+    for sampled_by, recorded_by in SamplingRecord.objects.filter(lot_id=lot.pk).values_list(
+        "sampled_by_id", "recorded_by_id"
+    ):
+        ids.update((sampled_by, recorded_by))
+    ids.discard(None)
+    return ids
+
+
 def assessment_blocker(review, actor=None):
     """(reason, is_permission) why the deviation cannot be assessed now, or (None, False)."""
     record = SamplingRecord.objects.get(pk=review.record_id)
@@ -282,8 +316,8 @@ def assessment_blocker(review, actor=None):
         return "This deviation has already been assessed.", False
     if SamplingRecord.objects.filter(corrects_id=record.pk).exists():
         return "This record was corrected; assess the latest record instead.", False
-    if actor is not None and actor.pk in {record.sampled_by_id, record.recorded_by_id}:
-        return "You sampled or recorded this sample; another person must assess.", True
+    if actor is not None and actor.pk in record_author_ids(record):
+        return "You sampled, recorded or corrected this sample; another person must assess.", True
     return None, False
 
 
@@ -421,7 +455,7 @@ def record_sampling(
     """Record actual sampling against the lot's approved plan and create the foundation sample.
 
     A resample (``purpose="resample"``) names the original sample of the same lot it replaces
-    for an investigation; the testing package decides whether the resample is authorized.
+    for an investigation; the analytical app decides whether the resample is authorized.
     """
     require_role(actor, "analyst")
     _require_reason(reason)

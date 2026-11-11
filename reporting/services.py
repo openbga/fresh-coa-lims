@@ -9,12 +9,14 @@ commit together. Any failure, including a render failure, leaves no issued versi
 import hashlib
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 
 from core.audit import record_event, snapshot
 from core.models import ElectronicSignature
-from core.services import require_role, sign_transition
+from core.services import require_role, sign_transition, verify_pin
+from core.session_control import signing_context
 from quality.models import Lot
 
 from . import evidence as ev
@@ -40,11 +42,19 @@ def preview(lot):
     return evidence, ev.canonical_hash(evidence), ev.blockers(evidence)
 
 
+def lock_account(actor):
+    """The actor's account row first, FOR NO KEY UPDATE: it serializes with the same person's
+    signing (which locks the account FOR UPDATE before any record) without blocking the
+    foreign-key checks that rows referencing the account take at commit."""
+    get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+
+
 @transaction.atomic
 def open_report(*, actor, lot, recipient):
     """Create (or fetch) the CoA series head for a released lot and recipient."""
     require_role(actor, ISSUE_ROLE)
     recipient = recipient.strip()
+    lock_account(actor)
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
     if locked.state != "released":
         raise ValidationError("A certificate needs a lot with a signed QC disposition.")
@@ -155,8 +165,27 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
     )
 
 
+def _issue_preflight(*, actor, pin, lot, evidence_hash, reason):
+    """Every refusal that can be decided before a series head exists, so a refused issue does
+    not leave a numbered head behind. All of it is rechecked under lock when signing; a failed
+    PIN is recorded by `verify_pin` in its own transaction, as for any signing."""
+    require_role(actor, ISSUE_ROLE)
+    if not reason.strip():
+        raise ValidationError("A reason is required.")
+    signing_context(actor)
+    evidence, current_hash, problems = preview(lot)
+    if current_hash != evidence_hash:
+        raise ValidationError("The evidence changed since you reviewed it. Review again.")
+    if problems:
+        raise ValidationError(["Certificate cannot be issued:", *problems])
+    if ev.independence_conflict(evidence, actor):
+        raise PermissionDenied("You cannot issue a certificate for records you authored.")
+    verify_pin(actor, pin)
+
+
 def issue_report(*, actor, pin, lot, recipient, evidence_hash, reason, remarks=""):
     """Sign and issue version 1 for a released lot (creating the series head if needed)."""
+    _issue_preflight(actor=actor, pin=pin, lot=lot, evidence_hash=evidence_hash, reason=reason)
     report = open_report(actor=actor, lot=lot, recipient=recipient)
     return _transition(
         actor=actor,

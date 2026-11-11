@@ -142,6 +142,49 @@ def make_reagent(people, identifier="RG-001", *, release=True, expiry_days=120, 
     return lot
 
 
+def run_interleaved(monkeypatch, module, hook_name, first, second, *, pause=0.5):
+    """Run `first` here; when it reaches `module.hook_name` (holding its locks by then), start
+    `second` in another thread and give it `pause` seconds to queue on those locks before `first`
+    continues to commit. Returns each call's result or exception; a lock cycle shows up as
+    PostgreSQL's "deadlock detected" error in one of them."""
+    import threading
+    import time
+
+    from django.db import connection
+
+    main, started, outcome = threading.current_thread(), threading.Event(), {}
+    real = getattr(module, hook_name)
+
+    def run_second():
+        try:
+            outcome["second"] = second()
+        except Exception as exc:  # reported to the asserting test
+            outcome["second"] = exc
+        finally:
+            connection.close()
+
+    worker = threading.Thread(target=run_second)
+
+    def hook(*args, **kwargs):
+        if threading.current_thread() is main and not started.is_set():
+            started.set()
+            worker.start()
+            time.sleep(pause)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(module, hook_name, hook)
+    try:
+        outcome["first"] = first()
+    except Exception as exc:
+        outcome["first"] = exc
+    finally:
+        if started.is_set():
+            worker.join(30)
+    monkeypatch.setattr(module, hook_name, real)
+    assert started.is_set(), f"{hook_name} was never reached"
+    return outcome
+
+
 def make_rules(people, code="synthetic-rules"):
     return RuleSet.objects.create(
         code=code,

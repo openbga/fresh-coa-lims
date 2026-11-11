@@ -1,6 +1,28 @@
+# Local state and secrets (keep .env.example tracked)
 .local/
+.env
+.env.*
+!.env.example
+backups/
+
+# Python environments, caches and coverage output
 .venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Generated output (collected static files, website build, browser-test artefacts)
 staticfiles/
-.env
+build/
+*.log
+
+# Editor and tool state
+.impeccable/
+.DS_Store

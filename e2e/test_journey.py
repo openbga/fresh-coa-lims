@@ -1,6 +1,5 @@
 import re
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -14,7 +13,7 @@ from quality.models import Lot
 
 
 @pytest.mark.django_db(transaction=True)
-def test_lot_to_signed_disposition(live_server, settings):
+def test_lot_to_signed_disposition(live_server, settings, artifacts):
     # Synthetic regression for the retained development-only manual result path.
     settings.DEBUG = True
     password = "Synthetic-browser-login-2026!"
@@ -92,8 +91,7 @@ def test_lot_to_signed_disposition(live_server, settings):
         page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic disposition")
         page.get_by_role("button", name="Sign approved", exact=True).click()
         expect(page.get_by_text("Released", exact=True)).to_be_visible()
-        screenshots = Path(".local/qa")
-        screenshots.mkdir(parents=True, exist_ok=True)
+        screenshots = artifacts
         page.screenshot(path=str(screenshots / "journey-desktop.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})
         page.screenshot(path=str(screenshots / "journey-mobile.png"), full_page=True)

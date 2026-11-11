@@ -4,7 +4,7 @@ urls: reporting:issue_sign
 views: reporting.views.issue_sign
 templates: reporting/sign.html
 models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 ## Rules and hidden logic
 
 - **Checked before the form is shown**: when you arrive, the link must carry the current evidence hash, the evidence must have no blockers and you must not be an author on the lot. Otherwise you are sent back to the review page with a warning giving the reason: "The evidence changed since you reviewed it. Review it again.", "This certificate cannot be issued: …" followed by the blockers, or "You authored records on this lot, so you cannot sign this certificate as issued." Everything is checked again when you submit. "Already issued for this recipient" cannot be checked on arrival, because the recipient is entered in the form; submitting refuses it.
-- **Draft record**: submitting valid form input creates (or reuses) the certificate record for this lot and recipient first, and writes `report.opened`. It is committed separately, so it stays as "Not issued" if signing fails. Certificate numbers are `CoA-<lot number>-<n>`, with n counting records for the lot. The lot must be released: "A certificate needs a lot with a signed QC disposition."
+- **Draft record**: a submission is first checked, without creating anything, for your role, a reason, your signing username and session, the reviewed evidence (unchanged, no blockers, not authored by you) and your PIN. Only when all of these pass is the certificate record for this lot and recipient created (or reused), with `report.opened`; everything is then checked again under lock while signing. The record is committed separately, so it stays as "Not issued" only if signing fails after that point (for example the evidence changes in between, or the PDF cannot be rendered). Certificate numbers are `CoA-<lot number>-<n>`, with n counting records for the lot. The lot must be released: "A certificate needs a lot with a signed QC disposition."
 - **Checks under lock at signing**: this record and the lot are locked; evidence is collected again and must equal the hash you reviewed ("The evidence changed since you reviewed it. Review again."); all blockers are re-evaluated ("Certificate cannot be issued:" plus reasons), including, for lots released through native testing, that the requirement assignment signed with the QC disposition can still be resolved and verified; you must not be an author ("You cannot issue a certificate for records you authored."); a certificate already issued for this lot and recipient is refused ("This certificate is already issued; amend it instead.").
 - **Atomic**: the PDF is rendered, the version stored, the signature (meaning `issued`) and audit event `signed.issued` written together. A rendering failure ("The certificate could not be rendered: …") or any other failure leaves no version, signature or audit event of the issue.
 - **Credentials**: a wrong PIN or username is refused ("Signature PIN was not accepted.", "Enter your own signing username and PIN."); failed PIN attempts are counted and audited even though signing is rejected, and repeated failures lock the PIN.

@@ -1,16 +1,14 @@
-# OpenBGA Qualab product
+# OpenBGA QLab product
 
-OpenBGA Qualab is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/qualab](https://github.com/openbga/qualab).
-
-The repository is currently private while we prepare the product for open-source release. The presentation website is a local preparation artifact and is not yet published.
+OpenBGA QLab is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/qlab](https://github.com/openbga/qlab).
 
 Are you looking for support? Contact [bgasoft.com](https://bgasoft.com).
 
-Baseline: 2026-11-10. OpenBGA Qualab supports manufacturing quality-control laboratories in pharma/biotech, dietary supplements, food, chemical/industrial and medical devices in **one system**. Segment and destination-market obligations are controlled configuration, not separate products. One organization/site per deployment and online staff access are initial assumptions; neither a customer portal nor shared tenancy is part of this foundation.
+OpenBGA QLab supports manufacturing quality-control laboratories in pharma/biotech, dietary supplements, food, chemical/industrial and medical devices in **one system**. Segment and destination-market obligations are controlled configuration, not separate products. One organization/site per deployment and online staff access are initial assumptions; neither a customer portal nor shared tenancy is part of this foundation.
 
 The [regulatory matrix](regulations.md) is the authority for researched applicability, sources, jurisdiction and caveats, with a baseline of 2026-11-10. No environmental laboratory rule is inherited merely because code is reusable.
 
-The platform and bounded native QC modules passed the integrated development gate on 2026-11-10. This is not a completed MVP or authorization for regulated production. The product supports a laboratory's quality system; it does not certify compliance with Part 11, cGMP, QMSR or ISO. Identity proofing, intended-use validation, qualified personnel, approved procedures and recovery remain deployment responsibilities. Laboratory approval, QC disposition and manufacturer release/QP certification are distinct decisions.
+The platform and bounded native QC modules are under development. This is not a completed MVP or authorization for regulated production. The product supports a laboratory's quality system; it does not certify compliance with Part 11, cGMP, QMSR or ISO. Identity proofing, intended-use validation, qualified personnel, approved procedures and recovery remain deployment responsibilities. Laboratory approval, QC disposition and manufacturer release/QP certification are distinct decisions.
 
 ## Users and authority
 
@@ -47,7 +45,7 @@ These identifiers are stable product requirements. “MVP” is the intended rel
 | OQ-001 | Versioned, independently approved, effective-dated rule sets; explicit applicability and preserved decision basis | REG-CFG01–02 | Versioned rule contract and lot assignment snapshots implemented; broader multi-obligation resolution remains |
 | OQ-002 | Immutable attributed audit events with before/after values, reasons, review and export | REG-CFG04, REG-E05, REG-DI03 | Shared audit/review/export and module events implemented; coverage requires integrated acceptance checks |
 | OQ-003 | PIN re-entry per signature; signer, meaning, server timestamp and exact revision binding; atomic transition | REG-CFG05, REG-E07–11 | Atomic signatures and HTTP username/PIN re-entry implemented; operational validation remains |
-| OQ-004 | Explicit permissions and independent review; qualified activity authorization; admin read-all/user management and safe no-role access | REG-P01–02, REG-P23, REG-E04; admin policy user decision 2026-11-10 | Explicit roles, signed account lifecycle and method-specific observation qualification implemented; equipment/reagent execution integration remains |
+| OQ-004 | Explicit permissions and independent review; qualified activity authorization; admin read-all/user management and safe no-role access | REG-P01–02, REG-P23, REG-E04; admin policy decision of the project | Explicit roles, signed account lifecycle and method-specific observation qualification implemented; equipment/reagent execution integration remains |
 | OQ-005 | Approved material/specification/method revisions, limits, sampling plans and suitability evidence | REG-P04–05, REG-P08, REG-S01, REG-S04, REG-ISO02 | Versioned catalog, method QC and sampling plans implemented; specialized applicability remains |
 | OQ-006 | Lot, shipment, supplier, sample and manufacturing traceability; contemporaneous source records | REG-P03, REG-P17–19, REG-P21, REG-S02–03, REG-DEV03 | Lot/sample identities and sampling provenance implemented; fuller supplier/shipment/manufacturing genealogy remains |
 | OQ-007 | Exact observations, units, original data, calculations, test completeness and review | REG-P22–24, REG-DI01–02, REG-S05 | Native numeric observations/replicates/batch QC and immutable corrections implemented; other result types held |
@@ -59,7 +57,7 @@ These identifiers are stable product requirements. “MVP” is the intended rel
 | OQ-013 | Retention calculated from applicable anchors; all obligations/holds clear before disposal | REG-CFG03, REG-P14, REG-S08, REG-F05 | Anchored obligations and hold/disposal blockers implemented; no disposal action |
 | OQ-014 | Controlled QMS/ERP/document links with stable IDs, revisions and retrievable evidence | REG-P18, REG-P25–26, REG-DEV01, REG-ISO04 | Controlled evidence references available; complete ERP/QMS integration and native CAPA remain |
 | OQ-015 | Food verification/review and market/customer overlays reflect actual applicability | REG-F02–06, REG-EU01–07, REG-ISO01–04 | Configuration building blocks implemented; specialized workflows and local applicability review remain |
-| OQ-017 | Page-specific documentation for every staff page, kept accurate with page changes | User requirement, 2026-11-10; usability and controlled operational knowledge | Shared documentation panel and coverage gate |
+| OQ-017 | Page-specific documentation for every staff page, kept accurate with page changes | Project requirement; usability and controlled operational knowledge | Shared documentation panel and coverage gate |
 | OQ-016 | Validated operation, controlled changes, access, backup, restore and inspection copies | REG-P27, REG-E02–04, REG-EU04–06, REG-GAMP01 | Deployment gate, not a software certification |
 
 ## In-app page documentation
@@ -70,7 +68,7 @@ Every staff page offers documentation from an icon at the top-right of the top b
 
 | Stage | Scope | Acceptance boundary |
 |---|---|---|
-| Implemented modules | Shared rules/signatures/audit; versioned catalog and sampling; numeric testing/replicates/QC/OOS; laboratory authorization; stability/retention/holds; native PDF CoA | Combined PostgreSQL and native end-to-end browser checks passed on 2026-11-10; intended-use and operational acceptance remain |
+| Implemented modules | Shared rules/signatures/audit; versioned catalog and sampling; numeric testing/replicates/QC/OOS; laboratory authorization; stability/retention/holds; native PDF CoA | Covered by PostgreSQL tests and native end-to-end browser checks; intended-use and operational acceptance remain |
 | Remaining MVP integration/policy | Full applicable supplier/receipt evidence, equipment/reagent gating through analytical execution, destination/customer applicability, supported assay coverage and operational validation | Complete accepted/failed/corrected/amended journeys and traceability to every applicable requirement |
 | Later capability | Advanced SPC/OOT, automated instrument interfaces, broader inventory/ELN/CAPA, specialized assays and environmental monitoring | Separate scoped acceptance and applicability review |
 

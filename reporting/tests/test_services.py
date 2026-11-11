@@ -166,7 +166,8 @@ def test_author_with_quality_role_cannot_issue(people, lot):
     people["analyst"].groups.add(*people["quality"].groups.all())
     with pytest.raises(PermissionDenied, match="authored"):
         issue(people, lot, actor="analyst")
-    assert not ReportVersion.objects.exists()
+    assert not Report.objects.exists()  # a refused issue leaves no numbered head
+    assert not AuditEvent.objects.filter(action="report.opened").exists()
     assert not ElectronicSignature.objects.filter(object_type="reporting.report").exists()
 
 
@@ -183,9 +184,7 @@ def test_open_hold_blocks_and_rolls_back(people, lot):
     )
     with pytest.raises(ValidationError, match="Open hold: Investigation 7"):
         issue(people, lot, evidence_hash=services.preview(lot)[1])
-    report = Report.objects.get()
-    assert (report.state, report.version_count, report.revision) == ("draft", 0, 1)
-    assert not ReportVersion.objects.exists()
+    assert not Report.objects.exists()  # refused before a head is numbered
     assert not ElectronicSignature.objects.filter(object_type="reporting.report").exists()
     assert not AuditEvent.objects.filter(action="signed.issued").exists()
 
@@ -196,7 +195,7 @@ def test_stale_evidence_is_rejected(people, lot):
     ev.register_collector("holds", lambda lot: [])
     with pytest.raises(ValidationError, match="evidence changed"):
         issue(people, lot, evidence_hash=reviewed_hash)
-    assert not ReportVersion.objects.exists()
+    assert not Report.objects.exists()
     issue(people, lot)  # reviewing the new evidence succeeds
     assert ReportVersion.objects.count() == 1
 
@@ -205,7 +204,8 @@ def test_wrong_pin_fails_but_denial_is_audited(people, lot):
     with pytest.raises(ValidationError, match="not accepted"):
         issue(people, lot, pin="00000000")
     assert AuditEvent.objects.filter(action="signature.denied", actor=people["quality"]).exists()
-    assert not ReportVersion.objects.exists()
+    assert not Report.objects.exists()  # the failed attempt is recorded; no head is created
+    assert not AuditEvent.objects.filter(action="report.opened").exists()
     assert not ElectronicSignature.objects.filter(object_type="reporting.report").exists()
 
 
@@ -225,11 +225,34 @@ def test_failed_render_rolls_back_release(people, lot, monkeypatch):
     assert issue(people, lot).versions.count() == 1  # the draft head is reused
 
 
-def test_renderer_refuses_external_resources(people, lot):
-    html_snapshot = ev.collect_evidence(lot)
-    with pytest.raises(ValueError):
-        render._refuse_fetch("file:///etc/passwd")
-    assert html_snapshot
+def test_renderer_refuses_external_resources(monkeypatch, tmp_path):
+    """Markup that references file, network and data URLs still renders, and loads none of them."""
+    import urllib.request
+
+    secret = tmp_path / "local.css"
+    secret.write_text("body { color: red }")
+    opened = []
+
+    def spy(*args, **kwargs):
+        opened.append(args)
+        raise AssertionError("the renderer opened a URL")
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", spy)
+    hostile = (
+        f'<link rel="stylesheet" href="{secret.as_uri()}">'
+        '<link rel="stylesheet" href="http://127.0.0.1:9/x.css">'
+        '<img src="file:///etc/hosts"><img src="https://example.invalid/logo.png">'
+        '<img src="data:image/png;base64,iVBORw0KGgo=">'
+        "<p>Synthetic certificate body</p>"
+    )
+    monkeypatch.setattr(render, "render_to_string", lambda *args, **kwargs: hostile)
+    data = render.render_certificate({})
+    assert data.startswith(b"%PDF-")
+    assert opened == []
+    fetcher = render._deny_fetcher()
+    for url in (secret.as_uri(), "http://127.0.0.1:9/x.css", "data:text/plain,x"):
+        with pytest.raises(ValueError, match="may not load"):
+            fetcher.fetch(url)
 
 
 def test_cannot_issue_twice_but_series_is_per_recipient(people, lot):
@@ -374,3 +397,94 @@ def test_write_review_pdfs(people, lot):
     ev.unregister_collector("specification")
     long = issue(people, long_lot)
     pathlib.Path(out, "long.pdf").write_bytes(bytes(long.versions.get().pdf))
+
+
+def _in_thread(fn, results, key):
+    try:
+        results[key] = fn()
+    except Exception as exc:  # recorded for the assertion in the main thread
+        results[key] = exc
+    finally:
+        connection.close()
+
+
+def test_double_submitted_issue_signs_exactly_once(people, lot):
+    import threading
+
+    _, digest, _ = services.preview(lot)
+    barrier = threading.Barrier(2)
+    results = {}
+
+    def submit():
+        barrier.wait(10)
+        return issue(people, lot, evidence_hash=digest)
+
+    threads = [threading.Thread(target=_in_thread, args=(submit, results, n)) for n in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    outcomes = sorted(type(r).__name__ for r in results.values())
+    assert outcomes == ["Report", "ValidationError"], results
+    assert ReportVersion.objects.count() == 1
+    assert ElectronicSignature.objects.filter(object_type="reporting.report").count() == 1
+    assert Report.objects.get().revision == 2
+
+
+def test_hold_placed_during_signing_waits_and_then_blocks_amendment(people, lot, monkeypatch):
+    """A hold placed while issuance holds the lot lock cannot slip in between the evidence check
+    and the commit: it waits, and the next certificate transition sees it."""
+    import threading
+
+    from config.integrations import report_holds
+    from stability import services as stability
+
+    ev.register_collector("holds", report_holds)
+    rendering, placed = threading.Event(), threading.Event()
+    results = {}
+    real_render = services.render_certificate
+
+    def place():
+        hold = stability.place_hold(
+            actor=people["reviewer"], lot=lot, kind="quality", reason="Synthetic complaint"
+        )
+        placed.set()
+        return hold
+
+    def slow_render(snapshot, **kwargs):
+        rendering.set()
+        assert not placed.wait(1.5), "the hold committed while issuance held the lot lock"
+        return real_render(snapshot, **kwargs)
+
+    monkeypatch.setattr(services, "render_certificate", slow_render)
+    holder = threading.Thread(target=lambda: (rendering.wait(10), _in_thread(place, results, 0)))
+    holder.start()
+    report = issue(people, lot)
+    holder.join(30)
+    assert placed.is_set() and results[0].state == "active"
+    version = report.versions.get()
+    assert version.snapshot["holds"] == []  # issued against the evidence it was signed on
+    monkeypatch.setattr(services, "render_certificate", real_render)
+    with pytest.raises(ValidationError, match="Open hold"):
+        amend(people, report)
+    assert ReportVersion.objects.count() == 1
+
+
+def test_opening_and_amending_by_the_same_account_do_not_deadlock(people, lot, monkeypatch):
+    """Opening a series holds the lot until its commit checks the account reference; an
+    amendment signed meanwhile by the same person locks the account first and then the lot."""
+    from laboratory.tests.helpers import run_interleaved
+
+    report = issue(people, lot)
+    outcome = run_interleaved(
+        monkeypatch,
+        services,
+        "record_event",
+        lambda: services.open_report(
+            actor=people["quality"], lot=lot, recipient="Synthetic Customer B"
+        ),
+        lambda: amend(people, report),
+    )
+    assert isinstance(outcome["first"], Report), outcome
+    assert isinstance(outcome["second"], Report), outcome
+    assert outcome["second"].version_count == 2

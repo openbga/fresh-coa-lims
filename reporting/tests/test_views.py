@@ -198,7 +198,7 @@ def test_wrong_signing_username_is_rejected(login, people, lot):
     response = client.post(url, sign_payload(digest, signature_username="quality2"))
     assert response.status_code == 422
     assert "Enter your own signing username" in response.content.decode()
-    assert not ReportVersion.objects.exists()
+    assert not Report.objects.exists()
 
 
 def test_missing_fields_show_inline_errors(login, people, lot):
@@ -352,3 +352,17 @@ def test_amend_preflight_refuses_authors_and_blockers(login, people, lot):
     )
     assert posted.status_code == 422 and "Open hold" in posted.content.decode()
     assert report.versions.count() == 1
+
+
+def test_download_refusal_does_not_reveal_which_versions_exist(login, people, lot):
+    report = issued(people, lot)
+    client = login("nobody")
+    existing = client.get(reverse("reporting:pdf", args=[report.pk, 1]))
+    missing_version = client.get(reverse("reporting:pdf", args=[report.pk, 9]))
+    missing_report = client.get(reverse("reporting:pdf", args=[report.pk + 999, 1]))
+    assert [existing.status_code, missing_version.status_code, missing_report.status_code] == [
+        403,
+        403,
+        403,
+    ]
+    assert not AuditEvent.objects.filter(action="report.downloaded").exists()

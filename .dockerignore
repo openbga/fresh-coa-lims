@@ -1,11 +1,40 @@
+# Build context for the application image. The runtime reads templates, static sources and
+# docs/pages/ (in-app documentation), so those stay in the context.
+
+# Version control, local state and secrets
 .git
+.github
 .local
-.venv
 .env
 .env.*
+backups
+
+# Environments, caches and generated output
+.venv
 __pycache__
+*.py[cod]
 .pytest_cache
 .ruff_cache
+.mypy_cache
+.cache
+.coverage
+.coverage.*
+coverage.xml
+htmlcov
 staticfiles
+build
 node_modules
 *.log
+.DS_Store
+
+# Development tooling, tests and the presentation website (not used at runtime)
+.agents
+.claude
+.impeccable
+e2e
+tests
+**/tests
+scripts
+website
+compose.yaml
+render.yaml

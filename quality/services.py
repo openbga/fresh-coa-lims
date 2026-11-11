@@ -1,6 +1,8 @@
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.views.decorators.debug import sensitive_variables
 
 from core.audit import record_event
 from core.services import require_role, sign_transition, validate_rules
@@ -32,6 +34,9 @@ def receive_lot(*, actor, number, material, rules, reason):
 @transaction.atomic
 def add_sample(*, actor, lot, reference, collected_at, reason):
     require_role(actor, "analyst")
+    # Signing locks the actor before the lot; serialize here before taking any record lock.
+    # NO KEY UPDATE stays compatible with deferred foreign-key checks on this account.
+    get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
     if lot.state != "quarantine":
         raise ValidationError("Only quarantined lots accept new samples.")
@@ -75,6 +80,7 @@ def record_result(*, actor, sample, reason, **values):
     return result
 
 
+@sensitive_variables("pin")
 def review_result(*, actor, pin, result, expected_revision, reason):
     def apply(locked):
         lot = Lot.objects.select_for_update().get(pk=locked.sample.lot_id)
@@ -101,6 +107,33 @@ def review_result(*, actor, pin, result, expected_revision, reason):
     )
 
 
+SELF_DISPOSITION = "You cannot disposition a lot containing your own sampling or test data."
+
+
+def disposition_authors(lot):
+    """Everyone who authored the lot's sampling or test data; none may sign its disposition.
+
+    Analytical authors (observations including corrected originals, submitters, batch QC,
+    investigations), samplers and recorders of every sampling record including corrected
+    originals and intermediate corrections, and foundation result analysts. Holding several
+    roles never waives this.
+    """
+    from analytical.gates import lot_author_ids as analytical_author_ids
+    from sampling.services import lot_author_ids as sampling_author_ids
+
+    return (
+        analytical_author_ids(lot)
+        | sampling_author_ids(lot)
+        | set(Result.objects.filter(sample__lot=lot).values_list("analyst_id", flat=True))
+    )
+
+
+def disposition_denial(actor, lot):
+    """Read-only preflight shown before any PIN is requested; signing repeats it under lock."""
+    return SELF_DISPOSITION if actor.pk in disposition_authors(lot) else ""
+
+
+@sensitive_variables("pin")
 def dispose_lot(*, actor, pin, lot, expected_revision, reason):
     def apply(locked):
         if locked.state != "quarantine":
@@ -110,7 +143,7 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
         if problems := hold_blockers(locked):
             raise ValidationError(problems)
         required = set(effective_rules(locked.rules))
-        from analytical.gates import lot_author_ids, lot_blockers, lot_evidence
+        from analytical.gates import lot_blockers, lot_evidence
         from analytical.models import AnalyticalTest
         from sampling.services import current_assignment, current_requirements
         from sampling.services import lot_blockers as sampling_blockers
@@ -124,8 +157,8 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
             problems = sampling_blockers(locked) + lot_blockers(locked)
             if problems:
                 raise ValidationError(problems)
-            if actor.pk in lot_author_ids(locked):
-                raise ValidationError("You cannot disposition a lot containing your own results.")
+            if actor.pk in disposition_authors(locked):
+                raise ValidationError(SELF_DISPOSITION)
             if Result.objects.filter(sample__lot=locked).exists():
                 raise ValidationError(
                     "Mixed foundation and native evidence requires reconciliation."
@@ -145,7 +178,7 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
             if not required.issubset({r.test_code for r in results}):
                 raise ValidationError("Required tests are missing.")
             if any(r.analyst_id == actor.pk for r in results):
-                raise ValidationError("You cannot disposition a lot containing your own results.")
+                raise ValidationError(SELF_DISPOSITION)
             if any(r.state != "reviewed" or not r.conforms for r in results):
                 raise ValidationError("All results must conform and have independent review.")
         locked.state = "released"

@@ -4,7 +4,7 @@ urls: sampling:plan_new
 views: sampling.views.plan_new
 templates: catalog/form.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -52,7 +52,7 @@ Creates a sampling plan for one material at one stage together with its draft ve
 
 ## Rules and hidden logic
 
-- **Code**: "This plan code already exists."
+- **Code**: "This plan code already exists." If another request saves the same code or material and stage at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Uniqueness**: "A sampling plan already exists for this material and stage. Create a new version of it instead."
 - **Parameter shape**: "Enter a positive count or percentage." "A fixed plan needs a whole number of containers." "A percentage cannot exceed 100." "This basis takes no parameter." (for 1 + √N and Every container).
 - **Amount**: "Enter an amount greater than zero."

@@ -14,7 +14,7 @@ Independently review a pull, its evidence and the linked testing outcome, with m
 ## Who can use it
 
 - Sign-in required. Role: Reviewer.
-- Other roles receive 403. A Reviewer who is not permitted sees the reason and no PIN control (403): "You pulled or documented this pull, so you cannot accept it." (checked first) or "This pull is not awaiting acceptance."
+- Other roles receive 403. A Reviewer who is not permitted sees the reason and no PIN control (403): "You pulled, documented or produced test data for this pull, so you cannot accept it." (checked first) or "This pull is not awaiting acceptance."
 - An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
@@ -40,7 +40,7 @@ Independently review a pull, its evidence and the linked testing outcome, with m
 
 ## Rules and hidden logic
 
-- **Preconditions**: pulled and study active ("This pull is not awaiting acceptance."); you neither pulled nor documented it ("You cannot accept a pull you pulled or documented.").
+- **Preconditions**: pulled and study active ("This pull is not awaiting acceptance."); you did not pull it, never linked its evidence (any earlier link counts, even if someone re-linked it since) and, for a linked sample, did not create the sample or record, submit or investigate any of its test data (observations including corrected originals, submission, batch QC, investigation entries), whatever other roles you hold ("You cannot accept a pull you pulled, documented or produced test data for.").
 - With a linked sample: it must have been collected on the pull date, not in the future, and not be evidence for another pull. Each required test code needs a reviewed, conforming analytical test created on or after the pull date (tests created earlier are ignored and reported). Any open investigation, or one that confirmed an out-of-specification result, blocks acceptance; a test that was under investigation counts only if the investigation was invalidated ("Testing is not complete: …" lists the reasons); with external evidence both the external sample and evidence reference are required ("Link a sample or external stability evidence first.").
 - **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).
 - **Stale page**: if the record changed after the page opened: "Record changed. Reload and review before signing."

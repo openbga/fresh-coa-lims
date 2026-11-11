@@ -14,9 +14,11 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from core.audit import record_event, snapshot
+from core.models import AuditEvent
 from core.services import require_role, sign_transition
 from laboratory.eligibility import equipment_eligibility
-from laboratory.models import ResourceUse
+from laboratory.models import Qualification, ResourceUse
+from laboratory.services import lock_account
 from quality.models import Lot, Sample
 
 from .evidence import sample_evidence
@@ -94,6 +96,7 @@ def protocol_digest(protocol):
 def create_protocol(*, actor, code, reason, **values):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     with connection.cursor() as cursor:
         cursor.execute("SELECT pg_advisory_xact_lock(%s)", [PROTOCOL_LOCK])
     latest = Protocol.objects.filter(code=code).order_by("-version").first()
@@ -141,6 +144,7 @@ def _refresh_digest(actor, protocol, action, obj, reason):
 def add_condition(*, actor, protocol, reason, **values):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     protocol = _draft_for_author(actor, protocol)
     condition = ProtocolCondition(protocol=protocol, **values)
     condition.full_clean()
@@ -153,6 +157,7 @@ def add_condition(*, actor, protocol, reason, **values):
 def add_timepoint(*, actor, protocol, condition, reason, **values):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     protocol = _draft_for_author(actor, protocol)
     if condition.protocol_id != protocol.pk:
         raise ValidationError("The condition belongs to a different protocol.")
@@ -218,6 +223,7 @@ def start_study(*, actor, identifier, protocol, lot, container_closure, start_da
             "Time zero cannot be in the future: this workflow records studies that have "
             "actually started."
         )
+    lock_account(actor)
     protocol = _lock(Protocol, protocol)
     if protocol.state != Protocol.State.APPROVED:
         raise ValidationError("Studies start only on the current approved protocol revision.")
@@ -233,17 +239,22 @@ def start_study(*, actor, identifier, protocol, lot, container_closure, start_da
         created_by=actor,
     )
     study.full_clean()
-    study.save()
-    pulls = [
-        Pull(
-            study=study,
-            timepoint=tp,
-            due_date=start_date + timedelta(days=tp.interval_days),
-        )
-        for tp in protocol.timepoints.select_related("condition").order_by(
-            "interval_days", "condition_id"
-        )
-    ]
+    study.save()  # the transaction rolls back if the schedule is refused below
+    pulls = []
+    for tp in protocol.timepoints.select_related("condition").order_by(
+        "interval_days", "condition_id"
+    ):
+        try:
+            pull = Pull(
+                study=study, timepoint=tp, due_date=start_date + timedelta(days=tp.interval_days)
+            )
+            pull.window  # noqa: B018  (both window ends must be representable dates)
+        except OverflowError:
+            raise ValidationError(
+                f"{tp.condition.label} {tp.label}: the pull date or its window falls outside "
+                "the supported calendar range from this time zero."
+            ) from None
+        pulls.append(pull)
     Pull.objects.bulk_create(pulls)
     record_event(
         actor=actor,
@@ -304,6 +315,7 @@ def record_pull(
 ):
     require_role(actor, "analyst")
     _need_reason(reason)
+    lock_account(actor)
     pull = _lock(Pull, pull)
     study = _lock(Study, pull.study)
     if study.state != Study.State.ACTIVE:
@@ -320,6 +332,9 @@ def record_pull(
         )
     if chamber is not None:
         chamber = _lock(type(chamber), chamber)
+        # Approval and revocation lock the qualification row they sign; locking the chamber's
+        # rows serializes this check with them, and eligibility reads them after the lock.
+        list(Qualification.objects.select_for_update().filter(equipment=chamber).order_by("pk"))
         finding = equipment_eligibility(chamber)
         if not finding.ok:
             raise ValidationError(f"{chamber.asset_id}: " + " ".join(finding.reasons))
@@ -369,6 +384,7 @@ def attach_pull_evidence(
     until acceptance; before/after values are retained in the audit trail."""
     require_role(actor, "analyst")
     _need_reason(reason)
+    lock_account(actor)
     pull = _lock(Pull, pull)
     study = _lock(Study, pull.study)
     if study.state != Study.State.ACTIVE or pull.state != Pull.State.PULLED:
@@ -403,6 +419,7 @@ def mark_pull_missed(*, actor, pull, reason):
     """A missed pull stays visible forever; it is never deleted or silently rescheduled."""
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     pull = _lock(Pull, pull)
     study = _lock(Study, pull.study)
     if study.state != Study.State.ACTIVE or pull.state != Pull.State.SCHEDULED:
@@ -422,13 +439,41 @@ def mark_pull_missed(*, actor, pull, reason):
     return pull
 
 
+def pull_author_ids(pull):
+    """Users who may not accept the pull: its puller, everyone who ever linked its evidence and,
+    for a linked sample, the sample's creator and every data or investigation author of its
+    tests."""
+    from analytical.gates import data_author_ids, investigation_author_ids
+    from analytical.models import AnalyticalTest, Investigation
+
+    ids = {pull.pulled_by_id, pull.evidence_recorded_by_id}
+    # Re-linking overwrites `evidence_recorded_by`; the append-only audit trail keeps every
+    # earlier recorder (and the puller) attributed.
+    ids.update(
+        AuditEvent.objects.filter(
+            object_type=Pull._meta.label_lower,
+            object_id=str(pull.pk),
+            action__in=("pull.recorded", "pull.evidence_linked"),
+        ).values_list("actor_id", flat=True)
+    )
+    if pull.sample_id:
+        ids.add(Sample.objects.values_list("created_by_id", flat=True).get(pk=pull.sample_id))
+        for test in AnalyticalTest.objects.filter(sample_id=pull.sample_id):
+            ids |= data_author_ids(test)
+        ids |= investigation_author_ids(Investigation.objects.filter(test__sample=pull.sample_id))
+    ids.discard(None)
+    return ids
+
+
 def accept_pull(*, actor, pin, pull, expected_revision, reason):
     def apply(locked):
         study = Study.objects.select_for_update().get(pk=locked.study_id)
         if study.state != Study.State.ACTIVE or locked.state != Pull.State.PULLED:
             raise ValidationError("This pull is not awaiting acceptance.")
-        if actor.pk in (locked.pulled_by_id, locked.evidence_recorded_by_id):
-            raise PermissionDenied("You cannot accept a pull you pulled or documented.")
+        if actor.pk in pull_author_ids(locked):
+            raise PermissionDenied(
+                "You cannot accept a pull you pulled, documented or produced test data for."
+            )
         if locked.sample_id:
             _check_pull_sample(locked, locked.sample)
             codes = list(locked.timepoint.test_codes)
@@ -489,6 +534,7 @@ def close_study(*, actor, pin, study, expected_revision, outcome, reason):
 def record_reserve(*, actor, lot, reason, **values):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
     reserve = ReserveSample(lot=lot, recorded_by=actor, **values)
     reserve.full_clean()
@@ -507,6 +553,7 @@ def record_reserve(*, actor, lot, reason, **values):
 def add_obligation(*, actor, lot, reason, reserve=None, **values):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
     if reserve is not None and reserve.lot_id != lot.pk:
         raise ValidationError("The reserve sample belongs to a different lot.")
@@ -527,6 +574,7 @@ def add_obligation(*, actor, lot, reason, reserve=None, **values):
 def set_anchor(*, actor, obligation, anchor_date, reason):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    lock_account(actor)
     obligation = _lock(RetentionObligation, obligation)
     if obligation.anchor_date is not None:
         raise ValidationError(
@@ -557,6 +605,7 @@ def place_hold(*, actor, lot, kind, reason, reference="", reserve=None):
     """Protective, so any scientific role may place one; release needs an independent signature."""
     require_role(actor, *ANY_SCIENTIFIC)
     _need_reason(reason)
+    lock_account(actor)
     lot = _touch_lot(lot.pk)
     if reserve is not None and reserve.lot_id != lot.pk:
         raise ValidationError("The reserve sample belongs to a different lot.")

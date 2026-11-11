@@ -4,7 +4,7 @@ urls: catalog:method_new
 views: catalog.views.method_new
 templates: catalog/form.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -50,7 +50,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 
 ## Rules and hidden logic
 
-- **Code**: "This method code already exists."
+- **Code**: "This method code already exists." If another request saves the same code at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Interval**: "The effective end must be after the start." (form) and "The effective end must be after the effective start." (server).
 - **QC checks**: creating a batch method does not add checks. Add at least one on the method record before approval ("A method that runs in a QC batch needs at least one QC check.").
 - **Audit**: `method.created` and `method_revision.created` with your reason. No signature yet.

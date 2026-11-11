@@ -1,8 +1,11 @@
-# OpenBGA Qualab Blueprint. New resources authorized by the owner; provision only after integrated checks pass.
+# Render Blueprint for OpenBGA QLab: one Docker web service built from Dockerfile and one
+# PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check,
+# automatic deploys are off and the database accepts no external connections. Adjust names,
+# plans and region for your own account.
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
 services:
   - type: web
-    name: openbga-qualab
+    name: openbga-qlab
     runtime: docker
     plan: 1c-2g
     region: virginia
@@ -12,7 +15,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: openbga-qualab-db
+          name: openbga-qlab-db
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -26,7 +29,7 @@ services:
         value: django.core.mail.backends.dummy.EmailBackend
 
 databases:
-  - name: openbga-qualab-db
+  - name: openbga-qlab-db
     databaseName: open_qual
     user: open_qual
     plan: 0.5c-1g

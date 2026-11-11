@@ -4,7 +4,7 @@ urls: stability:pull_detail
 views: stability.views.pull_detail
 templates: ops/record.html
 models: stability.Pull, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -32,7 +32,7 @@ One scheduled pull: timing, collection details, linked testing or external evide
 | **Record pull** | Scheduled and study active | Analyst | Opens the form |
 | **Mark missed** | Scheduled and today is after the window closes | Analyst, Quality | Opens the reason form |
 | **Link evidence** | Pulled | Analyst | Opens the evidence form |
-| **Accept pull** | Pulled; you are a Reviewer and are neither the puller nor the user who last linked evidence | Reviewer | Opens the signing page |
+| **Accept pull** | Pulled; you are a Reviewer and are not the puller, anyone who ever linked its evidence, or (for a linked sample) the sample's creator or a data or investigation author of its tests | Reviewer | Opens the signing page |
 
 The server checks each again (study active, state, role, independence).
 
@@ -53,7 +53,7 @@ The server checks each again (study active, state, role, independence).
 
 - Results stay in the testing spine; this page only reports whether acceptance would be blocked. Blockers come from the linked sample's analytical tests and investigations.
 - **State**: Scheduled (Upcoming, Due or Overdue by window) -> Pulled -> Accepted, or Scheduled -> Missed. Accepted and Missed are final.
-- **Independence**: the Reviewer who accepts must not be the user who recorded the pull or the user who last linked evidence.
+- **Independence**: the Reviewer who accepts must not be the user who recorded the pull, anyone who ever linked its evidence (from the audit history, so re-linking does not clear an earlier recorder), or, for a linked sample, its creator or a data or investigation author of its tests.
 - **Audit**: events `pull.recorded`, `pull.evidence_linked`, `pull.missed` and the signed acceptance appear in History and Signatures.
 
 ## Related pages
