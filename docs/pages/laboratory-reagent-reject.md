@@ -14,6 +14,7 @@ Permanently block a lot (and anything prepared from it). Protective, so no signa
 ## Who can use it
 
 - Sign-in required. Roles: Analyst, Reviewer or Quality; others receive 403.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

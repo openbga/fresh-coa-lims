@@ -13,7 +13,7 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 
 ## Who can use it
 
-- Any signed-in user, for their own account only. No role is required to enrol; signing itself still needs the right role.
+- Any signed-in user, for their own account only. No role is required to enrol; signing itself still needs the right role. If password replacement is required, complete Change password first.
 
 ## Layout
 
@@ -39,8 +39,11 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 - **Password check**: a wrong login password is refused with a 403 page ("Password confirmation failed."), not an inline error.
 - **Storage**: the PIN is hashed with the standard password hasher; neither the PIN nor its hash is shown or logged. Fields are blank after any error.
 - **Lock reset**: saving clears failed attempts and any temporary PIN lock.
+- **Administrative recovery**: an admin may clear your signing lock or require re-enrollment with a signed, reasoned account action. Re-enrollment removes the prior credential and invalidates earlier sessions; enroll here after signing in again. Old signatures remain intact.
 - **Audit**: writes `pin.changed` on your account; the PIN is not in the event.
 
 ## Related pages
 
-- Sign result review, Sign lot disposition and rule approval use this PIN.
+- Sign result review, Sign lot disposition, rule approval and signed account administration use this PIN.
+- [Account access](/accounts/access/)
+- [Change password](/accounts/password/)

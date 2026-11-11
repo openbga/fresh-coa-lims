@@ -1,3 +1,4 @@
+import time
 from datetime import timedelta
 from decimal import Decimal
 
@@ -100,6 +101,23 @@ def batch(people):
     return services.create_batch(
         actor=people["analyst2"], number="SYN-B1", method_code="SYN-HPLC", reason="Run"
     )
+
+
+@pytest.fixture
+def plain_static(settings):
+    # Template tests must not depend on a collected manifest in the shared static directory.
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+
+def login(client, user):
+    client.force_login(user)
+    session = client.session
+    session["authenticated_at"] = session["last_activity_at"] = time.time()
+    session.save()
+    return client
 
 
 def fresh(obj):

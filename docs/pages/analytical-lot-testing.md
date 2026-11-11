@@ -15,6 +15,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **Assign required tests**: analysts only, and only while the lot is Quarantine. The button is hidden otherwise; the server also requires the analyst role.
+- **Admin** or **auditor** alone see no assign button, and a posted assignment is refused with 403 before the sample or reason is read.
 
 ## Layout
 

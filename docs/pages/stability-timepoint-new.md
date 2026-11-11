@@ -14,6 +14,7 @@ Add a pull timepoint and its required tests to a draft protocol.
 ## Who can use it
 
 - Sign-in required. Roles: Analyst or Quality (others receive 403), and only the protocol author may add to a draft (otherwise 403: "Only the protocol author edits a draft.").
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

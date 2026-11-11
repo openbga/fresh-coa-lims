@@ -167,7 +167,8 @@ def test_journey_pages_require_roles(journey, client, django_user_model):
     assert client.get("/").status_code == 302
     outsider = django_user_model.objects.create_user("outsider", password="password")
     client.force_login(outsider)
-    assert client.get("/").status_code == 403
+    assert client.get("/").url == "/accounts/access/"
+    assert client.get(f"/lots/{lot.pk}/").status_code == 403
     client.force_login(people["analyst"])
     assert client.get("/").status_code == 200
     assert client.get(f"/lots/{lot.pk}/").status_code == 200

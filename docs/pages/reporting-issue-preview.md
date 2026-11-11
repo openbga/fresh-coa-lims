@@ -15,7 +15,7 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**.
 - **Continue to signing** is shown only to **quality** users who are not blocked and did not author records on the lot.
-- Other viewers see a "Read only" note: only users with the quality role can issue or amend certificates.
+- Other viewers, including administrators without the quality role, see a "Read only" note: only users with the quality role can issue or amend certificates.
 
 ## Layout
 

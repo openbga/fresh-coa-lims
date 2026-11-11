@@ -15,6 +15,7 @@ Independently review a pull, its evidence and the linked testing outcome, with m
 
 - Sign-in required. Role: Reviewer.
 - Other roles receive 403. A Reviewer who is not permitted sees the reason and no PIN control (403): "You pulled or documented this pull, so you cannot accept it." (checked first) or "This pull is not awaiting acceptance."
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

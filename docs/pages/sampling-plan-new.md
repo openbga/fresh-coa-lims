@@ -14,6 +14,7 @@ Creates a sampling plan for one material at one stage together with its draft ve
 ## Who can use it
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
 
 ## Layout
 

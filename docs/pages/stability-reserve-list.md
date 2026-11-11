@@ -15,6 +15,7 @@ Identified reserve samples with quantity against the minimum multiple of one tes
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
 - Reading is allowed for these roles; **New reserve sample** is shown only to Analyst and Quality and the server refuses others with 403.
+- Admin is read-only here: an account holding only the Admin role can read this page but sees no action buttons, and the server refuses every action (403). Admin plus a laboratory role keeps that role's actions; independence rules (no self-review) apply to everyone.
 
 ## Layout
 

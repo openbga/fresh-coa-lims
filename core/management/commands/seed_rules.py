@@ -5,7 +5,9 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from core.models import RuleSet
-from core.services import save_rule
+from core.services import require_role, save_rule
+
+SEED_REASON = "Synthetic starter preset; local applicability review required."
 
 
 class Command(BaseCommand):
@@ -16,6 +18,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         actor = get_user_model().objects.get(username=options["actor"])
+        require_role(actor, "quality")
         for segment in ["pharma", "supplement", "food", "chemical", "device"]:
             if not RuleSet.objects.filter(code=segment).exists():
                 save_rule(
@@ -29,6 +32,6 @@ class Command(BaseCommand):
                     },
                     effective_from=timezone.now(),
                     effective_until=timezone.now() + timedelta(days=365),
-                    reason="Synthetic starter preset; local applicability review required.",
+                    reason=SEED_REASON,
                 )
         self.stdout.write("Five draft presets available; local review and approval required.")

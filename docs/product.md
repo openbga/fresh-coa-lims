@@ -13,10 +13,12 @@ The platform and bounded native QC modules passed the integrated development gat
 | Analyst | Receive lots/samples, record observations and batch QC | Cannot review their own work |
 | Reviewer | Review original records and results with PIN signature | Must be independent of authorship; return/correction flows retain history |
 | Quality | Approve configuration and make QC disposition decisions | Cannot bypass missing/failing requirements or self-review |
-| Admin | Account/configuration administration | Administrative status alone grants no scientific approval |
+| Admin | Read every laboratory area; manage named users and roles | No scientific mutation or signing without its designated lab role; no self-granted additional roles or removal of the last active admin |
 | Auditor | Read records and inspect audit history | No scientific mutation |
 
-The initial roles map to explicit Django groups. Later receiving, supervisor and metrology responsibilities may be split without weakening independence. Qualifications belong to the relevant method/activity, not merely to group membership. Account ownership must remain individual; shared signers are prohibited.
+The initial roles map to explicit Django groups. Later receiving, supervisor and metrology responsibilities may be split without weakening independence. Qualifications belong to the relevant method/activity, not merely to group membership. Account ownership must remain individual; shared signers are prohibited. Superusers receive no implicit laboratory or web account-management role. Accounts without a recognized role reach an access-guidance page instead of a permission loop.
+
+Account administrators can create users, update identity, assign/revoke roles, deactivate/reactivate, clear PIN lockout, require PIN re-enrollment and force password replacement. Every administrative web change requires a reason and a fresh username/PIN signature bound to the resulting account revision. Initial and optional recovery passwords are entered privately and must be replaced before workspace access; no email delivery is assumed. Changes invalidate existing target sessions. Self-service password replacement requires the current password and a reason, with an audit event but no PIN, so credential recovery remains possible. The audited operator commands support bootstrap and controlled recovery; they are a separate trusted channel.
 
 ## Journeys
 
@@ -37,7 +39,7 @@ These identifiers are stable product requirements. “MVP” is the intended rel
 | OQ-001 | Versioned, independently approved, effective-dated rule sets; explicit applicability and preserved decision basis | REG-CFG01–02; area 22 | Versioned rule contract and lot assignment snapshots implemented; broader multi-obligation resolution remains |
 | OQ-002 | Immutable attributed audit events with before/after values, reasons, review and export | REG-CFG04, REG-E05, REG-DI03; area 9 | Shared audit/review/export and module events implemented; coverage requires integrated acceptance checks |
 | OQ-003 | PIN re-entry per signature; signer, meaning, server timestamp and exact revision binding; atomic transition | REG-CFG05, REG-E07–11; area 6 | Atomic signatures and HTTP username/PIN re-entry implemented; operational validation remains |
-| OQ-004 | Explicit permissions and independent review; qualified activity authorization | REG-P01–02, REG-P23, REG-E04; areas 6,17 | Roles and method-specific observation qualification implemented; equipment/reagent execution integration remains |
+| OQ-004 | Explicit permissions and independent review; qualified activity authorization; admin read-all/user management and safe no-role access | REG-P01–02, REG-P23, REG-E04; areas 6,17; admin policy user decision 2026-11-10 | Explicit roles, signed account lifecycle and method-specific observation qualification implemented; equipment/reagent execution integration remains |
 | OQ-005 | Approved material/specification/method revisions, limits, sampling plans and suitability evidence | REG-P04–05, REG-P08, REG-S01, REG-S04, REG-ISO02; areas 1–3 | Versioned catalog, method QC and sampling plans implemented; specialized applicability remains |
 | OQ-006 | Lot, shipment, supplier, sample and manufacturing traceability; contemporaneous source records | REG-P03, REG-P17–19, REG-P21, REG-S02–03, REG-DEV03; area 4 | Lot/sample identities and sampling provenance implemented; fuller supplier/shipment/manufacturing genealogy remains |
 | OQ-007 | Exact observations, units, original data, calculations, test completeness and review | REG-P22–24, REG-DI01–02, REG-S05; areas 5–6 | Native numeric observations/replicates/batch QC and immutable corrections implemented; other result types held |

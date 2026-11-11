@@ -15,6 +15,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 
 - Sign-in required. Roles: Analyst or Quality; others receive 403.
 - Opened with `?reserve=<id>` (from a reserve sample) the obligation is tied to that reserve and its lot; an unknown reserve returns 404.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<p>You are signed in as <strong>{{ user.username }}</strong>.</p>
+{% if has_laboratory_role %}
+<h2 class="h5">Assigned laboratory roles</h2>
+<ul>{% for role in laboratory_roles %}<li>{{ role }}</li>{% endfor %}</ul>
+<p>Each action still requires its designated role and independent review where applicable.</p>
+<p><a href="{% url 'quality:lot_list' %}">Open workspace</a></p>
+{% else %}
+<p>Your account has no laboratory role. Ask your organization's account administrator to assign the role appropriate to your work. Give them your username, <strong>{{ user.username }}</strong>.</p>
+<p>Signing in or holding superuser status does not grant laboratory access. You can sign out using the top bar while access is arranged.</p>
+{% endif %}
+<p><a href="{% url 'accounts:password_change' %}">Change password</a></p>
+{% if is_account_administrator %}
+<section class="mt-4" aria-labelledby="account-management-heading">
+<h2 class="h5" id="account-management-heading">Account and role management</h2>
+{% if can_view_identity_admin %}<p><a href="{% url 'admin:accounts_user_changelist' %}">View accounts in Django admin</a> (read-only).</p>{% endif %}
+{% if can_manage_accounts %}<p><a class="btn btn-primary" href="{% url 'accounts:user_list' %}">Manage users and roles</a></p><p>In-app account changes require a reason and fresh signing username/PIN confirmation. You cannot grant yourself additional roles or remove the last active admin.</p>{% endif %}
+<p>Deployment operators can also use the audited <code>assign_roles</code> management command. Ask the deployment operator to run it in this instance's application environment, with your administrator username and a reason. This access-information page does not change roles.</p>
+{% if not has_laboratory_role %}
+<p>For this new bootstrap administrator, run:</p>
+<pre><code>{{ bootstrap_command }}</code></pre>
+{% else %}
+<p>Command format: <code>python manage.py assign_roles &lt;username&gt; &lt;role&gt; ... --actor &lt;administrator&gt; --reason &lt;reason&gt;</code>.</p>
+{% endif %}
+<p>The command replaces the complete role set. Include every intended role: <code>admin</code>, <code>analyst</code>, <code>reviewer</code>, <code>quality</code> or <code>auditor</code>. Passing no roles revokes all laboratory roles. Changes record the administrator and reason in the audit trail.</p>
+<p>The <code>admin</code> role permits account administration and read access throughout the laboratory; it does not grant scientific approval authority or Django staff access.</p>
+</section>
+{% endif %}
+{% endblock %}

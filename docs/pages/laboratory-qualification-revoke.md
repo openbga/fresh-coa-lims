@@ -16,6 +16,7 @@ Withdraw an approved qualification with meaning **revoked**. Work after the sign
 - Sign-in required. Role: Quality.
 - Other roles receive the standard 403 page.
 - A Quality user who is the qualified person sees "You cannot revoke your own qualification."; a record that is not approved shows "This qualification is awaiting approval." or "... is revoked.". Both show the facts, no PIN control, and a **Back to record** link (403). The recorder may revoke.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

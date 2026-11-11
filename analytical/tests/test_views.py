@@ -7,28 +7,9 @@ from analytical import services
 from analytical.models import AnalyticalTest, Investigation, Observation
 from core.models import AuditEvent, ElectronicSignature, PINCredential
 
-from .conftest import PIN, complete, fresh, pass_qc, record, review, submit
+from .conftest import PIN, complete, fresh, login, pass_qc, record, review, submit
 
-pytestmark = pytest.mark.django_db(transaction=True)
-
-
-@pytest.fixture(autouse=True)
-def plain_static(settings):
-    # Template tests must not depend on a collected manifest in the shared static directory.
-    settings.STORAGES = {
-        **settings.STORAGES,
-        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-    }
-
-
-def login(client, user):
-    client.force_login(user)
-    session = client.session
-    import time
-
-    session["authenticated_at"] = session["last_activity_at"] = time.time()
-    session.save()
-    return client
+pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.usefixtures("plain_static")]
 
 
 def test_pages_render_for_readers_and_deny_others(

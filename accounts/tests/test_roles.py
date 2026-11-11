@@ -19,8 +19,8 @@ def test_role_changes_require_authority_and_are_audited():
     assert list(member.groups.values_list("name", flat=True)) == ["analyst"]
     event = AuditEvent.objects.get(action="account.roles_changed")
     assert event.actor == admin
-    assert event.before == {"roles": []}
-    assert event.after == {"roles": ["analyst"]}
+    assert event.before["roles"] == []
+    assert event.after["roles"] == ["analyst"]
     assign_roles(actor=admin, user=member, roles=[], reason="Authorization revoked")
     assert not member.groups.exists()
 

@@ -14,6 +14,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 ## Who can use it
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
 - The person who sampled or recorded the record is blocked: the page opens with status 403, shows "You sampled or recorded this sample; another person must assess." and no form. No role can bypass this.
 - With no assessment for the record you are redirected to the lot with the error "This record has no deviation awaiting assessment." Other non-permission blockers also redirect with an error: "Only deviations of quarantined lots can be assessed.", "This deviation has already been assessed." or "This record was corrected; assess the latest record instead."
 - The signing username you type must equal your signed-in username.

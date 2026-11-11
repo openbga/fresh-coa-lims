@@ -13,7 +13,7 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 
 ## Who can use it
 
-- Sign-in required. Only the **quality** role; others receive 403.
+- Sign-in required. Only the **quality** role; others receive 403. **admin** is read-only here: an administrator without the quality role is refused (403) and sees no signing actions; an administrator who also holds the quality role has the quality actions, with the same authorship rule.
 
 ## Layout
 

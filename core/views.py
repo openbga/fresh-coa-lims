@@ -37,6 +37,9 @@ def pin(request):
 @require_http_methods(["GET", "POST"])
 def rules(request):
     require_role(request.user, "admin", "quality", "analyst", "reviewer", "auditor")
+    if request.method == "POST":
+        require_role(request.user, "quality")
+    can_configure = request.user.groups.filter(name="quality").exists()
     form = RuleForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
@@ -51,7 +54,11 @@ def rules(request):
         by_record.setdefault(signature.object_id, []).append(signature)
     for revision in revisions:
         revision.signatures = by_record.get(str(revision.pk), [])
-    return render(request, "core/rules.html", {"rules": revisions, "form": form})
+    return render(
+        request,
+        "core/rules.html",
+        {"rules": revisions, "form": form, "can_configure": can_configure},
+    )
 
 
 @login_required
@@ -100,7 +107,10 @@ def audit(request):
 
     from .models import AuditReview
 
-    require_role(request.user, "quality", "auditor")
+    require_role(request.user, "admin", "quality", "auditor")
+    can_review = request.user.groups.filter(name__in=["quality", "auditor"]).exists()
+    if request.method == "POST":
+        require_role(request.user, "quality", "auditor")
 
     class AuditFilters(forms.Form):
         object_type = forms.CharField(required=False, label="Record type", max_length=100)
@@ -220,6 +230,7 @@ def audit(request):
         "core/audit.html",
         {
             "page": page,
+            "can_review": can_review,
             "filters": filters,
             "error": error,
             "conclusion": conclusion,

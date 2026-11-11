@@ -13,7 +13,8 @@ Creates a specification (one material, one stage, one scope) together with its d
 
 ## Who can use it
 
-- Sign-in required. **quality** role only; any other signed-in user receives 403 Forbidden, including admins without the quality role.
+- Sign-in required. **quality** role only; others receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
 - Independent approval comes later: another quality user must approve the version.
 
 ## Layout

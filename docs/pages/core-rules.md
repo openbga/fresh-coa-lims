@@ -14,21 +14,21 @@ List rule set revisions (required tests and signature meanings) and create new d
 ## Who can use it
 
 - Sign-in required. Viewing: **admin**, **quality**, **analyst**, **reviewer** or **auditor**; others receive 403.
-- **Create draft**: **admin** or **quality**; other viewers see the form but receive 403 when submitting.
-- **Review and approve**: quality role, not the revision's author.
+- **Create draft**: **quality** only. Other viewers have no creation form and receive 403 for direct submissions, even when the submitted form is invalid.
+- **Review and approve**: shown only to quality users for another person's draft. Admin alone grants no configuration or approval authority.
 
 ## Layout
 
 - Title "Rule sets" and a note that presets are synthetic and approved revisions cannot be edited.
 - **Revisions table**: Rule ("code vN"), Segment, Status with any approval signatures, Effective from, Policy, Action. Empty: "No rule revisions yet."
-- **New revision** form with **Create draft**.
+- **New revision** form with **Create draft**, for quality users only.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Review and approve** | Status is draft (link shown to every viewer) | Quality, not the author; users without quality get 403 | Opens the signing page if eligible; authors and unavailable revisions return here with a reason |
-| **Create draft** | Always | Admin, quality | Creates the next version of that code as draft and reloads the page |
+| **Review and approve** | Quality role, draft status and not its author | Quality, not the author; users without quality get 403 | Opens the signing page if eligible; authors and unavailable revisions return here with a reason |
+| **Create draft** | Quality role | Quality | Creates the next version of that code as draft and reloads the page |
 
 ## Fields
 

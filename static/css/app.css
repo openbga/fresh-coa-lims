@@ -1276,6 +1276,7 @@ a.vr-navlink:hover {
 
 .vr-page-title {
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: 1.75rem;
   font-weight: 680;
   letter-spacing: -0.022em;

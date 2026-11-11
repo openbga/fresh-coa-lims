@@ -14,19 +14,19 @@
   </div>
 </form>
 {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-<p>{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. Review applies only to the checked events on this page; filters and CSV exports do not record a review.</p>
-<form method="post" aria-label="Record audit review">{% csrf_token %}
-<div class="table-responsive"><table class="table align-top"><caption class="visually-hidden">Audit events and previous independent reviews</caption><thead><tr><th scope="col">Select</th><th scope="col">Time / actor</th><th scope="col">Action / record</th><th scope="col">Original / new values</th><th scope="col">Reason</th><th scope="col">Review status</th></tr></thead><tbody>
+<p>{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. {% if can_review %}Review applies only to the checked events on this page; {% endif %}Filters and CSV exports do not record a review.</p>
+{% if can_review %}<form method="post" aria-label="Record audit review">{% csrf_token %}{% endif %}
+<div class="table-responsive"><table class="table align-top"><caption class="visually-hidden">Audit events and previous independent reviews</caption><thead><tr>{% if can_review %}<th scope="col">Select</th>{% endif %}<th scope="col">Time / actor</th><th scope="col">Action / record</th><th scope="col">Original / new values</th><th scope="col">Reason</th><th scope="col">Review status</th></tr></thead><tbody>
 {% for event in page %}<tr>
-<td>{% if event.actor_id == request.user.pk %}<input class="form-check-input" type="checkbox" disabled aria-label="Your own event cannot be reviewed"><span class="d-block small">Your event</span>{% else %}<input class="form-check-input" type="checkbox" name="events" value="{{ event.pk }}" aria-label="Review event {{ event.pk }}" {% if event.pk|stringformat:'s' in selected_ids %}checked{% endif %}>{% endif %}</td>
+{% if can_review %}<td>{% if event.actor_id == request.user.pk %}<input class="form-check-input" type="checkbox" disabled aria-label="Your own event cannot be reviewed"><span class="d-block small">Your event</span>{% else %}<input class="form-check-input" type="checkbox" name="events" value="{{ event.pk }}" aria-label="Review event {{ event.pk }}" {% if event.pk|stringformat:'s' in selected_ids %}checked{% endif %}>{% endif %}</td>{% endif %}
 <td><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at|date:'Y-m-d H:i:s T' }}</time><br>{{ event.actor }}</td>
 <td>{{ event.action }}<br><span class="small">{{ event.object_type }}:{{ event.object_id }}</span></td>
 <td><details><summary>Inspect values</summary><strong>Original</strong><pre>{{ event.before }}</pre><strong>New</strong><pre>{{ event.after }}</pre></details></td>
 <td>{{ event.reason }}</td>
 <td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|date:'Y-m-d H:i:s T' }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="6">{% if filtered %}No events match these filters. Clear or adjust the filters to inspect other records.{% else %}No audit events recorded yet.{% endif %}</td></tr>{% endfor %}
+</tr>{% empty %}<tr><td colspan="{% if can_review %}6{% else %}5{% endif %}">{% if filtered %}No events match these filters. Clear or adjust the filters to inspect other records.{% else %}No audit events recorded yet.{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-<div class="card my-3"><div class="card-body"><label class="form-label" for="conclusion">Review conclusion</label><textarea class="form-control" id="conclusion" name="conclusion" rows="3" required aria-describedby="review-scope">{{ conclusion }}</textarea><p id="review-scope" class="form-text">Record what you checked and any follow-up needed. Previous conclusions remain available. You cannot review your own events.</p><button class="btn btn-primary">Record independent review</button></div></div>
-</form>
+{% if can_review %}<div class="card my-3"><div class="card-body"><label class="form-label" for="conclusion">Review conclusion</label><textarea class="form-control" id="conclusion" name="conclusion" rows="3" required aria-describedby="review-scope">{{ conclusion }}</textarea><p id="review-scope" class="form-text">Record what you checked and any follow-up needed. Previous conclusions remain available. You cannot review your own events.</p><button class="btn btn-primary">Record independent review</button></div></div>
+</form>{% endif %}
 <nav aria-label="Audit events pages" class="d-flex gap-3 align-items-center"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% if page.has_previous %}<a href="?{{ base_query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}{% if page.has_next %}<a href="?{{ base_query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
 {% endblock %}

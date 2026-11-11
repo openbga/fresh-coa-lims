@@ -14,8 +14,8 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 ## Who can use it
 
 - Sign-in required; signed-out visitors go to the sign-in page.
-- Viewing requires one of the roles **analyst**, **reviewer**, **quality**, **admin** or **auditor**. Accounts without these roles receive "403 Forbidden" ("Your role does not permit this action.").
-- **New material lot** is shown to everyone who can view the list, but only **analysts** can open and submit it; other roles receive 403.
+- Viewing lot data requires one of the roles **analyst**, **reviewer**, **quality**, **admin** or **auditor**. On opening the workspace, signed-in accounts without these roles are sent to [Account access](/accounts/access/), which explains missing roles. Superuser status does not bypass this check.
+- **New material lot** is shown only to **analysts**. Admin-only and other viewers cannot open or submit it; direct requests receive 403.
 
 ## Layout
 
@@ -23,14 +23,14 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 - **Header**: title "Material lots", a short description and the **New material lot** button.
 - **Search**: one box, "Find lot number", with **Search**.
 - **Lots table**: columns Lot, Material, Rule set, Status. Lot numbers link to the lot record.
-- **Empty state**: "No material lots found. Receive a lot to start the quality journey." This text also appears when a search matches nothing.
+- **Empty state**: "No material lots found." Analysts also see "Receive a lot to start the quality journey." The empty state also appears when a search matches nothing.
 - **Paging**: "Page N of M" with **Previous** and **Next** links.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **New material lot** | Always | Analyst | Opens the New material lot form |
+| **New material lot** | Analyst role | Analyst | Opens the New material lot form |
 | **Search** | Always | Any viewer | Reloads the list filtered by the search text, from page 1 |
 | Lot number link | One per row | Any viewer | Opens the lot record |
 | **Previous** / **Next** | More than one page | Any viewer | Moves one page; keeps the search text |
@@ -53,7 +53,7 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 - **Paging**: 30 lots per page. An out-of-range page number shows the last page; a non-numeric one shows page 1.
 - **Status**: a new lot always starts in **Quarantine**. **Released** is set only by a signed lot disposition. No other states exist in this version.
 - **Requirements**: the list does not show whether approved specification and sampling requirements are assigned; open the lot record to see its assignment status.
-- **Hidden button rule**: showing **New material lot** does not grant access; the server checks the analyst role.
+- **Role rule**: the creation button is hidden without the analyst role, and the server independently checks that role.
 
 ## Related pages
 

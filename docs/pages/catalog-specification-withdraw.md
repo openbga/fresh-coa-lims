@@ -14,6 +14,7 @@ Withdraws a draft specification version that will not be approved, with a record
 ## Who can use it
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden. The role is checked before the record is looked up, so a user without it gets 403 for existing and non-existent IDs alike; quality users get 404 for a missing ID.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
 - No independence rule applies: the author or an editor of the draft may withdraw it.
 - Only drafts: for an approved or withdrawn version you are redirected back with "Only draft revisions can be withdrawn."
 

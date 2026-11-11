@@ -16,6 +16,7 @@ Approve returning equipment to service after assessing the impact of its failure
 - Sign-in required. Role: Quality.
 - Other roles receive the standard 403 page.
 - A Quality user who removed the equipment from service (or whose calibration failure took it out; the status change is attributed to the recorder) cannot return it ("The person who removed equipment from service cannot return it."); equipment already in service shows "Equipment is already in service.". Both show the reason and no PIN control (403).
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

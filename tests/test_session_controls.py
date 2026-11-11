@@ -125,6 +125,7 @@ def test_session_expiry_during_transition_rolls_back_all_evidence(signer, monkey
     request = RequestFactory().post("/synthetic-signing/", {"signature_username": signer.username})
     request.user = signer
     request.session = {
+        "account_epoch": signer.session_epoch,
         "authenticated_at": now.timestamp(),
         "last_activity_at": now.timestamp(),
     }

@@ -266,6 +266,7 @@ def lot_testing(request, pk):
 
 def assign_tests(request, lot):
     """POST on the lot testing page: assign the lot's required tests to one of its samples."""
+    require_role(request.user, "analyst")  # read roles (admin, auditor) may view, not assign
     sample = get_object_or_404(Sample, pk=request.POST.get("sample") or 0, lot=lot)
     form = ReasonForm(request.POST)
     if not form.is_valid():

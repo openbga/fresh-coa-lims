@@ -17,7 +17,7 @@ The hub for one material lot: its facts and samples, links to its requirements, 
 - **Add sample** and **Record result**: analysts only.
 - **Review result**: reviewers only, and never the analyst who recorded that result.
 - **Review disposition** and **Issue certificate of analysis**: quality role only.
-- Links show whenever their state condition holds, whatever your role. A visible link is not permission: the server checks role, independence and state when you open or save.
+- Scientific action links require their corresponding role as well as the state condition. Admin-only viewers see records and navigation links, without laboratory mutation controls. The server independently checks roles, independence and state.
 
 ## Layout
 
@@ -33,13 +33,13 @@ The hub for one material lot: its facts and samples, links to its requirements, 
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Add sample** | Lot is Quarantine | Analyst | Opens Add sample for this lot |
-| **Review disposition** | Lot is Quarantine | Quality, independent of the lot's data | Opens Sign lot disposition |
+| **Add sample** | Analyst role and lot is Quarantine | Analyst | Opens Add sample for this lot |
+| **Review disposition** | Quality role and lot is Quarantine | Quality, independent of the lot's data | Opens Sign lot disposition |
 | **Requirements and sampling** | Always | Viewers of that page | Opens the lot's requirement assignment and sampling records |
 | **Testing and investigations** | Always | Viewers of that page | Opens native tests, observations, reviews and investigations |
-| **Record result** | Lot is Quarantine | Analyst | Opens the development-only manual result form; saving is refused outside DEBUG or once requirements are assigned |
-| **Review result** | Foundation result is Recorded | Reviewer, not its analyst | Opens Sign result review |
-| **Issue certificate of analysis** | Lot is Released | Quality | Opens the certificate preview for this lot |
+| **Record result** | Analyst role and lot is Quarantine | Analyst | Opens the development-only manual result form; saving is refused outside DEBUG or once requirements are assigned |
+| **Review result** | Reviewer role, result is Recorded and not its analyst | Reviewer, not its analyst | Opens Sign result review |
+| **Issue certificate of analysis** | Quality role and lot is Released | Quality | Opens the certificate preview for this lot |
 | Report number link | Lot is Released and a report exists | Viewers of reports | Opens the certificate record |
 | **Material lots** | Always | Any viewer | Returns to the list |
 
@@ -62,12 +62,12 @@ The hub for one material lot: its facts and samples, links to its requirements, 
 ## Rules and hidden logic
 
 - **Quarantine only**: samples and foundation results are accepted only while the lot is Quarantine ("Only quarantined lots accept new samples.").
-- **Record result link vs. permission**: the link stays visible on every Quarantine sample, but saving is refused with "Record observations through approved native testing requirements." unless the server runs in DEBUG and the lot has no requirement assignment. Record native results through Testing and investigations.
+- **Record result link vs. permission**: the link stays visible to analysts on Quarantine samples, but saving is refused with "Record observations through approved native testing requirements." unless the server runs in DEBUG and the lot has no requirement assignment. Record native results through Testing and investigations.
 - **Release paths**: with assigned requirements or native tests (and always outside DEBUG), release depends on the assignment, sampling records, native analytical evidence and holds. The manual foundation path (required rule-set tests, reviewed and conforming results) applies only in DEBUG on lots with neither. See Sign lot disposition for every condition and message.
 - **Revision and stale pages**: signing pages bind to the revision shown when opened (the result's for review, the lot's for disposition); if it changed, signing fails with "Record changed. Reload and review before signing."
 - **Independence**: no user dispositions a lot containing their own data, even when holding the quality role.
 - **No reject path**: this version only releases; a lot that cannot be released stays in Quarantine.
-- **Review link after release**: a Recorded foundation result still shows **Review result** on a released lot, but signing is refused ("This result is not awaiting review.").
+- **Review link after release**: a Recorded foundation result still shows **Review result** to independent reviewers on a released lot, but signing is refused ("This result is not awaiting review.").
 - **Certificates**: the section appears only after release; issuing is a separate signed step on the certificate pages.
 
 ## Related pages

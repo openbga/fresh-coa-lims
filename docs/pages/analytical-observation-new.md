@@ -15,6 +15,7 @@ Record the next replicate observation of a test, with the location of its origin
 
 - Sign-in required. **Analysts** only; others receive 403.
 - A test in the wrong state redirects you back to the test record with a warning (see Rules).
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

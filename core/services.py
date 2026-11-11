@@ -151,7 +151,7 @@ def validate_policy(policy):
 
 
 def save_rule(*, actor, code, segment, policy, effective_from, reason, effective_until=None):
-    require_role(actor, "admin", "quality")
+    require_role(actor, "quality")
     validate_policy(policy)
     if not reason.strip() or (effective_until and effective_until <= effective_from):
         raise ValidationError("Provide a reason and a valid effective interval.")

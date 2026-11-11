@@ -14,6 +14,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 ## Who can use it
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
+- **admin** without a laboratory role can view everything here but sees no create, edit, approval or signing controls. An administrator who also holds the lab role an action needs gets that action, under the same independence rules.
 - **New version**, **Withdraw draft**, **Add QC check**, QC check **Remove**: **quality** role only (drafts only for the last three).
 - **Review and approve**: quality, draft, and only when you did not author or edit that version. Otherwise the text "Another quality approver must sign this draft." is shown instead.
 

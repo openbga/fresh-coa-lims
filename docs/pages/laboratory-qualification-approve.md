@@ -16,6 +16,7 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 - Sign-in required. Role: Quality.
 - Other roles receive the standard 403 page.
 - A Quality user who recorded the evidence or is the qualified person sees "The recorder and the qualified person cannot approve this qualification."; a record that is not awaiting approval shows "This qualification is approved." (or revoked). Both show the facts, no PIN control, and a **Back to record** link (403).
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

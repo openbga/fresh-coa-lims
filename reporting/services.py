@@ -23,6 +23,7 @@ from .render import RenderError, render_certificate
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 ISSUE_ROLE = "quality"
+HISTORY_ROLES = ("quality", "auditor", "admin")
 
 
 def require_reader(actor):

@@ -14,6 +14,7 @@ Freezes the approved specification, its methods and the sampling plan that apply
 ## Who can use it
 
 - Sign-in required. **analyst** or **quality** role; others receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the analyst or quality role acts with that role only, with no exception to the independence rules.
 - Only lots in Quarantine: otherwise you are redirected to the lot with "Only quarantined lots can receive requirements." (the server also refuses).
 - Only before testing starts: once any analytical test exists for the lot you are redirected to the lot with "Testing has started on this lot, so its requirements cannot be reassigned. Controlled supersession of requirements after testing is not supported." (the server also refuses).
 

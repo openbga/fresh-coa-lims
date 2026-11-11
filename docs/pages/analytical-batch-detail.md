@@ -15,6 +15,7 @@ One QC batch: its method's QC checks and results, the tests run in it, and rejec
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **Record** and **Correct** QC: analysts. **Reject batch**: reviewers.
+- **Admin** alone is a read role: no Record, Correct or Reject batch controls. Admin together with a lab role gets that role's controls and its independence rules.
 
 ## Layout
 

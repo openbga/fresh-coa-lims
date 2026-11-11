@@ -14,8 +14,8 @@ One certificate of analysis series: its status, every issued version with who si
 ## Who can use it
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**.
-- **Amend certificate** and **Review and issue**: quality only.
-- The **History** panel is shown only to **quality** and **auditor** users.
+- **Amend certificate** and **Review and issue**: quality only (an administrator without the quality role sees neither; the amendment pages refuse them).
+- The **History** panel is shown only to **quality**, **auditor** and **admin** users.
 
 ## Layout
 
@@ -23,7 +23,7 @@ One certificate of analysis series: its status, every issued version with who si
 - **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened, and the current PDF SHA-256.
 - **Versions** (once issued): Version, Kind, Status, Issued, Signed by, Reason, Files.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
-- **History** (quality and auditor only): audit events for this record, oldest first, or "No history yet."
+- **History** (quality, auditor and admin only): audit events for this record, oldest first, or "No history yet."
 - A record with no version says "No version has been issued. A draft record holds no evidence."
 
 ## Actions

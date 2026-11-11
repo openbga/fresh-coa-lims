@@ -13,7 +13,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 
 ## Who can use it
 
-- Sign-in required. Only the **quality** role; others receive 403.
+- Sign-in required. Only the **quality** role; others receive 403. **admin** is read-only here: an administrator without the quality role is refused (403) and sees no signing actions; an administrator who also holds the quality role has the quality actions, with the same authorship rule.
 - You cannot sign for a lot on which you authored records (lot, sample, result or native analytical records). You are turned back before the form is shown; a direct submission is still refused (status 403) and nothing is signed.
 
 ## Layout

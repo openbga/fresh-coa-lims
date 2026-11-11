@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}<a href="{% url 'accounts:user_list' %}">Users and roles</a>{% endblock %}
+{% block content %}
+<section class="card mb-3"><div class="card-body"><dl class="vr-facts">
+<div><dt>Identity</dt><dd>{{ target.get_full_name|default:"Not supplied" }}</dd></div><div><dt>Email</dt><dd>{{ target.email|default:"Not supplied" }}</dd></div>
+<div><dt>Roles</dt><dd>{{ evidence.roles|join:", "|default:"No role assigned" }}</dd></div><div><dt>Status</dt><dd>{{ target.is_active|yesno:"Active,Inactive" }}</dd></div>
+<div><dt>Last sign-in</dt><dd>{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</dd></div><div><dt>Password change required</dt><dd>{{ target.password_change_required|yesno:"Yes,No" }}</dd></div>
+<div><dt>Signature PIN</dt><dd>{{ evidence.pin_enrolled|yesno:"Enrolled,Enrollment required" }}{% if evidence.pin_locked_until %}; lock until {{ evidence.pin_locked_until }}{% endif %}; {{ evidence.pin_failures }} failed attempts</dd></div>
+<div><dt>Management revision</dt><dd>{{ target.management_revision }}</dd></div><div><dt>Django staff / superuser</dt><dd>{{ target.is_staff|yesno:"Yes,No" }} / {{ target.is_superuser|yesno:"Yes,No" }} (read-only)</dd></div>
+</dl></div></section>
+<div class="d-flex flex-wrap gap-2 mb-4">{% for label, url in actions %}<a class="btn btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endfor %}</div>
+<section class="card"><div class="card-header"><h2 class="card-title">Account history</h2></div><div class="card-body">
+<ol class="vr-timeline">{% for event in history %}{% include "includes/history_item.html" with title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}<li><details><summary>Inspect recorded values</summary><strong>Before</strong><pre>{{ event.before }}</pre><strong>After</strong><pre>{{ event.after }}</pre></details>{% if event.electronicsignature %}<p>Signed by {{ event.electronicsignature.signer_name }} · {{ event.electronicsignature.meaning }} · {{ event.electronicsignature.signed_at|date:"c" }} · revision {{ event.electronicsignature.revision }}</p>{% endif %}</li>{% empty %}<li>No account events recorded.</li>{% endfor %}</ol>
+<nav aria-label="Account history pages">Page {{ history.number }} of {{ history.paginator.num_pages }} {% if history.has_previous %}<a href="?page={{ history.previous_page_number }}">Previous</a>{% endif %} {% if history.has_next %}<a href="?page={{ history.next_page_number }}">Next</a>{% endif %}</nav>
+</div></section>
+{% endblock %}

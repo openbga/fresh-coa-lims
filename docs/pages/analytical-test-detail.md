@@ -17,6 +17,7 @@ One analytical test: its frozen specification, replicate observations, calculate
 - **Add to QC batch**, **Record observation**, **Correct**, **Submit for review**: analysts.
 - **Sign review**, **Return test**: reviewers, and never a user who generated the test's data (observation recorders including superseded ones, the submitter, and recorders of the batch's QC), even with the reviewer role.
 - Links show whenever their state condition holds for the role; the server enforces the rest.
+- **Admin** alone is a read role: no action buttons or submit form, and a posted submission is refused with 403. Admin together with a lab role gets that role's actions; it is never an exemption from the authorship rules.
 
 ## Layout
 

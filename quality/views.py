@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
+from accounts.services import ROLES
 from core.models import ElectronicSignature
 from core.services import require_role
 
@@ -18,6 +19,11 @@ def access(user):
 
 @login_required
 def lot_list(request):
+    if (
+        request.method in {"GET", "HEAD"}
+        and not request.user.groups.filter(name__in=ROLES).exists()
+    ):
+        return redirect("accounts:access")
     access(request.user)
     lots = Lot.objects.select_related("rules")
     query = request.GET.get("q", "").strip()
@@ -26,7 +32,11 @@ def lot_list(request):
     return render(
         request,
         "quality/lot_list.html",
-        {"page_obj": Paginator(lots, 30).get_page(request.GET.get("page")), "query": query},
+        {
+            "page_obj": Paginator(lots, 30).get_page(request.GET.get("page")),
+            "query": query,
+            "can_receive": request.user.groups.filter(name="analyst").exists(),
+        },
     )
 
 
@@ -42,6 +52,9 @@ def lot_detail(request, pk):
         "quality/lot_detail.html",
         {
             "lot": lot,
+            "can_record": request.user.groups.filter(name="analyst").exists(),
+            "can_review": request.user.groups.filter(name="reviewer").exists(),
+            "can_dispose": request.user.groups.filter(name="quality").exists(),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             "reports": lot.reports.all(),
             "assignment": assignment,

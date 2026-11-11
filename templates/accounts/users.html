@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block page_actions %}<a class="btn btn-primary" href="{% url 'accounts:user_create' %}">Create account</a>{% endblock %}
+{% block page_intro %}<p>Named accounts and explicit roles. Administrative changes require a reason and your signature PIN.</p>{% endblock %}
+{% block content %}
+<form method="get" class="card mb-3"><div class="card-body"><div class="row g-3">{% for field in filters %}<div class="col-md-4">{{ field.as_field_group }}</div>{% endfor %}</div><button class="btn btn-primary" type="submit">Filter</button> <a href="{% url 'accounts:user_list' %}">Clear filters</a></div></form>
+<p>{{ page.paginator.count }} matching account{{ page.paginator.count|pluralize }}.</p>
+<div class="table-responsive"><table class="table"><thead><tr><th scope="col">Account</th><th scope="col">Identity</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col">Last sign-in</th></tr></thead><tbody>
+{% for target in page %}<tr><td><a href="{% url 'accounts:user_detail' target.pk %}">{{ target.username }}</a></td><td>{{ target.get_full_name|default:"Not supplied" }}<br>{{ target.email }}</td><td>{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}No role assigned{% endfor %}</td><td>{{ target.is_active|yesno:"Active,Inactive" }}{% if target.password_change_required %}<br>Password change required{% endif %}</td><td>{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</td></tr>{% empty %}<tr><td colspan="5">{% if filtered %}No accounts match these filters. Clear or adjust them.{% else %}No accounts found.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<nav aria-label="Account pages"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span> {% if page.has_previous %}<a href="?{{ query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} {% if page.has_next %}<a href="?{{ query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endblock %}

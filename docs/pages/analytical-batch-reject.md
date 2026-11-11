@@ -16,6 +16,7 @@ A reviewer signs the rejection of a batch whose QC failed. Its tests are invalid
 - Sign-in required. **Reviewers** only; others receive 403.
 - Never a user who recorded QC for the batch or generated data for any of its tests (including superseded entries and submitters), even with the reviewer role.
 - Requires an enrolled signature PIN.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

@@ -13,7 +13,7 @@ Independently review a draft rule revision and sign its approval so lots can use
 
 ## Who can use it
 
-- Sign-in required. **Quality** role only; others receive 403.
+- Sign-in required. **Quality** role only; others receive 403. Admin alone gives no approval rights. Rule sets hides this action from non-quality viewers and from the draft author.
 - Never the revision's author: opening the page redirects to Rule sets with "Rule authors cannot approve their own revision." and does not request a PIN. A direct signing submission is also refused with 403.
 
 ## Layout

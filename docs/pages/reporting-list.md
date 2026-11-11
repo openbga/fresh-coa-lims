@@ -14,7 +14,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 ## Who can use it
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
-- **New certificate of analysis** is shown only to users with the **quality** role.
+- **New certificate of analysis** is shown only to users with the **quality** role; an administrator without it can read every certificate but sees no issuing action.
 
 ## Layout
 

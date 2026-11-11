@@ -14,6 +14,7 @@ Records what was actually sampled from a lot against its assigned sampling plan,
 ## Who can use it
 
 - Sign-in required. **analyst** role only; others (including quality) receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the analyst role acts with that role only, with no exception to the independence rules.
 - Opening the page checks whether sampling can be recorded. If not, you are redirected to the lot with the error "Only quarantined lots accept new samples.", "Assign approved requirements before recording sampling.", "Applicability hold: <hold reasons joined by '; '>" (requirements on hold) or "The assigned sampling plan is not approved." The page reads the lot's current requirements once and builds the form (plan facts, default amount unit) from that same reading, so a change made by someone else while the page opens cannot break it; the server re-reads and repeats the same checks under the lot lock when you submit, redirecting with the current reason if the requirements changed.
 - You are recorded as the sampler.
 

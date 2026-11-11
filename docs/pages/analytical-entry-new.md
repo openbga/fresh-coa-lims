@@ -15,6 +15,7 @@ Add a written entry (assessment, hypothesis, evidence or impact) to an open inve
 
 - Sign-in required. **Analysts**, **reviewers** or **quality**; others receive 403.
 - Not restricted by authorship. Entries do not require a signature.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

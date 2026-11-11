@@ -16,6 +16,7 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 - Sign-in required. **Reviewers** only; others receive 403.
 - Never a user who generated the test's data (observation recorders including superseded ones, the submitter, recorders of the batch's QC), even with the reviewer role.
 - Requires an enrolled signature PIN.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

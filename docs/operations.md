@@ -6,6 +6,37 @@ An integrated-schema synthetic rehearsal on 2026-11-10 passed full registered-ap
 
 The populated fixture contained five draft native segment profiles plus signed legacy foundation rule/result/disposition records and an audit review. It contained no approved native specifications, native analytical observations/QC/OOS, laboratory resources/qualifications, stability records or issued PDFs. Those schemas and guards were restored and compared, but their populated workflows were not exercised. Signatures used the trusted service channel, not interactive username/PIN signing. This rehearsal did not test negative trigger mutations, Render/PITR, encrypted off-machine backups, runtime-role separation, identity recovery or file media restoration, and did not establish RPO/RTO or production recovery acceptance.
 
+## Bootstrap account access
+
+In the intended instance's application shell, after migrations, create the individual bootstrap account and explicitly assign its laboratory role:
+
+```sh
+python manage.py createsuperuser --username admin
+python manage.py assign_roles admin admin --actor admin --reason 'Bootstrap account administration'
+```
+
+Replace both occurrences of `admin` that identify the account if using another username; the role argument remains `admin`. For local development prefix commands with `uv run`. The assignment records the actor, prior/new roles and reason in the audit trail. `assign_roles` replaces the complete role set, so include every intended role when updating an existing account.
+
+`createsuperuser` alone grants no laboratory role. The laboratory `admin` role permits reading every area (including audit export and CoA PDF) and account administration, not scientific mutation; those still require explicit roles and independent actors. It does not grant Django `is_staff` or superuser status. The signed-in **Account access** page explains missing roles and links authorized staff administrators to the existing read-only Django account view. Explicit admins also see **Users and roles**, the signed web management interface. A superuser without the explicit role sees bootstrap guidance but cannot use that interface. Users without a role should ask their organization's account administrator; the access page and sign-out remain available.
+
+For an authorized synthetic demonstration in `DEBUG=true`, run `python manage.py seed_demo --actor admin --journey` only after the bootstrap sequence. The command accepts a superuser actor without the `admin` role but warns that the actor still lacks it; it never assigns roles to that actor. Seeding is deliberate and is not part of deployment or regulated production setup.
+
+## Signed account administration
+
+Enroll the administrator's own PIN at `/signature-pin/` by confirming the login password, then use **Users and roles**. Keep a second individually verified active admin for recovery. The service refuses self-granted additional roles and deactivation/removal of the last active admin; these checks also apply to the audited role command. Only the initial roleless-superuser bootstrap may self-assign exactly `admin` when no active admin exists.
+
+| Action | Required operation and effect |
+|---|---|
+| Create account | Verify identity, enter the initial password privately, select roles, give a reason and sign. Share credentials through an approved private channel; the user must replace the password before workspace access |
+| Assign/revoke roles | Review the complete replacement set, reason and sign. Admin alone grants no scientific authority |
+| Deactivate/reactivate | Reason and sign; deactivation refuses login and both actions invalidate earlier sessions |
+| Clear PIN lockout | Verify the individual's identity and investigate failed signing, then reason and sign; clears the signing lock without revealing/replacing the PIN |
+| Require PIN re-enrollment | Reason and sign; removes the old hashed credential. The owner must enroll a new PIN with their current login password |
+| Force password reset | Reason and sign; optionally enter a private temporary password. If left blank, the user signs in with their current password. Either way, replacement is mandatory before workspace access; the application sends no email |
+| Change own password | Confirm the current password and provide a reason; no PIN is required for this recovery-capable operation. Only the current session is retained |
+
+Every administrative web change signs the account revision with meaning `account_authorized` and records safe before/after values. The account detail history shows this evidence; no password, PIN or credential hash is exposed. All account-management changes revoke existing target sessions on their next request; signatures additionally check revocation inside their transaction. Self-administration signs out the actor immediately. A stale page must be reloaded and reviewed before signing. Installing this release invalidates older sessions without account security epochs. Trusted `create_staff`/`assign_roles` operator commands remain audited but unsigned; restrict application-shell access and document its use under the recovery procedure.
+
 ## Responsibilities and recovery decisions
 
 | Owner | Required decision or evidence |
@@ -160,13 +191,13 @@ This hook does not select equipment or reagent lots or prove their fitness at an
 
 | Operation | Procedure and boundary |
 |---|---|
-| Provision | Verify individual identity under the organization's SOP. Use audited `create_staff` with a named administrator and reason; passwords are entered privately. Avoid shared accounts and shared PINs |
-| Roles | Use `assign_roles`; it replaces the whole role set and is audited. Zero roles revokes laboratory authority. Superuser/admin status is not scientific review authority |
+| Provision | Verify individual identity under the organization's SOP. Use signed **Users and roles**, or audited `create_staff` in the controlled operator shell, with a named administrator and reason; passwords are entered privately. Avoid shared accounts and shared PINs |
+| Roles | Use signed **Assign roles** or the audited `assign_roles` operator command; both replace the whole role set. Zero roles revokes laboratory authority. Superuser/admin status is not scientific review authority |
 | PIN enrollment/replacement | Owner confirms current login password at `/signature-pin/`; 8–32 digits, Django hash storage and an attributed event. Never retrieve a PIN or reset by editing credential rows |
 | Failed signing | Five failed PIN attempts cause a 15-minute signing lock. Review denied-signature events for misuse. Investigate before repeated recovery; do not clear counters through SQL |
 | Signing context | Review displayed identity, record revision, meaning and reason. Each HTTP signature requires username and PIN re-entry matching the authenticated individual; the server rechecks state/authority and commits transition/signature/audit atomically |
 | Session expiry | `SESSION_IDLE_SECONDS=900` (15 minutes) and `SESSION_ABSOLUTE_SECONDS=28800` (8 hours) are the defaults; server expiry requires login again. Existing sessions without login clocks are invalidated; confirm the deployed values |
-| Suspicious access/revocation | Revoke laboratory roles promptly through the audited service and follow the approved account/session incident process. Role revocation alone is not proof that all sessions or read access have ended |
+| Suspicious access/revocation | Revoke laboratory roles promptly through the audited service and follow the approved account/session incident process. Account-management changes revoke previous sessions on their next request; deactivate when login and all authenticated read access must be refused |
 | Recovery | Identity owner documents verification and authorizes recovery without asking the signer to disclose a secret. Test the actual recovery/session invalidation behavior before production use |
 
 Username-plus-PIN entry and session limits are software controls, not a declaration of Part 11 compliance or MFA. Identity uniqueness, verified identity, controlled sessions, credential safeguards, intended-use validation and applicable certification/procedures remain the organization's responsibility; see [REG-E09–11 in the regulatory matrix](research/regulations.md). HTTP signing uses the `signature_username` field plus PIN and records authentication context, including login time, without storing a raw session ID. Trusted programmatic service calls are marked as PIN-only service signatures; do not present them as the validated interactive flow. Check the deployed form, middleware and regression tests when changing these controls. Protect HTTPS, trusted origins, secure cookies, time synchronization and operational logs. Never log submitted passwords/PINs or copy session/credential data into incident reports.

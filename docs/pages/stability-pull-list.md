@@ -15,6 +15,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
 - Read-only page: there is no create control. Pulls are created when a study starts.
+- Admin is read-only here: an account holding only the Admin role can read this page but sees no action buttons, and the server refuses every action (403). Admin plus a laboratory role keeps that role's actions; independence rules (no self-review) apply to everyone.
 
 ## Layout
 

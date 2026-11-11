@@ -15,6 +15,7 @@ Correct one replicate value by adding a linked correction. The original value st
 
 - Sign-in required. **Analysts** only; others receive 403.
 - Not restricted to the original recorder. Not enforced by this page: any rule about who may correct whose entry.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

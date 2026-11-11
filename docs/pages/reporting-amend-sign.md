@@ -13,7 +13,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 
 ## Who can use it
 
-- Sign-in required. Only the **quality** role; others receive 403.
+- Sign-in required. Only the **quality** role; others receive 403. **admin** is read-only here: an administrator without the quality role is refused (403) and sees no signing actions; an administrator who also holds the quality role has the quality actions, with the same authorship rule.
 - You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result; you are turned back before the form is shown, and a direct submission is refused (status 403, nothing signed). Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
 
 ## Layout

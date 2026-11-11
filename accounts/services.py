@@ -12,6 +12,9 @@ ROLES = frozenset({"analyst", "reviewer", "quality", "admin", "auditor"})
 @transaction.atomic
 def assign_roles(*, actor, user, roles, reason):
     """Explicit audited replacement; bootstrap administrators may provision the first roles."""
+    from .administration import account_lock, check_role_change, safe_snapshot
+
+    account_lock()
     roles = set(roles)
     if not reason.strip() or not roles.issubset(ROLES):
         raise ValidationError("Supply a reason and recognized laboratory roles.")
@@ -23,15 +26,19 @@ def assign_roles(*, actor, user, roles, reason):
         actor.is_superuser or actor.groups.filter(name="admin").exists()
     ):
         raise PermissionDenied("Only active account administrators can assign roles.")
-    before = sorted(user.groups.values_list("name", flat=True))
+    check_role_change(actor, user, roles, bootstrap=True)
+    before = safe_snapshot(user)
     groups = [Group.objects.get_or_create(name=role)[0] for role in sorted(roles)]
     user.groups.set(groups)
+    user.management_revision += 1
+    user.session_epoch += 1
+    user.save(update_fields=["management_revision", "session_epoch"])
     record_event(
         actor=actor,
         action="account.roles_changed",
         obj=user,
-        before={"roles": before},
-        after={"roles": sorted(roles)},
+        before=before,
+        after=safe_snapshot(user),
         reason=reason,
     )
     return user
@@ -39,6 +46,9 @@ def assign_roles(*, actor, user, roles, reason):
 
 @transaction.atomic
 def provision_account(*, actor, username, password, first_name, last_name, roles, reason):
+    from .administration import account_lock
+
+    account_lock()
     user = get_user_model()(username=username, first_name=first_name, last_name=last_name)
     validate_password(password, user)
     user.full_clean(exclude=["password"])

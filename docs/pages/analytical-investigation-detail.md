@@ -17,6 +17,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 - **Record entry**: analyst, reviewer or quality while open.
 - **Escalate investigation**: reviewer or quality while in Phase I.
 - **Authorize retest**, **Conclude**: quality while open.
+- **Admin** alone is a read role: no entry, escalation, authorization or conclusion buttons. Admin together with a lab role gets that role's buttons and its independence rules.
 
 ## Layout
 

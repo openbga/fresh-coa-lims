@@ -15,6 +15,7 @@ Approve closing a study as completed or terminated, with meaning **approved**.
 
 - Sign-in required. Role: Quality; other roles receive 403.
 - A Quality user who started the study sees "You started this study, so you cannot close it.", and for an already closed study "This study is already closed."; no PIN control is shown (403).
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

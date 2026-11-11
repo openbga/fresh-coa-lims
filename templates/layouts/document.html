@@ -60,6 +60,8 @@
           <li><a class="vr-navlink" href="/stability/" {% if request.resolver_match.namespace == 'stability' %}aria-current="page"{% endif %}><span>Stability and reserves</span></a></li>
           <li><a class="vr-navlink" href="/laboratory/" {% if request.resolver_match.namespace == 'laboratory' %}aria-current="page"{% endif %}><span>Laboratory operations</span></a></li>
           <li><a class="vr-navlink" href="/reports/" {% if request.resolver_match.namespace == 'reporting' %}aria-current="page"{% endif %}><span>Certificates of analysis</span></a></li>
+          <li><a class="vr-navlink" href="{% url 'accounts:access' %}" {% if request.resolver_match.view_name == 'accounts:access' %}aria-current="page"{% endif %}><span>Account access</span></a></li>
+          {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}><span>Users and roles</span></a></li>{% endif %}
           </ul>
       </div>
     </nav>

@@ -14,6 +14,7 @@ Add an approved storage condition to a draft protocol.
 ## Who can use it
 
 - Sign-in required. Roles: Analyst or Quality to open the page (others receive 403). Saving also requires that you are the protocol author. An unknown protocol returns 404.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

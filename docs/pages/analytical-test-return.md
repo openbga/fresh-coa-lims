@@ -15,6 +15,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 
 - Sign-in required. **Reviewers** only; others receive 403.
 - Never a user who generated the test's data (observation recorders including superseded ones, the submitter, recorders of the batch's QC).
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

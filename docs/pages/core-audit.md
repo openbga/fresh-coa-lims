@@ -13,26 +13,27 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Who can use it
 
-- Sign-in required. **Quality** or **auditor** role; others receive 403.
-- You cannot review your own events: their checkbox is disabled and marked "Your event".
+- Sign-in required. **Admin**, **quality** or **auditor** role to view, filter and export; others receive 403.
+- Recording an audit review requires **quality** or **auditor**. Admin-only users have no selection boxes or review form; direct review submissions receive 403.
+- Quality/auditor reviewers cannot review their own events: their checkbox is disabled and marked "Your event".
 
 ## Layout
 
 - **Filters** card: six filters, **Filter**, **Clear filters**, **Export filtered CSV**.
 - Count line: "N matching events" and the review scope note.
-- **Events table**: Select, Time / actor, Action / record, Original / new values (expand "Inspect values"), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
-- **Review conclusion** box, **Record independent review** and paging.
+- **Events table**: Select (reviewers only), Time / actor, Action / record, Original / new values (expand "Inspect values"), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
+- **Review conclusion** box and **Record independent review** for quality/auditor users; paging for all viewers.
 - Empty: "No events match these filters…" when filtered, else "No audit events recorded yet."
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Filter** | Always | Quality, auditor | Reloads with the filters applied |
-| **Clear filters** | Always | Quality, auditor | Removes all filters |
-| **Export filtered CSV** | Always | Quality, auditor | Downloads `audit.csv` of all matching events (all pages); not a review |
-| **Record independent review** | Always | Quality, auditor | Records one review over the checked events; "Independent review recorded for N events." |
-| **Previous** / **Next** | More pages | Quality, auditor | Moves a page; keeps filters |
+| **Filter** | Always | Admin, quality, auditor | Reloads with the filters applied |
+| **Clear filters** | Always | Admin, quality, auditor | Removes all filters |
+| **Export filtered CSV** | Always | Admin, quality, auditor | Downloads `audit.csv` of all matching events (all pages); not a review |
+| **Record independent review** | Quality/auditor role | Quality, auditor | Records one review over the checked events; "Independent review recorded for N events." |
+| **Previous** / **Next** | More pages | Admin, quality, auditor | Moves a page; keeps filters |
 
 ## Fields
 

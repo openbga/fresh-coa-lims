@@ -4,11 +4,14 @@ from django.urls import include, path
 
 from config import views
 
+handler403 = "accounts.views.permission_denied"
+
 urlpatterns = [
     path("health/", views.health, name="health"),
     path("ready/", views.ready, name="ready"),
     path("accounts/login/", LoginView.as_view(), name="login"),
     path("accounts/logout/", LogoutView.as_view(), name="logout"),
+    path("accounts/", include("accounts.urls")),
     path("admin/", admin.site.urls),
     path("page-docs/", include("pagedocs.urls")),
     path("", include("core.urls")),

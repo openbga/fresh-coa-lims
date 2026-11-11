@@ -15,6 +15,7 @@ Approved training and qualification evidence by activity or method, for analysts
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
 - Reading is allowed for these roles; **New qualification** is hidden from Admin and Auditor, whom the server also refuses with 403.
+- Admin is read-only here: an account holding only the Admin role can read this page but sees no action buttons, and the server refuses every action (403). Admin plus a laboratory role keeps that role's actions; independence rules (no self-review) apply to everyone.
 
 ## Layout
 

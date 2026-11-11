@@ -14,7 +14,7 @@ Shows what an amended certificate would contain, built from the lot's current ev
 ## Who can use it
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**.
-- **Continue to signing**: quality users who are not blocked and did not author records on the lot.
+- **Continue to signing**: quality users (not administrators without the quality role) who are not blocked and did not author records on the lot.
 - A record with no issued version redirects to the certificate record with "Only an issued certificate can be amended."
 
 ## Layout

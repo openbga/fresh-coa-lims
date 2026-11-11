@@ -16,6 +16,7 @@ Review provenance, certificate and expiry and release a lot for use, with meanin
 - Sign-in required. Role: Reviewer.
 - Other roles receive the standard 403 page.
 - A Reviewer who recorded the lot ("You recorded this lot, so you cannot release it.") or opens a lot that is not awaiting release ("This lot is not awaiting release.") sees that reason, the facts and a **Back to record** link, with no PIN control (403).
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

@@ -15,6 +15,7 @@ List out-of-specification investigations. An open investigation holds its lot un
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - No actions that change data.
+- **Admin** and **auditor** see the same list; it has no scientific actions for any role.
 
 ## Layout
 

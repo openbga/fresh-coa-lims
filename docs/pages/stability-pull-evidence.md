@@ -14,6 +14,7 @@ Link the sample registered for testing, or an external stability system's record
 ## Who can use it
 
 - Sign-in required. Role: Analyst only; others receive 403.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

@@ -15,6 +15,7 @@ List every analytical test, from assignment through independent review, so work 
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - The page has no actions that change data.
+- **Admin** and **auditor** see the same list; it has no scientific actions for any role.
 
 ## Layout
 

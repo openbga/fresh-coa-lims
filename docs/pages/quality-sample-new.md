@@ -13,7 +13,7 @@ Record a sample taken from a quarantined lot so results can be recorded against 
 
 ## Who can use it
 
-- Sign-in required. **Analysts** only; others receive 403. The **Add sample** link on the lot record shows only while the lot is Quarantine.
+- Sign-in required. **Analysts** only; others receive 403. The **Add sample** link on the lot record is shown only to analysts while the lot is Quarantine.
 
 ## Layout
 

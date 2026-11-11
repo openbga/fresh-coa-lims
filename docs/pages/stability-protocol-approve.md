@@ -15,6 +15,7 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 
 - Sign-in required. Role: Quality.
 - Other roles receive 403. A Quality user who is not permitted sees the reason and no PIN control (403): "You authored this protocol, so you cannot approve it." (checked first) or "Only a draft protocol can be approved."
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

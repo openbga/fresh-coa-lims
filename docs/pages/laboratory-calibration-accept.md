@@ -16,6 +16,7 @@ Independently review calibration evidence and accept its outcome with meaning **
 - Sign-in required. Role: Reviewer.
 - Without the Reviewer role you receive the standard 403 page.
 - A Reviewer who recorded the calibration ("You recorded this calibration, so you cannot accept it.") or opens one already accepted ("This calibration has already been accepted.") sees that reason, the facts and a **Back to record** link, with no PIN control (403). The recorder check comes first.
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

@@ -15,6 +15,7 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; users without one of these roles receive 403.
 - Action buttons are shown only to roles that can use them; the server checks again.
+- Admin is read-only here: an account holding only the Admin role can read this page but sees no action buttons, and the server refuses every action (403). Admin plus a laboratory role keeps that role's actions; independence rules (no self-review) apply to everyone.
 
 ## Layout
 

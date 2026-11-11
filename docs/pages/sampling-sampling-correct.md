@@ -14,6 +14,7 @@ Corrects a sampling record by adding a linked, newer record. The original stays 
 ## Who can use it
 
 - Sign-in required. **analyst** role only; others receive 403 Forbidden. Any analyst may correct, not only the original sampler.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the analyst role acts with that role only, with no exception to the independence rules.
 - Only the latest record of a quarantined lot: otherwise you are redirected to the lot with "Sampling for a dispositioned lot cannot be corrected here." (lot no longer in Quarantine) or "This record was already corrected. Correct the latest record." The server repeats both checks on submission.
 
 ## Layout

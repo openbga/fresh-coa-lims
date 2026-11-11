@@ -14,6 +14,7 @@ Lists received lots with their requirement status and sample count, so analysts 
 ## Who can use it
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
+- **admin** without a laboratory role can view this list; the page has no actions.
 - The page has no create actions; each lot opens its own sampling page.
 
 ## Layout

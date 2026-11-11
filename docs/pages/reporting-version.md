@@ -13,7 +13,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 ## Who can use it
 
-- Sign-in required. Viewing and downloading require **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
+- Sign-in required. Viewing and downloading require **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403. Administrators can open and download every version; signing and issuing stay with the quality role.
 - An unknown version number returns 404.
 
 ## Layout

@@ -14,6 +14,7 @@ Lists sampling plans: how many containers and how much material to sample for ea
 ## Who can use it
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
+- **admin** without a laboratory role can view everything here but sees no create, edit, approval or signing controls. An administrator who also holds the lab role an action needs gets that action, under the same independence rules.
 - **New sampling plan**: **quality** role only; hidden for others.
 
 ## Layout

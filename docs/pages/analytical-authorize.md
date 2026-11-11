@@ -16,6 +16,7 @@ Quality signs authorization of one justified retest or resample within the speci
 - Sign-in required. **Quality** only; others receive 403.
 - Never a user who generated the original test's data (observation recorders including superseded ones, submitter, batch QC recorders).
 - Requires an enrolled signature PIN.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

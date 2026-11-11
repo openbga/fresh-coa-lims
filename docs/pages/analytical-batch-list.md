@@ -15,6 +15,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **New QC batch**: shown to users holding the analyst role only.
+- **Admin** alone is a read role: the list shows no **New QC batch** button. Admin together with **analyst** sees it.
 
 ## Layout
 

@@ -199,7 +199,8 @@ def report_detail(request, pk):
         version.signature = services.signature_for(version)
     latest = versions[0] if versions else None
     history = []
-    if has_role(request.user, "quality", "auditor"):
+    can_audit = has_role(request.user, *services.HISTORY_ROLES)
+    if can_audit:
         history = AuditEvent.objects.filter(
             object_type="reporting.report", object_id=str(report.pk)
         ).select_related("actor")
@@ -214,7 +215,7 @@ def report_detail(request, pk):
             "snapshot": latest.snapshot if latest else None,
             "history": history,
             "can_issue": has_role(request.user, services.ISSUE_ROLE),
-            "can_audit": has_role(request.user, "quality", "auditor"),
+            "can_audit": can_audit,
         },
     )
 

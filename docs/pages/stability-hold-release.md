@@ -16,6 +16,7 @@ Approve releasing a hold with meaning **approved**. Other holds and retention ob
 - Sign-in required. Role: Quality.
 - A user who is not permitted sees the reason and no PIN control (403): "You placed this hold, so you cannot release it." (checked first) or "This hold is already released."
 - Other roles are refused by role (403).
+- An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
 

@@ -15,6 +15,7 @@ Move a Phase I laboratory investigation to a Phase II full investigation.
 
 - Sign-in required. **Reviewers** or **quality**; others receive 403.
 - No signature and no independence check.
+- **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 

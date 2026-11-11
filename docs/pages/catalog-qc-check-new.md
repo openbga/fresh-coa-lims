@@ -14,6 +14,7 @@ Adds a batch QC check (for example a blank or control) with acceptance limits to
 ## Who can use it
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden.
+- The **admin** role alone does not grant this page: opening or submitting it returns 403 Forbidden. An administrator who also holds the quality role acts with that role only, with no exception to the independence rules.
 - Only draft versions that run in a QC batch. Otherwise you are redirected to the method with "QC checks can only be added to a draft batch method version."
 
 ## Layout
