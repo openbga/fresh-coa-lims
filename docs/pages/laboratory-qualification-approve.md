@@ -4,7 +4,7 @@ urls: laboratory:qualification_approve
 views: laboratory.views.qualification_approve
 templates: ops/sign.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

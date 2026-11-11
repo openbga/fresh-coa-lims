@@ -19,8 +19,8 @@ Approved training and qualification evidence by activity or method, for analysts
 
 ## Layout
 
-- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
-- **Header**: title, short introduction and a **New qualification** button for Analyst, Reviewer, Quality.
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
+- **Header**: title and a **New qualification** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (activity, the person's username, or the equipment asset ID; case-insensitive "contains") and **Status** (All, Awaiting approval, Approved, starts later, Approved and effective, Expiring within 30 days, Expired, Revoked). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Activity (links to the record), Subject, Type (Analyst or Equipment), Valid from, Valid until (inclusive), State. Sort by Recorded (newest first by default; there is no Recorded column), Valid until or Activity. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.

@@ -4,7 +4,7 @@ urls: laboratory:equipment_return
 views: laboratory.views.equipment_return
 templates: ops/sign.html
 models: laboratory.Equipment, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

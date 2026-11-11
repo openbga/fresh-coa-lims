@@ -4,7 +4,7 @@ urls: stability:protocol_approve
 views: stability.views.protocol_approve
 templates: ops/sign.html
 models: stability.Protocol, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

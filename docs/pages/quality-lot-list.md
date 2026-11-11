@@ -4,7 +4,7 @@ urls: quality:lot_list
 views: quality.views.lot_list
 templates: quality/lot_list.html
 models: quality.Lot, core.RuleSet
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -20,11 +20,11 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 ## Layout
 
 - **Shared top bar**: Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. The brand text may shorten visually on a narrow screen.
-- **Header**: title "Material lots", a short description and the **New material lot** button.
-- **Search**: one box, "Find lot number", with **Search**.
-- **Lots table**: columns Lot, Material, Rule set, Status. Lot numbers link to the lot record.
-- **Empty state**: "No material lots found." Analysts also see "Receive a lot to start the quality journey." The empty state also appears when a search matches nothing.
-- **Paging**: "Page N of M" with **Previous** and **Next** links.
+- **Header**: title "Material lots" and the **New material lot** button for analysts, with a short description below.
+- **Search**: the labelled **Find lot** box (placeholder "Lot number"), **Search**, and **Clear filters** when a search is set.
+- **Lots table**: columns Lot, Status, Material, Rule set. Lot numbers link to the lot record; status has a text label and indicator.
+- **Empty states**: "No material lots yet" with "Receive a lot to start the quality journey." Analysts also see **New material lot**. A search with no matches shows "No material lots match these filters", search guidance and **Clear filters**.
+- **Footer**: "Showing X–Y of N material lots", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear; unavailable directions are disabled.
 
 ## Actions
 
@@ -32,14 +32,15 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 |---|---|---|---|
 | **New material lot** | Analyst role | Analyst | Opens the New material lot form |
 | **Search** | Always | Any viewer | Reloads the list filtered by the search text, from page 1 |
+| **Clear filters** | A search is set | Any viewer | Removes the search and returns to the first page |
 | Lot number link | One per row | Any viewer | Opens the lot record |
-| **Previous** / **Next** | More than one page | Any viewer | Moves one page; keeps the search text |
+| **Previous** / **Next** | More than one page; enabled when that direction exists | Any viewer | Moves one page; keeps the search text |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Find lot number (`q`) | — | Text | No | Case-insensitive partial match on the lot number only |
+| Find lot (`q`) | — | Text | No | Case-insensitive partial match on the lot number only |
 | Lot | `Lot.number` | Text, max 80, unique | — | Lot identifier; link to the lot record |
 | Material | `Lot.material` | Text, max 160 | — | Material name as received |
 | Rule set | `Lot.rules` → `RuleSet.code`, `RuleSet.version` | Shown as "code vN" | — | The approved rule revision chosen at receipt. It is not the lot's specification or sampling requirements, which are assigned afterwards |

@@ -2,7 +2,6 @@
 {% block page_intro %}<p class="vr-page-intro">Approved sampling plans state how many containers and how much material to sample for each material and stage.</p>{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'sampling:plan_new' %}">New sampling plan</a>{% endif %}{% endblock %}
 {% block content %}
-{% include "catalog/includes/tabs.html" with label="Sampling sections" %}
 <section class="card vr-table-card" aria-labelledby="list-heading">
   <h2 class="visually-hidden" id="list-heading">Sampling plans</h2>
   {% include "catalog/includes/toolbar.html" with label="Filter sampling plans" placeholder="Code, title or material" %}

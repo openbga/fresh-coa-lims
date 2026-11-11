@@ -1,6 +1,6 @@
 # Architecture
 
-Baseline: 2026-11-10. Product intent is in [product.md](product.md); source and tests define the implementation. OpenBGA Qual adapts the conventional Django/PostgreSQL architecture and UI assets of OpenBGA Roots without its environmental domain model. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
+Baseline: 2026-11-10. Product intent is in [product.md](product.md); source and tests define the implementation. OpenBGA Qualab uses a conventional Django/PostgreSQL architecture for manufacturing quality control. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
 
 ## Shape and boundaries
 
@@ -58,12 +58,12 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 
 | Item | Contract |
 |---|---|
-| Local database | Compose PostgreSQL 17 on loopback port 55433, separate from OpenBGA Roots' 55432 |
-| Render web | `openbga-qual`, Docker, 1c-2g, Virginia, automatic deployment off |
-| Render database | `openbga-qual-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
+| Local database | Compose PostgreSQL 17 on loopback port 55433 |
+| Render web | `openbga-qualab`, Docker, 1c-2g, Virginia, automatic deployment off |
+| Render database | `openbga-qualab-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |
 | Health | `/health/` process health; `/ready/` checks database availability |
-| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/qual>) for AGPL-3.0 section 13 |
+| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/qualab>) for AGPL-3.0 section 13 |
 | Static | Vendored local assets; `collectstatic` during build and before template tests |
 | Security | Production secret/hosts/origins from environment, HTTPS, secure cookies and CSRF |
 | Time | UTC default; retain unambiguous timestamp/zone context; never reinterpret signed records |

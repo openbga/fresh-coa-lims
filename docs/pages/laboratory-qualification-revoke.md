@@ -4,7 +4,7 @@ urls: laboratory:qualification_revoke
 views: laboratory.views.qualification_revoke
 templates: ops/sign.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

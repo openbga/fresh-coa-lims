@@ -4,11 +4,11 @@
   "use strict";
   try {
     var root = document.documentElement;
-    var width = parseInt(localStorage.getItem("openbga-qual-pagedocs-width"), 10);
+    var width = parseInt(localStorage.getItem("openbga-qualab-pagedocs-width"), 10);
     if (width >= 280 && width <= 960) {
       root.style.setProperty("--pagedocs-width", width + "px");
     }
-    if (localStorage.getItem("openbga-qual-pagedocs-open") === "1") {
+    if (localStorage.getItem("openbga-qualab-pagedocs-open") === "1") {
       root.classList.add("pagedocs-open");
     }
   } catch (error) {

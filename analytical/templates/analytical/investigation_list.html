@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 {% block page_intro %}<p class="vr-page-intro">Out-of-specification investigations. An open investigation holds its lot until quality signs a conclusion.</p>{% endblock %}
 {% block content %}
-{% include "analytical/_tabs.html" %}
 <section class="card vr-table-card" aria-labelledby="inv-heading">
   <h2 class="visually-hidden" id="inv-heading">Investigations</h2>
-  <form method="get" class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" role="search">
-    <div><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot or test code"></div>
-    <div><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="open"{% if state == "open" %} selected{% endif %}>Open</option><option value="closed"{% if state == "closed" %} selected{% endif %}>Closed</option><option value="all"{% if state == "all" %} selected{% endif %}>All investigations</option></select></div>
-    <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Show open</a>{% endif %}</div>
+  <form method="get" class="vr-grid-toolbar" role="search">
+    <div class="vr-field"><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot or test code"></div>
+    <div class="vr-field"><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="open"{% if state == "open" %} selected{% endif %}>Open</option><option value="closed"{% if state == "closed" %} selected{% endif %}>Closed</option><option value="all"{% if state == "all" %} selected{% endif %}>All investigations</option></select></div>
+    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Show open</a>{% endif %}</div>
   </form>
   {% if page_obj.paginator.count %}
   <div class="vr-table-wrap">

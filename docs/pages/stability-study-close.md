@@ -4,7 +4,7 @@ urls: stability:study_close
 views: stability.views.study_close
 templates: ops/sign.html
 models: stability.Study, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

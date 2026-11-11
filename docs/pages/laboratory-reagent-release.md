@@ -4,7 +4,7 @@ urls: laboratory:reagent_release
 views: laboratory.views.reagent_release
 templates: ops/sign.html
 models: laboratory.ReagentLot, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

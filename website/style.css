@@ -1,0 +1,40 @@
+/* Presentation page: shared Bootstrap components and the application's --vr-* palette. */
+body { background: var(--vr-paper); }
+html { scroll-padding-top: 2rem; }
+a { text-underline-offset: 0.2em; }
+:focus-visible { outline: 3px solid var(--vr-pen); outline-offset: 4px; }
+::selection { color: var(--vr-on-highlight); background: var(--vr-highlight); }
+p { max-width: 70ch; }
+h1, h2, h3 { color: var(--vr-ink); text-wrap: balance; }
+.qual-header { background: var(--vr-band); border-bottom: 1px solid var(--vr-border); }
+.qual-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem 2rem; flex-wrap: wrap; padding-block: 1.25rem; }
+.qual-brand { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--vr-ink); font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+.qual-nav-links { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.qual-nav-links a { color: var(--vr-ink); font-weight: 600; }
+.qual-intro { padding-block: clamp(3rem, 7vw, 6.5rem); border-bottom: 1px solid var(--vr-border); }
+.qual-intro h1 { margin-bottom: 1.5rem; font-size: clamp(2.6rem, 5vw, 4.5rem); line-height: 1.08; letter-spacing: -0.03em; font-weight: 700; }
+.qual-lead { font-size: 1.25rem; line-height: 1.65; }
+.qual-actions { margin-top: 2rem; }
+.qual-actions .btn { padding: 0.75rem 1.25rem; }
+.qual-support { margin: 1.5rem 0 0; font-size: 0.9375rem; }
+.qual-record { padding: clamp(1.5rem, 3vw, 2.5rem); background: var(--vr-surface-2); border: 1px solid var(--vr-border); }
+.qual-record h2 { margin: 0 0 1.75rem; font-size: 1.5rem; line-height: 1.3; }
+.qual-evidence { margin: 0; }
+.qual-evidence > div + div { border-top: 1px solid var(--vr-border); margin-top: 1.25rem; padding-top: 1.25rem; }
+.qual-evidence dt { color: var(--vr-ink); margin-bottom: 0.25rem; }
+.qual-evidence dd { color: var(--vr-text-muted); margin: 0; }
+.qual-section { padding-block: clamp(3rem, 6vw, 5rem); }
+.qual-section h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.15; margin-bottom: 1.25rem; letter-spacing: -0.02em; }
+.qual-workflow { margin: 0; padding-left: 2rem; }
+.qual-workflow li { padding-left: 0.75rem; }
+.qual-workflow li::marker { color: var(--vr-pen); font-weight: 600; font-variant-numeric: tabular-nums; }
+.qual-workflow li + li { border-top: 1px solid var(--vr-border); margin-top: 1.5rem; padding-top: 1.5rem; }
+.qual-workflow h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+.qual-workflow p { margin: 0; }
+.qual-scope { background: var(--vr-band); border-block: 1px solid var(--vr-border); }
+.qual-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem 3rem; padding-block: 2.5rem; font-size: 0.9375rem; }
+.qual-footer p { margin: 0.5rem 0 0; }
+@media (max-width: 575.98px) {
+  .container { padding-inline: 1.5rem; }
+  .qual-nav-links { width: 100%; }
+}

@@ -58,6 +58,35 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     applyTheme(savedTheme());
+
+    // Reveal the current section on narrow layouts without moving the document or focus.
+    // Observe its available width as the documentation panel opens or is resized, too.
+    document.querySelectorAll(".vr-section-tabs .nav-tabs").forEach(function (row) {
+      var current = row.querySelector('[aria-current="page"]');
+      if (!current) {
+        return;
+      }
+      function revealLink(link) {
+        var bounds = row.getBoundingClientRect();
+        var active = link.getBoundingClientRect();
+        if (active.left < bounds.left || active.right > bounds.right) {
+          row.scrollLeft += active.left - bounds.left - (row.clientWidth - active.width) / 2;
+        }
+      }
+      function revealCurrent() {
+        var focused = row.querySelector("a:focus");
+        revealLink(focused || current);
+      }
+      row.addEventListener("focusin", function (event) {
+        if (event.target.matches("a")) {
+          revealLink(event.target);
+        }
+      });
+      revealCurrent();
+      if (window.ResizeObserver) {
+        new ResizeObserver(revealCurrent).observe(row);
+      }
+    });
   });
 
   // Page-bounded select-all: <input data-vr-select-all="name"> checks the enabled row checkboxes

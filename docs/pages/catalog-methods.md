@@ -4,7 +4,7 @@ urls: catalog:methods
 views: catalog.views.method_list
 templates: catalog/method_list.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,8 +19,9 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 
 ## Layout
 
+- **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
-- **Tabs**: Specifications, Methods, Materials.
 - **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear filters** when filtered.
 - **Table**: Method (code link, sortable), Title, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
 - **Footer**: "Showing X–Y of N methods", with Previous / Next when there are several pages.

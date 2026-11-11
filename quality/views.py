@@ -33,6 +33,7 @@ def lot_list(request):
         request,
         "quality/lot_list.html",
         {
+            "page_title": "Material lots",
             "page_obj": Paginator(lots, 30).get_page(request.GET.get("page")),
             "query": query,
             "can_receive": request.user.groups.filter(name="analyst").exists(),

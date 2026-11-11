@@ -4,7 +4,7 @@ urls: catalog:specifications
 views: catalog.views.specification_list
 templates: catalog/specification_list.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,8 +19,9 @@ Lists every specification: the tests and limits a material must meet at a stage 
 
 ## Layout
 
+- **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Specifications and methods" and the **New specification** button for quality, with the introduction below.
 - **Intro**: "Approved, effective-dated specifications define the tests and limits each material must meet. Approved versions cannot be changed; create a new version instead."
-- **Tabs**: Specifications, Methods, Materials (the current one is highlighted).
 - **Filter bar**: **Search** (placeholder "Code, title or material"), **Stage** (default "All stages"), **Apply**, **Clear filters** when filtered.
 - **Table**: Specification (code link with title below), Material, Stage, Scope, Versions, Status. Specification and Material headers sort.
 - **Status cell**: "Has approved version" or "No approved version", plus "Draft pending" when any draft exists.

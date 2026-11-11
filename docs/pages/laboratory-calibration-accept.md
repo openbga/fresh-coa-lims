@@ -4,7 +4,7 @@ urls: laboratory:calibration_accept
 views: laboratory.views.calibration_accept
 templates: ops/sign.html
 models: laboratory.Calibration, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

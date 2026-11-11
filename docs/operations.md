@@ -60,7 +60,7 @@ docker compose exec -T db psql -U open_qual -d open_qual -X -v ON_ERROR_STOP=1 \
 umask 077
 mkdir -p .local/backups
 oq_backup_stamp=$(date -u +%Y%m%dT%H%M%SZ)
-oq_backup_file=".local/backups/openbga-qual-${oq_backup_stamp}.dump"
+oq_backup_file=".local/backups/openbga-qualab-${oq_backup_stamp}.dump"
 docker compose exec -T db pg_dump -U open_qual -d open_qual \
   --format=custom --no-owner --no-acl > "$oq_backup_file"
 ```
@@ -163,7 +163,7 @@ Zero signatures is meaningful only for a genuinely unsigned source database. Che
 
 ## Render backup and recovery
 
-The Blueprint names `openbga-qual` and `openbga-qual-db` (database name/user `open_qual`), with automatic deploys off and database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
+The Blueprint names `openbga-qualab` and `openbga-qualab-db` (database name/user `open_qual`), with automatic deploys off and database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
 
 Paid Render databases provide PITR into a new database instance, allowing validation before switching the web service. Availability depends on the workspace's current recovery window; verify the available point in the dashboard. Managed retention is not the organization's records-retention policy, so retain approved encrypted exports independently. New recovery resources and access changes follow the deployment owner's authorization. [Render recovery and backup procedure](https://render.com/docs/postgresql-backups), accessed 2026-11-10.
 
@@ -171,10 +171,10 @@ For an incident, preserve the original service/database, record the requested re
 
 ## Manual deployment and migrations
 
-The repository moved to <https://github.com/openbga/qual> on 2026-11-11. Before the next deploy the owner must re-link the Render service's GitHub connection to that repository; resources created before the rename keep their existing names until renamed in the dashboard. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
+The repository moved to <https://github.com/openbga/qualab> on 2026-11-11. Before the next deploy the owner must re-link the Render service's GitHub connection to that repository; resources created before the rename keep their existing names until renamed in the dashboard. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 
 1. Select the reviewed commit that passed the integrated gate. Record its identifier and a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
-2. Verify that the OpenBGA Qual web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
+2. Verify that the OpenBGA Qualab web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
 3. The configured pre-deploy command is `python manage.py migrate --noinput`. Allow this single serialized migration owner to run; do not launch a second migration from a shell. A failed pre-deploy requires inspection, not bypassing the migration gate.
 4. Inspect deploy/migration logs, then verify `/health/`, `/ready/`, login and authorized read/signing flows using controlled synthetic records. Record outcomes and operator/time.
 5. If code is rolled back, first verify compatibility with the already-migrated schema. Code rollback does not reverse migrations. For incompatible/destructive changes, use the separately rehearsed recovery plan and reconcile lost work.
@@ -204,4 +204,4 @@ This hook does not select equipment or reagent lots or prove their fitness at an
 | Suspicious access/revocation | Revoke laboratory roles promptly through the audited service and follow the approved account/session incident process. Account-management changes revoke previous sessions on their next request; deactivate when login and all authenticated read access must be refused |
 | Recovery | Identity owner documents verification and authorizes recovery without asking the signer to disclose a secret. Test the actual recovery/session invalidation behavior before production use |
 
-Username-plus-PIN entry and session limits are software controls, not a declaration of Part 11 compliance or MFA. Identity uniqueness, verified identity, controlled sessions, credential safeguards, intended-use validation and applicable certification/procedures remain the organization's responsibility; see [REG-E09–11 in the regulatory matrix](research/regulations.md). HTTP signing uses the `signature_username` field plus PIN and records authentication context, including login time, without storing a raw session ID. Trusted programmatic service calls are marked as PIN-only service signatures; do not present them as the validated interactive flow. Check the deployed form, middleware and regression tests when changing these controls. Protect HTTPS, trusted origins, secure cookies, time synchronization and operational logs. Never log submitted passwords/PINs or copy session/credential data into incident reports.
+Username-plus-PIN entry and session limits are software controls, not a declaration of Part 11 compliance or MFA. Identity uniqueness, verified identity, controlled sessions, credential safeguards, intended-use validation and applicable certification/procedures remain the organization's responsibility; see [REG-E09–11 in the regulatory matrix](regulations.md). HTTP signing uses the `signature_username` field plus PIN and records authentication context, including login time, without storing a raw session ID. Trusted programmatic service calls are marked as PIN-only service signatures; do not present them as the validated interactive flow. Check the deployed form, middleware and regression tests when changing these controls. Protect HTTPS, trusted origins, secure cookies, time synchronization and operational logs. Never log submitted passwords/PINs or copy session/credential data into incident reports.

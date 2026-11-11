@@ -51,7 +51,7 @@ def test_lot_to_signed_disposition(live_server, settings):
             expect(page.get_by_role("heading", name="Material lots", exact=True)).to_be_visible()
 
         login("analyst")
-        page.get_by_role("link", name="New material lot").click()
+        page.locator(".vr-page-actions").get_by_role("link", name="New material lot").click()
         page.get_by_label(re.compile(r"^Number\b")).fill("SYNTHETIC-BROWSER-001")
         page.get_by_label(re.compile(r"^Material\b")).fill("Synthetic calibration material")
         page.get_by_label(re.compile(r"^Rules\b")).select_option(label="browser-synthetic v1")

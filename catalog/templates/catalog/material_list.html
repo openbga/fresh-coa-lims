@@ -2,7 +2,6 @@
 {% block page_intro %}<p class="vr-page-intro">Controlled materials and products that specifications and sampling plans apply to.</p>{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:material_new' %}">New material</a>{% endif %}{% endblock %}
 {% block content %}
-{% include "catalog/includes/tabs.html" with label="Specifications and methods sections" %}
 <section class="card vr-table-card" aria-labelledby="list-heading">
   <h2 class="visually-hidden" id="list-heading">Materials</h2>
   {% include "catalog/includes/toolbar.html" with label="Filter materials" placeholder="Code or name" %}

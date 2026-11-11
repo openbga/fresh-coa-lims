@@ -1,13 +1,12 @@
 {% extends "base.html" %}
 {% block page_intro %}<p class="vr-page-intro">Required tests by lot and sample, from assignment through independent review. Assign tests from a lot's testing page.</p>{% endblock %}
 {% block content %}
-{% include "analytical/_tabs.html" %}
 <section class="card vr-table-card" aria-labelledby="tests-heading">
   <h2 class="visually-hidden" id="tests-heading">Tests</h2>
-  <form method="get" class="vr-grid-toolbar d-flex flex-wrap gap-2 align-items-end p-3" role="search">
-    <div><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot, sample or test code"></div>
-    <div><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select">{% for key, label in states %}<option value="{{ key }}"{% if key == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="vr-filter-actions d-flex gap-2"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
+  <form method="get" class="vr-grid-toolbar" role="search">
+    <div class="vr-field"><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot, sample or test code"></div>
+    <div class="vr-field"><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select">{% for key, label in states %}<option value="{{ key }}"{% if key == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
   </form>
   {% if page_obj.paginator.count %}
   <div class="vr-table-wrap">
