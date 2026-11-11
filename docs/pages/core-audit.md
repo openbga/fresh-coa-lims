@@ -4,7 +4,7 @@ urls: core:audit
 views: core.views.audit
 templates: core/audit.html
 models: core.AuditEvent, core.AuditReview
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

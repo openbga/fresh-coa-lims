@@ -4,7 +4,7 @@ urls: stability:hold_release
 views: stability.views.hold_release
 templates: ops/sign.html
 models: stability.Hold, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose

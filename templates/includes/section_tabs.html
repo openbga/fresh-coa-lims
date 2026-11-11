@@ -1,5 +1,5 @@
-{% comment %}Section tabs for sibling lists under one sidebar item. Parameters: tabs [{label, url, current}], label.{% endcomment %}
-<nav class="vr-section-tabs" aria-label="{{ label }}">
+{% comment %}Sibling page links, above the variable-height page header. Context: tabs [{label, url, current}].{% endcomment %}
+<nav class="vr-section-tabs" aria-label="Section navigation">
   <ul class="nav nav-tabs">
     {% for tab in tabs %}<li class="nav-item"><a class="nav-link{% if tab.current %} active{% endif %}" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a></li>{% endfor %}
   </ul>

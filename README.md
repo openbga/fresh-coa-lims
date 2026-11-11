@@ -1,4 +1,10 @@
-# Open Qual IQ
+# OpenBGA Qual
+
+An [OpenBGA](https://github.com/openbga) project. Repository: [openbga/qual](https://github.com/openbga/qual).
+
+The repository is currently private while we prepare OpenBGA Qual for open-source release.
+
+Are you looking for support? Contact [bgasoft.com](https://bgasoft.com).
 
 A manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
 
@@ -13,17 +19,27 @@ The implemented workflow covers approved methods/specifications and sampling ass
 
 | Read | Purpose |
 |---|---|
-| [Product](docs/product.md) | Scope, roles, journeys and requirement IDs traced to research |
+| [Product](docs/product.md) | Scope, roles, journeys and product requirements |
 | [Architecture](docs/architecture.md) | Shared integrity contracts and operational boundaries |
 | [Operations](docs/operations.md) | Backup/restore, manual deployment and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
-| [Research](docs/research/regulations.md) | Dated regulatory matrix, sources and applicability caveats |
-| [Reuse](docs/research/reuse.md) | Open Roots IQ provenance and reuse decisions |
+| [Regulatory requirements](docs/regulations.md) | Dated regulatory matrix, sources and applicability caveats |
 | [Working instructions](AGENTS.md) | Contributor constraints and verification |
+
+## Presentation website
+
+The static presentation in `website/` introduces OpenBGA Qual and links to the repository, documentation and support. It uses the application's shared Bootstrap assets and theme. Build and preview it locally:
+
+```sh
+python3 scripts/build_website.py
+python3 -m http.server 8081 --bind 127.0.0.1 --directory .local/website
+```
+
+Open <http://127.0.0.1:8081/>. The generated `.local/website/` directory is a standalone static site; building it does not publish it or change repository visibility.
 
 ## Local development
 
-Use Python 3.14, uv and Docker Compose. The PostgreSQL port is **55433**, separate from Open Roots IQ's 55432. The example database credentials are local-only. Settings read environment variables; copying `.env.example` alone does not load them.
+Use Python 3.14, uv and Docker Compose. The PostgreSQL port is **55433**. The example database credentials are local-only. Settings read environment variables; copying `.env.example` alone does not load them.
 
 ```sh
 uv sync --frozen
@@ -88,4 +104,4 @@ Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS 
 
 ## License and provenance
 
-GPL-3.0-only; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Derived from selected Open Roots IQ platform/design assets and patterns, source baseline `d04a916`, with fresh migrations and manufacturing-specific contracts. No reference repository credentials, runtime data or environmental rule presets are included. Retain original license and dependency notices when distributing.
+GPL-3.0-only; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md) for source attribution and dependency licenses. Retain original license and dependency notices when distributing.

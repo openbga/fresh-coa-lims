@@ -4,7 +4,7 @@ urls: sampling:plans
 views: sampling.views.plan_list
 templates: sampling/plan_list.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,8 +19,9 @@ Lists sampling plans: how many containers and how much material to sample for ea
 
 ## Layout
 
+- **Section tabs**: Lots, Sampling plans. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Sampling" and the **New sampling plan** button for quality, with the introduction below.
 - **Intro**: "Approved sampling plans state how many containers and how much material to sample for each material and stage."
-- **Tabs**: Lots, Sampling plans.
 - **Filter bar**: **Search** (placeholder "Code, title or material"), **Apply**, **Clear filters** when filtered.
 - **Table**: Plan (code link with title, sortable), Material, Stage, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
 - **Footer**: "Showing X–Y of N sampling plans".

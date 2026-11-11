@@ -19,7 +19,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 ## Layout
 
-- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and the introduction "Scheduled pulls across active and closed studies, oldest due first."
 - **Toolbar**: **Search** (study ID or lot number) and **Status** (All, Overdue, Due now, Upcoming, Awaiting acceptance, Accepted, Missed); Search is a contains match, case-insensitive. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Pull (study identifier, condition and timepoint label; links to the pull record), Due, Window ("from to to" dates), Status, Tests (required test codes). Sort by Due (default; ties by pk), Study (study ID, then due date) or Status (stored state). Sortable headers toggle ascending/descending.

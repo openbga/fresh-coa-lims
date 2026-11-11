@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OpenBGA Qual · Manufacturing quality control</title>
+  <meta name="description" content="OpenBGA Qual is a LIMS for manufacturing quality-control laboratories, preparing for open-source release. Independent review, signed decisions and preserved evidence.">
+  <meta property="og:title" content="OpenBGA Qual">
+  <meta property="og:description" content="From raw materials to CoA. Manufacturing quality control with OpenBGA Qual.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
+  <header class="qual-header">
+    <nav class="container qual-nav" aria-label="Primary">
+      <a class="qual-brand" href="#main">
+        <img src="assets/mark.svg" width="32" height="32" alt="">
+        <span>OpenBGA Qual</span>
+      </a>
+      <div class="qual-nav-links">
+        <a href="#workflow">Workflow</a>
+        <a href="https://github.com/openbga/qual/tree/main/docs">Documentation</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="qual-intro" aria-labelledby="intro-heading">
+      <div class="container">
+        <div class="row g-5 align-items-start">
+          <div class="col-lg-7">
+            <h1 id="intro-heading">From raw materials to CoA.</h1>
+            <p class="qual-lead">OpenBGA Qual is a LIMS for manufacturing quality-control laboratories. Follow a material lot from sampling to a signed certificate of analysis.</p>
+            <p>Preparing for open-source release. The repository and documentation are currently private.</p>
+            <div class="d-flex flex-wrap align-items-center gap-4 qual-actions">
+              <a class="btn btn-primary" href="https://github.com/openbga/qual">View repository</a>
+              <a href="https://github.com/openbga/qual/blob/main/README.md">Read the documentation</a>
+            </div>
+            <p class="qual-support">Are you looking for support? Contact <a href="https://bgasoft.com">bgasoft.com</a>.</p>
+          </div>
+          <div class="col-lg-5">
+            <aside class="qual-record" aria-labelledby="record-heading">
+              <h2 id="record-heading">Every decision has a record.</h2>
+              <dl class="qual-evidence">
+                <div><dt>Original observation</dt><dd>The result, its units and who recorded it.</dd></div>
+                <div><dt>Applied requirements</dt><dd>The approved specification and method revisions.</dd></div>
+                <div><dt>Independent review</dt><dd>A different reviewer, signing the exact revision.</dd></div>
+                <div><dt>Issued certificate</dt><dd>A stored PDF, with linked amendments that preserve the original.</dd></div>
+              </dl>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container qual-section" id="workflow" aria-labelledby="workflow-heading">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <h2 id="workflow-heading">From sample<br>to certificate.</h2>
+          <p>One connected workflow for laboratory staff, reviewers and quality teams.</p>
+        </div>
+        <div class="col-lg-8">
+          <ol class="qual-workflow">
+            <li><h3>Receive and sample</h3><p>Identify the lot, assign approved requirements and record sampling provenance.</p></li>
+            <li><h3>Test and investigate</h3><p>Record numeric observations, replicates and batch QC. Keep original results through corrections and out-of-specification investigations.</p></li>
+            <li><h3>Review and decide</h3><p>Independent reviewers sign their review. Quality checks completeness, results and holds before signing QC disposition.</p></li>
+            <li><h3>Issue and preserve</h3><p>Issue a versioned certificate of analysis. Later amendments add evidence while retaining the original certificate.</p></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section class="qual-scope" aria-labelledby="scope-heading">
+      <div class="container qual-section">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <h2 id="scope-heading">Built around<br>manufacturing QC.</h2>
+          </div>
+          <div class="col-lg-8">
+            <p class="qual-lead">Pharma and biotech. Supplements and food. Chemicals and medical devices.</p>
+            <p>Approved configuration sets the requirements for each segment within one system. Laboratory resources, analyst qualifications and stability records support the work alongside sampling and testing.</p>
+            <p>OpenBGA Qual is in development and uses synthetic data. Intended-use validation and operational acceptance remain deployment responsibilities. QC disposition is distinct from manufacturer batch release.</p>
+            <a href="https://github.com/openbga/qual/blob/main/docs/product.md">Explore the scope and current limits</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container qual-footer">
+    <div><strong>OpenBGA Qual</strong><p>Part of <a href="https://github.com/openbga">OpenBGA</a>. Source: <a href="https://github.com/openbga/qual">openbga/qual</a>.</p></div>
+    <p>Are you looking for support? Contact <a href="https://bgasoft.com">bgasoft.com</a>.</p>
+  </footer>
+</body>
+</html>

@@ -1,8 +1,10 @@
 # UI standards
 
-Baseline: 2026-11-10. These are the Open Qual IQ house rules, adapted from Open Roots IQ. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+Baseline: 2026-11-10. These are the OpenBGA Qual house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
 
 ## Components and theme
+
+The product name is **OpenBGA Qual** throughout the application shell, sign-in page, browser titles, documentation and newly issued certificates. Existing issued PDF bytes retain their original branding. The repository is [openbga/qual](https://github.com/openbga/qual).
 
 Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to Bootstrap variables; the retained prefix is a compatibility choice, not product branding. Use the local pinned assets and retained vendor notices. New pages must not invent a second control, dialog or table framework. No template-specific colours, inline styles or utilities that bypass light/dark theme tokens. Print uses a legible light theme.
 
@@ -15,7 +17,16 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Keep the new product name and distinct mark throughout; do not retain the reference product's environmental imagery or terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA Qual name and mark throughout, with manufacturing QC imagery and terms.
+
+Sibling list and overview pages put section navigation above the page header, in one consistent
+position independent of title length, descriptions, datelines, messages or available actions.
+Keep those links on one horizontally scrollable row when space is limited, including beside
+the documentation panel. The current link stays visible and its emphasis must not change link
+widths. Use page links with `aria-current`, not widget tabs for full-page navigation. Align page
+actions with the heading and place supporting descriptions below that row; allow long text and
+controls to wrap without clipping. List filters share field widths, labelled controls and a
+wrapping action group, with one field per row on phones.
 
 ## Lists and forms
 

@@ -19,8 +19,8 @@ All holds on lots and reserve samples. A hold blocks QC disposition (and any dis
 
 ## Layout
 
-- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
-- **Header**: title "Holds", introduction and a **New hold** button for Analyst, Reviewer, Quality.
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
+- **Header**: title "Holds" and a **New hold** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Hold (links to the record), Lot, Kind, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.

@@ -4,7 +4,7 @@ urls: sampling:lots
 views: sampling.views.lot_list
 templates: sampling/lot_list.html
 models: quality.Lot, sampling.LotAssignment, sampling.SamplingRecord
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,8 +19,9 @@ Lists received lots with their requirement status and sample count, so analysts 
 
 ## Layout
 
+- **Section tabs**: Lots, Sampling plans. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Sampling", followed by the introduction.
 - **Intro**: "Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold."
-- **Tabs**: Lots, Sampling plans.
 - **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear filters** when filtered.
 - **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples.
 - **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned".

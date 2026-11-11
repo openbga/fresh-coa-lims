@@ -3,14 +3,13 @@
 {% block page_intro %}<p class="vr-page-intro">{{ intro }}</p>{% endblock %}
 {% block page_actions %}{% if new %}<a class="btn btn-primary" href="{{ new.href }}">{% include "includes/icon.html" with name="plus-lg" %}New {{ new.label }}</a>{% endif %}{% endblock %}
 {% block content %}
-{% if tabs %}{% include "catalog/includes/tabs.html" with label=page_title|add:" sections" %}{% endif %}
 <section class="card vr-table-card" aria-labelledby="list-heading">
   <h2 class="visually-hidden" id="list-heading">{{ page_title }}</h2>
   {% if filter_form.fields %}
   <form class="vr-grid-toolbar" method="get" role="search" aria-label="Filter {{ noun }}">
     {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
     {% for field in filter_form %}{{ field.as_field_group }}{% endfor %}
-    <div class="vr-filter-actions"><button class="btn btn-outline-primary" type="submit">Apply</button>{% if filtered %}<a class="btn btn-outline-secondary" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
+    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Clear filters</a>{% endif %}</div>
   </form>
   {% endif %}
   {% if filter_form.errors %}

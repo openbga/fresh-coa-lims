@@ -2,9 +2,9 @@
 title: Testing: QC batches
 urls: analytical:batch_list
 views: analytical.views.batch_list
-templates: analytical/batch_list.html, analytical/_tabs.html, analytical/_pager.html, analytical/_qc_status.html
+templates: analytical/batch_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_qc_status.html
 models: analytical.QCBatch
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,7 +19,8 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 
 ## Layout
 
-- **Intro**, section tabs (**Tests**, **QC batches**, **Investigations**), and the **New QC batch** button.
+- **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Testing" and the **New QC batch** button for analysts, with the introduction below.
 - **Filter bar**: **Find**, **Status**, **Apply**, **Clear filters** when filtered.
 - **Table** (caption "QC batches, newest first"): Batch, QC status, Method, Created, Created by. Footer count and pager.
 - **Empty states**: "No QC batches yet" (with **New QC batch** for analysts) and "No batches match these filters".

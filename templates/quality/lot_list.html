@@ -1,9 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Material lots{% endblock %}
-{% block page_header %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Receive, test, independently review and disposition manufacturing lots.</p>{% endblock %}
+{% block page_actions %}{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">{% include "includes/icon.html" with name="plus-lg" %}New material lot</a>{% endif %}{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4"><div><h1>Material lots</h1><p class="text-body-secondary">Receive, test, independently review and disposition manufacturing lots.</p></div>{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">New material lot</a>{% endif %}</div>
-<form method="get" class="d-flex gap-2 mb-3"><label class="visually-hidden" for="search">Find lot</label><input id="search" class="form-control" name="q" value="{{ query }}" placeholder="Find lot number"><button class="btn btn-outline-secondary">Search</button></form>
-<div class="table-responsive"><table class="table"><thead><tr><th>Lot</th><th>Material</th><th>Rule set</th><th>Status</th></tr></thead><tbody>{% for lot in page_obj %}<tr><td><a href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></td><td>{{ lot.material }}</td><td>{{ lot.rules }}</td><td>{{ lot.state|capfirst }}</td></tr>{% empty %}<tr><td colspan="4">No material lots found.{% if can_receive %} Receive a lot to start the quality journey.{% endif %}</td></tr>{% endfor %}</tbody></table></div>
-<p>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">Previous</a>{% endif %} {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Next</a>{% endif %}</p>
+<section class="card vr-table-card" aria-labelledby="lots-heading">
+  <h2 class="visually-hidden" id="lots-heading">Lots</h2>
+  <form method="get" class="vr-grid-toolbar" role="search" aria-label="Filter material lots">
+    <div class="vr-field"><label class="form-label" for="search">Find lot</label><input id="search" class="form-control" type="search" name="q" value="{{ query }}" placeholder="Lot number"></div>
+    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">Search</button>{% if query %}<a class="btn btn-link" href="{% url 'quality:lot_list' %}">Clear filters</a>{% endif %}</div>
+  </form>
+  {% if page_obj.paginator.count %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table" aria-labelledby="lots-heading">
+      <thead><tr><th scope="col">Lot</th><th scope="col">Status</th><th scope="col">Material</th><th scope="col">Rule set</th></tr></thead>
+      <tbody>{% for lot in page_obj %}<tr>
+        <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
+        <td>{% if lot.state == 'released' %}{% include "includes/status.html" with label="Released" tone="success" plain=True %}{% elif lot.state == 'quarantine' %}{% include "includes/status.html" with label="Quarantine" tone="hold" plain=True %}{% else %}{% include "includes/status.html" with label=lot.state|capfirst tone="neutral" plain=True %}{% endif %}</td>
+        <td class="vr-wrap">{{ lot.material }}</td><td>{{ lot.rules }}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% include "catalog/includes/pagination.html" with noun="material lots" filtered=query %}
+  {% elif query %}
+  {% include "catalog/includes/empty.html" with kind="no-results" title="No material lots match these filters" body="Search covers lot numbers. Change the search or clear the filters." clear_url=request.path %}
+  {% else %}
+  {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
+  {% include "catalog/includes/empty.html" with title="No material lots yet" body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" %}
+  {% endif %}
+</section>
 {% endblock %}

@@ -1,6 +1,6 @@
 # Architecture
 
-Baseline: 2026-11-10. Product intent is in [product.md](product.md); source and tests define the implementation. Open Qual IQ adapts the conventional Django/PostgreSQL architecture and UI assets of Open Roots IQ without its environmental domain model. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
+Baseline: 2026-11-10. Product intent is in [product.md](product.md); source and tests define the implementation. OpenBGA Qual uses a conventional Django/PostgreSQL architecture for manufacturing quality control. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
 
 ## Shape and boundaries
 
@@ -58,7 +58,7 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 
 | Item | Contract |
 |---|---|
-| Local database | Compose PostgreSQL 17 on loopback port 55433, separate from Open Roots IQ's 55432 |
+| Local database | Compose PostgreSQL 17 on loopback port 55433 |
 | Render web | `open-qual-iq`, Docker, 1c-2g, Virginia, automatic deployment off |
 | Render database | `open-qual-iq-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |

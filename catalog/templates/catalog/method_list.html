@@ -2,7 +2,6 @@
 {% block page_intro %}<p class="vr-page-intro">Methods link each test to a controlled procedure and evidence that it is suitable for its intended use.</p>{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_new' %}">New method</a>{% endif %}{% endblock %}
 {% block content %}
-{% include "catalog/includes/tabs.html" with label="Specifications and methods sections" %}
 <section class="card vr-table-card" aria-labelledby="list-heading">
   <h2 class="visually-hidden" id="list-heading">Methods</h2>
   {% include "catalog/includes/toolbar.html" with label="Filter methods" placeholder="Code or title" %}

@@ -18,7 +18,7 @@ Work queues for equipment fitness, reagent lots and qualifications, each linking
 
 ## Layout
 
-- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - Dateline, title and introduction, then one table of queues: **Queue**, **Records** (count) and **Attention** ("Needs attention" or "Clear").
 - Queues, in this order, with what each counts and the list it opens:
 
@@ -33,6 +33,8 @@ Work queues for equipment fitness, reagent lots and qualifications, each linking
 | Released lots past expiry | Released lots past expiry | Reagents, Released but expired |
 | Qualifications awaiting approval | Qualifications in state Awaiting approval | Qualifications, Awaiting approval |
 | Qualifications expiring within 30 days | Approved qualifications already in effect and ending today to 30 days ahead (future-dated approvals are not counted until they start) | Qualifications, Expiring within 30 days |
+
+Queue names wrap on narrow screens to keep counts and attention labels easier to see. Wide tables can be scrolled sideways.
 
 ## Actions
 

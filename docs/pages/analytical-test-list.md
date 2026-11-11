@@ -2,9 +2,9 @@
 title: Testing: tests
 urls: analytical:test_list
 views: analytical.views.test_list
-templates: analytical/test_list.html, analytical/_tabs.html, analytical/_pager.html, analytical/_test_status.html
+templates: analytical/test_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_test_status.html
 models: analytical.AnalyticalTest
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,7 +19,8 @@ List every analytical test, from assignment through independent review, so work 
 
 ## Layout
 
-- **Intro** and section tabs: **Tests** (current), **QC batches**, **Investigations**.
+- **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Testing", followed by the introduction.
 - **Filter bar**: **Find**, **Status**, **Apply**, and **Clear filters** when a filter is active.
 - **Table** (caption "Analytical tests, newest first"): Test, Status, Lot, Sample, Code, Kind, Reportable, Batch, Assigned. Footer: "Showing a–b of n tests", with "matching filters" when filtered, and a pager when there is more than one page.
 - **Empty states**: "No tests assigned yet" (link **Material lots**) and, when filtered, "No tests match these filters" (**Clear filters**).

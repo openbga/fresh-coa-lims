@@ -2,9 +2,9 @@
 title: Testing: investigations
 urls: analytical:investigation_list
 views: analytical.views.investigation_list
-templates: analytical/investigation_list.html, analytical/_tabs.html, analytical/_pager.html, analytical/_investigation_status.html
+templates: analytical/investigation_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_investigation_status.html
 models: analytical.Investigation
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,7 +19,8 @@ List out-of-specification investigations. An open investigation holds its lot un
 
 ## Layout
 
-- **Intro**, section tabs (**Tests**, **QC batches**, **Investigations**).
+- **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Header**: title "Testing", followed by the introduction.
 - **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Show open** when a search is entered or Status is not Open.
 - **Table** (caption "Investigations, newest first"): Investigation, Status, Lot, Test, Trigger, Opened. Footer count and pager.
 - **Empty states**: "No open investigations" ("A submitted out-of-specification result opens an investigation automatically.") and "No investigations match".

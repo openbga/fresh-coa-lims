@@ -1,6 +1,6 @@
 # Third-party software
 
-Open Qual IQ is derived from Open Roots IQ at commit `d04a916`, retaining its GPL-3.0-only license and UI assets. Open Qual IQ is GPL-3.0-only. Third-party packages retain their own licenses and notices.
+OpenBGA Qual is derived from Open Roots IQ at commit `d04a916`, retaining its GPL-3.0-only license and UI assets. OpenBGA Qual is GPL-3.0-only. Third-party packages retain their own licenses and notices.
 The root LICENSE is the unmodified text retrieved from <https://www.gnu.org/licenses/gpl-3.0.txt>.
 `uv.lock` identifies the exact Python distributions; installed distributions retain their license
 files in the image. Do not strip those files or the notices in bundled browser assets.

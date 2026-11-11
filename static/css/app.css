@@ -1,5 +1,5 @@
 /*
- * Open Roots IQ application theme for Bootstrap 5.3: the "field notebook".
+ * OpenBGA Qual application theme for Bootstrap 5.3: the "field notebook".
  *
  * Bootstrap supplies every control, dialog, dropdown, table and form widget; DataTables supplies
  * grid behaviour. This file sets the design tokens for the light and dark colour modes
@@ -636,7 +636,9 @@ s,
 }
 
 .nav-link:focus-visible {
-  box-shadow: none; /* the global :focus-visible outline marks focus */
+  box-shadow: none; /* restore the shared outline over Bootstrap's nav reset */
+  outline: 2px solid var(--vr-focus);
+  outline-offset: 2px;
 }
 
 .list-group {
@@ -1286,7 +1288,7 @@ a.vr-navlink:hover {
 .vr-page-header-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem 1.5rem;
 }
@@ -1328,6 +1330,10 @@ a.vr-navlink:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.vr-page-actions:empty {
+  display: none;
 }
 
 @media (min-width: 992px) {
@@ -1375,7 +1381,29 @@ a.vr-navlink:hover {
 /* Section tabs (includes/section_tabs.html): no tab boxes; the current tab gets the highlighter
    stroke, like the current sidebar item. */
 .vr-section-tabs {
-  margin-bottom: 1rem;
+  min-width: 0;
+  margin-bottom: 1.25rem;
+}
+
+/* Keep every destination in one predictable row, including beside the help panel. Padding
+   leaves room for the highlight and focus ring; overflowing links remain keyboard reachable. */
+.vr-section-tabs .nav-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0.25rem 0.375rem;
+  scrollbar-width: thin;
+  scroll-padding-inline: 0.375rem;
+}
+
+.vr-section-tabs .nav-item {
+  flex: 0 0 auto;
+}
+
+.vr-section-tabs .nav-link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  white-space: nowrap;
 }
 
 .nav-tabs {
@@ -1417,6 +1445,12 @@ a.vr-navlink:hover {
   inset: 0.4rem -0.375rem;
   background: var(--vr-marker);
   clip-path: polygon(var(--vr-marker-tip) 0, 100% 0, calc(100% - var(--vr-marker-tip)) 100%, 0 100%);
+}
+
+/* Active state must not change text width and move all the following destinations. */
+.vr-section-tabs .nav-link,
+.vr-section-tabs .nav-link.active {
+  font-weight: 600;
 }
 
 /* "On this page" anchors (includes/page_toc.html). */

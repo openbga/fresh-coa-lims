@@ -1,8 +1,10 @@
-# Open Qual IQ
+# OpenBGA Qual
 
-Read `docs/product.md`, `docs/architecture.md`, `docs/ui-standards.md` and relevant source/tests. Research evidence is in `docs/research/`; regulatory applicability comes from `regulations.md` when older functional inferences differ. Keep documentation for intent and constraints, not a duplicate implementation description.
+The product name is **OpenBGA Qual** and the repository is [openbga/qual](https://github.com/openbga/qual), under the **OpenBGA** organization. Use this name in the application, presentation website and documentation. The support notice is: "Are you looking for support? Contact [bgasoft.com](https://bgasoft.com)."
 
-One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules from Open Roots IQ. The reference repository is read-only.
+Read `docs/product.md`, `docs/architecture.md`, `docs/ui-standards.md` and relevant source/tests. Regulatory applicability, sources and caveats are in `docs/regulations.md`. Keep documentation for intent and constraints, not a duplicate implementation description.
+
+One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules. Reference repositories are read-only.
 
 ## Working rules
 

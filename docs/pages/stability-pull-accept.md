@@ -4,7 +4,7 @@ urls: stability:pull_accept
 views: stability.views.pull_accept
 templates: ops/sign.html
 models: stability.Pull, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
