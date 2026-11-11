@@ -6,4 +6,5 @@
 {% include "includes/messages.html" %}
 <form method="post">{% csrf_token %}{{ form }}<input type="hidden" name="next" value="{{ next }}"><button class="btn btn-primary" type="submit">Sign in</button></form>
 <p class="text-body-secondary mt-4">Accounts are provisioned by your laboratory administrator.</p>
-</div></div></main>{% endblock %}
+</div></div></main>
+{% include "includes/app_footer.html" with centered=True %}{% endblock %}

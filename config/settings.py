@@ -64,6 +64,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.account_navigation",
+                "core.context_processors.product",
             ]
         },
     }
@@ -127,6 +128,10 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
+
+# AGPL-3.0 section 13: link users to the source of the running version. Point this at your own
+# repository when you deploy a modified version.
+SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/qual")
 
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"

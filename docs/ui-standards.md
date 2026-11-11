@@ -28,6 +28,8 @@ actions with the heading and place supporting descriptions below that row; allow
 controls to wrap without clipping. List filters share field widths, labelled controls and a
 wrapping action group, with one field per row on phones.
 
+Every page ends with the shared application footer (`includes/app_footer.html`): product name, licence and the **Source code** link required by AGPL-3.0 section 13. It sits outside `<main>`, so form dialogs never copy it.
+
 ## Lists and forms
 
 Tables expose identity first, status nearby, numbers aligned with units in headings, unambiguous dates and actions last. The server filters, sorts and paginates the entire authorized queryset. DataTables, when used, only manages column presentation. Filters preserve input and have an explicit clear action. Show empty, filtered-empty, denied, failed and successful states with useful next actions; never show a blank table as the only explanation.

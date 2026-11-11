@@ -54,7 +54,7 @@ def test_page_documentation_panel(live_server, django_user_model):
             page.mouse.up()
             resized_width = int(splitter.get_attribute("aria-valuenow"))
             assert resized_width > original_width + 64
-            assert page.evaluate("localStorage.getItem('oqiq-pagedocs-width')") == str(
+            assert page.evaluate("localStorage.getItem('openbga-qual-pagedocs-width')") == str(
                 resized_width
             )
             page.reload()
@@ -88,7 +88,7 @@ def test_page_documentation_panel(live_server, django_user_model):
             panel.get_by_role("heading", name="Rule sets", exact=True).press("Escape")
             expect(panel).not_to_be_visible()
             expect(toggle).to_be_focused()
-            assert page.evaluate("localStorage.getItem('oqiq-pagedocs-open')") == "0"
+            assert page.evaluate("localStorage.getItem('openbga-qual-pagedocs-open')") == "0"
             page.set_viewport_size({"width": 1440, "height": 1000})
             toggle.click()
             expect(splitter).to_have_attribute("aria-valuenow", str(resized_width))

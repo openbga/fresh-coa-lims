@@ -59,10 +59,11 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 | Item | Contract |
 |---|---|
 | Local database | Compose PostgreSQL 17 on loopback port 55433 |
-| Render web | `open-qual-iq`, Docker, 1c-2g, Virginia, automatic deployment off |
-| Render database | `open-qual-iq-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access |
+| Render web | `openbga-qual`, Docker, 1c-2g, Virginia, automatic deployment off |
+| Render database | `openbga-qual-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |
 | Health | `/health/` process health; `/ready/` checks database availability |
+| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/qual>) for AGPL-3.0 section 13 |
 | Static | Vendored local assets; `collectstatic` during build and before template tests |
 | Security | Production secret/hosts/origins from environment, HTTPS, secure cookies and CSRF |
 | Time | UTC default; retain unambiguous timestamp/zone context; never reinterpret signed records |

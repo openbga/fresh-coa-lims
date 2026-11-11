@@ -6,6 +6,8 @@ Read `docs/product.md`, `docs/architecture.md`, `docs/ui-standards.md` and relev
 
 One manufacturing QC system serves pharma/biotech, supplements, food, chemicals and devices through approved configuration. One organization/site per deployment is the initial assumption. Synthetic data only. Do not claim regulatory compliance or import environmental domain rules. Reference repositories are read-only.
 
+Owner decision, 2026-11-11 (replaces the earlier name, licence and repository location): the product is **OpenBGA Qual**, an open-source project of BGASoft Inc. at <https://github.com/openbga/qual>, licensed AGPL-3.0-only (`LICENSE` is the unmodified GNU text; never edit it). Use the notice in `NOTICE`. Keep the footer **Source code** link (AGPL-3.0 section 13). Keep nothing in the repository that names, compares or researches other LIMS/LIS/middleware products or vendors; regulatory sources, dependency notices and directly supported instruments/formats are allowed. Owner instruction, 2026-11-11: the README **Project and support** section (BGASoft as maintainer, community use, enterprise support via <https://bgasoft.com/services/open-source-support/>) is the one permitted business notice; keep exactly one, with no prices, service levels or validation/compliance claims.
+
 ## Working rules
 
 1. Complete reviewable increments within owned paths. Resolve routine choices; surface consequential policy/access/spending decisions while continuing independent work.
