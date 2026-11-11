@@ -88,6 +88,14 @@ Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS 
 
 The repository moved to <https://github.com/openbga/qual> on 2026-11-11. The owner must re-link any existing Render service (and its GitHub connection) to that repository; services created before the rename keep their existing names until renamed in the Render dashboard. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
 
+## Project and support
+
+OpenBGA Qual is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
+
+**Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
+
+**Enterprise support.** BGASoft offers paid support and services for organizations that run this software. To ask about them, contact BGASoft through [bgasoft.com](https://bgasoft.com/services/open-source-support/). Please do not use GitHub issues for support requests of that kind.
+
 ## Licence and provenance
 
 Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
