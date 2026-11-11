@@ -325,6 +325,7 @@ def test_remove(request, pk, line_pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def specification_approve(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(
         SpecificationRevision.objects.select_related("specification__material", "author"), pk=pk
     )
@@ -349,6 +350,7 @@ def specification_approve(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def specification_withdraw(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(SpecificationRevision, pk=pk)
     back = reverse("catalog:specification_revision", args=[revision.pk])
     return withdraw_page(
@@ -490,6 +492,7 @@ def _method_crumbs(revision, action):
 @login_required
 @require_http_methods(["GET", "POST"])
 def method_approve(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(MethodRevision.objects.select_related("method", "author"), pk=pk)
     detail, crumbs = _method_crumbs(revision, "Approve")
     return approve_page(
@@ -505,6 +508,7 @@ def method_approve(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def method_withdraw(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(MethodRevision.objects.select_related("method"), pk=pk)
     detail, crumbs = _method_crumbs(revision, "Withdraw")
     return withdraw_page(request, revision, kind="Method", crumbs=crumbs, success_url=detail)

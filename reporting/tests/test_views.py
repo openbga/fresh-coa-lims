@@ -302,3 +302,53 @@ def test_html_in_data_is_escaped(login, people):
     assert "<script>alert(1)</script>" not in page
     assert "&lt;script&gt;" in page
     assert "<b>X</b>" not in page
+
+
+def test_sign_page_preflight_refuses_authors_before_the_pin_form(login, people, lot):
+    people["analyst"].groups.add(*people["quality"].groups.all())
+    client = login("analyst")
+    url, _ = sign_url(lot)
+    response = client.get(url, follow=True)
+    page = response.content.decode()
+    assert response.redirect_chain[-1][0] == reverse("reporting:issue_preview", args=[lot.pk])
+    assert "you cannot sign this certificate as issued" in page
+    assert "Signing username" not in page and "data-signature-dialog" not in page
+
+
+def test_sign_page_preflight_explains_blockers_before_the_pin_form(login, people, lot):
+    ev.register_collector(
+        "holds", lambda lot: [{"id": "H1", "status": "open", "description": "Hold 5"}]
+    )
+    client = login("quality")
+    url, _ = sign_url(lot)
+    page = client.get(url, follow=True).content.decode()
+    assert "cannot be issued: Open hold: Hold 5." in page
+    assert "data-signature-dialog" not in page
+
+
+def test_amend_preflight_refuses_authors_and_blockers(login, people, lot):
+    report = issued(people, lot)
+    digest = services.preview(lot)[1]
+    url = reverse("reporting:amend_sign", args=[report.pk]) + f"?evidence={digest}"
+    people["analyst"].groups.add(*people["quality"].groups.all())
+    page = login("analyst").get(url, follow=True).content.decode()
+    assert "you cannot sign this certificate as amended" in page
+    assert "data-signature-dialog" not in page
+    ev.register_collector("holds", lambda lot: [{"id": "H", "status": "open"}])
+    blocked = services.preview(lot)[1]
+    url = reverse("reporting:amend_sign", args=[report.pk]) + f"?evidence={blocked}"
+    page = login("quality").get(url, follow=True).content.decode()
+    assert "cannot be amended" in page and "data-signature-dialog" not in page
+    # POST still revalidates independently of the preflight.
+    posted = login("quality").post(
+        url,
+        {
+            "evidence_hash": blocked,
+            "expected_version": 1,
+            "reason": "Try anyway",
+            "signature_username": "quality",
+            "pin": PIN,
+        },
+    )
+    assert posted.status_code == 422 and "Open hold" in posted.content.decode()
+    assert report.versions.count() == 1

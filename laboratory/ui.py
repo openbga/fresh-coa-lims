@@ -4,12 +4,15 @@ Pages are described as plain data (facts, sections, rows of cells) and rendered 
 `ops/*.html` templates, which compose the shared design-system includes.
 """
 
+import re
+
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from core.models import AuditEvent, ElectronicSignature
@@ -58,6 +61,51 @@ def cell(text="", href=None, tone=None, numeric=False, link_rel=None):
 
 def wrap(value):
     return value if isinstance(value, dict) else cell(value)
+
+
+# Only canonical record numbers are resolved (ASCII digits, no leading zero, fits a bigint); any
+# other recorded identifier, such as "007" or a non-ASCII digit, keeps its raw fallback label.
+CANONICAL_ID = re.compile(r"[1-9][0-9]{0,17}")
+
+
+def work_labels(pairs):
+    """Readable labels for recorded work contexts, keyed by (context_type, context_id).
+
+    Known contexts resolve to the sample reference (or test label with its sample reference);
+    anything unknown or no longer resolvable keeps its raw identifier as the fallback."""
+    from django.apps import apps
+
+    # Only these recognized context types are resolved, each against one fixed model; any other
+    # type keeps its raw identifier. There is no dynamic lookup of arbitrary models.
+    pairs = [(kind, str(ident)) for kind, ident in pairs]
+    wanted = {}
+    for kind, ident in set(pairs):
+        wanted.setdefault(kind, set()).add(ident)
+    labels = {(kind, ident): f"{kind} {ident}" for kind, ident in set(pairs)}
+    links = {}
+    sample_ids = {int(i) for i in wanted.get("quality.sample", ()) if CANONICAL_ID.fullmatch(i)}
+    test_ids = {
+        int(i) for i in wanted.get("analytical.analyticaltest", ()) if CANONICAL_ID.fullmatch(i)
+    }
+    if test_ids and apps.is_installed("analytical"):
+        tests = apps.get_model("analytical", "AnalyticalTest").objects.filter(pk__in=test_ids)
+        for test in tests.select_related("sample"):
+            labels[("analytical.analyticaltest", str(test.pk))] = (
+                f"{test.label} · sample {test.sample.reference}"
+            )
+    if sample_ids:
+        sample_model = apps.get_model("quality", "Sample")
+        for sample in sample_model.objects.filter(pk__in=sample_ids):
+            key = ("quality.sample", str(sample.pk))
+            labels[key] = sample.reference
+            links[key] = reverse("quality:lot_detail", args=[sample.lot_id])
+    return labels, links
+
+
+def work_cell(use, resolved):
+    labels, links = resolved
+    key = (use.context_type, str(use.context_id))
+    return cell(labels.get(key, f"{use.context_type} {use.context_id}"), links.get(key))
 
 
 def when(moment):

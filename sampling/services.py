@@ -228,6 +228,65 @@ def testing_started(lot):
     return apps.get_model("analytical", "AnalyticalTest").objects.filter(lot=lot).exists()
 
 
+# Read-only preflights shared by pages (GET) and services (under the lot lock) --------------------
+
+
+def assignment_blocker(lot):
+    """Why requirements cannot be (re)assigned to this lot now, or None."""
+    if lot.state != "quarantine":
+        return "Only quarantined lots can receive requirements."
+    if testing_started(lot):
+        return REASSIGNMENT_REFUSED
+    return None
+
+
+def sampling_preflight(lot):
+    """(assignment, blocker) from ONE read of the current assignment.
+
+    Pages render from the returned assignment so a concurrent reassignment cannot swap in a
+    different (e.g. held, plan-less) assignment between the check and the form; submission
+    re-reads and re-checks everything under the lot lock.
+    """
+    assignment = current_assignment(lot)
+    if lot.state != "quarantine":
+        return assignment, "Only quarantined lots accept new samples."
+    if assignment is None:
+        return None, "Assign approved requirements before recording sampling."
+    if assignment.status != AssignmentStatus.READY:
+        return assignment, "Applicability hold: " + "; ".join(assignment.hold_reasons)
+    if assignment.plan_revision.status != RevisionStatus.APPROVED:
+        return assignment, "The assigned sampling plan is not approved."
+    return assignment, None
+
+
+def sampling_blocker(lot):
+    """Why sampling cannot be recorded for this lot now, or None. Hold reasons are listed."""
+    return sampling_preflight(lot)[1]
+
+
+def correction_blocker(record):
+    """Why this sampling record cannot be corrected now, or None."""
+    if Lot.objects.get(pk=record.lot_id).state != "quarantine":
+        return "Sampling for a dispositioned lot cannot be corrected here."
+    if SamplingRecord.objects.filter(corrects_id=record.pk).exists():
+        return "This record was already corrected. Correct the latest record."
+    return None
+
+
+def assessment_blocker(review, actor=None):
+    """(reason, is_permission) why the deviation cannot be assessed now, or (None, False)."""
+    record = SamplingRecord.objects.get(pk=review.record_id)
+    if Lot.objects.get(pk=record.lot_id).state != "quarantine":
+        return "Only deviations of quarantined lots can be assessed.", False
+    if review.status != DeviationStatus.PENDING:
+        return "This deviation has already been assessed.", False
+    if SamplingRecord.objects.filter(corrects_id=record.pk).exists():
+        return "This record was corrected; assess the latest record instead.", False
+    if actor is not None and actor.pk in {record.sampled_by_id, record.recorded_by_id}:
+        return "You sampled or recorded this sample; another person must assess.", True
+    return None, False
+
+
 @transaction.atomic
 def assign_requirements(*, actor, lot, material, stage, reason, scope="general"):
     """Freeze the effective specification, methods and sampling plan for a lot, or record a hold.
@@ -240,10 +299,8 @@ def assign_requirements(*, actor, lot, material, stage, reason, scope="general")
     require_role(actor, "analyst", "quality")
     _require_reason(reason)
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
-    if locked.state != "quarantine":
-        raise ValidationError("Only quarantined lots can receive requirements.")
-    if testing_started(locked):
-        raise ValidationError(REASSIGNMENT_REFUSED)
+    if blocker := assignment_blocker(locked):
+        raise ValidationError(blocker)
     previous = current_assignment(locked)
     at = timezone.now()
     reasons = []
@@ -370,11 +427,13 @@ def record_sampling(
     _require_reason(reason)
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
     assignment = current_assignment(locked)
-    if assignment is None or assignment.status != AssignmentStatus.READY:
+    if locked.state == "quarantine" and (
+        assignment is None or assignment.status != AssignmentStatus.READY
+    ):
         current_requirements(locked)  # raises the hold with its reasons
+    if blocker := sampling_blocker(locked):
+        raise ValidationError(blocker)
     plan_revision = assignment.plan_revision
-    if plan_revision.status != RevisionStatus.APPROVED:
-        raise ValidationError("The assigned sampling plan is not approved.")
     if Sample.objects.filter(reference=reference).exists():
         raise ValidationError({"reference": "This sample reference already exists."})
     if purpose == SamplingPurpose.RESAMPLE:
@@ -452,11 +511,9 @@ def correct_sampling(
     require_role(actor, "analyst")
     _require_reason(reason)
     locked_lot = Lot.objects.select_for_update().get(pk=record.lot_id)
-    if locked_lot.state != "quarantine":
-        raise ValidationError("Sampling for a dispositioned lot cannot be corrected here.")
     original = SamplingRecord.objects.select_for_update().get(pk=record.pk)
-    if SamplingRecord.objects.filter(corrects=original).exists():
-        raise ValidationError("This record was already corrected. Correct the latest record.")
+    if blocker := correction_blocker(original):
+        raise ValidationError(blocker)
     required = _check_observation(
         plan_revision=original.plan_revision,
         containers_total=containers_total,
@@ -510,18 +567,11 @@ def assess_deviation(*, actor, pin, review, expected_revision, accept, reason):
     """Independent quality decision on a sampling deviation, signed with PIN re-entry."""
 
     def apply(locked):
-        record = SamplingRecord.objects.select_related("lot").get(pk=locked.record_id)
+        record = SamplingRecord.objects.get(pk=locked.record_id)
         lot = Lot.objects.select_for_update().get(pk=record.lot_id)
-        if lot.state != "quarantine":
-            raise ValidationError("Only deviations of quarantined lots can be assessed.")
-        if locked.status != DeviationStatus.PENDING:
-            raise ValidationError("This deviation has already been assessed.")
-        if SamplingRecord.objects.filter(corrects=record).exists():
-            raise ValidationError("This record was corrected; assess the latest record instead.")
-        if actor.pk in {record.sampled_by_id, record.recorded_by_id}:
-            raise PermissionDenied(
-                "You sampled or recorded this sample; another person must assess."
-            )
+        reason, is_permission = assessment_blocker(locked, actor)
+        if reason:
+            raise (PermissionDenied if is_permission else ValidationError)(reason)
         locked.status = DeviationStatus.ACCEPTED if accept else DeviationStatus.REJECTED
         locked.decided_by = actor
         locked.decided_at = timezone.now()

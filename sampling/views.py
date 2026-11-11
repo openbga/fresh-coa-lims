@@ -170,13 +170,9 @@ def lot_detail(request, pk):
             "crumbs": crumbs_for((lot.number, None)),
             "open": lot.state == "quarantine",
             "testing_started": testing,
-            "can_assign": lot.state == "quarantine"
-            and not testing
+            "can_assign": services.assignment_blocker(lot) is None
             and can(request.user, "analyst", "quality"),
-            "can_sample": lot.state == "quarantine"
-            and is_analyst
-            and current is not None
-            and current.status == AssignmentStatus.READY,
+            "can_sample": is_analyst and services.sampling_blocker(lot) is None,
             "is_analyst": is_analyst,
         },
     )
@@ -194,11 +190,8 @@ def assign(request, pk):
     require_role(request.user, "analyst", "quality")
     lot = get_object_or_404(Lot, pk=pk)
     back = reverse("sampling:lot", args=[lot.pk])
-    if lot.state != "quarantine":
-        messages.error(request, "Only quarantined lots can receive requirements.")
-        return redirect(back)
-    if services.testing_started(lot):
-        messages.error(request, services.REASSIGNMENT_REFUSED)
+    if blocker := services.assignment_blocker(lot):
+        messages.error(request, blocker)
         return redirect(back)
     current = services.current_assignment(lot)
     initial = {"scope": "general"}
@@ -245,11 +238,11 @@ def sampling_new(request, pk):
     require_role(request.user, "analyst")
     lot = get_object_or_404(Lot, pk=pk)
     back = reverse("sampling:lot", args=[lot.pk])
-    current = services.current_assignment(lot)
-    if current is None or current.status != AssignmentStatus.READY:
-        messages.error(request, "Assign approved requirements before recording sampling.")
+    assignment, blocker = services.sampling_preflight(lot)
+    if blocker:
+        messages.error(request, blocker)
         return redirect(back)
-    plan = current.plan_revision
+    plan = assignment.plan_revision  # same snapshot that passed the preflight
     form = SamplingForm(
         request.POST or None, lot=lot, initial={"quantity_unit": plan.quantity_unit}
     )
@@ -283,10 +276,8 @@ def sampling_correct(request, pk):
     require_role(request.user, "analyst")
     record = get_object_or_404(SamplingRecord.objects.select_related("lot", "sample"), pk=pk)
     back = reverse("sampling:lot", args=[record.lot_id])
-    if record.lot.state != "quarantine" or SamplingRecord.objects.filter(corrects=record).exists():
-        messages.error(
-            request, "Only the latest sampling record of a quarantined lot can be corrected."
-        )
+    if blocker := services.correction_blocker(record):
+        messages.error(request, blocker)
         return redirect(back)
     fields = [
         "sampled_at",
@@ -337,12 +328,14 @@ def deviation_assess(request, pk):
     )
     back = reverse("sampling:lot", args=[record.lot_id])
     review = DeviationReview.objects.filter(record=record).first()
-    if review is None or review.status != "pending":
+    if review is None:
         messages.error(request, "This record has no deviation awaiting assessment.")
         return redirect(back)
-    blocked = ""
-    if request.user.pk in {record.sampled_by_id, record.recorded_by_id}:
-        blocked = "You sampled or recorded this sample; another person must assess."
+    reason, is_permission = services.assessment_blocker(review, request.user)
+    if reason and not is_permission:
+        messages.error(request, reason)
+        return redirect(back)
+    blocked = reason or ""
     form = DeviationForm(request.POST or None, initial={"expected_revision": review.revision})
     if request.method == "POST" and not blocked and form.is_valid():
         data = form.cleaned_data
@@ -507,6 +500,7 @@ def _plan_crumbs(revision, action):
 @login_required
 @require_http_methods(["GET", "POST"])
 def plan_approve(request, pk):
+    require_role(request.user, AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(
         SamplingPlanRevision.objects.select_related("plan__material", "author"), pk=pk
     )
@@ -524,6 +518,7 @@ def plan_approve(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def plan_withdraw(request, pk):
+    require_role(request.user, AUTHOR_ROLE)  # before lookup: no 404/403 existence leak
     revision = get_object_or_404(SamplingPlanRevision.objects.select_related("plan"), pk=pk)
     detail, crumbs = _plan_crumbs(revision, "Withdraw")
     return withdraw_page(request, revision, kind="Sampling plan", crumbs=crumbs, success_url=detail)

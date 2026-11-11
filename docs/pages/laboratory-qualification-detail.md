@@ -18,7 +18,7 @@ Evidence that a person or instrument is qualified for an activity within stated 
 
 ## Layout
 
-- **Header**: breadcrumbs, title (the activity), the identifier QUAL-n and the state label (Awaiting approval, Approved, Expired or Revoked), action buttons.
+- **Header**: breadcrumbs, title (the activity), the identifier QUAL-n and the state label (Awaiting approval, Approved, "Approved, starts <date>" before its valid-from date, Expired or Revoked), action buttons.
 - **Details**: the facts below.
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."

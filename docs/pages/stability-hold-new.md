@@ -42,7 +42,7 @@ Place a hold on a lot (optionally tied to one reserve sample). Placing is protec
 - A reserve sample from a different lot is refused. Event `hold.placed`.
 - An active hold makes QC disposition of the lot refuse with the hold identifier, kind and reason; this applies to reserve-specific holds too.
 - Hold state starts Active; the reason is stored trimmed.
-- The page does not check the lot's state, so a hold can also be placed on an already released lot.
+- Intentional: a hold can be placed on any lot, including one already released (for example a post-release review). The released lot's row, its frozen disposition evidence and any published certificate are not changed; instead the active hold blocks any future certificate issue or amendment and any disposal until a different Quality signer releases it.
 
 ## Related pages
 

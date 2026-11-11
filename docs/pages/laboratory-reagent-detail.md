@@ -21,7 +21,7 @@ Provenance, release state, preparations and recorded uses of one lot.
 - **Header**: breadcrumbs, title (the name), identifier and state label (Rejected, Awaiting release, Expired, Expiring soon or Released), action buttons. A rejected lot also shows a red notice: "This lot cannot be used; prepared solutions from it are also blocked."
 - **Details**: the facts below.
 - **Preparations from this lot**: identifier (link), name, state for every solution that names this lot as its source. Empty: "No prepared solutions record this lot as their source."
-- **Uses**: the latest 25 (used, context, activity, by). Empty: "No use recorded."
+- **Uses**: the latest 25 (used, work, activity, by; the Work label is the sample reference for sample work, otherwise the raw context as recorded). Empty: "No use recorded."
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 

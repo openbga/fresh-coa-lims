@@ -19,8 +19,8 @@ Append-only record of the eligible equipment and reagents used for work.
 ## Layout
 
 - **Header**: title, short introduction and a **New use** button for Analyst.
-- **Toolbar**: **Search** (work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"). There is no Status filter. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Used (time), Resource (links), Work, Activity, Test, By. Sort by Used (newest first by default) or Work. Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (a sample reference or work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"; searching a sample reference finds the uses recorded for that sample, whether the work was recorded against the sample or against one of its native analytical tests; every matching record is searched, with no cap). There is no Status filter. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Used (time), Resource (links), Work, Activity, Test, By. Sort by Used (newest first by default). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record the equipment and reagents used for a sample before testing.", with **New use** for Analysts); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -38,14 +38,14 @@ Append-only record of the eligible equipment and reagents used for work.
 |---|---|---|---|---|
 | Used | `ResourceUse.used_at` | Date and time with zone | — | When the use was recorded (server time) |
 | Resource | `ResourceUse.equipment` or `.reagent_lot` | Link | — | Equipment asset ID or reagent lot identifier; each row has exactly one |
-| Work | `ResourceUse.context_type`, `.context_id` | Text | — | Context type and the sample's internal record number (for example `quality.sample 12`), not its reference |
+| Work | `ResourceUse.context_type`, `.context_id` | Text or link | — | The sample reference for sample work (links to its lot); only the recognized sample and analytical-test context types are resolved, and any other type (or an unresolvable ID) is shown unchanged as its raw context type and ID; so is a recognized type whose ID is not a plain record number, such as one with a leading zero, a non-ASCII digit or an oversized value, for example `external.batch EXT-9` |
 | Activity | `ResourceUse.activity` | Text | — | Method or activity the analyst was qualified for |
 | Test | `ResourceUse.test_code` | Text | — | Test code, if given |
 | By | `ResourceUse.used_by` | User | — | The analyst who recorded it |
 
 ## Rules and hidden logic
 
-- **Order**: Used, newest first, by default; Work sorts by the work's record number as text. Ties break on record number. Unknown sort keys fall back to the default.
+- **Order**: Used, newest first, by default; only Used is sortable. Ties break on record number. Unknown sort keys fall back to the default.
 - Rows are written only by the use gate and cannot be edited or deleted (database guard). A use records the evidence relied on, but this list does not display it.
 - Refused attempts are not listed here; they are audit events.
 

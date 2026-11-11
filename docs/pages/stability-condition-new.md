@@ -23,7 +23,7 @@ Add an approved storage condition to a draft protocol.
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Add condition** | Always (the protocol record links here only to its draft author) | Analyst or Quality, and only the protocol author | Saves and returns to the protocol record without a banner message (the new row shows under Storage conditions); refusals appear as an error summary and your entries are kept (status 422) |
+| **Add condition** | Always (the protocol record links here only to its draft author) | Analyst or Quality, and only the protocol author | Saves, shows "Condition added to the draft protocol." and returns to the protocol record; refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields

@@ -35,11 +35,22 @@ def _require_reason(reason):
         raise ValidationError("A reason is required.")
 
 
+def _raise(refusal):
+    if refusal:
+        raise ValidationError(refusal)
+
+
+def quarantine_refusal(lot):
+    """Reason analytical evidence cannot change on this lot, or None."""
+    if lot.state != "quarantine":
+        return f"Lot {lot.number} is no longer in quarantine."
+    return None
+
+
 def _lock_lots(*lot_ids):
     lots = list(Lot.objects.select_for_update().filter(pk__in=set(lot_ids)).order_by("pk"))
     for lot in lots:
-        if lot.state != "quarantine":
-            raise ValidationError(f"Lot {lot.number} is no longer in quarantine.")
+        _raise(quarantine_refusal(lot))
     return lots
 
 
@@ -272,6 +283,54 @@ def submit_test(*, actor, test, expected_revision, reason):
         return test, investigation
 
 
+# Refusal predicates: shared by the locked service transitions (authoritative) and by the views,
+# which call them before rendering an action or signing form so impossible actions show a reason
+# instead of a PIN prompt. Each returns a user-facing reason, or None when the action may proceed.
+
+
+def return_refusal(actor, test):
+    if test.state != AnalyticalTest.State.SUBMITTED:
+        return "Only submitted tests can be returned."
+    if actor.pk in _test_authors(test):
+        return "You cannot review your own test."
+    if not test.conforms:
+        return (
+            "Out-of-specification results cannot be returned for correction; "
+            "the investigation decides whether the result is invalid."
+        )
+    return None
+
+
+def review_refusal(actor, test):
+    if test.state != AnalyticalTest.State.SUBMITTED:
+        return "This test is not awaiting review."
+    if actor.pk in _test_authors(test):
+        return "You cannot review your own test."
+    if test.batch_id:
+        batch = QCBatch.objects.get(pk=test.batch_id)
+        if batch.state != QCBatch.State.OPEN or batch.qc_status()[0] != "passed":
+            return "Batch QC no longer passes; this test cannot be reviewed."
+    return None
+
+
+def batch_join_refusal(batch):
+    """Batch-side preconditions for adding a test: open and no results submitted yet."""
+    if batch.state != QCBatch.State.OPEN:
+        return "Only open tests can join an open batch."
+    if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
+        return "This batch already has submitted results; start a new batch."
+    return None
+
+
+def batching_refusal(test):
+    """Test-side preconditions for joining a QC batch (batch-side checks stay in the service)."""
+    if test.state != AnalyticalTest.State.OPEN:
+        return "Only open tests can join an open batch."
+    if test.batch_id is not None or test.observations.exists():
+        return "This test already has a batch or recorded observations."
+    return None
+
+
 def return_test(*, actor, test, expected_revision, reason):
     """Reviewer sends a conforming submission back for correction; OOS results cannot return."""
     require_role(actor, REVIEWER)
@@ -280,15 +339,7 @@ def return_test(*, actor, test, expected_revision, reason):
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         _check_revision(test, expected_revision)
         (lot,) = _lock_lots(test.lot_id)
-        if test.state != AnalyticalTest.State.SUBMITTED:
-            raise ValidationError("Only submitted tests can be returned.")
-        if actor.pk in _test_authors(test):
-            raise ValidationError("You cannot review your own test.")
-        if not test.conforms:
-            raise ValidationError(
-                "Out-of-specification results cannot be returned for correction; "
-                "the investigation decides whether the result is invalid."
-            )
+        _raise(return_refusal(actor, test))
         before = {"mean": str(test.mean_value), "reportable": str(test.reportable_value)}
         test.state = AnalyticalTest.State.OPEN
         test.mean_value = test.reportable_value = test.conforms = test.evaluated_at = None
@@ -302,15 +353,8 @@ def return_test(*, actor, test, expected_revision, reason):
 def review_test(*, actor, pin, test, expected_revision, reason):
     def apply(locked):
         (lot,) = _lock_lots(locked.lot_id)
-        if locked.state != AnalyticalTest.State.SUBMITTED:
-            raise ValidationError("This test is not awaiting review.")
-        if actor.pk in _test_authors(locked):
-            raise ValidationError("You cannot review your own test.")
+        _raise(review_refusal(actor, locked))
         validate_rules(lot.rules)
-        if locked.batch_id:
-            batch = QCBatch.objects.get(pk=locked.batch_id)
-            if batch.state != QCBatch.State.OPEN or batch.qc_status()[0] != "passed":
-                raise ValidationError("Batch QC no longer passes; this test cannot be reviewed.")
         values = [o.value for o in locked.current_observations()]
         _, reportable, conforms = locked.spec.evaluate(values)
         if reportable != locked.reportable_value or conforms != locked.conforms:
@@ -372,12 +416,7 @@ def assign_to_batch(*, actor, test, batch, reason):
         batch = QCBatch.objects.select_for_update().get(pk=batch.pk)
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         (lot,) = _lock_lots(test.lot_id)
-        if batch.state != QCBatch.State.OPEN or test.state != AnalyticalTest.State.OPEN:
-            raise ValidationError("Only open tests can join an open batch.")
-        if test.batch_id is not None or test.observations.exists():
-            raise ValidationError("This test already has a batch or recorded observations.")
-        if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
-            raise ValidationError("This batch already has submitted results; start a new batch.")
+        _raise(batch_join_refusal(batch) or batching_refusal(test))
         method = test.spec.method
         if not method.requires_batch or (method.code, method.revision) != (
             batch.method_spec.code,
@@ -609,9 +648,44 @@ def escalate(*, actor, investigation, expected_revision, reason):
         return investigation
 
 
-def _require_assessment(investigation):
+def _assessment_refusal(investigation):
     if not investigation.entries.filter(kind=InvestigationEntry.Kind.ASSESSMENT).exists():
-        raise ValidationError("Record the laboratory assessment first.")
+        return "Record the laboratory assessment first."
+    return None
+
+
+def authorize_refusal(actor, investigation, original):
+    if not investigation.is_open:
+        return "This investigation is closed."
+    if actor.pk in _test_authors(original):
+        return "You cannot authorize retesting of your own result."
+    if refusal := _assessment_refusal(investigation):
+        return refusal
+    # Runs invalidated by a rejected QC batch are replaced by linked reruns, not counted.
+    used = investigation.tests.exclude(state=AnalyticalTest.State.INVALIDATED).count()
+    if used >= original.spec.max_retests:
+        return "The approved specification allows no further retests or resamples."
+    return None
+
+
+def conclude_refusal(actor, investigation, original, children):
+    """Outcome-independent preconditions; outcome-specific rules are checked on signing."""
+    if not investigation.is_open:
+        return "This investigation is already closed."
+    # Same independence set as lot disposition: data authors and investigators.
+    authors = investigation_author_ids(Investigation.objects.filter(pk=investigation.pk))
+    authors |= _test_authors(original)
+    for child in children:
+        authors |= _test_authors(child)
+    if actor.pk in authors:
+        return "You cannot conclude an investigation of your own work."
+    if refusal := _assessment_refusal(investigation):
+        return refusal
+    if original.state not in {AnalyticalTest.State.REVIEWED, AnalyticalTest.State.INVALIDATED}:
+        return "The original result needs independent data review first."
+    if any(c.state in OPEN_STATES for c in children):
+        return "Authorized retests or resamples are still incomplete."
+    return None
 
 
 def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reason, sample=None):
@@ -620,19 +694,9 @@ def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reas
         raise ValidationError("Choose retest or resample.")
 
     def apply(locked):
-        if not locked.is_open:
-            raise ValidationError("This investigation is closed.")
         original = AnalyticalTest.objects.select_for_update().get(pk=locked.test_id)
         (lot,) = _lock_lots(locked.lot_id)
-        if actor.pk in _test_authors(original):
-            raise ValidationError("You cannot authorize retesting of your own result.")
-        _require_assessment(locked)
-        # Runs invalidated by a rejected QC batch are replaced by linked reruns, not counted.
-        used = locked.tests.exclude(state=AnalyticalTest.State.INVALIDATED).count()
-        if used >= original.spec.max_retests:
-            raise ValidationError(
-                "The approved specification allows no further retests or resamples."
-            )
+        _raise(authorize_refusal(actor, locked, original))
         if kind == AnalyticalTest.Kind.RETEST:
             target = original.sample_id
         else:
@@ -684,23 +748,10 @@ def conclude(*, actor, pin, investigation, expected_revision, outcome, assignabl
         raise ValidationError("Choose an investigation outcome.")
 
     def apply(locked):
-        if not locked.is_open:
-            raise ValidationError("This investigation is already closed.")
         original = AnalyticalTest.objects.select_for_update().get(pk=locked.test_id)
         children = list(locked.tests.select_for_update().order_by("pk"))
         (lot,) = _lock_lots(locked.lot_id)
-        # Same independence set as lot disposition: data authors and investigators.
-        authors = investigation_author_ids(Investigation.objects.filter(pk=locked.pk))
-        authors |= _test_authors(original)
-        for child in children:
-            authors |= _test_authors(child)
-        if actor.pk in authors:
-            raise ValidationError("You cannot conclude an investigation of your own work.")
-        _require_assessment(locked)
-        if original.state not in {AnalyticalTest.State.REVIEWED, AnalyticalTest.State.INVALIDATED}:
-            raise ValidationError("The original result needs independent data review first.")
-        if any(c.state in OPEN_STATES for c in children):
-            raise ValidationError("Authorized retests or resamples are still incomplete.")
+        _raise(conclude_refusal(actor, locked, original, children))
         if outcome == Investigation.Outcome.INVALIDATED:
             if not assignable_cause.strip():
                 raise ValidationError("Invalidation requires a documented assignable cause.")

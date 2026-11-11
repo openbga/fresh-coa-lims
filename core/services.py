@@ -177,36 +177,35 @@ def save_rule(*, actor, code, segment, policy, effective_from, reason, effective
         return rule
 
 
-def approve_rule(*, actor, pin, rule, expected_revision, reason):
-    def apply(locked):
-        if locked.author_id == actor.pk:
-            raise PermissionDenied("Rule authors cannot approve their own revision.")
-        if locked.status != "draft":
-            raise ValidationError("Only draft rules can be approved.")
-        validate_policy(locked.policy)
-        if locked.effective_until is None:
-            raise ValidationError("An effective end date is required for approval.")
-        overlaps = RuleSet.objects.filter(code=locked.code, status="approved")
-        if locked.effective_until:
-            overlaps = overlaps.filter(effective_from__lt=locked.effective_until)
-        overlaps = overlaps.filter(
-            models.Q(effective_until__isnull=True)
-            | models.Q(effective_until__gt=locked.effective_from)
-        )
-        if overlaps.exists():
-            raise ValidationError("Effective dates overlap an approved revision.")
-        locked.status = "approved"
-
+def check_rule_approval(*, actor, rule):
+    """Read-only preflight; signing repeats it under the record/configuration locks."""
     from django.db import models
 
+    require_role(actor, "quality")
+    if rule.author_id == actor.pk:
+        raise PermissionDenied("Rule authors cannot approve their own revision.")
+    if rule.status != "draft":
+        raise ValidationError("Only draft rules can be approved.")
+    validate_policy(rule.policy)
+    if rule.effective_until is None:
+        raise ValidationError("An effective end date is required for approval.")
+    overlaps = RuleSet.objects.filter(
+        code=rule.code, status="approved", effective_from__lt=rule.effective_until
+    ).filter(
+        models.Q(effective_until__isnull=True) | models.Q(effective_until__gt=rule.effective_from)
+    )
+    if overlaps.exists():
+        raise ValidationError("Effective dates overlap an approved revision.")
+
+
+def approve_rule(*, actor, pin, rule, expected_revision, reason):
     # Credential serialization is not sufficient for approvals by different people.
     # Callback acquires global configuration lock before overlap check.
-    original = apply
-
     def serialized(locked):
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(681240)")
-        original(locked)
+        check_rule_approval(actor=actor, rule=locked)
+        locked.status = "approved"
 
     return sign_transition(
         actor=actor,

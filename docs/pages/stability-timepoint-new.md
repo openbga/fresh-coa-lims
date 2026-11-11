@@ -23,7 +23,7 @@ Add a pull timepoint and its required tests to a draft protocol.
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Add timepoint** | Always | Analyst or Quality, and only the protocol author | Saves and returns to the protocol record (no message of its own); refusals appear as an error summary and your entries are kept (status 422) |
+| **Add timepoint** | Always | Analyst or Quality, and only the protocol author | Saves, shows "Timepoint added to the draft protocol." and returns to the protocol record; refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields

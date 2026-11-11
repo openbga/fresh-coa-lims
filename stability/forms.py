@@ -1,5 +1,7 @@
 from django import forms
+from django.utils import timezone
 
+from laboratory.eligibility import equipment_eligibility
 from laboratory.forms import (
     DATE,
     ReasonForm,
@@ -76,7 +78,9 @@ class StudyForm(forms.Form):
     protocol = forms.ModelChoiceField(queryset=Protocol.objects.none(), label="Approved protocol")
     lot = forms.ModelChoiceField(queryset=Lot.objects.none())
     container_closure = forms.CharField(max_length=200, label="Container and closure")
-    start_date = date_field(label="Time zero")
+    start_date = date_field(
+        label="Time zero", help_text="Date the study actually started; today or earlier."
+    )
     reason = reason_field(max_length=2000)
 
     def __init__(self, *args, **kwargs):
@@ -90,6 +94,15 @@ class StudyForm(forms.Form):
             raise forms.ValidationError("This study identifier already exists.")
         return identifier
 
+    def clean_start_date(self):
+        start = self.cleaned_data["start_date"]
+        if start > timezone.localdate():
+            raise forms.ValidationError(
+                "Time zero cannot be in the future: this workflow records studies that have "
+                "actually started."
+            )
+        return start
+
 
 class PullForm(forms.Form):
     pulled_on = date_field()
@@ -100,7 +113,7 @@ class PullForm(forms.Form):
         queryset=Equipment.objects.none(),
         required=False,
         label="Storage chamber",
-        help_text="If chosen, the chamber must be fit for use today.",
+        help_text="Only equipment fit for use now is listed; fitness is checked again on save.",
     )
     deviation_reason = forms.CharField(
         required=False,
@@ -111,7 +124,14 @@ class PullForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["chamber"].queryset = Equipment.objects.all()
+        # Same fitness predicate as the locked check when the pull is saved; the save still
+        # rechecks, because fitness can change between opening the form and submitting it.
+        fit = [
+            item.pk
+            for item in Equipment.objects.prefetch_related("calibrations", "qualifications")
+            if equipment_eligibility(item).ok
+        ]
+        self.fields["chamber"].queryset = Equipment.objects.filter(pk__in=fit)
 
 
 class EvidenceForm(forms.Form):

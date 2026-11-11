@@ -213,6 +213,11 @@ def approve_protocol(*, actor, pin, protocol, expected_revision, reason):
 def start_study(*, actor, identifier, protocol, lot, container_closure, start_date, reason):
     require_role(actor, *AUTHORS)
     _need_reason(reason)
+    if start_date > timezone.localdate():
+        raise ValidationError(
+            "Time zero cannot be in the future: this workflow records studies that have "
+            "actually started."
+        )
     protocol = _lock(Protocol, protocol)
     if protocol.state != Protocol.State.APPROVED:
         raise ValidationError("Studies start only on the current approved protocol revision.")

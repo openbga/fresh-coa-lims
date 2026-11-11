@@ -13,7 +13,7 @@ Withdraws a draft method version that will not be approved, with a recorded reas
 
 ## Who can use it
 
-- Sign-in required. **quality** role only; others receive 403 Forbidden.
+- Sign-in required. **quality** role only; others receive 403 Forbidden. The role is checked before the record is looked up, so a user without it gets 403 for existing and non-existent IDs alike; quality users get 404 for a missing ID.
 - No independence rule applies: the author or an editor of the draft may withdraw it.
 - Only drafts: for an approved or withdrawn version you are redirected back with "Only draft revisions can be withdrawn."
 

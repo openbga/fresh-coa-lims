@@ -15,7 +15,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 
 - Sign-in required. **quality** role only; others receive 403 Forbidden.
 - The person who sampled or recorded the record is blocked: the page opens with status 403, shows "You sampled or recorded this sample; another person must assess." and no form. No role can bypass this.
-- With no deviation awaiting assessment you are redirected to the lot with the error "This record has no deviation awaiting assessment."
+- With no assessment for the record you are redirected to the lot with the error "This record has no deviation awaiting assessment." Other non-permission blockers also redirect with an error: "Only deviations of quarantined lots can be assessed.", "This deviation has already been assessed." or "This record was corrected; assess the latest record instead."
 - The signing username you type must equal your signed-in username.
 
 ## Layout
@@ -47,7 +47,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 
 ## Rules and hidden logic
 
-- **Pending only**: only a pending assessment can be decided. The server also refuses "This deviation has already been assessed."
+- **Pending only**: only a pending assessment can be decided. Shown as a redirect when opening the page ("This deviation has already been assessed.") and refused by the server.
 - **Latest record only**: "This record was corrected; assess the latest record instead." A corrected (superseded) record cannot be assessed.
 - **Lot in Quarantine**: "Only deviations of quarantined lots can be assessed."
 - **Independence**: sampler and recorder are refused again at signing: "You sampled or recorded this sample; another person must assess."

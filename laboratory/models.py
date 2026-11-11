@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, URLValidator
 from django.db import models
+from django.utils import timezone
 
 http_url = URLValidator(schemes=["http", "https"])
 
@@ -91,8 +92,15 @@ class Calibration(models.Model):
         ]
 
     def clean(self):
-        if self.performed_at and self.due_date and self.due_date < self.performed_at.date():
-            raise ValidationError("The due date cannot precede the calibration date.")
+        if self.performed_at and self.due_date:
+            # Dates are calendar days in the deployment (laboratory) time zone, not UTC.
+            performed_on = (
+                timezone.localdate(self.performed_at)
+                if timezone.is_aware(self.performed_at)
+                else self.performed_at.date()
+            )
+            if self.due_date < performed_on:
+                raise ValidationError("The due date cannot precede the calibration date.")
 
     def __str__(self):
         return f"{self.equipment} calibration {self.performed_at:%Y-%m-%d}"

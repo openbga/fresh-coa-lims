@@ -206,7 +206,7 @@ def protocol_list(request):
             p.title,
             p.product,
             _protocol_state(p),
-            day(p.approved_at.date()) if p.approved_at else "",
+            day(timezone.localdate(p.approved_at)) if p.approved_at else "",
         ]
         for p in page
     ]
@@ -364,6 +364,7 @@ def condition_new(request, pk):
             ),
         )
         if done:
+            messages.success(request, "Condition added to the draft protocol.")
             return redirect(detail)
     return form_page(
         request,
@@ -394,6 +395,7 @@ def timepoint_new(request, pk):
             ),
         )
         if done:
+            messages.success(request, "Timepoint added to the draft protocol.")
             return redirect(detail)
     return form_page(
         request,

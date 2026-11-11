@@ -14,7 +14,7 @@ Corrects a sampling record by adding a linked, newer record. The original stays 
 ## Who can use it
 
 - Sign-in required. **analyst** role only; others receive 403 Forbidden. Any analyst may correct, not only the original sampler.
-- Only the latest record of a quarantined lot: otherwise you are redirected to the lot with "Only the latest sampling record of a quarantined lot can be corrected."
+- Only the latest record of a quarantined lot: otherwise you are redirected to the lot with "Sampling for a dispositioned lot cannot be corrected here." (lot no longer in Quarantine) or "This record was already corrected. Correct the latest record." The server repeats both checks on submission.
 
 ## Layout
 
@@ -46,7 +46,7 @@ Corrects a sampling record by adding a linked, newer record. The original stays 
 
 ## Rules and hidden logic
 
-- **Only the latest record**: the page redirect above; the server also refuses with "This record was already corrected. Correct the latest record." and "Sampling for a dispositioned lot cannot be corrected here."
+- **Only the latest record of an open lot**: the two redirect messages above, also raised by the server.
 - **Plan effective at sampling time**: "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at) when the sampled time is outside the plan version's effective period.
 - **Same checks as recording**: required containers and deviation rule against the plan version originally used, plus "More containers sampled than the lot contains." "Sampling time cannot be in the future." "The approved plan states amounts in <unit>."
 - **What is kept**: the sample, assignment, plan version, purpose, original sample (for a resample) and original sampler stay the same; you are stored as the recorder. The sample reference cannot change.

@@ -2,14 +2,21 @@ import csv
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import PINForm, RuleForm, SignForm
 from .models import AuditEvent, ElectronicSignature, RuleSet
-from .services import approve_rule, require_role, review_audit, save_rule, set_pin
+from .services import (
+    approve_rule,
+    check_rule_approval,
+    require_role,
+    review_audit,
+    save_rule,
+    set_pin,
+)
 
 
 @login_required
@@ -52,6 +59,13 @@ def rules(request):
 def rule_approve(request, pk):
     require_role(request.user, "quality")
     rule = get_object_or_404(RuleSet, pk=pk)
+    if request.method == "GET":
+        try:
+            check_rule_approval(actor=request.user, rule=rule)
+        except (PermissionDenied, ValidationError) as exc:
+            reason = "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+            messages.warning(request, reason)
+            return redirect("core:rules")
     form = SignForm(request.POST or None, initial={"revision": rule.revision})
     if request.method == "POST" and form.is_valid():
         try:

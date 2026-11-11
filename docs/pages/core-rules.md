@@ -27,7 +27,7 @@ List rule set revisions (required tests and signature meanings) and create new d
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Review and approve** | Status is draft (link shown to every viewer) | Quality, not the author; others get 403 on opening | Opens the rule approval signing page |
+| **Review and approve** | Status is draft (link shown to every viewer) | Quality, not the author; users without quality get 403 | Opens the signing page if eligible; authors and unavailable revisions return here with a reason |
 | **Create draft** | Always | Admin, quality | Creates the next version of that code as draft and reloads the page |
 
 ## Fields

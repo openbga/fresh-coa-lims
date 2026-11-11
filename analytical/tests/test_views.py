@@ -5,9 +5,9 @@ from django.urls import reverse
 
 from analytical import services
 from analytical.models import AnalyticalTest, Investigation, Observation
-from core.models import ElectronicSignature
+from core.models import AuditEvent, ElectronicSignature, PINCredential
 
-from .conftest import PIN, fresh, record, submit
+from .conftest import PIN, complete, fresh, pass_qc, record, review, submit
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -182,7 +182,9 @@ def test_oos_submission_redirects_to_investigation_and_quality_actions(client, p
             "expected_revision": fresh(investigation).revision,
         },
     )
-    assert response.status_code == 422  # original not yet reviewed; nothing signed
+    # Preflight refuses before any PIN check: original not yet reviewed; nothing signed.
+    assert response.status_code == 302
+    assert "needs independent data review" in client.get(response.url).content.decode()
     assert fresh(investigation).is_open
 
 
@@ -244,3 +246,175 @@ def test_assign_rejects_sample_from_another_lot(client, people, make_lot):
         reverse("analytical:lot_testing", args=[lot.pk]), {"sample": foreign.pk, "reason": "Assign"}
     )
     assert response.status_code == 404
+
+
+def _refused(client, url, reason):
+    """GET shows the reason on the record page; no PIN form is ever rendered."""
+    response = client.get(url)
+    assert response.status_code == 302, url
+    page = client.get(response.url).content.decode()
+    assert reason in page, (reason, url)
+    assert 'name="pin"' not in page
+
+
+def _no_credential_effects():
+    assert not AuditEvent.objects.filter(
+        action__in=["signature.denied", "signature.identity_denied"]
+    ).exists()
+    assert set(PINCredential.objects.values_list("failures", flat=True)) == {0}
+
+
+def test_review_and_return_preflight_authorship_and_state(client, people, assigned, batch):
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.0", who="multi")
+    submit(people, test, who="multi")
+    review_url = reverse("analytical:test_review", args=[test.pk])
+    return_url = reverse("analytical:test_return", args=[test.pk])
+    login(client, people["multi"])
+    _refused(client, review_url, "You cannot review your own test.")
+    _refused(client, return_url, "You cannot review your own test.")
+    # A forged POST with the right PIN is refused before the credential is checked.
+    response = client.post(
+        review_url,
+        {
+            "expected_revision": fresh(test).revision,
+            "pin": PIN,
+            "signature_username": "multi",
+            "reason": "Self",
+        },
+    )
+    assert response.status_code == 302 and fresh(test).state == "submitted"
+    assert not ElectronicSignature.objects.exists()
+    _no_credential_effects()
+    login(client, people["reviewer"])
+    page = client.get(review_url)
+    assert page.status_code == 200 and 'name="pin"' in page.content.decode()
+    assert client.get(return_url).status_code == 200
+    stale = client.post(
+        review_url,
+        {
+            "expected_revision": fresh(test).revision - 1,
+            "pin": PIN,
+            "signature_username": "reviewer",
+            "reason": "Checked",
+        },
+    )
+    assert stale.status_code == 422 and "Record changed" in stale.content.decode()
+    review(people, test)
+    _refused(client, review_url, "This test is not awaiting review.")
+    _refused(client, return_url, "Only submitted tests can be returned.")
+    _no_credential_effects()
+
+
+def test_review_preflight_blocks_failed_batch_qc_and_oos_return(client, people, assigned, batch):
+    _, _, tests = assigned
+    pass_qc(people, batch)
+    services.assign_to_batch(
+        actor=people["analyst"], test=tests["assay"], batch=batch, reason="Run"
+    )
+    record(people, tests["assay"], "90.0", "91.0")
+    submit(people, tests["assay"])  # out of specification
+    login(client, people["reviewer"])
+    _refused(
+        client,
+        reverse("analytical:test_return", args=[tests["assay"].pk]),
+        "Out-of-specification results cannot be returned",
+    )
+    assert (
+        client.get(reverse("analytical:test_review", args=[tests["assay"].pk])).status_code == 200
+    )
+
+
+def test_batch_page_preflight(client, people, assigned, make_lot):
+    _, _, tests = assigned
+    login(client, people["analyst"])
+    url = reverse("analytical:test_batch", args=[tests["assay"].pk])
+    _refused(client, url, "No open QC batch accepting tests uses SYN-HPLC revision 1.")
+    full = services.create_batch(
+        actor=people["analyst2"], number="SYN-B5", method_code="SYN-HPLC", reason="Run"
+    )
+    assert "SYN-B5" in client.get(url).content.decode()
+    # A batch with submitted results is no longer offered, matching the locked add.
+    _, other = make_lot("SYN-LOT-Z", tests=("assay",))
+    (other_test,), _ = services.assign_tests(actor=people["analyst"], sample=other, reason="Go")
+    pass_qc(people, full)
+    complete(people, other_test, "100.0", "100.1", batch=full)
+    _refused(client, url, "No open QC batch accepting tests uses SYN-HPLC revision 1.")
+    services.create_batch(
+        actor=people["analyst2"], number="SYN-B6", method_code="SYN-HPLC", reason="Run"
+    )
+    page = client.get(url).content.decode()
+    assert "SYN-B6" in page and "SYN-B5" not in page
+    forged = client.post(url, {"batch": full.pk, "reason": "Forged"})
+    assert forged.status_code == 422 and fresh(tests["assay"]).batch_id is None
+    _refused(
+        client,
+        reverse("analytical:test_batch", args=[tests["identity"].pk]),
+        "This test cannot be added to a QC batch.",
+    )
+
+
+def test_authorize_and_conclude_preflight(client, people, assigned):
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.30")
+    _, investigation = submit(people, test)
+    authorize_url = reverse("analytical:authorize", args=[investigation.pk])
+    conclude_url = reverse("analytical:conclude", args=[investigation.pk])
+    login(client, people["quality"])
+    _refused(client, authorize_url, "Record the laboratory assessment first.")
+    _refused(client, conclude_url, "Record the laboratory assessment first.")
+    services.add_entry(
+        actor=people["quality2"],
+        investigation=investigation,
+        kind="assessment",
+        text="Dilution checked",
+    )
+    _refused(client, conclude_url, "The original result needs independent data review first.")
+    assert client.get(authorize_url).status_code == 200
+    review(people, test)
+    assert "Sign conclusion" in client.get(conclude_url).content.decode()
+    login(client, people["quality2"])  # authored the assessment entry
+    _refused(client, conclude_url, "You cannot conclude an investigation of your own work.")
+    forged = client.post(
+        conclude_url,
+        {
+            "outcome": "confirmed",
+            "assignable_cause": "",
+            "reason": "Self",
+            "pin": PIN,
+            "signature_username": "quality2",
+            "expected_revision": fresh(investigation).revision,
+        },
+    )
+    assert forged.status_code == 302 and fresh(investigation).is_open
+    people["analyst"].groups.add(people["quality"].groups.get())
+    login(client, people["analyst"])  # generated the original data
+    _refused(client, authorize_url, "You cannot authorize retesting of your own result.")
+    login(client, people["quality"])
+    services.authorize_retest(
+        actor=people["quality"],
+        pin=PIN,
+        investigation=fresh(investigation),
+        expected_revision=fresh(investigation).revision,
+        kind="retest",
+        reason="One retest",
+    )
+    _refused(
+        client, authorize_url, "The approved specification allows no further retests or resamples."
+    )
+    _refused(client, conclude_url, "Authorized retests or resamples are still incomplete.")
+    child = AnalyticalTest.objects.get(investigation=investigation)
+    complete(people, child, "1.01")
+    services.conclude(
+        actor=people["quality"],
+        pin=PIN,
+        investigation=fresh(investigation),
+        expected_revision=fresh(investigation).revision,
+        outcome="invalidated",
+        assignable_cause="Dilution error",
+        reason="Closed",
+    )
+    _refused(client, conclude_url, "This investigation is already closed.")
+    _refused(client, authorize_url, "This investigation is closed.")
+    assert not ElectronicSignature.objects.filter(signer=people["quality2"]).exists()
+    _no_credential_effects()

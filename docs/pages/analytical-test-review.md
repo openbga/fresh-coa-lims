@@ -39,7 +39,7 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 
 ## Rules and hidden logic
 
-- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "This test is not awaiting review.".
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
 - **Preconditions**: test Submitted ("This test is not awaiting review."); not your own ("You cannot review your own test."); rule set approved and effective ("An approved, effective rule revision is required."); lot in quarantine; batch still Open with QC passed ("Batch QC no longer passes; this test cannot be reviewed."); calculation unchanged ("Calculated result changed; return the test for resubmission.").
 - **Stale page**: "Record changed. Reload and review before signing."
 - **Identity and session**: "Enter your own signing username and PIN." (audited `signature.identity_denied`); "Session expired. Sign in again before signing."

@@ -13,7 +13,7 @@ Independent review and electronic signature that approves a draft method version
 
 ## Who can use it
 
-- Sign-in required. **quality** role only; others receive 403 Forbidden. Reading roles other than quality cannot open this page.
+- Sign-in required. **quality** role only; others receive 403 Forbidden. The role is checked before the record is looked up, so a user without it gets 403 for existing and non-existent IDs alike; quality users get 404 for a missing ID. Reading roles other than quality cannot open this page.
 - The signer must not be the author and must not have edited the draft (any earlier audit event on this version by you other than a signature). Then the page opens with status 403 and an explanation, and no form.
 - Administrators get no exception: "Independent approval cannot be bypassed by any role, including administrators."
 - The signing username you type must equal your signed-in username.

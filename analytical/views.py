@@ -463,14 +463,26 @@ def test_batch(request, pk):
     require_role(request.user, "analyst")
     test = get_test(pk)
     method = test.spec.method
-    if test.state != "open" or not method.requires_batch or test.batch_id:
+    back = reverse("analytical:test_detail", args=[test.pk])
+    refusal = services.quarantine_refusal(test.lot) or services.batching_refusal(test)
+    if not refusal and not method.requires_batch:
+        refusal = "This test cannot be added to a QC batch."
+    if refusal:
+        return unavailable(request, refusal, back)
+    batches = QCBatch.objects.filter(state="open", method_code=method.code).order_by("-pk")
+    # Offer only batches the locked add would accept (same predicate; rechecked on submit).
+    batches = batches.filter(
+        pk__in=[
+            b.pk for b in batches if b.method_spec == method and not services.batch_join_refusal(b)
+        ]
+    )
+    if not batches:
         return unavailable(
             request,
-            "This test cannot be added to a QC batch.",
-            reverse("analytical:test_detail", args=[test.pk]),
+            f"No open QC batch accepting tests uses {method.code} revision {method.revision}. "
+            "Create one under QC batches first.",
+            back,
         )
-    batches = QCBatch.objects.filter(state="open", method_code=method.code).order_by("-pk")
-    batches = batches.filter(pk__in=[b.pk for b in batches if b.method_spec == method])
     form = BatchAssignForm(request.POST or None, batches=batches)
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -520,12 +532,9 @@ def test_submit(request, test):
 def test_return(request, pk):
     require_role(request.user, "reviewer")
     test = get_test(pk)
-    if test.state != "submitted" or not test.conforms:
-        return unavailable(
-            request,
-            "Only conforming results awaiting review can be returned.",
-            reverse("analytical:test_detail", args=[test.pk]),
-        )
+    refusal = services.quarantine_refusal(test.lot) or services.return_refusal(request.user, test)
+    if refusal:
+        return unavailable(request, refusal, reverse("analytical:test_detail", args=[test.pk]))
     form = RevisionReasonForm(request.POST or None, initial={"expected_revision": test.revision})
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -552,12 +561,11 @@ def test_return(request, pk):
 def test_review(request, pk):
     require_role(request.user, "reviewer")
     test = get_test(pk)
-    if test.state != "submitted":
-        return unavailable(
-            request,
-            "This test is not awaiting review.",
-            reverse("analytical:test_detail", args=[test.pk]),
-        )
+    # Preflight with the service's own predicate so no PIN form is offered for an impossible
+    # signature; the signing service rechecks everything under lock.
+    refusal = services.quarantine_refusal(test.lot) or services.review_refusal(request.user, test)
+    if refusal:
+        return unavailable(request, refusal, reverse("analytical:test_detail", args=[test.pk]))
     form = SigningForm(request.POST or None, initial={"expected_revision": test.revision})
     if request.method == "POST" and form.is_valid():
         data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
@@ -905,11 +913,12 @@ def escalate(request, pk):
 def authorize(request, pk):
     require_role(request.user, "quality")
     inv = get_investigation(pk)
-    if not inv.is_open:
+    refusal = services.quarantine_refusal(inv.lot) or services.authorize_refusal(
+        request.user, inv, inv.test
+    )
+    if refusal:
         return unavailable(
-            request,
-            "This investigation is closed.",
-            reverse("analytical:investigation_detail", args=[inv.pk]),
+            request, refusal, reverse("analytical:investigation_detail", args=[inv.pk])
         )
     used = AnalyticalTest.objects.filter(sample__lot=inv.lot_id).values("sample_id")
     samples = Sample.objects.filter(lot_id=inv.lot_id).exclude(pk__in=used).order_by("-pk")
@@ -949,11 +958,12 @@ def authorize(request, pk):
 def conclude(request, pk):
     require_role(request.user, "quality")
     inv = get_investigation(pk)
-    if not inv.is_open:
+    refusal = services.quarantine_refusal(inv.lot) or services.conclude_refusal(
+        request.user, inv, inv.test, list(inv.tests.all())
+    )
+    if refusal:
         return unavailable(
-            request,
-            "This investigation is already closed.",
-            reverse("analytical:investigation_detail", args=[inv.pk]),
+            request, refusal, reverse("analytical:investigation_detail", args=[inv.pk])
         )
     form = ConcludeForm(request.POST or None, initial={"expected_revision": inv.revision})
     if request.method == "POST" and form.is_valid():

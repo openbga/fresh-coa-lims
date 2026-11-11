@@ -14,7 +14,7 @@ Independently review a draft rule revision and sign its approval so lots can use
 ## Who can use it
 
 - Sign-in required. **Quality** role only; others receive 403.
-- Never the revision's author: the page still opens for the author, but signing is refused with a 403 page ("Rule authors cannot approve their own revision."), after the PIN check.
+- Never the revision's author: opening the page redirects to Rule sets with "Rule authors cannot approve their own revision." and does not request a PIN. A direct signing submission is also refused with 403.
 
 ## Layout
 
@@ -24,7 +24,7 @@ Independently review a draft rule revision and sign its approval so lots can use
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Sign approval** | Always | Quality, not the author | Status becomes approved and returns to Rule sets |
+| **Sign approval** | Approval preconditions pass | Quality, not the author | Status becomes approved and returns to Rule sets |
 
 ## Fields
 
@@ -41,7 +41,7 @@ Independently review a draft rule revision and sign its approval so lots can use
 
 ## Rules and hidden logic
 
-- **Preconditions** (checked at signing, not when the page opens): status draft ("Only draft rules can be approved." shown on the form); valid policy; an effective end date ("An effective end date is required for approval."); no overlap with an approved revision of the same code ("Effective dates overlap an approved revision.").
+- **Preconditions**: status draft ("Only draft rules can be approved."); valid policy; an effective end date ("An effective end date is required for approval."); no overlap with an approved revision of the same code ("Effective dates overlap an approved revision."). Opening an ineligible approval redirects to Rule sets with the reason, without checking the PIN or writing a review/signature. Signing repeats the checks under the record and configuration locks; a previously available page can become invalid before submission.
 - **Stale page**: "Record changed. Reload and review before signing."
 - **Identity and PIN**: username and PIN are re-entered for every signature; "Enter your own signing username and PIN." on mismatch; "Enroll a signature PIN first."; "Signature PIN was not accepted."; 5 consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are recorded even though the approval is refused.
 - **Session**: defaults are a 15-minute idle and 8-hour absolute limit; sessions without recorded login times count as expired. On expiry the next request signs you out with "Your session expired. Sign in again to continue." The inline "Session expired. Sign in again before signing." is an extra safeguard at the moment of signing.

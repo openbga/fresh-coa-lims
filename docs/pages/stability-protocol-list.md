@@ -39,7 +39,7 @@ All versions of product-specific stability protocols, draft, approved and supers
 | Protocol | `Protocol.code`, `.version` | "CODE vN" | — | Identifier; links to the record |
 | Title / Product | `Protocol.title`, `.product` | Text | — | What the protocol covers |
 | State | `Protocol.state` | Draft / Approved / Superseded | — | Approved versions are frozen; approving a new version supersedes the old |
-| Approved | `Protocol.approved_at` | Date | — | Date of approval |
+| Approved | `Protocol.approved_at` | Date | — | Date of approval in the laboratory time zone |
 | Search / Status | — | Text / All, Draft, Approved, Superseded | No | Search matches code, title or product |
 
 ## Rules and hidden logic

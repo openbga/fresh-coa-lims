@@ -15,7 +15,7 @@ Shows the approved requirements frozen for one lot (specification tests, methods
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
 - **Assign requirements** or **Change requirements**: **analyst** or **quality**, lot in Quarantine, and no analytical test exists yet for the lot.
-- **Record sampling**: **analyst** only, lot in Quarantine, and current requirements assigned (not on hold).
+- **Record sampling**: **analyst** only, shown only when sampling can be recorded: lot in Quarantine, requirements assigned and not on hold, and the assigned plan version still Approved.
 - **Assess deviation**: **quality** only, never the person who sampled or recorded the record.
 - **Correct**: **analyst** only, lot in Quarantine, on records not yet corrected.
 - Buttons follow role and state; the server rechecks on each action.
@@ -37,8 +37,8 @@ Shows the approved requirements frozen for one lot (specification tests, methods
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Assign requirements** / **Change requirements** | Quarantine, no analytical test exists for the lot, and viewer is analyst or quality; label is Change when an assignment exists | Analyst, quality | Opens the Assign requirements form |
-| **Record sampling** | Quarantine, analyst, current assignment is "Requirements assigned" | Analyst | Opens the Record sampling form |
+| **Assign requirements** / **Change requirements** | Viewer is analyst or quality and no assignment blocker applies (lot in Quarantine, no analytical test yet); label is Change when an assignment exists | Analyst, quality | Opens the Assign requirements form |
+| **Record sampling** | Viewer is an analyst and no sampling blocker applies (Quarantine, requirements assigned, plan approved) | Analyst | Opens the Record sampling form |
 | **Correct** | Lot open, viewer is analyst, record not yet corrected | Analyst | Opens the Correct sampling form |
 | **Assess deviation** | Record has a pending deviation assessment, is not corrected, lot in Quarantine, viewer has the quality role and neither sampled nor recorded it | Quality | Opens the Assess sampling deviation page |
 | **Open lot record** | Always | Any viewer | Opens the quality lot record |

@@ -33,7 +33,9 @@ class ReasonForm(forms.Form):
 
 class SigningForm(SignatureIdentityForm):
     """PIN entry is never repopulated; the revision is the one the signer reviewed.
-    `signature_username` is verified centrally by core.sign_transition, never passed on."""
+    `signature_username` is verified against the authenticated account by
+    core.session_control.signing_context (called from core.services.sign_transition) and is
+    never passed to the domain services."""
 
     expected_revision = forms.IntegerField(widget=forms.HiddenInput)
     reason = reason_field("Reason for signing", max_length=2000)

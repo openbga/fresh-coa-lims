@@ -41,7 +41,7 @@ Quality signs authorization of one justified retest or resample within the speci
 
 ## Rules and hidden logic
 
-- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the investigation with the warning "This investigation is closed.".
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): no PIN field is shown and no PIN checked when authorization is impossible. Redirects to the investigation with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This investigation is closed."; "You cannot authorize retesting of your own result."; "Record the laboratory assessment first."; "The approved specification allows no further retests or resamples.". Retest/resample choice and the resample sample are checked on signing.
 - **Preconditions**: investigation open ("This investigation is closed."); not your own data ("You cannot authorize retesting of your own result."); laboratory assessment recorded ("Record the laboratory assessment first."); allowance left ("The approved specification allows no further retests or resamples."); lot in quarantine.
 - **Allowance**: linked tests that are not Invalidated count; those invalidated by batch rejection do not.
 - **Kind**: "Choose retest or resample." if neither is posted.

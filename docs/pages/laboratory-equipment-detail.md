@@ -21,9 +21,9 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 - **Header**: breadcrumbs, title (the description), asset ID and fitness label, action buttons. While out of service, a red notice: "This equipment cannot be used. Returning it requires an independently accepted passing calibration and a signed impact assessment."
 - **Details**: the facts below.
 - **Calibrations**: every calibration, newest first: performed, due (inclusive), outcome, state, standard, certificate (a link when a URL was given), recorded by, and **Accept** where you may accept. Empty: "No calibration recorded. Equipment is not fit for use until a passing calibration is independently accepted."
-- **Qualification evidence**: stage or use (links to the qualification), state (Awaiting approval, Approved or Revoked), valid from, valid until, evidence reference. Empty: "No qualification evidence recorded." or, when not required, "Qualification is not required for this equipment."
-- **Uses to assess after failure** (only while out of service): up to 50 uses, oldest first, with context, test and user; empty: "No recorded uses since the last accepted passing calibration."
-- **Recent uses**: the latest 25, newest first (used, context, activity, test, by). Empty: "No use recorded."
+- **Qualification evidence**: stage or use (links to the qualification), state (Awaiting approval, Approved, "Approved, starts <date>" before its valid-from date, Expired or Revoked), valid from, valid until, evidence reference. Empty: "No qualification evidence recorded." or, when not required, "Qualification is not required for this equipment."
+- **Uses to assess after failure** (only while out of service): up to 50 uses, oldest first, with the Work label (sample reference for sample work; the raw context as recorded otherwise), test and user; empty: "No recorded uses since the last accepted passing calibration."
+- **Recent uses**: the latest 25, newest first (used, work, activity, test, by). Empty: "No use recorded."
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 
@@ -45,7 +45,7 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 | Category, Location | `Equipment.category`, `.location` | Text | — | Identity |
 | Qualification required | `Equipment.requires_qualification` | Yes/No | — | Whether qualification evidence is part of fitness |
 | Service state / Last status change / Changed by | `Equipment.state`, `.status_changed_at`, `.status_changed_by` | In service or Out of service; time with zone; user | — | Who last put it out of or into service; blank for equipment never changed |
-| Uses: Context | `ResourceUse.context_type`, `.context_id` | Text | — | Work the resource was used for, for example `quality.sample` and the sample's record number |
+| Uses: Work | `ResourceUse.context_type`, `.context_id` | Text or link | — | Work the resource was used for: the sample reference for sample work, otherwise the raw context type and ID as recorded |
 | Revision | `Equipment.revision` | Integer | — | Rises on every state change |
 
 ## Rules and hidden logic

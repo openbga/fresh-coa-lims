@@ -39,7 +39,8 @@ Shows what an amended certificate would contain, built from the lot's current ev
 ## Rules and hidden logic
 
 - Amendments are held to the same blockers as a first issue, so an open hold prevents amending. Not enforced by this page: withdrawal or recall of an issued certificate.
-- Viewing writes no audit event. Unknown certificate: 404. GET only.
+- Viewing writes no audit event.
+- Native lots use the frozen assignment bound to the QC disposition, as described on [Review certificate](/reports/); an unverifiable assignment blocks the amendment. Unknown certificate: 404. GET only.
 
 ## Related pages
 

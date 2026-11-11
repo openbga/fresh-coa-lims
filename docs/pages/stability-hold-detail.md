@@ -19,7 +19,7 @@ One hold on a lot (optionally one reserve sample) with its reason, who placed it
 ## Layout
 
 - **Header**: breadcrumbs, title "<Kind> hold · <lot number>", identifier (HOLD-n) and state label (Active or Released), action buttons.
-- **Notice**: while active, a warning "On hold: QC disposition and disposal of this lot are blocked."
+- **Notice**: while active, a warning "On hold: QC disposition and disposal of this lot are blocked." For an already released lot the hold does not alter the released record or issued certificate; it blocks future issue or amendment and disposal.
 - **Details**: Lot (links to the lot record), Reserve sample (links to its record, blank if none), Kind, Reference, Reason, Placed by, Placed, Released, Revision.
 
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."

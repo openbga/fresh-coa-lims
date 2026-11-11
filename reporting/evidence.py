@@ -76,36 +76,58 @@ def _latest_signatures(object_type, ids, meaning):
     return found
 
 
+def frozen_assignment_payload(lot):
+    """The exact requirement assignment the QC disposition was signed against, or None.
+
+    Resolves the stored assignment id for this lot and stored payload hash, and verifies that the
+    payload really digests to that hash. Anything missing, belonging to another lot, not ready,
+    or altered returns None. A later assignment that supersedes the signed one does NOT invalidate
+    it: the signed assignment stays the disposition's decision basis. Callers must treat None as
+    "not verifiable", never fall back to the latest live requirements.
+    """
+    stored = lot.disposition_evidence or {}
+    assignment_id, expected = stored.get("assignment_id"), stored.get("assignment_hash")
+    if not assignment_id or not expected:
+        return None
+    # Append-only frozen payload, looked up by label so reporting imports no sibling code.
+    record = (
+        apps.get_model("sampling", "LotAssignment")
+        .objects.filter(pk=assignment_id, lot_id=lot.pk, payload_hash=expected, status="ready")
+        .first()
+    )
+    if record is None or not isinstance(record.payload, dict):
+        return None
+    if canonical_hash(record.payload) != expected:
+        return None
+    return record.payload
+
+
 def _native(lot):
     """Frozen native-testing evidence stored with the QC disposition (None for foundation lots).
 
-    The disposition stores the exact assignment hash and analytical evidence it was signed against;
-    reading those, rather than recomputing, keeps the certificate faithful to the signed decision.
+    The disposition stores the assignment id/hash and analytical evidence it was signed against;
+    those, never today's requirements, are what the certificate asserts. A native disposition whose
+    assignment cannot be resolved and verified is reported with `assignment_verified` false so the
+    certificate holds with a clear reason instead of failing or falling back.
     """
     stored = lot.disposition_evidence or {}
-    analytical = stored.get("analytical")
-    if not analytical:
+    if not stored:
         return None
-    spec = {}
-    if stored.get("assignment_id"):
-        # Append-only frozen payload; resolved by label so reporting has no import dependency.
-        record = (
-            apps.get_model("sampling", "LotAssignment")
-            .objects.filter(
-                pk=stored["assignment_id"], payload_hash=stored.get("assignment_hash", "")
-            )
-            .first()
-        )
-        if record is not None and record.payload:
-            spec = record.payload.get("specification") or {}
+    payload = frozen_assignment_payload(lot)
+    spec = (payload or {}).get("specification") or {}
+    methods = (
+        [test["method"] for test in payload["tests"] if test.get("required")] if payload else None
+    )
     return {
         "assignment_id": stored.get("assignment_id"),
         "assignment_hash": stored.get("assignment_hash"),
+        "assignment_verified": payload is not None and bool(stored.get("analytical")),
         "specification": {
             k: spec[k] for k in ("code", "version", "revision_id", "approved_hash") if k in spec
         }
         or None,
-        "analytical": analytical,
+        "methods": methods,
+        "analytical": stored.get("analytical") or {},
     }
 
 
@@ -186,9 +208,16 @@ def collect_evidence(lot):
         "corrections": [],
     }
     for key, collector in _collectors.items():
+        if native and key in {"methods", "specification"}:
+            continue  # native lots assert only the frozen assignment, never live requirements
         evidence[key] = collector(lot)
+    if native:
+        evidence["methods"] = native.pop("methods") if native["assignment_verified"] else None
     # States which frozen sections a sibling package actually supplied (absence is not "none").
-    evidence["sections_supplied"] = sorted(_collectors)
+    supplied = set(_collectors)
+    if native and native["assignment_verified"]:
+        supplied.add("methods")
+    evidence["sections_supplied"] = sorted(supplied)
     return evidence
 
 
@@ -208,6 +237,11 @@ def blockers(evidence):
     native = evidence.get("native")
     if native:
         analytical = native["analytical"]
+        if not native.get("assignment_verified"):
+            problems.append(
+                "The requirement assignment signed with the QC disposition could not be "
+                "resolved and verified."
+            )
         if not analytical.get("complete") or analytical.get("blockers"):
             problems.append("The analytical evidence at disposition was not complete.")
         if not analytical.get("results"):

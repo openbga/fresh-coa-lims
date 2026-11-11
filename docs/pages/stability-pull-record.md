@@ -33,7 +33,7 @@ Record that a scheduled pull was collected.
 | Pulled on | `Pull.pulled_on` | Date | Yes | Defaults to today; not in the future |
 | Quantity / unit | `Pull.quantity`, `.quantity_unit` | Decimal ≥ 0 (up to 14 digits, 4 places) and text, max 20 | Yes | Quantity pulled |
 | Where the pull is held | `Pull.storage_location` | Text, max 120 | Yes | Location |
-| Storage chamber | `Pull.chamber` | Equipment (any) | No | If chosen it must be fit for use today; a laboratory equipment use (activity "stability-storage") is recorded |
+| Storage chamber | `Pull.chamber` | Equipment fit for use now | No | Only equipment that is fit for use when the page opens is listed (same fitness test as on save); the save checks again under a lock, so equipment that became unfit meanwhile is refused; a laboratory equipment use (activity "stability-storage") is recorded |
 | Deviation reason | `Pull.deviation_reason` | Text | Only if outside the window | Why the pull is early or late; blank entries do not count |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
 

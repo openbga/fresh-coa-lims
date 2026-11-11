@@ -14,7 +14,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 ## Who can use it
 
 - Sign-in required. Only the **quality** role; others receive 403.
-- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result (status 403, nothing signed); the page itself still opens. Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
+- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result; you are turned back before the form is shown, and a direct submission is refused (status 403, nothing signed). Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
 
 ## Layout
 
@@ -40,9 +40,9 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 
 ## Rules and hidden logic
 
-- **Arriving here**: the link must carry the current evidence hash with no blockers, and the record must have an issued version; otherwise you are sent back to the review page (or the record).
+- **Checked before the form is shown**: the record must have an issued version (otherwise you return to the record with "Only an issued certificate can be amended."), and the link must carry the current evidence hash with no blockers and you must not be an author on the lot. Otherwise you are sent back to the amendment review page with the reason ("The evidence changed since you reviewed it. Review it again.", "This certificate cannot be amended: …" or "You authored records on this lot, so you cannot sign this certificate as amended."). Submitting checks everything again.
 - **Stale checks**: if another version was issued since you opened the page: "The certificate changed since you reviewed it. Review again."; if the evidence changed: "The evidence changed since you reviewed it. Review again."
-- **Gates and authorship**: same blockers and authorship rule as a first issue ("Certificate cannot be issued:" plus reasons).
+- **Gates and authorship**: same blockers and authorship rule as a first issue, including that a native lot's signed requirement assignment must still resolve and verify; later assignments do not replace it ("Certificate cannot be issued:" plus reasons).
 - **Atomic and audited**: version, PDF, signature (meaning `amended`) and audit event `signed.amended` commit together or not at all; failed PIN attempts are audited and survive the rejection.
 - **Preserved original**: the earlier version's bytes and snapshot are untouched; the new version links to it as superseding.
 - A blank reason is refused ("A reason is required." / "This field is required.").

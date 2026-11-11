@@ -1,14 +1,17 @@
 from datetime import timedelta
 
+from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Q
+from django.db.models import CharField, Q
+from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
 from core.services import require_role
+from quality.models import Sample
 
 from . import services
 from .eligibility import (
@@ -47,6 +50,8 @@ from .ui import (
     sign_page,
     status,
     when,
+    work_cell,
+    work_labels,
 )
 
 HOME = "Laboratory"
@@ -131,7 +136,10 @@ def overview(request):
         (
             "Qualifications expiring within 30 days",
             Qualification.objects.filter(
-                state="approved", valid_until__gte=today, valid_until__lte=soon
+                state="approved",
+                valid_from__lte=today,
+                valid_until__gte=today,
+                valid_until__lte=soon,
             ).count(),
             "warning",
             reverse("laboratory:qualification_list") + "?status=expiring",
@@ -266,6 +274,7 @@ def equipment_detail(request, pk):
     calibrations = list(item.calibrations.select_related("recorded_by"))
     qualifications = list(item.qualifications.select_related("recorded_by"))
     uses = list(item.uses.select_related("used_by")[:25])
+    today = timezone.localdate()
     out_of_service = item.state != Equipment.State.IN_SERVICE
     calibration_rows = []
     for c in calibrations:
@@ -319,7 +328,7 @@ def equipment_detail(request, pk):
             [
                 [
                     cell(q.activity, reverse("laboratory:qualification_detail", args=[q.pk])),
-                    status(q.get_state_display(), _q_tone(q)),
+                    status(*qualification_status(q, today)[:2]),
                     day(q.valid_from),
                     day(q.valid_until),
                     q.evidence_ref,
@@ -333,14 +342,15 @@ def equipment_detail(request, pk):
     ]
     if out_of_service:
         impacted = list(affected_uses(item).select_related("used_by")[:50])
+        impacted_work = work_labels([(u.context_type, u.context_id) for u in impacted])
         sections.append(
             section(
                 "Uses to assess after failure",
-                [("Used", False), ("Context", False), ("Test", False), ("By", False)],
+                [("Used", False), ("Work", False), ("Test", False), ("By", False)],
                 [
                     [
                         when(u.used_at),
-                        f"{u.context_type} {u.context_id}",
+                        work_cell(u, impacted_work),
                         u.test_code,
                         str(u.used_by),
                     ]
@@ -351,12 +361,13 @@ def equipment_detail(request, pk):
                 "the failure. The return-to-service signature records this assessment.",
             )
         )
+    recent_work = work_labels([(u.context_type, u.context_id) for u in uses])
     sections.append(
         section(
             "Recent uses",
             [
                 ("Used", False),
-                ("Context", False),
+                ("Work", False),
                 ("Activity", False),
                 ("Test", False),
                 ("By", False),
@@ -364,7 +375,7 @@ def equipment_detail(request, pk):
             [
                 [
                     when(u.used_at),
-                    f"{u.context_type} {u.context_id}",
+                    work_cell(u, recent_work),
                     u.activity,
                     u.test_code,
                     str(u.used_by),
@@ -422,8 +433,16 @@ def equipment_detail(request, pk):
     )
 
 
-def _q_tone(q):
-    return {"approved": "success", "recorded": "progress", "revoked": "danger"}[q.state]
+def qualification_status(q, today):
+    """(label, tone, key). Approved is effective only inside valid_from..valid_until."""
+    if q.state == Qualification.State.APPROVED:
+        if q.valid_from > today:
+            return f"Approved, starts {q.valid_from.isoformat()}", "info", "scheduled"
+        if q.valid_until < today:
+            return "Expired", "danger", "expired"
+        return "Approved", "success", "approved"
+    tone = {"recorded": "progress", "revoked": "danger"}[q.state]
+    return q.get_state_display(), tone, q.state
 
 
 @login_required
@@ -639,7 +658,8 @@ def calibration_accept(request, pk):
 
 QUALIFICATION_STATUS = [
     ("recorded", "Awaiting approval"),
-    ("approved", "Approved"),
+    ("scheduled", "Approved, starts later"),
+    ("approved", "Approved and effective"),
     ("expiring", "Expiring within 30 days"),
     ("expired", "Expired"),
     ("revoked", "Revoked"),
@@ -662,11 +682,18 @@ def qualification_list(request):
     match data.get("status"):
         case "recorded" | "revoked" as state:
             queryset = queryset.filter(state=state)
+        case "scheduled":
+            queryset = queryset.filter(state="approved", valid_from__gt=today)
         case "approved":
-            queryset = queryset.filter(state="approved", valid_until__gte=today)
+            queryset = queryset.filter(
+                state="approved", valid_from__lte=today, valid_until__gte=today
+            )
         case "expiring":
             queryset = queryset.filter(
-                state="approved", valid_until__gte=today, valid_until__lte=soon
+                state="approved",
+                valid_from__lte=today,
+                valid_until__gte=today,
+                valid_until__lte=soon,
             )
         case "expired":
             queryset = queryset.filter(state="approved", valid_until__lt=today)
@@ -678,8 +705,7 @@ def qualification_list(request):
     )
     rows = []
     for q in page:
-        expired = q.state == "approved" and q.valid_until < today
-        label = "Expired" if expired else q.get_state_display()
+        label, tone, _ = qualification_status(q, today)
         rows.append(
             [
                 cell(
@@ -690,7 +716,7 @@ def qualification_list(request):
                 "Analyst" if q.user_id else "Equipment",
                 day(q.valid_from),
                 day(q.valid_until),
-                status(label, "danger" if expired else _q_tone(q)),
+                status(label, tone),
             ]
         )
     return list_page(
@@ -756,7 +782,7 @@ def qualification_detail(request, pk):
     access(request.user)
     q = get_object_or_404(Qualification.objects.select_related("user", "equipment"), pk=pk)
     today = timezone.localdate()
-    expired = q.state == "approved" and q.valid_until < today
+    state_label, state_tone, _ = qualification_status(q, today)
     user = request.user
     eligible_actor = user.pk not in (q.recorded_by_id, q.user_id)
     actions = [
@@ -774,9 +800,7 @@ def qualification_detail(request, pk):
         crumbs=crumbs(
             ("Qualifications", reverse("laboratory:qualification_list")), (f"QUAL-{q.pk}", None)
         ),
-        state=status(
-            "Expired" if expired else q.get_state_display(), "danger" if expired else _q_tone(q)
-        ),
+        state=status(state_label, state_tone),
         facts=[
             ("Subject", str(q.subject)),
             ("Type", "Analyst" if q.user_id else "Equipment"),
@@ -980,6 +1004,8 @@ def reagent_detail(request, pk):
     today = timezone.localdate()
     label, tone = reagent_status(lot, today)
     user = request.user
+    lot_uses = list(lot.uses.select_related("used_by")[:25])
+    lot_work = work_labels([(u.context_type, u.context_id) for u in lot_uses])
     actions = [
         action("Release for use", reverse("laboratory:reagent_release", args=[lot.pk]), True)
         if lot.state == "received" and lot.recorded_by_id != user.pk and can(user, "reviewer")
@@ -1045,15 +1071,10 @@ def reagent_detail(request, pk):
             ),
             section(
                 "Uses",
-                [("Used", False), ("Context", False), ("Activity", False), ("By", False)],
+                [("Used", False), ("Work", False), ("Activity", False), ("By", False)],
                 [
-                    [
-                        when(u.used_at),
-                        f"{u.context_type} {u.context_id}",
-                        u.activity,
-                        str(u.used_by),
-                    ]
-                    for u in lot.uses.select_related("used_by")[:25]
+                    [when(u.used_at), work_cell(u, lot_work), u.activity, str(u.used_by)]
+                    for u in lot_uses
                 ],
                 "No use recorded.",
             ),
@@ -1157,16 +1178,30 @@ def use_list(request):
     queryset = ResourceUse.objects.select_related("equipment", "reagent_lot", "used_by")
     if data.get("q"):
         q = data["q"]
-        queryset = queryset.filter(
-            Q(context_id__icontains=q)
+        # Visible sample references are searchable for every context that displays one, using
+        # subqueries over all matching records (no capped ID lists).
+        by_sample = Sample.objects.filter(reference__icontains=q).annotate(
+            key=Cast("pk", CharField())
+        )
+        match = (
+            Q(context_type="quality.sample", context_id__in=by_sample.values("key"))
+            | Q(context_id__icontains=q)
             | Q(activity__icontains=q)
             | Q(test_code__icontains=q)
             | Q(equipment__asset_id__icontains=q)
             | Q(reagent_lot__identifier__icontains=q)
         )
-    page, sort, descending = paginate(
-        request, queryset, {"used": ["used_at"], "context": ["context_id"]}, "-used"
-    )
+        if apps.is_installed("analytical"):
+            tests = apps.get_model("analytical", "AnalyticalTest").objects
+            by_test = tests.filter(sample__reference__icontains=q).annotate(
+                key=Cast("pk", CharField())
+            )
+            match |= Q(
+                context_type="analytical.analyticaltest", context_id__in=by_test.values("key")
+            )
+        queryset = queryset.filter(match)
+    page, sort, descending = paginate(request, queryset, {"used": ["used_at"]}, "-used")
+    work = work_labels([(u.context_type, u.context_id) for u in page])
     rows = []
     for u in page:
         if u.equipment_id:
@@ -1182,7 +1217,7 @@ def use_list(request):
             [
                 when(u.used_at),
                 resource,
-                f"{u.context_type} {u.context_id}",
+                work_cell(u, work),
                 u.activity,
                 u.test_code,
                 str(u.used_by),
@@ -1196,7 +1231,7 @@ def use_list(request):
         columns=[
             ("Used", "used", False),
             ("Resource", None, False),
-            ("Work", "context", False),
+            ("Work", None, False),
             ("Activity", None, False),
             ("Test", None, False),
             ("By", None, False),

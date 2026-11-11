@@ -1,10 +1,11 @@
 """Equipment, qualification, reagent and use contracts against PostgreSQL."""
 
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import DatabaseError, transaction
+from django.urls import reverse
 from django.utils import timezone
 
 from core.models import AuditEvent, ElectronicSignature, PINCredential
@@ -675,3 +676,200 @@ def test_return_to_service_requires_qualification_valid_from(people):
             expected_revision=equipment.revision,
             impact_assessment="No impact",
         )
+
+
+# --- Follow-up regressions -------------------------------------------------------------------
+
+
+def test_calibration_due_date_compares_with_the_laboratory_local_date(settings):
+    from laboratory.models import Calibration
+
+    settings.TIME_ZONE = "America/Los_Angeles"
+    # 03:00 UTC on 2 June is still 1 June in the laboratory (UTC-7).
+    performed = datetime(2026, 6, 2, 3, 0, tzinfo=UTC)
+
+    def check(due):
+        Calibration(performed_at=performed, due_date=due).clean()
+
+    check(datetime(2026, 6, 1).date())  # same laboratory-local day: accepted
+    with pytest.raises(ValidationError, match="cannot precede"):
+        check(datetime(2026, 5, 31).date())
+    settings.TIME_ZONE = "UTC"
+    with pytest.raises(ValidationError, match="cannot precede"):
+        check(datetime(2026, 6, 1).date())  # the UTC reading would reject the same entry
+
+
+def test_approved_qualification_is_effective_only_inside_its_dates(client, people):
+    from laboratory.views import qualification_status
+
+    today = timezone.localdate()
+
+    def make(activity, start, end):
+        return Qualification.objects.create(
+            user=people["analyst2"],
+            activity=activity,
+            evidence_ref="T",
+            valid_from=start,
+            valid_until=end,
+            recorded_by=people["reviewer"],
+            state="approved",
+            approved_at=timezone.now(),
+        )
+
+    cases = {
+        "STARTS-TODAY": (make("STARTS-TODAY", today, today + timedelta(days=60)), "approved"),
+        "STARTS-TOMORROW": (
+            make("STARTS-TOMORROW", today + timedelta(days=1), today + timedelta(days=60)),
+            "scheduled",
+        ),
+        "ENDS-TODAY": (make("ENDS-TODAY", today - timedelta(days=9), today), "approved"),
+        "ENDED-YESTERDAY": (
+            make("ENDED-YESTERDAY", today - timedelta(days=9), today - timedelta(days=1)),
+            "expired",
+        ),
+        "SOON-NOT-YET": (
+            make("SOON-NOT-YET", today + timedelta(days=2), today + timedelta(days=10)),
+            "scheduled",
+        ),
+    }
+    for qualification, key in cases.values():
+        assert qualification_status(qualification, today)[2] == key
+    client.force_login(people["quality"])
+    url = reverse("laboratory:qualification_list")
+
+    def listed(status):
+        body = client.get(url, {"status": status}).content.decode()
+        return {name for name in cases if name in body}
+
+    assert listed("approved") == {"STARTS-TODAY", "ENDS-TODAY"}
+    assert listed("scheduled") == {"STARTS-TOMORROW", "SOON-NOT-YET"}
+    assert listed("expired") == {"ENDED-YESTERDAY"}
+    assert listed("expiring") == {"ENDS-TODAY"}  # a future start is not "expiring" yet
+    assert "Approved, starts" in client.get(url).content.decode()
+    detail = client.get(
+        reverse("laboratory:qualification_detail", args=[cases["STARTS-TOMORROW"][0].pk])
+    )
+    assert "Approved, starts" in detail.content.decode()
+    overview = client.get(reverse("laboratory:overview")).content.decode()
+    assert "Qualifications expiring within 30 days" in overview
+
+
+def test_use_pages_show_the_sample_reference_and_keep_raw_context_as_fallback(client, people):
+    from .helpers import make_sample
+
+    sample = make_sample(people, reference="SYN-WORK-77")
+    equipment = make_equipment(people)
+    qualify_analyst(people, people["analyst"])
+    services.authorize_use(
+        actor=people["analyst"],
+        context_type="quality.sample",
+        context_id=sample.pk,
+        activity="HPLC-ASSAY",
+        equipment=[equipment],
+        reason="Run",
+    )
+    services.authorize_use(
+        actor=people["analyst"],
+        context_type="external.batch",
+        context_id="EXT-9",
+        activity="HPLC-ASSAY",
+        equipment=[equipment],
+        reason="Unknown context",
+    )
+    # A context naming some other real model is never looked up: it stays as recorded.
+    services.authorize_use(
+        actor=people["analyst"],
+        context_type="accounts.user",
+        context_id=people["analyst"].pk,
+        activity="HPLC-ASSAY",
+        equipment=[equipment],
+        reason="Arbitrary model context",
+    )
+    client.force_login(people["quality"])
+    listing = client.get(reverse("laboratory:use_list")).content.decode()
+    assert "SYN-WORK-77" in listing and "external.batch EXT-9" in listing
+    assert f"accounts.user {people['analyst'].pk}" in listing
+    assert f"quality.sample {sample.pk}" not in listing
+    found = client.get(reverse("laboratory:use_list"), {"q": "WORK-77"}).content.decode()
+    assert "SYN-WORK-77" in found and "external.batch" not in found
+    detail = client.get(
+        reverse("laboratory:equipment_detail", args=[equipment.pk])
+    ).content.decode()
+    assert "SYN-WORK-77" in detail and "external.batch EXT-9" in detail
+    assert f'href="{reverse("quality:lot_detail", args=[sample.lot_id])}"' in listing
+
+
+def test_use_search_finds_every_displayed_sample_reference_without_a_cap(client, people, settings):
+    from analytical import services as analytical
+    from quality.models import Sample
+
+    from .helpers import make_lot, make_sample
+
+    settings.ANALYTICAL_REQUIREMENT_PROVIDER = "analytical.fixtures.FixtureProvider"
+    lot = make_lot(people)
+    equipment = make_equipment(people)
+    qualify_analyst(people, people["analyst"])
+    # A native analytical test: its sample reference is displayed, so it must be searchable.
+    sample = make_sample(people, lot, "ANALYTIC-SMP-5")
+    (test,), _ = analytical.assign_tests(actor=people["analyst"], sample=sample, reason="Assign")
+    services.authorize_use(
+        actor=people["analyst"],
+        context_type="analytical.analyticaltest",
+        context_id=test.pk,
+        activity="HPLC-ASSAY",
+        equipment=[equipment],
+        reason="Native test use",
+    )
+    # More matching samples than any fixed cap, with the use on the newest one.
+    Sample.objects.bulk_create(
+        [
+            Sample(
+                lot=lot,
+                reference=f"BULK-{n:04d}",
+                collected_at=timezone.now(),
+                created_by=people["analyst"],
+            )
+            for n in range(1005)
+        ]
+    )
+    newest = Sample.objects.filter(reference__startswith="BULK-").order_by("-pk").first()
+    ResourceUse.objects.create(
+        equipment=equipment,
+        context_type="quality.sample",
+        context_id=str(newest.pk),
+        activity="HPLC-ASSAY",
+        used_by=people["analyst"],
+    )
+    client.force_login(people["quality"])
+    url = reverse("laboratory:use_list")
+    body = client.get(url, {"q": "ANALYTIC-SMP"}).content.decode()
+    assert f"T-{test.pk} · sample ANALYTIC-SMP-5" in body
+    assert newest.reference in client.get(url, {"q": "BULK-"}).content.decode()
+
+
+def test_noncanonical_or_oversized_context_ids_keep_the_raw_label(client, people):
+    equipment = make_equipment(people)
+    odd = [
+        "²",
+        "007",
+        "9" * 40,
+        "-5",
+        "١٢",
+    ]  # superscript, leading zero, huge, signed, Arabic-Indic
+    for n, ident in enumerate(odd):
+        for kind in ("quality.sample", "analytical.analyticaltest"):
+            ResourceUse.objects.create(
+                equipment=equipment,
+                context_type=kind,
+                context_id=ident,
+                activity=f"ODD-{n}",
+                used_by=people["analyst"],
+            )
+    client.force_login(people["quality"])
+    response = client.get(reverse("laboratory:use_list"), {"per_page": 100})
+    assert response.status_code == 200
+    page = response.content.decode()
+    for ident in odd:
+        assert f"quality.sample {ident}" in page
+    detail = client.get(reverse("laboratory:equipment_detail", args=[equipment.pk]))
+    assert detail.status_code == 200

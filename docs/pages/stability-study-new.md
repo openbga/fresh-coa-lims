@@ -23,7 +23,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Start study** | Always | Analyst or Quality; others receive 403 | Saves, shows "Study started; pulls are scheduled from time zero." and opens the study record; refusals appear as an error summary and your entries are kept (status 422) |
+| **Start study** | Always | Analyst or Quality; others receive 403 | Saves, shows "Study started; pulls are scheduled from time zero." and opens the study record (a future Time zero is refused with the error above); refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
@@ -32,9 +32,9 @@ Start a stability study on an approved protocol and schedule its pulls from time
 |---|---|---|---|---|
 | Identifier | `Study.identifier` | Text, max 60, unique | Yes | "This study identifier already exists." if taken |
 | Approved protocol | `Study.protocol` | Approved protocol versions only | Yes | Preselected when opened with a protocol in the link (as from a protocol record) |
-| Lot | `Study.lot` | Any lot, listed by lot number | Yes | The lot under study; no lot state check here |
+| Lot | `Study.lot` | Any lot, listed by lot number | Yes | The lot under study; any lot state is allowed, including released lots |
 | Container and closure | `Study.container_closure` | Text, max 200 | Yes | Marketed or proposed system |
-| Time zero | `Study.start_date` | Date | Yes | Due dates are Time zero plus each timepoint's days |
+| Time zero | `Study.start_date` | Date, today or earlier | Yes | Date the study actually started; due dates are Time zero plus each timepoint's days |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
 
 ## Rules and hidden logic
@@ -43,7 +43,10 @@ Start a stability study on an approved protocol and schedule its pulls from time
 - One study per protocol, lot and container closure; a repeat is refused by the model's uniqueness check.
 - Creates one Pull per protocol timepoint (all conditions), due on Time zero plus the timepoint's interval days; starts Active with revision 1 and records you as the starter (you cannot close it later).
 - Event `study.started` records how many pulls were scheduled and the protocol.
-- Not enforced by this page: that Time zero is not in the future or the lot's relation to the protocol product.
+- Time zero cannot be in the future: "Time zero cannot be in the future: this workflow records studies that have actually started." (also shown beside the field). Today and historical dates are accepted. This is an application rule for recording an actual start, not a regulatory requirement.
+- Not compared with the lot: Time zero may predate the lot's receipt (historical starts are legitimate) and any lot state, including released lots, is allowed. A planned-study workflow (scheduling a study before it starts) is not supported.
+- Once saved, Time zero and every pull's due date are immutable (the database refuses changes).
+- Not enforced by this page: that Time zero is plausible for the lot, or the lot's relation to the protocol product.
 
 ## Related pages
 

@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from analytical.contracts import RequirementHold, parse_method, parse_requirement
 from catalog.services import ApplicabilityHold, batch_method_requirements
-from sampling.services import current_requirements, test_requirements
+from sampling.services import test_requirements
 
 
 class CatalogRequirementProvider:
@@ -75,5 +75,9 @@ def report_holds(lot):
 def report_methods(lot):
     if not lot.disposition_evidence:
         return None
-    source = current_requirements(lot)
+    from reporting.evidence import frozen_assignment_payload
+
+    source = frozen_assignment_payload(lot)
+    if source is None:
+        return None  # Reporting holds native evidence with a missing/mismatched signed assignment.
     return [test["method"] for test in source["tests"] if test["required"]]

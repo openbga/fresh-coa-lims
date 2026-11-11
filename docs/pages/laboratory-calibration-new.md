@@ -40,7 +40,7 @@ Record a calibration or verification event for one instrument.
 
 ## Rules and hidden logic
 
-- Messages: "A calibration cannot be performed in the future."; "The due date cannot precede the calibration date."
+- Messages: "A calibration cannot be performed in the future."; "The due date cannot precede the calibration date." The due date is compared with the calibration's date in the laboratory time zone (not the UTC date), so a calibration late on 1 June local time may have a due date of 1 June.
 - A passing record counts for fitness only after a different reviewer signs its acceptance. A failed record counts immediately and, if the equipment was in service, sets it Out of service in the same transaction (events `calibration.recorded` and `equipment.out_of_service`). The success message says so.
 - A failure on equipment that is already out of service records the calibration only; the service state is unchanged.
 - Calibration records cannot be edited or deleted; record a new one.

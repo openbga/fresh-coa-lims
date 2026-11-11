@@ -42,6 +42,17 @@ def signing_data(form):
     return {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
 
 
+def preflight(request, evidence, digest, problems, verb):
+    """Reason the signing form must not be offered, or None. POST revalidates everything."""
+    if request.GET.get("evidence") != digest:
+        return "The evidence changed since you reviewed it. Review it again."
+    if problems:
+        return f"This certificate cannot be {verb}: " + " ".join(problems)
+    if ev.independence_conflict(evidence, request.user):
+        return f"You authored records on this lot, so you cannot sign this certificate as {verb}."
+    return None
+
+
 def failure(exc):
     return "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
 
@@ -138,12 +149,10 @@ def issue_sign(request, lot_pk):
     lot = get_object_or_404(Lot, pk=lot_pk)
     status = 200
     if request.method == "GET":
-        _, digest, problems = services.preview(lot)
-        if request.GET.get("evidence") != digest or problems:
-            messages.warning(
-                request,
-                "The evidence changed, or could not support a certificate. Review it again.",
-            )
+        evidence, digest, problems = services.preview(lot)
+        refusal = preflight(request, evidence, digest, problems, "issued")
+        if refusal:
+            messages.warning(request, refusal)
             return redirect("reporting:issue_preview", lot_pk=lot.pk)
         form = IssueForm(initial={"evidence_hash": digest})
     else:
@@ -251,12 +260,10 @@ def amend_sign(request, pk):
         return redirect("reporting:detail", pk=report.pk)
     status = 200
     if request.method == "GET":
-        _, digest, problems = services.preview(report.lot)
-        if request.GET.get("evidence") != digest or problems:
-            messages.warning(
-                request,
-                "The evidence changed, or could not support a certificate. Review it again.",
-            )
+        evidence, digest, problems = services.preview(report.lot)
+        refusal = preflight(request, evidence, digest, problems, "amended")
+        if refusal:
+            messages.warning(request, refusal)
             return redirect("reporting:amend_preview", pk=report.pk)
         form = AmendForm(
             initial={

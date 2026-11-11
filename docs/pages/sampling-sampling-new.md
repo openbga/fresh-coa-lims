@@ -14,9 +14,8 @@ Records what was actually sampled from a lot against its assigned sampling plan,
 ## Who can use it
 
 - Sign-in required. **analyst** role only; others (including quality) receive 403 Forbidden.
-- Requires current requirements in state "Requirements assigned". Otherwise you are redirected to the lot with "Assign approved requirements before recording sampling."
+- Opening the page checks whether sampling can be recorded. If not, you are redirected to the lot with the error "Only quarantined lots accept new samples.", "Assign approved requirements before recording sampling.", "Applicability hold: <hold reasons joined by '; '>" (requirements on hold) or "The assigned sampling plan is not approved." The page reads the lot's current requirements once and builds the form (plan facts, default amount unit) from that same reading, so a change made by someone else while the page opens cannot break it; the server re-reads and repeats the same checks under the lot lock when you submit, redirecting with the current reason if the requirements changed.
 - You are recorded as the sampler.
-- The page itself does not check the lot state; the lot page only offers the button for quarantined lots, and for a lot no longer in Quarantine the form opens but submitting is refused with "Only quarantined lots accept new samples."
 
 ## Layout
 
@@ -53,10 +52,10 @@ Records what was actually sampled from a lot against its assigned sampling plan,
 
 - **Required containers** come from the approved plan and the number of containers in the lot: fixed number; 1 + square root of N rounded up; every container; or a percentage rounded up, never below 1 and never above the lot size.
 - **Deviation**: when fewer containers than required or less than the plan's minimum amount are recorded, a deviation is required: "Record a deviation: plan requires <N> containers; <M> sampled; plan requires at least <amount> <unit>." (parts shown only for the shortfalls).
-- **Other validations**: "More containers sampled than the lot contains." "Sampling time cannot be in the future." "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at, when the time is outside the plan version's effective period) "The approved plan states amounts in <unit>." "This sample reference already exists." "The assigned sampling plan is not approved." "Only quarantined lots accept new samples."
+- **Other validations**: "More containers sampled than the lot contains." "Sampling time cannot be in the future." "Sampling plan <plan> vN is not effective at this sampling time. Assign current requirements to the lot first." (on Sampled at, when the time is outside the plan version's effective period) "The approved plan states amounts in <unit>." "This sample reference already exists." "The assigned sampling plan is not approved." "Only quarantined lots accept new samples." (these last two also appear as the redirect errors above)
 - **Resample**: "Choose a sampled original sample of this lot to resample." when Resample has no original, or the original belongs to another lot or has no sampling record. "Only a resample names an original sample." when a routine sample names one. Whether a resample is authorised is not decided here.
 - **Deviation assessment**: a record with a deviation creates a pending deviation assessment. Quality must accept it before the lot's sampling stops blocking QC disposition.
-- **Hold**: if requirements are missing or on hold at submission, the hold reasons are shown as the error.
+- **Hold**: if requirements are missing or on hold at submission, the hold reasons are shown as the error ("Applicability hold: ..." on the page redirect).
 - **Effects, in one transaction**: a quality sample is created (lot revision +1, audit `sample.collected`) and a sampling record linking the lot, sample, assignment and plan version is stored (audit `sampling.recorded`).
 - **Not enforced by this page**: compositing (permitted or not) is not checked.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept.") plus refusals from the server as form-level errors.

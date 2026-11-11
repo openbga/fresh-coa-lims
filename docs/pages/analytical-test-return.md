@@ -38,7 +38,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 
 ## Rules and hidden logic
 
-- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "Only conforming results awaiting review can be returned.".
+- **Checked before the form opens** (on opening and on submitting, with the same rules the return uses): redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "Only submitted tests can be returned."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC); "Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid.". The return itself rechecks all of these under lock, plus the record revision.
 - **Preconditions**: test Submitted ("Only submitted tests can be returned."); not your own ("You cannot review your own test."); conforming ("Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid."); lot in quarantine.
 - **Stale page**: "Record changed. Reload and review before continuing."
 - **Effect**: mean, reportable value, conformance and submitter are cleared; test and lot revisions rise by 1; `test.returned` is audited with the previous values. Observations remain.

@@ -30,7 +30,7 @@ Work queues for equipment fitness, reagent lots and qualifications, each linking
 | Released lots expiring within 30 days | Released lots expiring today to 30 days ahead | Reagents, Expiring within 30 days |
 | Released lots past expiry | Released lots past expiry | Reagents, Released but expired |
 | Qualifications awaiting approval | Qualifications in state Awaiting approval | Qualifications, Awaiting approval |
-| Qualifications expiring within 30 days | Approved qualifications ending today to 30 days ahead | Qualifications, Expiring within 30 days |
+| Qualifications expiring within 30 days | Approved qualifications already in effect and ending today to 30 days ahead (future-dated approvals are not counted until they start) | Qualifications, Expiring within 30 days |
 
 ## Actions
 
