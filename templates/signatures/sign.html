@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Sign {{ meaning }} · OpenBGA Qual{% endblock %}
+{% block title %}Sign {{ meaning }} · OpenBGA Qualab{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}
 {% if is_review %}{% include "signatures/dialog.html" with signing_title="Sign result review" %}{% else %}{% include "signatures/dialog.html" with signing_title="Sign lot disposition" %}{% endif %}

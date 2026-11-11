@@ -216,7 +216,7 @@ wheels = [
 ]
 
 [[package]]
-name = "openbga-qual"
+name = "openbga-qualab"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

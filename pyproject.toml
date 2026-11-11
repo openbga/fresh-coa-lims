@@ -1,7 +1,7 @@
 [project]
-name = "openbga-qual"
+name = "openbga-qualab"
 version = "0.1.0"
-description = "OpenBGA Qual: free, open-source LIMS for manufacturing quality-control laboratories"
+description = "OpenBGA Qualab: free, open-source LIMS for manufacturing quality-control laboratories"
 requires-python = ">=3.14,<3.15"
 license = "AGPL-3.0-only"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/openbga/qual"
+Repository = "https://github.com/openbga/qualab"
 Support = "https://bgasoft.com"
 
 [dependency-groups]

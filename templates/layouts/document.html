@@ -8,7 +8,7 @@
   {# Synchronous on purpose: sets data-bs-theme from the saved choice before the first paint. #}
   <script src="{% static 'js/theme-init.js' %}"></script>
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "422", "swap": true}, {"code": "[45]..", "swap": false, "error": true}]}'>
-  <title>{% block title %}{% if page_title %}{{ page_title }} · OpenBGA Qual{% else %}OpenBGA Qual: open-source manufacturing QC LIMS{% endif %}{% endblock %}</title>
+  <title>{% block title %}{% if page_title %}{{ page_title }} · OpenBGA Qualab{% else %}OpenBGA Qualab: open-source manufacturing QC LIMS{% endif %}{% endblock %}</title>
   <link rel="icon" href="{% static 'img/mark.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.8/css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
@@ -45,7 +45,7 @@
     {% block sidenav %}
     <nav class="vr-sidenav offcanvas-lg offcanvas-start" id="vr-nav" tabindex="-1" aria-label="Primary">
       <div class="offcanvas-header d-lg-none">
-        <p class="offcanvas-title h5 mb-0">OpenBGA Qual</p>
+        <p class="offcanvas-title h5 mb-0">OpenBGA Qualab</p>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body">
