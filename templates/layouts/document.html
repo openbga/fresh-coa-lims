@@ -37,7 +37,7 @@
     {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
     <div class="vr-topbar-end">
       {% include "includes/theme_menu.html" %}
-      {% if user.is_authenticated %}<span class="d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
+      {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
     </div>
   </header>
   {% endblock topbar %}
@@ -49,20 +49,38 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body">
-        <ul class="vr-nav-list">
-          <li><a class="vr-navlink" href="/" {% if request.resolver_match.namespace == 'quality' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Lots</span></a></li>
-          <li><a class="vr-navlink" href="/rules/" {% if '/rules/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="list-check" %}<span>Rule sets</span></a></li>
-          <li><a class="vr-navlink" href="/audit/" {% if '/audit/' in request.path %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span>Audit trail</span></a></li>
-          <li><a class="vr-navlink" href="/signature-pin/" {% if request.path == '/signature-pin/' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span>Signature PIN</span></a></li>
-          <li><a class="vr-navlink" href="/sampling/" {% if request.resolver_match.namespace == 'sampling' %}aria-current="page"{% endif %}><span>Sampling and requirements</span></a></li>
-          <li><a class="vr-navlink" href="/catalog/" {% if request.resolver_match.namespace == 'catalog' %}aria-current="page"{% endif %}><span>Specifications and methods</span></a></li>
-          <li><a class="vr-navlink" href="/testing/" {% if request.resolver_match.namespace == 'analytical' %}aria-current="page"{% endif %}><span>Testing and investigations</span></a></li>
-          <li><a class="vr-navlink" href="/stability/" {% if request.resolver_match.namespace == 'stability' %}aria-current="page"{% endif %}><span>Stability and reserves</span></a></li>
-          <li><a class="vr-navlink" href="/laboratory/" {% if request.resolver_match.namespace == 'laboratory' %}aria-current="page"{% endif %}><span>Laboratory operations</span></a></li>
-          <li><a class="vr-navlink" href="/reports/" {% if request.resolver_match.namespace == 'reporting' %}aria-current="page"{% endif %}><span>Certificates of analysis</span></a></li>
-          <li><a class="vr-navlink" href="{% url 'accounts:access' %}" {% if request.resolver_match.view_name == 'accounts:access' %}aria-current="page"{% endif %}><span>Account access</span></a></li>
-          {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}><span>Users and roles</span></a></li>{% endif %}
+        <div class="vr-nav-section">
+          <p class="vr-nav-heading" id="vr-nav-work">Work</p>
+          <ul class="vr-nav-list" aria-labelledby="vr-nav-work">
+            <li><a class="vr-navlink" href="/"{% if request.resolver_match.namespace == 'quality' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span data-label="Lots">Lots</span></a></li>
+            <li><a class="vr-navlink" href="/sampling/"{% if request.resolver_match.namespace == 'sampling' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="droplet" %}<span data-label="Sampling">Sampling</span></a></li>
+            <li><a class="vr-navlink" href="/testing/"{% if request.resolver_match.namespace == 'analytical' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-data" %}<span data-label="Testing">Testing</span></a></li>
+            <li><a class="vr-navlink" href="/stability/"{% if request.resolver_match.namespace == 'stability' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="archive" %}<span data-label="Stability">Stability</span></a></li>
+            <li><a class="vr-navlink" href="/laboratory/"{% if request.resolver_match.namespace == 'laboratory' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="tools" %}<span data-label="Laboratory">Laboratory</span></a></li>
           </ul>
+        </div>
+        <div class="vr-nav-section">
+          <p class="vr-nav-heading" id="vr-nav-configuration">Configuration</p>
+          <ul class="vr-nav-list" aria-labelledby="vr-nav-configuration">
+            <li><a class="vr-navlink" href="/catalog/"{% if request.resolver_match.namespace == 'catalog' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="file-earmark-text" %}<span data-label="Specifications">Specifications</span></a></li>
+            <li><a class="vr-navlink" href="/rules/"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="list-check" %}<span data-label="Rule sets">Rule sets</span></a></li>
+          </ul>
+        </div>
+        <div class="vr-nav-section">
+          <p class="vr-nav-heading" id="vr-nav-records">Records</p>
+          <ul class="vr-nav-list" aria-labelledby="vr-nav-records">
+            <li><a class="vr-navlink" href="/reports/"{% if request.resolver_match.namespace == 'reporting' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="patch-check" %}<span data-label="Certificates">Certificates</span></a></li>
+            <li><a class="vr-navlink" href="/audit/"{% if '/audit/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span data-label="Audit trail">Audit trail</span></a></li>
+          </ul>
+        </div>
+        <div class="vr-nav-section">
+          <p class="vr-nav-heading" id="vr-nav-account">Account</p>
+          <ul class="vr-nav-list" aria-labelledby="vr-nav-account">
+            <li><a class="vr-navlink" href="/signature-pin/"{% if request.path == '/signature-pin/' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="key" %}<span data-label="Signature PIN">Signature PIN</span></a></li>
+            <li><a class="vr-navlink" href="{% url 'accounts:access' %}"{% if request.resolver_match.view_name == 'accounts:access' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="person-circle" %}<span data-label="Account access">Account access</span></a></li>
+            {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="people" %}<span data-label="Users and roles">Users and roles</span></a></li>{% endif %}
+          </ul>
+        </div>
       </div>
     </nav>
     {% endblock sidenav %}

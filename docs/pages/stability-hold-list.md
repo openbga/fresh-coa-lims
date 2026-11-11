@@ -4,7 +4,7 @@ urls: stability:hold_list
 views: stability.views.hold_list
 templates: ops/list.html
 models: stability.Hold
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ All holds on lots and reserve samples. A hold blocks QC disposition (and any dis
 
 ## Layout
 
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
 - **Header**: title "Holds", introduction and a **New hold** button for Analyst, Reviewer, Quality.
 - **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Hold (links to the record), Lot, Kind, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.

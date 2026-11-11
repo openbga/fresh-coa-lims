@@ -4,7 +4,7 @@ urls: laboratory:equipment_list
 views: laboratory.views.equipment_list
 templates: ops/list.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.Qualification
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ Find equipment and see at a glance whether it is fit for use today.
 
 ## Layout
 
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
 - **Header**: title, short introduction and a **New equipment** button for Analyst, Quality.
 - **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Asset (links to the record), Description, Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness (the Fitness sort orders by service state, then asset, not by the label text). Sortable headers toggle ascending/descending.

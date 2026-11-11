@@ -4,7 +4,7 @@ urls: stability:reserve_list
 views: stability.views.reserve_list
 templates: ops/list.html
 models: stability.ReserveSample
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ Identified reserve samples with quantity against the minimum multiple of one tes
 
 ## Layout
 
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
 - **Header**: title, short introduction and a **New reserve sample** button for Analyst, Quality.
 - **Toolbar**: **Search** (reserve identifier or lot number, contains, case-insensitive) and **Status** (All, Below minimum quantity). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Reserve (links to the record), Lot, Quantity, Retained, Location, Quantity check. Quantity is the retained amount with its unit. Sort by Retained (newest first by default), Reserve (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.

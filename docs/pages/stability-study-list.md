@@ -4,7 +4,7 @@ urls: stability:study_list
 views: stability.views.study_list
 templates: ops/list.html
 models: stability.Study
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ One study per approved protocol, lot and container closure; the entry point to e
 
 ## Layout
 
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
 - **Header**: title, short introduction and a **New study** button for Analyst, Quality.
 - **Toolbar**: **Search** (study ID, lot number or product) and **Status** (All, Active, Completed, Terminated). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Study (links to the record), Lot (number), Protocol (protocol identifier), Container closure, Time zero, State. Sort by Time zero (newest first by default), Study (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.

@@ -4,7 +4,7 @@ urls: stability:pull_list
 views: stability.views.pull_list
 templates: ops/list.html
 models: stability.Pull
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 ## Layout
 
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
 - **Header**: title and the introduction "Scheduled pulls across active and closed studies, oldest due first."
 - **Toolbar**: **Search** (study ID or lot number) and **Status** (All, Overdue, Due now, Upcoming, Awaiting acceptance, Accepted, Missed); Search is a contains match, case-insensitive. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Pull (study identifier, condition and timepoint label; links to the pull record), Due, Window ("from to to" dates), Status, Tests (required test codes). Sort by Due (default; ties by pk), Study (study ID, then due date) or Status (stored state). Sortable headers toggle ascending/descending.

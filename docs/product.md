@@ -20,6 +20,8 @@ The initial roles map to explicit Django groups. Later receiving, supervisor and
 
 Account administrators can create users, update identity, assign/revoke roles, deactivate/reactivate, clear PIN lockout, require PIN re-enrollment and force password replacement. Every administrative web change requires a reason and a fresh username/PIN signature bound to the resulting account revision. Initial and optional recovery passwords are entered privately and must be replaced before workspace access; no email delivery is assumed. Changes invalidate existing target sessions. Self-service password replacement requires the current password and a reason, with an audit event but no PIN, so credential recovery remains possible. The audited operator commands support bootstrap and controlled recovery; they are a separate trusted channel.
 
+Accepted limitation: administrators are trusted to perform account administration. An admin who sets an initial or temporary password and requires PIN re-enrollment could act as that account. The application does not prevent this; laboratory SOPs and review of the audit trail (including `account.created`, `account.reset_password` and `account.reenroll_pin`) are the mitigations.
+
 ## Journeys
 
 1. Receive an identified material/manufacturing lot in quarantine, attach the approved effective rule revision, assign approved specifications and a sampling plan, and record sampling provenance.

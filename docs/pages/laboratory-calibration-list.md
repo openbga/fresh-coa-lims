@@ -4,7 +4,7 @@ urls: laboratory:calibration_list
 views: laboratory.views.calibration_list
 templates: ops/list.html
 models: laboratory.Calibration, laboratory.Equipment
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ Every recorded calibration; the reviewer's queue of calibrations awaiting indepe
 
 ## Layout
 
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
 - **Header**: title and introduction ("Every recorded calibration. Passing records count only after independent acceptance; failures block use as soon as they are recorded.").
 - **Toolbar**: **Search** (equipment asset ID contains the text, max 100 characters) and **Status** (All, Awaiting acceptance, Accepted, Failed). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Equipment, Performed, Due (inclusive), Outcome, State, Recorded by, Action. Sort by Performed (newest first by default), Equipment or Due. Sortable headers toggle ascending/descending.

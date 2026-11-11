@@ -4,7 +4,7 @@ urls: laboratory:overview
 views: laboratory.views.overview
 templates: ops/overview.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -18,6 +18,7 @@ Work queues for equipment fitness, reagent lots and qualifications, each linking
 
 ## Layout
 
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
 - Dateline, title and introduction, then one table of queues: **Queue**, **Records** (count) and **Attention** ("Needs attention" or "Clear").
 - Queues, in this order, with what each counts and the list it opens:
 

@@ -4,7 +4,7 @@ urls: stability:overview
 views: stability.views.overview
 templates: ops/overview.html
 models: stability.Pull, stability.Protocol, stability.Study, stability.Hold, stability.RetentionObligation, stability.ReserveSample
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -18,6 +18,7 @@ Work queues for stability pulls, studies, protocols, holds, retention anchors an
 
 ## Layout
 
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. The current page is highlighted; every tab is visible to anyone who can read Stability and retention.
 - Title "Stability and retention", the introduction (native scheduling is thin; link external stability systems where used) and one list of queues, each with a count. A zero count is shown in a neutral tone. The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
 
 ## Actions

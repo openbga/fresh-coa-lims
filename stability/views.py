@@ -22,6 +22,7 @@ from laboratory.ui import (
     roles_of,
     run_form,
     section,
+    section_tabs,
     sign_page,
     status,
     when,
@@ -162,6 +163,7 @@ def overview(request):
         "ops/overview.html",
         {
             "page_title": "Stability and retention",
+            "tabs": section_tabs(request),
             "intro": "Protocol-driven pulls, reserve samples, retention obligations and holds. "
             "Native scheduling is thin: link external stability systems where used.",
             "queues": [

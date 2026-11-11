@@ -3,6 +3,7 @@
 {% block page_dateline %}{% include "includes/dateline.html" %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">{{ intro }}</p>{% endblock %}
 {% block content %}
+{% if tabs %}{% include "catalog/includes/tabs.html" with label=page_title|add:" sections" %}{% endif %}
 <section class="card vr-table-card" aria-labelledby="queues-heading">
   <h2 class="visually-hidden" id="queues-heading">Work queues</h2>
   <div class="vr-table-wrap"><table class="table table-hover vr-table" aria-labelledby="queues-heading">

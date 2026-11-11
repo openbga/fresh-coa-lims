@@ -971,6 +971,15 @@ s,
   --bs-btn-padding-x: 0.5rem;
 }
 
+/* One voice across the bar: buttons and the signed-in name share size and weight. */
+.vr-topbar .vr-topbar-btn,
+.vr-topbar-user {
+  --bs-btn-font-size: 1rem;
+  --bs-btn-font-weight: 500;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
 .vr-topbar .vr-topbar-btn {
   --bs-btn-color: var(--vr-topbar-text);
   --bs-btn-bg: transparent;
@@ -1137,9 +1146,24 @@ a.vr-navlink:hover {
   font-weight: 650;
 }
 
+/* Reserve the bold width so marking the current page never shifts the rail. */
+.vr-navlink > span[data-label] {
+  display: inline-grid;
+}
+
+.vr-navlink > span[data-label]::after {
+  content: attr(data-label);
+  content: attr(data-label) / ""; /* empty alt text: not announced twice */
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 650;
+  user-select: none;
+}
+
 .vr-navlink[aria-current="page"] > span:first-of-type {
-  margin: 0 -0.35em;
-  padding: 0.05em 0.45em;
+  margin: 0 -0.45em; /* cancels the padding: the label text does not move */
+  padding: 0 0.45em; /* no vertical padding: the current row keeps the same height */
   background: var(--vr-marker);
   color: var(--vr-on-highlight);
   clip-path: polygon(var(--vr-marker-tip) 0, 100% 0, calc(100% - var(--vr-marker-tip)) 100%, 0 100%);

@@ -22,7 +22,7 @@ if render_hostname:
     ALLOWED_HOSTS.append(render_hostname)
     CSRF_TRUSTED_ORIGINS.append(f"https://{render_hostname}")
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "config.apps.AuditedAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",

@@ -21,6 +21,38 @@ from core.services import require_role
 READERS = ("analyst", "reviewer", "quality", "admin", "auditor")
 PAGE_SIZES = (25, 50, 100)
 
+# Sibling lists under one sidebar item, shown as tabs on the overview and every list.
+SECTION_TABS = {
+    "laboratory": [
+        ("Overview", "overview"),
+        ("Equipment", "equipment_list"),
+        ("Calibrations", "calibration_list"),
+        ("Qualifications", "qualification_list"),
+        ("Reagents and standards", "reagent_list"),
+        ("Resource use", "use_list"),
+    ],
+    "stability": [
+        ("Overview", "overview"),
+        ("Protocols", "protocol_list"),
+        ("Studies", "study_list"),
+        ("Pulls", "pull_list"),
+        ("Reserves", "reserve_list"),
+        ("Holds", "hold_list"),
+    ],
+}
+
+
+def section_tabs(request):
+    match = request.resolver_match
+    return [
+        {
+            "label": label,
+            "url": reverse(f"{match.namespace}:{name}"),
+            "current": match.url_name == name,
+        }
+        for label, name in SECTION_TABS.get(match.namespace, [])
+    ]
+
 
 def access(user):
     require_role(user, *READERS)
@@ -193,6 +225,7 @@ def list_page(
         "new": new,
         "empty_body": empty_body,
         "page_sizes": PAGE_SIZES,
+        "tabs": section_tabs(request),
         **(extra or {}),
     }
     return render(request, template, context)

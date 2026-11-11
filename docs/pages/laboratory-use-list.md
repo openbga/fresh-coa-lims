@@ -4,7 +4,7 @@ urls: laboratory:use_list
 views: laboratory.views.use_list
 templates: ops/list.html
 models: laboratory.ResourceUse
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -19,6 +19,7 @@ Append-only record of the eligible equipment and reagents used for work.
 
 ## Layout
 
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. The current page is highlighted; every tab is visible to anyone who can read Laboratory operations.
 - **Header**: title, short introduction and a **New use** button for Analyst.
 - **Toolbar**: **Search** (a sample reference or work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"; searching a sample reference finds the uses recorded for that sample, whether the work was recorded against the sample or against one of its native analytical tests; every matching record is searched, with no cap). There is no Status filter. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Used (time), Resource (links), Work, Activity, Test, By. Sort by Used (newest first by default). Sortable headers toggle ascending/descending.

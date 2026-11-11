@@ -3,6 +3,7 @@
 {% block page_intro %}<p class="vr-page-intro">{{ intro }}</p>{% endblock %}
 {% block page_actions %}{% if new %}<a class="btn btn-primary" href="{{ new.href }}">{% include "includes/icon.html" with name="plus-lg" %}New {{ new.label }}</a>{% endif %}{% endblock %}
 {% block content %}
+{% if tabs %}{% include "catalog/includes/tabs.html" with label=page_title|add:" sections" %}{% endif %}
 <section class="card vr-table-card" aria-labelledby="list-heading">
   <h2 class="visually-hidden" id="list-heading">{{ page_title }}</h2>
   {% if filter_form.fields %}

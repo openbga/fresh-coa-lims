@@ -47,6 +47,7 @@ from .ui import (
     roles_of,
     run_form,
     section,
+    section_tabs,
     sign_page,
     status,
     when,
@@ -150,6 +151,7 @@ def overview(request):
         "ops/overview.html",
         {
             "page_title": "Laboratory operations",
+            "tabs": section_tabs(request),
             "intro": "Equipment fitness, reagent and standard provenance, and analyst "
             "qualification gates for laboratory work.",
             "queues": [
