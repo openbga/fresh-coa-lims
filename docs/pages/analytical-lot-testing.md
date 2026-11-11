@@ -4,7 +4,7 @@ urls: analytical:lot_testing
 views: analytical.views.lot_testing
 templates: analytical/lot_testing.html, analytical/_test_status.html, analytical/_investigation_status.html
 models: quality.Lot, quality.Sample, analytical.AnalyticalTest, analytical.Investigation
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 | Reportable | `AnalyticalTest.reportable_value` | Decimal with unit | — | "—" until submitted |
 | Specification | `AnalyticalTest.requirement` | Text | — | Source and revision of the frozen requirement |
 | Reason (hidden) | `AuditEvent.reason` | Text | Yes | Fixed text: "Assign required tests from the lot's approved requirements" |
-| Sample (hidden) | `AnalyticalTest.sample` | Sample of this lot | Yes | The card's sample; a sample of another lot returns 404 |
+| Sample (hidden) | `AnalyticalTest.sample` | Sample of this lot | Yes | The card's sample; a sample of another lot, or a value that is not a whole-number ID of at most 19 digits, returns 404 |
 
 ## Rules and hidden logic
 

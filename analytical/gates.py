@@ -1,4 +1,4 @@
-"""Read-only lot gate and evidence snapshot published for disposition (integrator) and CoA (D).
+"""Read-only lot gate and evidence snapshot published for QC disposition and certificates.
 
 Call these inside the disposition/report transaction after locking the lot row: every analytical
 evidence change locks and bumps the same lot revision, so the result is consistent under that lock.

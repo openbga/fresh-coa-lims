@@ -1,14 +1,13 @@
 """A fresh bootstrap login has a useful landing page, without implicit lab authority."""
 
 import re
-from pathlib import Path
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
 
 @pytest.mark.django_db(transaction=True)
-def test_bootstrap_account_access(live_server, django_user_model):
+def test_bootstrap_account_access(live_server, django_user_model, artifacts):
     password = "Synthetic-account-browser-2026!"
     django_user_model.objects.create_superuser("bootstrap", password=password)
     with sync_playwright() as playwright:
@@ -39,8 +38,6 @@ def test_bootstrap_account_access(live_server, django_user_model):
         panel = page.get_by_role("complementary", name="Page documentation", exact=True)
         expect(panel.get_by_role("heading", name="Account access", exact=True)).to_be_visible()
         panel.get_by_role("button", name="Close page documentation", exact=True).click()
-        artifacts = Path(".local/qa")
-        artifacts.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(artifacts / "account-access-desktop.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")

@@ -2,7 +2,6 @@
 
 import re
 import secrets
-from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import Group
@@ -11,8 +10,6 @@ from playwright.sync_api import expect, sync_playwright
 
 from core.models import RuleSet
 from quality.models import Lot
-
-ARTIFACTS = Path(".local/qa/layout")
 
 
 def sign_in(page, live_server, user, password):
@@ -36,11 +33,10 @@ def link_geometry(nav):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_section_navigation_stays_put(live_server, django_user_model):
+def test_section_navigation_stays_put(live_server, django_user_model, artifacts):
     password = secrets.token_urlsafe(24)
     user = django_user_model.objects.create_user(username="layout_test", password=password)
     user.groups.add(*[Group.objects.get_or_create(name=r)[0] for r in ("analyst", "quality")])
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     errors = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -83,7 +79,7 @@ def test_section_navigation_stays_put(live_server, django_user_model):
                             "/laboratory/",
                         ):
                             name = path.strip("/").replace("/", "-")
-                            page.screenshot(path=str(ARTIFACTS / f"after-{name}-{width}.png"))
+                            page.screenshot(path=str(artifacts / f"after-{name}-{width}.png"))
 
             page.set_viewport_size({"width": 1440, "height": 900})
             page.goto(f"{live_server.url}/laboratory/uses/")
@@ -98,7 +94,7 @@ def test_section_navigation_stays_put(live_server, django_user_model):
             expect(nav.locator('[aria-current="page"]')).to_be_in_viewport(ratio=1)
             assert nav.bounding_box()["y"] == original_top
             assert_no_overflow(page)
-            page.screenshot(path=str(ARTIFACTS / "after-help-panel-1440.png"))
+            page.screenshot(path=str(artifacts / "after-help-panel-1440.png"))
             panel.get_by_role("button", name="Close page documentation").click()
 
             # Keyboard reaches links hidden beyond the scroll edge and activates the destination.
@@ -113,7 +109,7 @@ def test_section_navigation_stays_put(live_server, django_user_model):
             expect(page).to_have_url(f"{live_server.url}/laboratory/uses/")
             page.get_by_role("button", name="Theme", exact=True).click()
             page.get_by_role("button", name="Dark", exact=True).click()
-            page.screenshot(path=str(ARTIFACTS / "after-dark-390.png"))
+            page.screenshot(path=str(artifacts / "after-dark-390.png"))
             assert not errors, errors
 
             # Full-page links and native scrolling still work with progressive enhancement off.
@@ -131,14 +127,14 @@ def test_section_navigation_stays_put(live_server, django_user_model):
             assert_no_overflow(plain)
             no_js.close()
         except Exception:
-            page.screenshot(path=str(ARTIFACTS / "navigation-failure.png"), full_page=True)
+            page.screenshot(path=str(artifacts / "navigation-failure.png"), full_page=True)
             raise
         finally:
             browser.close()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_material_lot_filters_and_paging(live_server, django_user_model):
+def test_material_lot_filters_and_paging(live_server, django_user_model, artifacts):
     password = secrets.token_urlsafe(24)
     user = django_user_model.objects.create_user(username="lot_layout_test", password=password)
     user.groups.add(Group.objects.get_or_create(name="analyst")[0])
@@ -169,11 +165,10 @@ def test_material_lot_filters_and_paging(live_server, django_user_model):
             expect(page.locator("tbody tr")).to_have_count(1)
             page.get_by_role("link", name="Clear filters", exact=True).click()
             expect(page.locator("tbody tr")).to_have_count(30)
-            ARTIFACTS.mkdir(parents=True, exist_ok=True)
-            page.screenshot(path=str(ARTIFACTS / "after-lots-1440.png"))
+            page.screenshot(path=str(artifacts / "after-lots-1440.png"))
             page.set_viewport_size({"width": 390, "height": 900})
             assert_no_overflow(page)
-            page.screenshot(path=str(ARTIFACTS / "after-lots-390.png"))
+            page.screenshot(path=str(artifacts / "after-lots-390.png"))
             page.get_by_label("Find lot", exact=True).fill("no-such-synthetic-lot")
             page.get_by_role("button", name="Search", exact=True).click()
             expect(

@@ -9,10 +9,10 @@ from django.db import DatabaseError, transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from catalog.tests.factories import PIN, approve
+from catalog.tests.factories import PIN, approve, person
 from core.models import ElectronicSignature
 from quality.models import Lot
-from quality.services import add_sample
+from quality.services import add_sample, receive_lot
 from sampling import services
 from sampling.models import DeviationReview, SamplingRecord
 from sampling.services import lot_blockers
@@ -136,6 +136,104 @@ def test_deviation_assessment_independence_roles_and_staleness(people, ready):  
         assess(people, record)
     with pytest.raises(DatabaseError), transaction.atomic():
         DeviationReview.objects.filter(pk=decided.pk).update(status="pending")
+
+
+def test_earlier_corrector_cannot_assess_later_correction(
+    client,
+    people,
+    ready,  # noqa: F811
+):
+    """Authorship carries through a correction chain, not only the latest record."""
+    assign(people, ready)
+    original = short(people, ready)
+    fields = {
+        "sampled_at": original.sampled_at,
+        "containers_total": 9,
+        "containers_sampled": 2,
+        "container_ids": "C1, C2",
+        "quantity": Decimal("60"),
+        "quantity_unit": "g",
+        "location": "Booth 1",
+        "deviation": "Two containers damaged (synthetic).",
+    }
+    by_dual = services.correct_sampling(
+        actor=people["dual"], record=original, reason="Recounted (synthetic)", **fields
+    )
+    latest = services.correct_sampling(
+        actor=people["analyst"], record=by_dual, reason="Rechecked (synthetic)", **fields
+    )
+    with pytest.raises(PermissionDenied, match="corrected"):
+        assess(people, latest, actor="dual")
+    assert DeviationReview.objects.get(record=latest).status == "pending"
+    client.force_login(people["dual"])
+    page = client.get(reverse("sampling:lot", args=[ready["lot"].pk]))
+    assess_url = reverse("sampling:deviation_assess", args=[latest.pk])
+    assert assess_url not in page.content.decode()
+    assert client.get(assess_url).status_code == 403
+    assert assess(people, latest).status == "accepted"
+
+
+def _correct(record, actor, reason="Recounted (synthetic)"):
+    return services.correct_sampling(
+        actor=actor,
+        record=record,
+        reason=reason,
+        sampled_at=record.sampled_at,
+        containers_total=9,
+        containers_sampled=4,
+        container_ids="C1, C2, C5, C9",
+        quantity=Decimal("61"),
+        quantity_unit="g",
+        location="Sampling booth 1",
+    )
+
+
+def test_lot_author_ids_without_sampling_is_empty(people, ready):  # noqa: F811
+    assign(people, ready)
+    assert services.lot_author_ids(ready["lot"]) == set()
+
+
+def test_lot_author_ids_plain_record(people, ready):  # noqa: F811
+    assign(people, ready)
+    sample(people, ready)
+    authors = services.lot_author_ids(Lot.objects.get(pk=ready["lot"].pk))
+    assert authors == {people["analyst"].pk}
+    assert None not in authors
+
+
+def test_lot_author_ids_cover_every_record_of_a_correction_chain(people, ready):  # noqa: F811
+    third = person("analyst-c", "analyst")
+    assign(people, ready)
+    original = sample(people, ready)
+    middle = _correct(original, people["dual"])
+    _correct(middle, third, reason="Second recount (synthetic)")
+    # The intermediate corrector stays an author although their record is superseded.
+    assert services.lot_author_ids(ready["lot"]) == {
+        people["analyst"].pk,
+        people["dual"].pk,
+        third.pk,
+    }
+
+
+def test_lot_author_ids_cover_every_sample_and_only_this_lot(people, ready):  # noqa: F811
+    elsewhere = person("analyst-elsewhere", "analyst")
+    assign(people, ready)
+    sample(people, ready, reference="SYN-S-A")
+    sample(people, ready, reference="SYN-S-B", actor=people["dual"])
+    other = {
+        **ready,
+        "lot": receive_lot(
+            actor=people["analyst"],
+            number="SYN-LOT-OTHER",
+            material=ready["material"].name,
+            rules=ready["rules"],
+            reason="Synthetic receipt",
+        ),
+    }
+    assign(people, other)
+    sample(people, other, reference="SYN-OTHER-1", actor=elsewhere)
+    assert services.lot_author_ids(ready["lot"]) == {people["analyst"].pk, people["dual"].pk}
+    assert services.lot_author_ids(other["lot"]) == {elsewhere.pk}
 
 
 def test_reassigned_plan_blocks_old_sampling(people, ready, monkeypatch):  # noqa: F811

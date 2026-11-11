@@ -1,6 +1,6 @@
 """Controlled specification/method services and the published requirement contract.
 
-Published contract for other packages (stable names):
+Published contract for other apps (stable names):
 - ``resolve_requirements(material=, stage=, scope=, rules=, at=)`` -> requirement payload dict, or
   raises ``ApplicabilityHold`` listing every reason the material cannot be assessed.
 - ``approved_snapshot(revision)`` -> the frozen content and hash bound by the approval signature.
@@ -597,13 +597,13 @@ def resolve_requirements(*, material, stage, scope="general", rules=None, at=Non
     }
 
 
-# Testing contract (package B: oq.test-requirement/1) --------------------------------------------
+# Analytical testing contract (oq.test-requirement/1) --------------------------------------------
 
 TEST_REQUIREMENT_SCHEMA = "oq.test-requirement/1"
 
 
 def method_requirement(method):
-    """B's method shape from an A method payload; QC check limits are inclusive."""
+    """Analytical method shape from a catalog method payload; QC check limits are inclusive."""
     return {
         "code": method["code"],
         "revision": method["version"],
@@ -613,10 +613,11 @@ def method_requirement(method):
 
 
 def test_requirement(test, source):
-    """Translate one frozen A test line to B's exact keys without coercion.
+    """Translate one frozen catalog test line to the analytical keys without coercion.
 
-    Shapes B cannot represent are passed through faithfully so B's parser holds them:
-    qualitative ``result_type``, ``bounds: "exclusive"`` and ``reporting_decimals: None``.
+    Shapes the analytical contract cannot represent (qualitative ``result_type``,
+    ``bounds: "exclusive"``) pass through faithfully so its parser holds them.
+    ``reporting_decimals: None`` passes through as exact comparison without rounding.
     """
     inclusive = test["lower_inclusive"] and test["upper_inclusive"]
     return {

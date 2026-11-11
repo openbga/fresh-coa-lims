@@ -7,6 +7,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from .audit import record_event, snapshot
 from .models import AuditEvent, AuditReview, ElectronicSignature, PINCredential, RuleSet
@@ -19,13 +20,20 @@ def require_role(actor, *roles):
         raise PermissionDenied("Your role does not permit this action.")
 
 
+@sensitive_variables()
 def set_pin(*, actor, pin, password):
     """Self-service enrollment/replacement requires login password reauthentication."""
+    from accounts.authentication import confirm_password
+
     if not pin.isascii() or not pin.isdigit() or len(pin) < 8 or len(pin) > 32:
         raise ValidationError("Use 8–32 digits for your signature PIN.")
+    # Shares the sign-in failure counter; the count or reset commits whatever happens to the PIN.
+    verified = confirm_password(actor, password)
+    if verified is None:
+        raise PermissionDenied("Password confirmation failed.")
     with transaction.atomic():
         actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
-        if not actor.is_active or not actor.check_password(password):
+        if not actor.is_active or actor.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Password confirmation failed.")
         PINCredential.objects.update_or_create(
             user=actor,
@@ -39,6 +47,7 @@ def set_pin(*, actor, pin, password):
         )
 
 
+@sensitive_variables()
 def verify_pin(actor, pin):
     # A caller's transaction must never roll back failed-attempt counters or security events.
     if connection.in_atomic_block:
@@ -56,12 +65,13 @@ def verify_pin(actor, pin):
             if credential.failures >= 5:
                 credential.locked_until = timezone.now() + timedelta(minutes=15)
                 credential.failures = 0
-            credential.save()
+            # Counters only: the stored hash stays out of the statement and its parameters.
+            credential.save(update_fields=["failures", "locked_until"])
             error = "Signature PIN was not accepted."
-        else:
+        elif credential.failures or credential.locked_until is not None:
             credential.failures = 0
             credential.locked_until = None
-            credential.save()
+            credential.save(update_fields=["failures", "locked_until"])
         if error:
             record_event(actor=actor, action="signature.denied", obj=actor, reason=error)
     if error:
@@ -69,6 +79,24 @@ def verify_pin(actor, pin):
     return credential.encoded
 
 
+@sensitive_variables()
+def lock_signer(actor, permission, encoded):
+    """Lock the signer, then the credential (the order PIN changes and role changes use), and
+    recheck the role and the credential verify_pin accepted. Every local here holds or reaches
+    the stored hash, so all of them, and those of the queries below, stay out of error reports."""
+    actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
+    credential = PINCredential.objects.select_for_update().filter(user=actor).first()
+    require_role(actor, permission)
+    if (
+        credential is None  # Re-enrollment was required after verification.
+        or credential.encoded != encoded
+        or (credential.locked_until and credential.locked_until > timezone.now())
+    ):
+        raise ValidationError("Signing credential changed. Try again.")
+    return actor
+
+
+@sensitive_variables("pin", "encoded")
 def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, permission, apply):
     require_role(actor, permission)
     if not reason.strip() or not meaning.strip():
@@ -78,14 +106,7 @@ def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, perm
     authentication_context = signing_context(actor)
     encoded = verify_pin(actor, pin)
     with transaction.atomic():
-        # User -> credential lock order matches PIN replacement/verification and role changes.
-        actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
-        credential = PINCredential.objects.select_for_update().get(user=actor)
-        require_role(actor, permission)
-        if credential.encoded != encoded or (
-            credential.locked_until and credential.locked_until > timezone.now()
-        ):
-            raise ValidationError("Signing credential changed. Try again.")
+        actor = lock_signer(actor, permission, encoded)
         locked = type(obj).objects.select_for_update().get(pk=obj.pk)
         if locked.revision != expected_revision:
             raise ValidationError("Record changed. Reload and review before signing.")
@@ -198,6 +219,7 @@ def check_rule_approval(*, actor, rule):
         raise ValidationError("Effective dates overlap an approved revision.")
 
 
+@sensitive_variables("pin")
 def approve_rule(*, actor, pin, rule, expected_revision, reason):
     # Credential serialization is not sufficient for approvals by different people.
     # Callback acquires global configuration lock before overlap check.

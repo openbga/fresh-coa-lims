@@ -18,11 +18,11 @@ EXEMPT_NAMES = {
     "pagedocs:doc": "The documentation endpoint itself.",
 }
 
-# Transitional backlog: namespaces whose owners have not yet documented every page. Docs that do
-# exist in these namespaces are still validated. Remove a namespace as soon as it is complete;
-# the coverage test fails while a listed namespace has no undocumented page. Do not add to this
-# list to bypass a missing doc for a page you are changing.
-_BACKLOG = "Package pages built before page documentation existed; owner documents them."
+# Transitional backlog: namespaces where not every page is documented yet. Docs that do exist in
+# these namespaces are still validated. Remove a namespace as soon as it is complete; the coverage
+# test fails while a listed namespace has no undocumented page. Do not add to this list to bypass
+# a missing doc for a page you are changing.
+_BACKLOG = "Pages built before page documentation existed; not yet documented."
 PENDING_NAMESPACES = dict.fromkeys((), _BACKLOG)
 
 

@@ -5,4 +5,4 @@
 {% block content %}
 {% if is_review %}{% include "signatures/dialog.html" with signing_title="Sign result review" %}{% else %}{% include "signatures/dialog.html" with signing_title="Sign lot disposition" %}{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endblock %}
+{% block extra_js %}{% if not denial %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endif %}{% endblock %}

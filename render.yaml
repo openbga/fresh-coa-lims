@@ -1,4 +1,7 @@
-# OpenBGA QLab Blueprint. New resources authorized by the owner; provision only after integrated checks pass.
+# Render Blueprint for OpenBGA QLab: one Docker web service built from Dockerfile and one
+# PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check,
+# automatic deploys are off and the database accepts no external connections. Adjust names,
+# plans and region for your own account.
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
 services:
   - type: web

@@ -208,10 +208,106 @@ def test_use_form_blocks_ineligible_and_records_eligible(client, people):
 
 def test_overview_counts_link_to_filtered_lists(client, people):
     make_equipment(people)
+    stopped = make_equipment(people, "BAL-002")
+    services.take_out_of_service(actor=people["analyst"], equipment=stopped, reason="Drift")
     make_reagent(people, release=False)
     client.force_login(people["quality"])
-    html = client.get(reverse("laboratory:overview")).content.decode()
-    assert "Reagent lots awaiting release" in html
-    assert "?status=received" in html
-    assert ReagentLot.objects.filter(state="received").count() == 1
-    assert services.RECORDERS
+    response = client.get(reverse("laboratory:overview"))
+    queues = {queue["label"]: queue for queue in response.context["queues"]}
+    awaiting = queues["Reagent lots awaiting release"]
+    assert awaiting["count"] == ReagentLot.objects.filter(state="received").count() == 1
+    assert awaiting["href"].endswith("?status=received") and awaiting["tone"] == "info"
+    assert queues["Equipment out of service"]["count"] == 1
+    assert queues["Calibrations awaiting acceptance"]["count"] == 0
+    assert queues["Calibrations awaiting acceptance"]["tone"] == "neutral"
+    # Each count matches the filtered list it links to.
+    for queue in queues.values():
+        listed = client.get(queue["href"]).context["page_obj"].paginator.count
+        assert listed == queue["count"], queue["label"]
+
+
+def test_return_to_service_refuses_a_failure_recorded_after_the_page_opened(client, people):
+    import re
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import ElectronicSignature
+
+    equipment = make_equipment(people)
+    accept_new_calibration(people, equipment, outcome="fail", accept=False, performed_hours_ago=0)
+    accept_new_calibration(people, equipment, performed_hours_ago=0)
+    equipment.refresh_from_db()
+    url = reverse("laboratory:equipment_return", args=[equipment.pk])
+    client.force_login(people["quality"])
+    page = client.get(url).content.decode()
+    assert "1 failed calibration(s) and 0 use(s) to assess" in page
+    shown = re.search(r'name="assessed" value="([^"]*)"', page)
+    assessed = {"assessed": shown.group(1)} if shown else {}
+    # A backdated failure (before the latest passing calibration) neither blocks the return nor
+    # changes the equipment revision, but it widens what the signature claims was assessed.
+    services.record_calibration(
+        actor=people["analyst2"],
+        equipment=equipment,
+        performed_at=timezone.now() - timedelta(hours=48),
+        due_date=timezone.localdate(),
+        outcome="fail",
+        standard_ref="CERT-SYN-2",
+        reason="Late entry of an earlier failure",
+    )
+    equipment.refresh_from_db()
+    assert equipment.revision == int(re.search(r'name="expected_revision" value="(\d+)"', page)[1])
+    response = client.post(
+        url,
+        {
+            "signature_username": "quality",
+            "expected_revision": equipment.revision,
+            "pin": PIN,
+            "reason": "Assessed the failure shown",
+            **assessed,
+        },
+    )
+    assert response.status_code == 422
+    assert "changed while you assessed them" in response.content.decode()
+    equipment.refresh_from_db()
+    assert equipment.state == "out_of_service"
+    assert not ElectronicSignature.objects.filter(object_type="laboratory.equipment").exists()
+    # A reloaded page carries the current scope and signs.
+    page = client.get(url).content.decode()
+    assert "2 failed calibration(s)" in page
+    fresh = re.search(r'name="assessed" value="([^"]*)"', page).group(1)
+    signed = client.post(
+        url,
+        {
+            "signature_username": "quality",
+            "expected_revision": equipment.revision,
+            "pin": PIN,
+            "reason": "Assessed both failures",
+            "assessed": fresh,
+        },
+    )
+    assert signed.status_code == 302
+    equipment.refresh_from_db()
+    assert equipment.state == "in_service"
+
+
+def test_return_to_service_without_a_scope_is_refused(client, people):
+    equipment = make_equipment(people)
+    services.take_out_of_service(actor=people["analyst"], equipment=equipment, reason="Check")
+    equipment.refresh_from_db()
+    client.force_login(people["quality"])
+    url = reverse("laboratory:equipment_return", args=[equipment.pk])
+    for assessed in (None, "x|y", "1"):
+        data = {
+            "signature_username": "quality",
+            "expected_revision": equipment.revision,
+            "pin": PIN,
+            "reason": "No impact",
+        }
+        if assessed is not None:
+            data["assessed"] = assessed
+        response = client.post(url, data)
+        assert response.status_code == 422, assessed
+        assert "Reload and reassess" in response.content.decode()
+    equipment.refresh_from_db()
+    assert equipment.state == "out_of_service"

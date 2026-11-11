@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose an improvement or a new capability
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic examples only. Never include real laboratory, customer or personal data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what stops you?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change? Describe the behavior, not only the implementation.
+    validations:
+      required: true
+  - type: dropdown
+    id: segment
+    attributes:
+      label: QC segment
+      multiple: true
+      options:
+        - Pharma/biotech
+        - Dietary supplements
+        - Food
+        - Chemicals/industrial
+        - Medical devices
+        - All segments
+    validations:
+      required: false
+  - type: textarea
+    id: source
+    attributes:
+      label: Regulatory or standards source, if any
+      description: Give the issuing body, document, section, URL, access date and jurisdiction. Leave empty if none applies. Please do not claim that the change makes a deployment compliant.
+    validations:
+      required: false

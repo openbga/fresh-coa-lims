@@ -4,7 +4,7 @@ urls: catalog:material_new
 views: catalog.views.material_new
 templates: catalog/form.html
 models: catalog.Material
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -41,7 +41,7 @@ Creates a controlled material or product that specifications and sampling plans 
 
 ## Rules and hidden logic
 
-- **Code**: "This material code already exists."
+- **Code**: "This material code already exists." If another request saves the same code at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Immutable**: after creation the code, name and kind cannot be edited or deleted (database trigger).
 - **Audit**: `material.created` with your reason. No signature or approval step applies to materials.
 - Assumption: material names should be synthetic in this environment, as the intro states; the page does not check the content.

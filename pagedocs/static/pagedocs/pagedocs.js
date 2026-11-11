@@ -13,6 +13,7 @@
   var STEP = 16;
   var BIG_STEP = 64;
   var root = document.documentElement;
+  var narrow = window.matchMedia("(max-width: 991.98px)"); // matches pagedocs.css
   var panel, body, splitter, fullLink, loadedPath, request;
 
   function store(key, value) {
@@ -127,6 +128,16 @@
       });
   }
 
+  // Narrow screens: the open panel covers the page, so the covered content leaves the tab order
+  // and the accessibility tree (with the skip link to it). The top bar and the phone navigation (its
+  // own overlay) stay usable.
+  function syncCovered() {
+    var covered = isOpen() && narrow.matches;
+    document.querySelectorAll(".vr-skip, .vr-shell > :not(#vr-nav)").forEach(function (element) {
+      element.inert = covered;
+    });
+  }
+
   function focusTitle() {
     var title = body.querySelector("#pagedocs-title");
     (title || panel).focus({ preventScroll: true });
@@ -136,6 +147,7 @@
     root.classList.add("pagedocs-open");
     store(OPEN_KEY, "1");
     setWidth(currentWidth(), false);
+    syncCovered();
     load(focusAfter);
   }
 
@@ -143,6 +155,7 @@
     var hadFocus = panel.contains(document.activeElement);
     root.classList.remove("pagedocs-open");
     store(OPEN_KEY, "0");
+    syncCovered();
     syncLinks();
     var toggle = toggles()[0];
     if (hadFocus && toggle) {
@@ -221,6 +234,7 @@
     fullLink = panel.querySelector("[data-pagedocs-full]");
     setWidth(currentWidth(), false);
     syncLinks();
+    syncCovered();
     if (isOpen()) {
       load(false); // restored open: show this page's documentation without moving focus
     }
@@ -252,6 +266,7 @@
     window.addEventListener("resize", function () {
       setWidth(currentWidth(), false);
     });
+    narrow.addEventListener("change", syncCovered);
 
     // History navigation without a full load (HTMX boosting or history restore).
     window.addEventListener("popstate", navigated);
@@ -264,9 +279,11 @@
       if (event.key === OPEN_KEY) {
         if (event.newValue === "1" && !isOpen()) {
           root.classList.add("pagedocs-open");
+          syncCovered();
           navigated();
         } else if (event.newValue !== "1" && isOpen()) {
           root.classList.remove("pagedocs-open");
+          syncCovered();
           syncLinks();
         }
       } else if (event.key === WIDTH_KEY) {

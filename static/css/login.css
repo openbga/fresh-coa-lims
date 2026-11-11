@@ -1,0 +1,100 @@
+/* The approved manufacturing cutaway joins the shared field-notebook entrance. */
+.vr-login {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  background: var(--vr-band);
+}
+
+.vr-login-scene {
+  display: none;
+}
+
+.vr-login-workspace {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem 3rem;
+}
+
+.vr-login-main {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.vr-login-main .vr-entrance-brand {
+  justify-content: center;
+}
+
+.vr-login-submit {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.vr-login-help {
+  margin: 1.25rem 0 0;
+  color: var(--vr-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.vr-login-workspace > .vr-app-footer {
+  margin-top: 1.5rem;
+  padding: 0;
+  border: 0;
+  text-align: center;
+}
+
+@media (max-width: 575.98px) {
+  .vr-login-workspace {
+    padding: 4.5rem 1rem 2rem;
+  }
+
+  .vr-login-main .alert:has(> .vr-status) {
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 992px) {
+  .vr-login {
+    grid-template-columns: minmax(0, 1.15fr) minmax(30rem, 1fr);
+  }
+
+  .vr-login-scene {
+    position: relative;
+    display: block;
+    min-height: 100%;
+    background-color: var(--vr-band);
+    background-image: url("../img/login-manufacturing-day.webp");
+    background-position: center bottom;
+    background-size: cover;
+  }
+
+  [data-bs-theme="dark"] .vr-login-scene {
+    background-image: url("../img/login-manufacturing-night.webp");
+  }
+
+  .vr-login-caption {
+    position: relative;
+    margin: 2.5rem;
+    color: var(--vr-text);
+  }
+
+  .vr-login-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 650;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  .vr-login-description {
+    margin: 0.375rem 0 0;
+    line-height: 1.5;
+  }
+}

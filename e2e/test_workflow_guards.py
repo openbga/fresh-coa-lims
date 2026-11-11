@@ -4,7 +4,6 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from importlib import import_module
-from pathlib import Path
 from urllib.parse import urlsplit
 
 import pytest
@@ -24,12 +23,10 @@ from tests.test_integrated_journey import PASSWORD, PIN, assign_and_sample, obse
 from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 pytestmark = pytest.mark.django_db(transaction=True)
-ARTIFACTS = Path(".local/qa")
 
 
 @contextmanager
 def browser_page():
-    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1280, "height": 900})
@@ -92,7 +89,7 @@ def submit_disposition(page, lot):
     return response.value.status
 
 
-def test_disposition_rejects_missing_sampling_provenance(live_server, integrated):
+def test_disposition_rejects_missing_sampling_provenance(live_server, integrated, artifacts):
     data = integrated
     sampling.assign_requirements(
         actor=data["people"]["analyst"],
@@ -114,13 +111,13 @@ def test_disposition_rejects_missing_sampling_provenance(live_server, integrated
         open_disposition(page, live_server, data)
         status = submit_disposition(page, data["lot"])
         expect(page.get_by_role("dialog")).to_contain_text("no sampling record")
-        page.screenshot(path=str(ARTIFACTS / "guard-missing-sampling.png"), full_page=True)
+        page.screenshot(path=str(artifacts / "guard-missing-sampling.png"), full_page=True)
         assert status == 422
     assert record_state(data["lot"]) == before
     assert before["state"] == "quarantine"
 
 
-def test_disposition_rejects_active_hold(live_server, integrated):
+def test_disposition_rejects_active_hold(live_server, integrated, artifacts):
     data = integrated
     ready_test(data, assign_and_sample(data))
     hold = stability.place_hold(
@@ -135,14 +132,14 @@ def test_disposition_rejects_active_hold(live_server, integrated):
         status = submit_disposition(page, data["lot"])
         expect(page.get_by_role("dialog")).to_contain_text("hold) is active")
         expect(page.get_by_role("dialog")).to_contain_text(hold.identifier)
-        page.screenshot(path=str(ARTIFACTS / "guard-active-hold.png"), full_page=True)
+        page.screenshot(path=str(artifacts / "guard-active-hold.png"), full_page=True)
         assert status == 422
     assert record_state(data["lot"]) == before
     hold.refresh_from_db()
     assert hold.state == "active"
 
 
-def test_manual_result_rejected_outside_debug(live_server, integrated, settings):
+def test_manual_result_rejected_outside_debug(live_server, integrated, settings, artifacts):
     data = integrated
     sample = quality.add_sample(
         actor=data["people"]["analyst"],
@@ -180,7 +177,7 @@ def test_manual_result_rejected_outside_debug(live_server, integrated, settings)
                 "Record observations through approved native testing requirements.", exact=True
             )
         ).to_be_visible()
-        page.screenshot(path=str(ARTIFACTS / "guard-manual-production.png"), full_page=True)
+        page.screenshot(path=str(artifacts / "guard-manual-production.png"), full_page=True)
         assert response.value.status == 422
     assert record_state(data["lot"]) == before
     assert not Result.objects.filter(sample=sample).exists()
@@ -189,7 +186,7 @@ def test_manual_result_rejected_outside_debug(live_server, integrated, settings)
 @pytest.mark.parametrize(
     "expired_clock", ["last_activity_at", "authenticated_at"], ids=["idle", "absolute"]
 )
-def test_expired_session_cannot_sign(live_server, integrated, settings, expired_clock):
+def test_expired_session_cannot_sign(live_server, integrated, settings, expired_clock, artifacts):
     data = integrated
     settings.SESSION_IDLE_SECONDS = 60
     settings.SESSION_ABSOLUTE_SECONDS = 120
@@ -222,7 +219,7 @@ def test_expired_session_cannot_sign(live_server, integrated, settings, expired_
         expect(
             page.get_by_text("Your session expired. Sign in again to continue.", exact=True)
         ).to_be_visible()
-        page.screenshot(path=str(ARTIFACTS / f"guard-session-{expired_clock}.png"), full_page=True)
+        page.screenshot(path=str(artifacts / f"guard-session-{expired_clock}.png"), full_page=True)
         assert status == 302
     assert record_state(data["lot"]) == before
     assert (

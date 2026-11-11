@@ -4,7 +4,7 @@ urls: stability:hold_new
 views: stability.views.hold_new
 templates: ops/form.html
 models: stability.Hold, quality.Lot, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Place a hold on a lot (optionally tied to one reserve sample). Placing is protec
 ## Who can use it
 
 - Sign-in required. Roles: Analyst, Reviewer or Quality; others (including Admin and Auditor) receive 403.
-- Opened with `?reserve=<id>` from a reserve sample, the reserve is attached and the lot is preselected; an unknown reserve returns 404.
+- Opened with `?reserve=<id>` from a reserve sample, the reserve is attached and the lot is preselected; an unknown or malformed reserve returns 404.
 - An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout

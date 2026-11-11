@@ -36,7 +36,7 @@ def test_workspace_page_shows_brand_and_source_link_outside_main(client, django_
     body = response.content.decode()
     assert footer_source_url(response) == "https://github.com/openbga/qlab"
     assert "OpenBGA QLab" in body
-    # Form dialogs copy <main>; the footer must stay outside it.
+    # The footer must stay outside <main>.
     assert body.index('class="vr-app-footer"') > body.index("</main>")
 
 

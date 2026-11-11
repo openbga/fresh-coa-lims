@@ -4,7 +4,7 @@ urls: quality:lot_detail
 views: quality.views.lot_detail
 templates: quality/lot_detail.html
 models: quality.Lot, quality.Sample, quality.Result, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -65,7 +65,7 @@ The hub for one material lot: its facts and samples, links to its requirements, 
 - **Record result link vs. permission**: the link stays visible to analysts on Quarantine samples, but saving is refused with "Record observations through approved native testing requirements." unless the server runs in DEBUG and the lot has no requirement assignment. Record native results through Testing and investigations.
 - **Release paths**: with assigned requirements or native tests (and always outside DEBUG), release depends on the assignment, sampling records, native analytical evidence and holds. The manual foundation path (required rule-set tests, reviewed and conforming results) applies only in DEBUG on lots with neither. See Sign lot disposition for every condition and message.
 - **Revision and stale pages**: signing pages bind to the revision shown when opened (the result's for review, the lot's for disposition); if it changed, signing fails with "Record changed. Reload and review before signing."
-- **Independence**: no user dispositions a lot containing their own data, even when holding the quality role.
+- **Independence**: no user dispositions a lot containing their own sampling or test data, even when holding the quality role. **Review disposition** still shows for them; the disposition page explains the refusal before any PIN is requested.
 - **No reject path**: this version only releases; a lot that cannot be released stays in Quarantine.
 - **Review link after release**: a Recorded foundation result still shows **Review result** to independent reviewers on a released lot, but signing is refused ("This result is not awaiting review.").
 - **Certificates**: the section appears only after release; issuing is a separate signed step on the certificate pages.

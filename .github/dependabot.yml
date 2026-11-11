@@ -1,0 +1,53 @@
+# Weekly version updates. Minor and patch updates are grouped into one pull request per
+# ecosystem; major updates arrive as individual pull requests for separate review. The
+# cooldown waits a few days after a release is published before proposing it. Security
+# updates are not delayed or limited by these settings. Version updates target `develop`,
+# the integration branch; maintainers bring them to `main` with the next release.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    groups:
+      python-minor-and-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-and-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  # Base images in Dockerfile are pinned by tag and digest; Dependabot updates both,
+  # including rebuilds published under the same tag.
+  - package-ecosystem: docker
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 3
+    groups:
+      images-minor-and-patch:
+        applies-to: version-updates
+        patterns: ["*"]
+        update-types: [minor, patch]

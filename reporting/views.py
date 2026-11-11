@@ -335,6 +335,7 @@ def version_detail(request, pk, number):
 @login_required
 @require_GET
 def version_pdf(request, pk, number):
+    services.require_reader(request.user)  # before the lookup: refusal must not reveal existence
     report, version = _version(pk, number)
     try:
         data = services.read_pdf(actor=request.user, version=version)

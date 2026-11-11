@@ -4,7 +4,7 @@ urls: catalog:specification_new
 views: catalog.views.specification_new
 templates: catalog/form.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
-reviewed: 2026-11-10
+reviewed: 2026-11-11
 ---
 
 ## Purpose
@@ -49,7 +49,7 @@ Creates a specification (one material, one stage, one scope) together with its d
 ## Rules and hidden logic
 
 - **Uniqueness**: one specification per material, stage and scope. "A specification already exists for this material, stage and scope. Create a new version of it instead."
-- **Code**: "This specification code already exists."
+- **Code**: "This specification code already exists." If another request saves the same code or applicability at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Interval**: "The effective end must be after the start." (form) and "The effective end must be after the effective start." (server).
 - **Reason**: "A reason is required." if blank at the server.
 - **Draft start**: the version is created as Draft, version 1, record revision 1, author = you. Draft content (basis, dates) is fixed at creation; to change it, create a new version.

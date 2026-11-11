@@ -1,4 +1,15 @@
+import os
+from pathlib import Path
+
 import pytest
+
+
+@pytest.fixture
+def artifacts():
+    """Directory for browser screenshots and failure pages: E2E_ARTIFACTS_DIR, or build/e2e."""
+    path = Path(os.environ.get("E2E_ARTIFACTS_DIR") or "build/e2e")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 @pytest.fixture(autouse=True)

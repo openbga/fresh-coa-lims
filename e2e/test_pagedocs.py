@@ -1,7 +1,6 @@
 """Documentation panel matches navigation and remembers accessible resize controls."""
 
 import re
-from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import Group
@@ -9,7 +8,7 @@ from playwright.sync_api import expect, sync_playwright
 
 
 @pytest.mark.django_db(transaction=True)
-def test_page_documentation_panel(live_server, django_user_model):
+def test_page_documentation_panel(live_server, django_user_model, artifacts):
     password = "Synthetic-pagedocs-browser-2026!"
     user = django_user_model.objects.create_user(
         username="synthetic_docs",
@@ -18,8 +17,6 @@ def test_page_documentation_panel(live_server, django_user_model):
         last_name="Documentation Reviewer",
     )
     user.groups.add(Group.objects.get_or_create(name="quality")[0])
-    artifacts = Path(".local/qa")
-    artifacts.mkdir(parents=True, exist_ok=True)
     errors = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -79,8 +76,22 @@ def test_page_documentation_panel(live_server, django_user_model):
             assert panel.bounding_box()["width"] == 390
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
             page.screenshot(path=str(artifacts / "pagedocs-mobile-open.png"), full_page=True)
+            # The panel covers the page: Tab cycles through the panel and the top bar only.
+            panel.get_by_role("heading", name="Rule sets", exact=True).focus()
+            for _ in range(30):
+                page.keyboard.press("Tab")
+                place = page.evaluate(
+                    """() => {
+                        const el = document.activeElement;
+                        if (el.closest("#pagedocs-panel")) return "panel";
+                        if (el.closest(".vr-topbar") || el === document.body) return "top bar";
+                        return "covered: " + el.outerHTML.slice(0, 80);
+                    }"""
+                )
+                assert place in ("panel", "top bar"), place
             panel.get_by_role("button", name="Close page documentation").click()
             expect(panel).not_to_be_visible()
+            expect(page.locator("#main")).to_have_js_property("inert", False)
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
             page.screenshot(path=str(artifacts / "pagedocs-mobile-closed.png"), full_page=True)
             toggle.click()
@@ -88,9 +99,14 @@ def test_page_documentation_panel(live_server, django_user_model):
             panel.get_by_role("heading", name="Rule sets", exact=True).press("Escape")
             expect(panel).not_to_be_visible()
             expect(toggle).to_be_focused()
+            expect(page.locator("#main")).to_have_js_property("inert", False)
             assert page.evaluate("localStorage.getItem('openbga-qlab-pagedocs-open')") == "0"
-            page.set_viewport_size({"width": 1440, "height": 1000})
             toggle.click()
+            expect(page.locator("#main")).to_have_js_property("inert", True)
+            # Growing past the breakpoint restores the side-by-side page with the panel open.
+            page.set_viewport_size({"width": 1440, "height": 1000})
+            expect(panel).to_be_visible()
+            expect(page.locator("#main")).to_have_js_property("inert", False)
             expect(splitter).to_have_attribute("aria-valuenow", str(resized_width))
             assert not errors, errors
         except Exception:

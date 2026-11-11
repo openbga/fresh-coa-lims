@@ -1,10 +1,35 @@
 name: checks
-on: [push, pull_request]
+
+# Pull requests, including those from forks, run with a read-only token and no secrets.
+# Keep the `pull_request` trigger (never `pull_request_target`) so untrusted code never
+# receives write access or secrets. Pushes are checked only on the two long-lived branches
+# (develop for integration, main for released state), so a pull-request branch is not
+# tested twice for the same commit.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its superseded run. Every push to main or develop
+# runs to completion (its group is unique per run).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+# Jobs use a fixed runner image: `ubuntu-latest` moves between Ubuntu releases during
+# GitHub's rollouts, which changes preinstalled libraries and package names.
 jobs:
   application:
     # Integrated PostgreSQL suites retain real password/PIN hashers.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
-    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:17
@@ -17,14 +42,47 @@ jobs:
     env:
       DEBUG: "true"
       DATABASE_URL: postgresql://open_qual:open_qual@127.0.0.1:5432/open_qual
+      # WeasyPrint needs Pango; HarfBuzz subsetting matches the application image;
+      # poppler-utils provides pdftotext for the PDF content tests.
+      SYSTEM_PACKAGES: libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core poppler-utils
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: "0.13.7"
-      - name: Install PDF runtime libraries
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core poppler-utils
-      - run: uv sync --frozen
+          version: "0.13.7" # Keep in step with the uv image in Dockerfile.
+      # Shared with the browser job. Installs only the packages the runner image lacks, so
+      # a complete image needs no package-archive access. apt retries transient errors and
+      # each attempt is time-bounded, so an archive outage fails within minutes.
+      - &install-system-packages
+        name: Install system packages missing from the runner image
+        timeout-minutes: 10
+        run: |
+          missing=()
+          for package in $SYSTEM_PACKAGES; do
+            status=$(dpkg-query --show --showformat='${db:Status-Status}' "$package" 2>/dev/null || true)
+            if [ "$status" != installed ]; then missing+=("$package"); fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "Already installed on the runner image: $SYSTEM_PACKAGES"
+            exit 0
+          fi
+          echo "Installing: ${missing[*]}"
+          apt_options=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          for attempt in 1 2 3; do
+            if sudo timeout 150 apt-get "${apt_options[@]}" update \
+              && sudo timeout 300 apt-get "${apt_options[@]}" install --yes --no-install-recommends "${missing[@]}"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "::warning::Package installation attempt $attempt failed; retrying."
+              sleep $((attempt * 30))
+            fi
+          done
+          echo "::error::Could not install ${missing[*]} from the Ubuntu package archive. If https://status.canonical.com/ reports an outage, re-run the job once it is resolved."
+          exit 1
+      - run: uv sync --locked
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run python manage.py check
       - run: uv run python manage.py makemigrations --check --dry-run
@@ -34,7 +92,7 @@ jobs:
       - run: uv run pytest
 
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -48,23 +106,37 @@ jobs:
     env:
       DEBUG: "true"
       DATABASE_URL: postgresql://open_qual:open_qual@127.0.0.1:5432/open_qual_browser
+      # Pango is enough for the certificate download journey; WeasyPrint falls back to
+      # fontTools subsetting without HarfBuzz-Subset (the application job covers that path).
+      SYSTEM_PACKAGES: libpango-1.0-0 libpangoft2-1.0-0 fonts-dejavu-core
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          version: "0.13.7"
-      - name: Install PDF runtime libraries
-        run: sudo apt-get update && sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core poppler-utils
-      - run: uv sync --frozen --group e2e
-      - name: Install headless Chromium and system dependencies
-        run: uv run --group e2e playwright install --with-deps --only-shell chromium
+          version: "0.13.7" # Keep in step with the uv image in Dockerfile.
+      - *install-system-packages
+      - run: uv sync --locked --group e2e
+      - name: Install headless Chromium
+        run: uv run --group e2e playwright install --only-shell chromium
+      # The runner image already provides Chromium's libraries; `--with-deps` would only add
+      # optional fonts and make the job depend on the Ubuntu archive.
+      - name: Install Chromium system libraries only if the runner image lacks them
+        timeout-minutes: 10
+        run: |
+          if uv run --group e2e python -c 'from playwright.sync_api import sync_playwright; p = sync_playwright().start(); p.chromium.launch().close(); p.stop()'; then
+            echo "Headless Chromium starts with the runner image's libraries."
+          else
+            uv run --group e2e playwright install-deps chromium
+          fi
       - name: Collect assets with strict production manifest storage
         run: uv run --group e2e python manage.py collectstatic --noinput
       - name: Isolated browser journeys (one worker, disposable test database)
         run: uv run --group e2e pytest -c e2e/pytest.ini e2e
 
   container-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
       postgres:
@@ -77,6 +149,8 @@ jobs:
         options: --health-cmd "pg_isready -U open_qual_ci -d open_qual_container_smoke" --health-interval 5s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build application image (no push)
         run: docker build --tag openbga-qlab:ci .
       - name: Configure disposable smoke environment
@@ -97,10 +171,15 @@ jobs:
       - name: Verify non-root Render SSH prerequisites
         run: |
           docker run --rm openbga-qlab:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
+      - name: Verify image contents
+        # In-app documentation is read from docs/pages at runtime; application files are
+        # read-only for the runtime user; build tooling and local state stay out.
+        run: |
+          docker run --rm openbga-qlab:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests"))'
       - name: Start production server and check HTTP endpoints
         run: |
           docker run --detach --name openbga-qlab-smoke --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/; then break; fi
             sleep 2
           done

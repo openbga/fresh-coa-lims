@@ -338,6 +338,15 @@ class RetentionObligation(models.Model):
             return None
         return add_months(self.anchor_date, self.offset_months)
 
+    def clean(self):
+        if self.anchor_date is not None and self.offset_months is not None:
+            try:
+                self.retain_until  # noqa: B018
+            except ValueError, OverflowError:
+                raise ValidationError(
+                    {"offset_months": "The retention date falls outside the supported calendar."}
+                ) from None
+
     def blocker(self, today=None):
         today = today or timezone.localdate()
         if self.anchor_date is None:

@@ -139,7 +139,8 @@ def sign(request, pk, action):
     obj = get_object_or_404(Result if is_review else Lot, pk=pk)
     lot = obj.sample.lot if is_review else obj
     form = SigningForm(request.POST or None, initial={"expected_revision": obj.revision})
-    if request.method == "POST" and form.is_valid():
+    denial = "" if is_review else services.disposition_denial(request.user, obj)
+    if not denial and request.method == "POST" and form.is_valid():
         signing_data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
 
         def commit():
@@ -161,6 +162,7 @@ def sign(request, pk, action):
             "record": obj,
             "is_review": is_review,
             "meaning": "reviewed" if is_review else "approved",
+            "denial": denial,
         },
-        status=422 if request.method == "POST" else 200,
+        status=403 if denial else 422 if request.method == "POST" else 200,
     )

@@ -13,8 +13,6 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.8/css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/colReorder.bootstrap5.min.css' %}">
-  {# Tom Select CSS is small and themed in app.css; its script loads only on pages with an enhanced select. #}
-  <link rel="stylesheet" href="{% static 'vendor/tom-select/tom-select.bootstrap5.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   {% if user.is_authenticated %}{% pagedocs_head %}{% endif %}
   {% block extra_css %}{% endblock %}
@@ -84,7 +82,7 @@
       </div>
     </nav>
     {% endblock sidenav %}
-    <main class="vr-main" id="main" tabindex="-1"{% block form_surface_attributes %}{% if form_surface %} data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size }}"{% endif %}{% endblock %}>
+    <main class="vr-main" id="main" tabindex="-1">
       {% block section_navigation %}{% if tabs %}{% include "includes/section_tabs.html" %}{% endif %}{% endblock %}
       {% block page_header %}
       {% if page_title %}<div class="vr-page-header">

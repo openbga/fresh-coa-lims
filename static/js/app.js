@@ -221,9 +221,6 @@
     if (invalid && invalid.tagName === "FIELDSET") {
       invalid = invalid.querySelector("input, select, textarea");
     }
-    if (invalid && invalid.tomselect) {
-      invalid = invalid.tomselect.control_input; // Enhanced select: the native one is hidden.
-    }
     if (invalid) {
       invalid.focus();
     }
@@ -362,9 +359,6 @@
   }
 
   document.addEventListener("htmx:responseError", function (event) {
-    if (event.detail.target && event.detail.target.closest("#vr-form-dialog")) {
-      return; // The form dialog keeps its error beside the preserved inputs.
-    }
     var status = event.detail.xhr ? event.detail.xhr.status : "";
     var message = status === 403
       ? "You do not have permission for that action. Nothing was changed."
@@ -372,10 +366,7 @@
     showRequestError(message);
   });
 
-  document.addEventListener("htmx:sendError", function (event) {
-    if (event.detail.target && event.detail.target.closest("#vr-form-dialog")) {
-      return;
-    }
+  document.addEventListener("htmx:sendError", function () {
     showRequestError("The server could not be reached. Check the connection and try again.");
   });
 })();

@@ -48,6 +48,27 @@ class SigningForm(SignatureIdentityForm):
 
 class ImpactSigningForm(SigningForm):
     reason = reason_field("Impact assessment", max_length=2000)
+    # The affected uses and failed calibrations shown when the page opened ("1,2|3").
+    assessed = forms.CharField(widget=forms.HiddenInput, required=False, strip=False)
+
+    @staticmethod
+    def scope_token(scope):
+        uses, failures = scope
+        return ",".join(map(str, uses)) + "|" + ",".join(map(str, failures))
+
+    def clean(self):
+        data = super().clean()
+        try:
+            uses, failures = (
+                [int(pk) for pk in part.split(",") if pk]
+                for part in data.get("assessed", "").split("|")
+            )
+        except ValueError:
+            # Shown as a page-level error: the hidden field has no visible error slot.
+            self.add_error(None, "The assessed scope is missing or invalid. Reload and reassess.")
+        else:
+            data["assessed"] = (uses, failures)
+        return data
 
 
 class EquipmentForm(forms.ModelForm):

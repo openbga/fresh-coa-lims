@@ -4,10 +4,25 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from catalog.models import Material, MethodRevision, Specification, SpecificationRevision
+from catalog.models import (
+    Material,
+    Method,
+    MethodRevision,
+    Specification,
+    SpecificationRevision,
+)
 from core.models import AuditEvent, ElectronicSignature, PINCredential
 
-from .factories import PIN, approve, material, method_revision, numeric_line, specification
+from .factories import (
+    PIN,
+    approve,
+    commit_first_on_save,
+    material,
+    method_revision,
+    numeric_line,
+    specification,
+    window,
+)
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -77,6 +92,181 @@ def test_create_material_and_form_errors_preserve_input(client, people):
     )
     assert response.status_code == 302
     assert Material.objects.get().created_by == people["author"]
+
+
+def _method_data(code):
+    start, end = window()
+    return {
+        "code": code,
+        "title": "Synthetic race method",
+        "technique": "HPLC",
+        "document_ref": "SOP-SYN rev 1",
+        "suitability_kind": "validation",
+        "suitability_ref": "VAL-SYN",
+        "effective_from": start.strftime("%Y-%m-%dT%H:%M"),
+        "effective_until": end.strftime("%Y-%m-%dT%H:%M"),
+        "reason": "New",
+    }
+
+
+def _specification_data(code, mat):
+    start, end = window()
+    return {
+        "code": code,
+        "title": "Synthetic race spec",
+        "material": mat.pk,
+        "stage": "incoming",
+        "scope": "general",
+        "basis": "Synthetic",
+        "effective_from": start.strftime("%Y-%m-%dT%H:%M"),
+        "effective_until": end.strftime("%Y-%m-%dT%H:%M"),
+        "reason": "New",
+    }
+
+
+@pytest.mark.parametrize(
+    "kind", ["material code", "method code", "specification code", "applicability"]
+)
+def test_concurrent_duplicate_is_a_form_error(client, people, monkeypatch, kind):
+    """A duplicate committed by another request after every check of this one has passed is
+    caught by its database constraint and shown as a conflict, with nothing of this one saved."""
+    author = people["author"]
+    mat = material(author)
+    other = material(author, code="syn-api-002")
+    if kind == "material code":
+        url, model = reverse("catalog:material_new"), Material
+        data = {"code": "syn-race", "name": "Synthetic", "kind": "raw_material", "reason": "New"}
+
+        def competitor():
+            Material.objects.create(
+                code="syn-race", name="Other request", kind="raw_material", created_by=author
+            )
+    elif kind == "method code":
+        url, data, model = reverse("catalog:method_new"), _method_data("m-race"), Method
+
+        def competitor():
+            Method.objects.create(code="m-race", title="Other request", created_by=author)
+    else:
+        url, model = reverse("catalog:specification_new"), Specification
+        data = _specification_data("spec-race", mat)
+        code, target = ("spec-race", other) if kind == "specification code" else ("spec-o", mat)
+
+        def competitor():
+            Specification.objects.create(
+                code=code,
+                title="Other request",
+                material=target,
+                stage="incoming",
+                scope="general",
+                created_by=author,
+            )
+
+    commit_first_on_save(monkeypatch, model, competitor)
+    before = AuditEvent.objects.count()
+    response = login(client, author).post(url, data)
+    assert response.status_code == 422
+    assert "Another request saved a conflicting record" in response.content.decode()
+    assert model.objects.count() == (3 if model is Material else 1)
+    label = "name" if model is Material else "title"
+    assert model.objects.filter(**{label: "Other request"}).count() == 1
+    assert AuditEvent.objects.count() == before
+
+
+def _duplicate_audit_event(real):
+    def record_event(**kwargs):
+        event = real(**kwargs)
+        AuditEvent.objects.create(
+            id=event.id,
+            actor=event.actor,
+            action=event.action,
+            object_type=event.object_type,
+            object_id=event.object_id,
+        )
+        return event
+
+    return record_event
+
+
+def _duplicate_material_key(real):
+    def record_event(**kwargs):
+        obj = kwargs["obj"]
+        Material.objects.create(
+            pk=obj.pk, code="syn-copy", name="Copy", kind=obj.kind, created_by=obj.created_by
+        )
+        return real(**kwargs)
+
+    return record_event
+
+
+@pytest.mark.parametrize("fault", [_duplicate_audit_event, _duplicate_material_key])
+def test_unexpected_unique_violation_is_not_reported_as_a_conflict(
+    client, people, monkeypatch, fault
+):
+    """Only the expected concurrent duplicates become the conflict message. Any other unique
+    violation, such as a repeated audit event id or primary key, is an integrity fault."""
+    from django.db import IntegrityError
+
+    from catalog import services
+
+    monkeypatch.setattr(services, "record_event", fault(services.record_event))
+    client = login(client, people["author"])
+    before = AuditEvent.objects.count()
+    data = {"code": "syn-fault", "name": "Synthetic", "kind": "raw_material", "reason": "New"}
+    with pytest.raises(IntegrityError, match="_pkey"):
+        client.post(reverse("catalog:material_new"), data)
+    assert not Material.objects.exists()
+    assert AuditEvent.objects.count() == before
+
+
+def test_concurrent_duplicate_allowlist_covers_every_racing_unique_constraint():
+    """Each allowlisted pair is a real unique constraint, and every other non-key unique
+    constraint on catalog and sampling tables is one that is only written under a row lock
+    (parent, draft revision or lot) after its own check, so a violation there is a fault."""
+    from django.apps import apps
+    from django.db import connection
+
+    from catalog.web import CONCURRENT_DUPLICATES
+
+    serialized = {
+        "method_version_unique",
+        "method_qc_unique",
+        "specification_version_unique",
+        "specification_test_unique",
+        "sampling_plan_version_unique",
+        "sampling_deviationreview_record_id_key",
+        "sampling_lotassignment_supersedes_id_key",
+        "sampling_samplingrecord_corrects_id_key",
+    }
+    found = set()
+    with connection.cursor() as cursor:
+        for table, name in CONCURRENT_DUPLICATES:
+            info = connection.introspection.get_constraints(cursor, table).get(name)
+            assert info and info["unique"] and not info["primary_key"], (table, name)
+        for label in ("catalog", "sampling"):
+            for model in apps.get_app_config(label).get_models():
+                table = model._meta.db_table
+                for name, info in connection.introspection.get_constraints(cursor, table).items():
+                    if info["unique"] and not info["primary_key"]:
+                        found.add((table, name))
+    expected = {pair for pair in CONCURRENT_DUPLICATES if not pair[0].startswith("quality_")}
+    assert {name for _, name in found - expected} == serialized
+
+
+def test_non_unique_integrity_error_is_not_reported_as_a_conflict(client, people, monkeypatch):
+    """Only a unique violation becomes the conflict message; other integrity faults surface."""
+    from django.db import IntegrityError
+
+    from catalog import services
+
+    def fault(**kwargs):
+        raise IntegrityError("synthetic foreign-key failure")
+
+    monkeypatch.setattr(services, "create_material", fault)
+    client = login(client, people["author"])
+    data = {"code": "syn-fault", "name": "Synthetic", "kind": "raw_material", "reason": "New"}
+    with pytest.raises(IntegrityError, match="synthetic foreign-key"):
+        client.post(reverse("catalog:material_new"), data)
+    assert not Material.objects.exists()
 
 
 def test_create_specification_flow_and_add_test(client, people):
@@ -253,8 +443,6 @@ def test_duplicate_specification_applicability_rejected_in_form(client, people):
 
 def test_qc_check_pages(client, people):
     from catalog import services
-
-    from .factories import window
 
     start, end = window()
     _, revision = services.create_method(

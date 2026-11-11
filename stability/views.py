@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import DateField, DurationField, ExpressionWrapper, F, Q, Value
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -766,11 +767,7 @@ def pull_detail(request, pk):
         detail_actions.append(
             action("Link evidence", reverse("stability:pull_evidence", args=[p.pk]))
         )
-    if (
-        p.state == "pulled"
-        and can(user, "reviewer")
-        and user.pk not in (p.pulled_by_id, p.evidence_recorded_by_id)
-    ):
+    if p.state == "pulled" and can(user, "reviewer") and user.pk not in services.pull_author_ids(p):
         detail_actions.append(
             action("Accept pull", reverse("stability:pull_accept", args=[p.pk]), True)
         )
@@ -930,8 +927,10 @@ def pull_accept(request, pk):
     require_role(request.user, "reviewer")
     pull, detail, trail = _pull_context(pk)
     denial = ""
-    if request.user.pk in (pull.pulled_by_id, pull.evidence_recorded_by_id):
-        denial = "You pulled or documented this pull, so you cannot accept it."
+    if request.user.pk in services.pull_author_ids(pull):
+        denial = (
+            "You pulled, documented or produced test data for this pull, so you cannot accept it."
+        )
     elif pull.state != Pull.State.PULLED:
         denial = "This pull is not awaiting acceptance."
     form = SigningForm(request.POST or None, initial={"expected_revision": pull.revision})
@@ -1147,12 +1146,20 @@ def reserve_detail(request, pk):
     )
 
 
+def _reserve_from_query(request):
+    """The reserve named by `?reserve=`; anything but a record number is not found."""
+    value = request.GET["reserve"]
+    if not value.isascii() or not value.isdigit() or len(value) > 19:  # a bigint has <= 19
+        raise Http404("No such reserve sample.")
+    return get_object_or_404(ReserveSample, pk=value)
+
+
 @login_required
 def obligation_new(request):
     require_role(request.user, *services.AUTHORS)
     reserve = None
     if request.GET.get("reserve"):
-        reserve = get_object_or_404(ReserveSample, pk=request.GET["reserve"])
+        reserve = _reserve_from_query(request)
     form = ObligationForm(request.POST or None, with_lot=reserve is None)
     back = (
         reverse("stability:reserve_detail", args=[reserve.pk])
@@ -1282,7 +1289,7 @@ def hold_new(request):
     reserve = None
     initial = {}
     if request.GET.get("reserve"):
-        reserve = get_object_or_404(ReserveSample, pk=request.GET["reserve"])
+        reserve = _reserve_from_query(request)
         initial["lot"] = reserve.lot_id
     form = HoldForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
