@@ -1,23 +1,19 @@
 # Functional research: manufacturing QC laboratory LIMS
 
-Researched 2026-11-10. Drives requirements for Open Qual IQ. Synthetic data only. This document says what a QC lab needs; it makes no compliance or certification claim. Items tagged **[inference]** are the author's synthesis, not a sourced statement.
+Researched 2026-11-10. Drives requirements for OpenBGA Qual. Synthetic data only. This document says what a QC lab needs; it makes no compliance or certification claim. Items tagged **[inference]** are the author's synthesis, not a sourced statement.
 
 ## Source quality and limits
 
 | Source | Type | Weight | Caveat |
 |---|---|---|---|
-| [LabWare pharma / QA-QC](https://www.labware.com/industries/pharmaceutical), [LabWare QA/QC](https://portal.labware.cloud/qa-qc) | Vendor marketing | Medium | Feature lists, no detail; verify against docs |
-| [LabVantage Stability brochure](https://www.labvantage.com/wp-content/uploads/2014/12/Stability1101JY25CYL.pdf), [LabVantage 8.9 notes](https://www.labvantage.com/blog/labvantage-lims-release-upgrade-to-8-9/), [LabVantage pharma QC blog](https://www.labvantage.com/blog/managing-quality-in-pharma-and-biopharma-labs/) | Vendor | Medium | Spec/sampling-plan versioning not documented publicly |
-| SENAITE docs: [samples](https://www.senaite.com/docs/sample-basics.html), [partitions](https://www.senaite.com/docs/sample-partitions), [profiles](https://www.senaite.com/docs/analysis-profiles), [dynamic specs](https://www.senaite.com/docs/dynamic-analysis-specifications) | Open-source docs | High for what it covers | Clinical/contract-lab leaning; no lot disposition, stability, CoA-by-spec |
 | [FDA OOS guidance, May 2022](https://www.fda.gov/media/158416/download) (via summaries; PDF not read in full) | Regulator guidance | High | US drug (CDER) context; re-read primary before encoding rules |
 | [21 CFR 211.165](https://www.ecfr.gov/current/title-21/chapter-I/subchapter-C/part-211/subpart-I/section-211.165) (summary read), 21 CFR 211.194 (older GPO editions only; check current eCFR), 21 CFR Part 11 (not fetched this session; [eCFR](https://www.ecfr.gov/current/title-21/chapter-I/subchapter-A/part-11)) | US regulation | High | Drug cGMP only; other industries (food, chemicals, medical devices, ISO 17025/9001) differ. Accessed 2026-11-10, US jurisdiction |
-| STARLIMS v11 user manual (local, `/Users/gabriel/Downloads/usermanual`, ~870 pages) | Vendor manual, secondary | Low-medium | Untrusted data; used only to confirm module breadth and workflow shapes. No text, names or screens copied |
 
-Not read: LabWare/STARLIMS/Thermo SampleManager proprietary docs (login-gated), Bika, ISO 17025 (paid). Thermo SampleManager was not researched beyond common knowledge, so it is not cited.
+Not read: ISO 17025 (paid). Functional needs not traced to a cited source are marked **[inference]**. On 2026-11-11 the owner had references to other software products removed; the affected evidence cells now cite the regulatory section (see the [regulatory matrix](regulations.md) for exact clauses) or are marked **[inference]**. Earlier text remains in Git history.
 
 ## Target: one system, all manufacturing QC segments (user decision 2026-11-10)
 
-One product serves pharma/biotech cGMP, dietary supplements, food, chemical/industrial and medical devices. Segment differences are **configuration (rule sets)**, not code branches or separate products. One site/organization per deployment **[inference, carried from Open Roots IQ]**; a deployment may enable several segments at once (e.g. a supplement and food plant), so rule sets attach to products/sites, not to the installation.
+One product serves pharma/biotech cGMP, dietary supplements, food, chemical/industrial and medical devices. Segment differences are **configuration (rule sets)**, not code branches or separate products. One site/organization per deployment **[inference]**; a deployment may enable several segments at once (e.g. a supplement and food plant), so rule sets attach to products/sites, not to the installation.
 
 ### Segment profile: what actually differs
 
@@ -75,13 +71,13 @@ Part 11 primary text was not fetched this session; read [eCFR Part 11](https://w
 
 | Role | Main work | Source basis |
 |---|---|---|
-| Sample custodian / receiving | Receive lots and samples, labels, storage, chain of custody | STARLIMS receive/inventory chapters; LabWare lot workflows |
-| Analyst | Worksheets, results entry, calculations, instrument use | All vendors; SENAITE worksheets |
-| Reviewer (second person) | Verify data, return or approve; cannot review own work | STARLIMS peer review rule (manual: person who entered results cannot approve them); SENAITE configurable required verifications |
+| Sample custodian / receiving | Receive lots and samples, labels, storage, chain of custody | 21 CFR 211.194(a)(1) sample records **[inference on role split]** |
+| Analyst | Worksheets, results entry, calculations, instrument use | 21 CFR 211.194 laboratory records |
+| Reviewer (second person) | Verify data, return or approve; cannot review own work | 21 CFR 211.194(a)(8) second-person review; user decision on independence |
 | QC supervisor / manager | Queues, disposition, OOS/investigation ownership, spec approval | FDA OOS guidance (analyst + supervisor Phase I) |
 | QA (quality unit) | Final lot disposition, deviations/CAPA, spec approval, audit-trail review | 21 CFR 211.165 (QC unit acceptance criteria) |
 | Lab admin / config owner | Products, specs, methods, users, roles | All |
-| Equipment / metrology owner | Calibration, maintenance schedules, reagent/standard inventory | 21 CFR 211.194; STARLIMS equipment chapters |
+| Equipment / metrology owner | Calibration, maintenance schedules, reagent/standard inventory | 21 CFR 211.194 |
 | Read-only (production, planner, auditor) | Lot status, CoA retrieval, audit view | **[inference]** |
 
 ## Functional areas (areas 1-21 plus 22 rule sets; see segment section above for what varies)
@@ -90,28 +86,28 @@ Legend: **M** = MVP, **L1** = first follow-up, **L2** = later.
 
 | # | Area | What a lab needs | Phase | Rationale / evidence |
 |---|---|---|---|---|
-| 1 | Materials, products, **specifications** with versions | Material/product master; spec per product/stage with limit types (range, min/max, text/qualitative, % of label); effective dating; approval; results snapshot the spec version applied. STARLIMS separates limits from calculation/field "schemas"; SENAITE has valid vs warning ranges, dynamic spec import; LabWare flags OOS against predefined limits | M | Every judgement depends on it. Spec versioning in vendors is not publicly detailed, so versioning requirement is **[inference]** from record integrity (211.194 requires data against "established specifications") |
-| 2 | **Test methods**, analytes, units, calculations | Method versions, analyte lists, units, calculations referencing other results, result qualifiers, rounding/significant figures, required analyst qualification | M | SENAITE calculations; STARLIMS test manager (analytes, methods, calcs); 211.194 requires record of method and any modification |
+| 1 | Materials, products, **specifications** with versions | Material/product master; spec per product/stage with limit types (range, min/max, text/qualitative, % of label); effective dating; approval; results snapshot the spec version applied. Valid vs warning ranges; OOS flagged against predefined limits | M | Every judgement depends on it. The versioning requirement is **[inference]** from record integrity (211.194 requires data against "established specifications") |
+| 2 | **Test methods**, analytes, units, calculations | Method versions, analyte lists, units, calculations referencing other results, result qualifiers, rounding/significant figures, required analyst qualification | M | 211.194 requires record of method and any modification |
 | 22 | **Configurable segment rule sets** | Named, versioned rule sets per segment (pharma, supplement, food, chemical, device) controlling signatures, OOS mode, identity-test rules, modules, retention; attach to product/site | M (engine + presets) | User decision 2026-11-10; design **[inference]** |
-| 3 | **Sampling plans** and sample types | Plan per material/stage defining tests, sample counts, frequency; sample points; schedules that auto-create samples; profiles/templates ("recipes"); sub-sampling/aliquots (partitions); inspection-level plans (AQL-type); skip-lot | M basic (plan = test profile + spec per material/stage); L1 schedules, AQL, skip-lot | LabVantage sampling plans, skip-lot; STARLIMS sample points/schedules/ANSI inspection; SENAITE profiles & partitions |
-| 4 | **Sample/lot receipt and login** | Receive raw-material lot (PO/supplier/lot/quantity), assign samples, labels, storage, status lifecycle, retains | M | Journey 1; STARLIMS receive-from-PO; 211.194(a)(1) requires source, quantity, lot, dates taken and received |
-| 5 | **Results entry, worksheets/batches, QC samples** | Analytical batches/worksheets grouping tests across samples; blanks, controls, duplicates; templated layouts; manual entry plus file import; retests | M manual + worksheet; L1 file import | SENAITE worksheets with QC placement; STARLIMS batches/runs/QC manager |
-| 6 | **Review and approval with PIN-based e-signatures** | Role-gated review, separation of duties, return with reason, signature meaning, PIN re-entry at signing (see Core section) | M (core) | Part 11 / Annex 11 support is a LabWare/LabVantage selling point; ELN-style approvals in STARLIMS |
-| 7 | **Lot disposition** | Lot status (quarantine, released, rejected, hold, retest); disposition against spec by QA; blocks release while tests/investigations open; disposition history | M | LabWare lot disposition; 211.165 (batch must meet specs before release; failures rejected) |
-| 8 | **CoA generation** | Templated PDF per lot/disposition; spec limits, results, method, signatures; versioned and immutable; amendment | M | LabWare CoA after validation vs spec; same version-and-supersede pattern as Open Roots IQ reports |
-| 9 | **Audit trail** | Who/when/old/new/reason for every change; per-record history view; export (see Core section) | M (core) | 211.194; Part 11; STARLIMS per-batch traceability |
-| 10 | **OOS/OOT investigations** | Auto-flag OOS; Phase I lab investigation then Phase II full investigation; retest/resample rules; invalidation only with documented lab error; linkage to lot disposition | M (flag, open, record, retest, conclude); L1 OOT/trend rules | FDA OOS 2022: documented investigation required for any OOS; no attribution to lab error without evidence. STARLIMS: investigation workflow init/preliminary/confirmatory/resample, retest averaging or replace. Retest-averaging is risky, **[inference]** make it explicitly configurable and audited |
+| 3 | **Sampling plans** and sample types | Plan per material/stage defining tests, sample counts, frequency; sample points; schedules that auto-create samples; profiles/templates ("recipes"); sub-sampling/aliquots (partitions); inspection-level plans (AQL-type); skip-lot | M basic (plan = test profile + spec per material/stage); L1 schedules, AQL, skip-lot | 211.84 and 211.160(b) sampling plans; inspection-level plans **[inference]** |
+| 4 | **Sample/lot receipt and login** | Receive raw-material lot (PO/supplier/lot/quantity), assign samples, labels, storage, status lifecycle, retains | M | Journey 1; 211.194(a)(1) requires source, quantity, lot, dates taken and received |
+| 5 | **Results entry, worksheets/batches, QC samples** | Analytical batches/worksheets grouping tests across samples; blanks, controls, duplicates; templated layouts; manual entry plus file import; retests | M manual + worksheet; L1 file import | 211.194 complete data; QC placement **[inference]** |
+| 6 | **Review and approval with PIN-based e-signatures** | Role-gated review, separation of duties, return with reason, signature meaning, PIN re-entry at signing (see Core section) | M (core) | Part 11 / Annex 11 electronic-signature expectations |
+| 7 | **Lot disposition** | Lot status (quarantine, released, rejected, hold, retest); disposition against spec by QA; blocks release while tests/investigations open; disposition history | M | 211.165 (batch must meet specs before release; failures rejected) |
+| 8 | **CoA generation** | Templated PDF per lot/disposition; spec limits, results, method, signatures; versioned and immutable; amendment | M | Versioned, superseding certificates **[inference]** from record integrity |
+| 9 | **Audit trail** | Who/when/old/new/reason for every change; per-record history view; export (see Core section) | M (core) | 211.194; Part 11 |
+| 10 | **OOS/OOT investigations** | Auto-flag OOS; Phase I lab investigation then Phase II full investigation; retest/resample rules; invalidation only with documented lab error; linkage to lot disposition | M (flag, open, record, retest, conclude); L1 OOT/trend rules | FDA OOS 2022: documented investigation required for any OOS; no attribution to lab error without evidence. Retest-averaging is risky, **[inference]** make it explicitly configurable and audited |
 | 11 | **Deviations and CAPA** | Own records or link to external QMS; link to lot, investigation, equipment | L1 (links in MVP, full module later) | Most firms keep QMS separate **[inference]**; offer reference fields and simple CAPA tracking first |
-| 12 | **Equipment: calibration and maintenance** | Instrument register, schedules, due/overdue, calibration results vs tolerance, status gates use in results, usage log | M basic (register, due dates, block overdue use); L1 full maintenance | 211.194 requires periodic calibration records; STARLIMS equipment maintenance schedules |
-| 13 | **Reagents, standards, inventory** | Receipt, lot, expiry, preparation/dilution lineage, usage in tests, expiry blocking | L1 (M if reagent traceability is required by owner) | 211.194 requires standardization records; STARLIMS inventory is a large module, so scope it narrowly |
-| 14 | **Stability studies** | Protocol: conditions, time points, pull schedule, storage location, sample pulls, auto-created tests, shelf-life evaluation | L1 | LabWare, LabVantage (time zero, 3/6/12 months, protocol versioning in 8.9). Large, separable |
-| 15 | **Environmental monitoring** | Sites/rooms/points, schedules, action/alert limits, excursions, trend by location | L1 or L2 | Open Roots IQ has none of this; STARLIMS EM chapter; LabWare EM |
-| 16 | **Trending / SPC** | Control charts, zone rules, trend by spec/product/method; OOT alerts; QC sample charts | L1 | STARLIMS control charts with zone rules; 211.165 mentions statistical quality control criteria |
-| 17 | **Analyst training/qualification** | Method-level certification, expiry, gate on assignment | L1 | STARLIMS analyst certifications; SENAITE none |
-| 18 | **Dashboards, queues, alerts** | Role queues (pending review, due samples, OOS open, overdue calibration), turnaround, notifications | M queues; L1 KPIs | Vendor staples; STARLIMS dashboard branches and alerts |
-| 19 | **Integrations** | ERP (lot/PO import, status export), MES, instrument/CDS files; API | L1 CSV/JSON import and REST read; L2 ERP/MES connectors | LabWare lists SAP, MES, Empower, Mettler; SENAITE JSON API and instrument import add-ons |
-| 20 | **Document control, ELN** | Attached SOPs/method docs, form-driven ELN sheets | L2 (attachments M) | STARLIMS ELN is large; do not build a general ELN **[inference]** |
-| 21 | Annual product review, genealogy, where-used | Cross-lot reports; supplier performance | L2 | LabWare mentions where-used, genealogy, annual review |
+| 12 | **Equipment: calibration and maintenance** | Instrument register, schedules, due/overdue, calibration results vs tolerance, status gates use in results, usage log | M basic (register, due dates, block overdue use); L1 full maintenance | 211.194 requires periodic calibration records |
+| 13 | **Reagents, standards, inventory** | Receipt, lot, expiry, preparation/dilution lineage, usage in tests, expiry blocking | L1 (M if reagent traceability is required by owner) | 211.194 requires standardization records; scope inventory narrowly **[inference]** |
+| 14 | **Stability studies** | Protocol: conditions, time points, pull schedule, storage location, sample pulls, auto-created tests, shelf-life evaluation | L1 | 211.166 written stability program. Large, separable |
+| 15 | **Environmental monitoring** | Sites/rooms/points, schedules, action/alert limits, excursions, trend by location | L1 or L2 | 117.165 conditional environmental monitoring |
+| 16 | **Trending / SPC** | Control charts, zone rules, trend by spec/product/method; OOT alerts; QC sample charts | L1 | 211.165 mentions statistical quality control criteria |
+| 17 | **Analyst training/qualification** | Method-level certification, expiry, gate on assignment | L1 | 211.25 personnel qualifications |
+| 18 | **Dashboards, queues, alerts** | Role queues (pending review, due samples, OOS open, overdue calibration), turnaround, notifications | M queues; L1 KPIs | **[inference]** |
+| 19 | **Integrations** | ERP (lot/PO import, status export), MES, instrument/CDS files; API | L1 CSV/JSON import and REST read; L2 ERP/MES connectors | **[inference]** |
+| 20 | **Document control, ELN** | Attached SOPs/method docs, form-driven ELN sheets | L2 (attachments M) | Do not build a general ELN **[inference]** |
+| 21 | Annual product review, genealogy, where-used | Cross-lot reports; supplier performance | L2 | 211.180(e) annual product review |
 
 ## Primary end-to-end journeys
 
@@ -124,21 +120,7 @@ Legend: **M** = MVP, **L1** = first follow-up, **L2** = later.
 
 ## MVP definition
 
-One journey end to end: **raw-material lot -> sample -> test -> review -> disposition -> CoA**, with OOS flag and basic investigation, spec versions, audit trail, e-signature at review/approval/disposition, basic equipment status and role queues. Matches how the vendors lead (lot management, specs, disposition, CoA) and makes the most reuse of Open Roots IQ's receipt -> batch -> review -> versioned report spine.
-
-## Reuse hints from Open Roots IQ (skimmed `docs/product.md` only; verify in code)
-
-| Open Roots IQ concept | Likely fit | Note |
-|---|---|---|
-| Receipt event with discrepancy dispositions | Strong | Adapt to lot receipt (PO, supplier, COA check) |
-| Analytical batch with QC samples and QC evaluation against limits | Strong | Maps to worksheets/QC |
-| Results with qualifiers, units, limits-applied snapshot | Strong | Add spec version reference |
-| Analyst submit -> reviewer -> explicit release; no self-review | Strong | Core of review and disposition |
-| Versioned immutable PDF report + amendment lineage | Strong | Becomes CoA |
-| Audit trail (who/when/old/new/reason) | Strong | Required |
-| Control charts, standards/reagents, instrument calibration (planned milestones 2-3) | Partial | Pull forward selectively |
-| Client/COC/project, holding times, NELAP/EDD, MDL, permit reporting | Environmental-specific | Drop or replace: no clients-as-tenants, sample plan and lot replace COC; holding time becomes stability/retest dating |
-| Missing entirely | New | Product/spec master, lot disposition, sampling plans, OOS investigation, stability, EM |
+One journey end to end: **raw-material lot -> sample -> test -> review -> disposition -> CoA**, with OOS flag and basic investigation, spec versions, audit trail, e-signature at review/approval/disposition, basic equipment status and role queues. Lot management, specifications, disposition and CoA form the core QC record spine **[inference]**.
 
 ## Decisions for the owner
 
@@ -154,4 +136,4 @@ One journey end to end: **raw-material lot -> sample -> test -> review -> dispos
 
 ## Evidence gaps
 
-Thermo SampleManager and LabWare/STARLIMS primary docs were not read. Chemical/industrial segment rules and food Part 117 detail are inference or secondary. Segment regulation was read through search summaries only. Regulatory texts were read via search summaries; re-read the eCFR and FDA primary text before encoding any rule. Nothing here is a compliance claim.
+Chemical/industrial segment rules and food Part 117 detail are inference or secondary. Segment regulation was read through search summaries only. Regulatory texts were read via search summaries; re-read the eCFR and FDA primary text before encoding any rule. Nothing here is a compliance claim.

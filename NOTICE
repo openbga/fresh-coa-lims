@@ -1,0 +1,14 @@
+OpenBGA Qual
+Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License, version 3 only (AGPL-3.0-only), as published by the Free
+Software Foundation. See LICENSE for the full text. It is distributed WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. The licence does not
+grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the
+software.
+
+OpenBGA Qual is derived from OpenBGA Roots at commit d04a916.
+Third-party components retain their own licences; see THIRD_PARTY_NOTICES.md.

@@ -1,5 +1,5 @@
 /*
- * Open Roots IQ application theme for Bootstrap 5.3: the "field notebook".
+ * OpenBGA Qual application theme (derived from OpenBGA Roots) for Bootstrap 5.3: the "field notebook".
  *
  * Bootstrap supplies every control, dialog, dropdown, table and form widget; DataTables supplies
  * grid behaviour. This file sets the design tokens for the light and dark colour modes
@@ -1096,6 +1096,49 @@ s,
     background-image: var(--vr-paper-grid);
     background-size: var(--vr-paper-cell) var(--vr-paper-cell);
     border-right: var(--vr-margin-width) solid var(--vr-margin);
+  }
+}
+
+/* Application footer under the content column: product, licence and the source-code link that
+   AGPL-3.0 section 13 requires on every page. Outside .vr-main, so form dialogs never copy it. */
+.vr-app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  padding: 0.75rem var(--vr-content-pad-x) 1.25rem;
+  color: var(--vr-text-muted);
+  font-size: 0.875rem;
+}
+
+.vr-app-footer a {
+  color: var(--vr-pen);
+}
+
+.vr-app-footer a:hover {
+  color: var(--vr-pen-hover);
+}
+
+@media (min-width: 992px) {
+  .vr-shell {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .vr-shell > .vr-sidenav {
+    grid-row: span 2;
+  }
+
+  .vr-shell > .vr-app-footer {
+    grid-column: -2 / -1;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .vr-shell > .vr-app-footer {
+    padding-left: calc(var(--vr-margin-x) + var(--vr-content-pad-x));
+    background-image: linear-gradient(var(--vr-margin), var(--vr-margin));
+    background-size: var(--vr-margin-width) 100%;
+    background-position: var(--vr-margin-x) 0;
+    background-repeat: no-repeat;
   }
 }
 

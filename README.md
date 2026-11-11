@@ -1,6 +1,6 @@
-# Open Qual IQ
+# OpenBGA Qual: free, open-source LIMS for manufacturing QC labs
 
-A manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
+OpenBGA Qual is a manufacturing quality-control LIMS for pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. Built with Django, PostgreSQL and locally served Bootstrap/HTMX assets.
 
 The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented. The integrated development candidate passed its combined gate on 2026-11-10; this is not a completed MVP or production validation. Use synthetic data only; no regulatory compliance is claimed.
 
@@ -18,12 +18,12 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | [Operations](docs/operations.md) | Backup/restore, manual deployment and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
 | [Research](docs/research/regulations.md) | Dated regulatory matrix, sources and applicability caveats |
-| [Reuse](docs/research/reuse.md) | Open Roots IQ provenance and reuse decisions |
+| [Provenance](docs/research/reuse.md) | Derivation from OpenBGA Roots |
 | [Working instructions](AGENTS.md) | Contributor constraints and verification |
 
 ## Local development
 
-Use Python 3.14, uv and Docker Compose. The PostgreSQL port is **55433**, separate from Open Roots IQ's 55432. The example database credentials are local-only. Settings read environment variables; copying `.env.example` alone does not load them.
+Use Python 3.14, uv and Docker Compose. The PostgreSQL port is **55433**, separate from [OpenBGA Roots](https://github.com/openbga/roots)' 55432. The example database credentials are local-only. Settings read environment variables; copying `.env.example` alone does not load them.
 
 ```sh
 uv sync --frozen
@@ -82,10 +82,26 @@ PostgreSQL is required for row locks and immutable-history triggers; SQLite is n
 
 ## Deployment
 
-`Dockerfile`, CI and `render.yaml` define the foundation. The authorized Blueprint describes `open-qual-iq` (Docker, 1c-2g, Virginia) and `open-qual-iq-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. Resource definition does not mean deployment has occurred. Provision only after the integrated checks pass.
+`Dockerfile`, CI and `render.yaml` define the foundation. The authorized Blueprint describes `openbga-qual` (Docker, 1c-2g, Virginia) and `openbga-qual-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. Resource definition does not mean deployment has occurred. Provision only after the integrated checks pass.
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 
-## License and provenance
+The repository moved to <https://github.com/openbga/qual> on 2026-11-11. The owner must re-link any existing Render service (and its GitHub connection) to that repository; services created before the rename keep their existing names until renamed in the Render dashboard. Each page footer links to the running version's source (AGPL-3.0 section 13). Set `SOURCE_CODE_URL` to your own repository when you deploy a modified version.
 
-GPL-3.0-only; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). Derived from selected Open Roots IQ platform/design assets and patterns, source baseline `d04a916`, with fresh migrations and manufacturing-specific contracts. No reference repository credentials, runtime data or environmental rule presets are included. Retain original license and dependency notices when distributing.
+## Project and support
+
+OpenBGA Qual is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
+
+**Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
+
+**Enterprise support.** BGASoft offers paid support and services for organizations that run this software. To ask about them, contact BGASoft through [bgasoft.com](https://bgasoft.com/services/open-source-support/). Please do not use GitHub issues for support requests of that kind.
+
+## Licence and provenance
+
+Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
+
+OpenBGA Qual is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
+
+OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. The licence does not grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the software.
+
+Derived from selected [OpenBGA Roots](https://github.com/openbga/roots) platform/design assets and patterns, source baseline `d04a916`, with fresh migrations and manufacturing-specific contracts; see [provenance](docs/research/reuse.md). No reference repository credentials, runtime data or environmental rule presets are included. Retain original licence and dependency notices when distributing.

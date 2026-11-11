@@ -1,9 +1,9 @@
 [project]
-name = "open-qual-iq"
+name = "openbga-qual"
 version = "0.1.0"
-description = "Manufacturing quality-control laboratory records"
+description = "OpenBGA Qual: free, open-source LIMS for manufacturing quality-control laboratories"
 requires-python = ">=3.14,<3.15"
-license = "GPL-3.0-only"
+license = "AGPL-3.0-only"
 dependencies = [
   "Django>=5.2.19,<5.3",
   "psycopg[binary]>=3.3.8,<4",

@@ -4,8 +4,8 @@
 (function () {
   "use strict";
 
-  var OPEN_KEY = "oqiq-pagedocs-open";
-  var WIDTH_KEY = "oqiq-pagedocs-width";
+  var OPEN_KEY = "openbga-qual-pagedocs-open";
+  var WIDTH_KEY = "openbga-qual-pagedocs-width";
   var MIN = 280;
   var LIMIT = 960;
   var DEFAULT = 400;
