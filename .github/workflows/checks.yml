@@ -41,7 +41,7 @@ jobs:
     # The PostgreSQL suite hashes with the deployed PBKDF2 hasher at a reduced work factor
     # (conftest.py); the browser job keeps the work factor of a deployment.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17
@@ -97,8 +97,9 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run python manage.py check
+      # pytest applies every migration to its test databases, and the container smoke job
+      # migrates an empty database with the application image.
       - run: uv run python manage.py makemigrations --check --dry-run
-      - run: uv run python manage.py migrate --noinput
       - name: Collect static assets for template-serving tests
         run: uv run python manage.py collectstatic --noinput
       # One worker per runner core, each with its own test database.
