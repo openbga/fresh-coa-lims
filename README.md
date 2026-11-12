@@ -24,6 +24,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | Read | Purpose |
 |---|---|
 | [Product](docs/product.md) | Scope, roles, journeys and product requirements |
+| [Roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) | What is done, what comes next and what is planned for later, by capability area |
 | [Architecture](docs/architecture.md) | Shared integrity contracts and operational boundaries |
 | [Operations](docs/operations.md) | Backup/restore, manual deployment and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
@@ -114,7 +115,7 @@ PostgreSQL is required for row locks and immutable-history triggers; SQLite is n
 
 ## Presentation website
 
-The presentation is published at <https://openbga.github.io/fresh-coa-lims/>. Its source is the static page in `website/`, which introduces OpenBGA Fresh CoA LIMS and links to the repository, documentation and support, using the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
+The presentation is published at <https://openbga.github.io/fresh-coa-lims/>. Its source is the static pages in `website/`: the home page, which introduces OpenBGA Fresh CoA LIMS and links to the repository, documentation and support, and the [roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) (`website/roadmap.html`). Both use the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
 
 ```sh
 python3 scripts/build_website.py
