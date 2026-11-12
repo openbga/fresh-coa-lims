@@ -14,7 +14,7 @@ from core.audit import record_event
 from core.services import require_role, sign_transition, validate_rules
 from quality.models import Lot, Sample
 
-from .contracts import batch_methods, canonical_hash, check_eligibility, resolve
+from .contracts import LESS_THAN, Reading, batch_methods, canonical_hash, check_eligibility, resolve
 from .gates import data_author_ids, investigation_author_ids
 from .models import (
     AnalyticalTest,
@@ -122,7 +122,33 @@ def assign_tests(*, actor, sample, reason):
         return created, holds
 
 
-def record_observation(*, actor, test, value, raw_reference, reason=""):
+def _reading(spec, value, qualifier, outcome, observed_text):
+    """Validate a reading against the frozen requirement; return (reading, text as recorded)."""
+    reading = Reading(value=value, qualifier=qualifier or "", outcome=outcome or "")
+    spec.check_reading(reading)
+    if spec.is_qualitative:
+        if not (observed_text or "").strip():
+            raise ValidationError(
+                "Describe what was observed; the outcome alone is not a complete record."
+            )
+        return reading, dict(spec.outcomes)[reading.outcome]
+    return reading, f"{reading.qualifier}{value}"
+
+
+def _reading_record(observation):
+    """The reading as recorded, for audit events."""
+    return {
+        "value": observation.value_text,
+        "qualifier": observation.qualifier,
+        "outcome": observation.outcome,
+        "observed": observation.observed_text,
+    }
+
+
+def record_observation(
+    *, actor, test, raw_reference, value=None, qualifier="", outcome="", observed_text="", reason=""
+):
+    """Record the next replicate: a number (optionally reported as less than it) or an outcome."""
     require_role(actor, ANALYST)
     if not raw_reference.strip():
         raise ValidationError("Record where the original observation is kept.")
@@ -137,12 +163,16 @@ def record_observation(*, actor, test, value, raw_reference, reason=""):
         count = test.current_observations().count()
         if count >= spec.replicates:
             raise ValidationError("All replicates are recorded. Correct a value instead.")
+        reading, text = _reading(spec, value, qualifier, outcome, observed_text)
         eligibility = check_eligibility(actor=actor, test=test)
         observation = Observation(
             test=test,
             replicate=count + 1,
-            value=value,
-            value_text=str(value),
+            value=reading.value,
+            qualifier=reading.qualifier,
+            outcome=reading.outcome,
+            value_text=text,
+            observed_text=observed_text,
             unit=spec.unit,
             raw_reference=raw_reference,
             reason=reason,
@@ -160,7 +190,7 @@ def record_observation(*, actor, test, value, raw_reference, reason=""):
             after={
                 "observation": observation.pk,
                 "replicate": observation.replicate,
-                "value": str(value),
+                **_reading_record(observation),
                 "unit": spec.unit,
                 "raw_reference": raw_reference,
                 "eligibility": eligibility,
@@ -170,7 +200,17 @@ def record_observation(*, actor, test, value, raw_reference, reason=""):
         return observation
 
 
-def correct_observation(*, actor, observation, value, raw_reference, reason):
+def correct_observation(
+    *,
+    actor,
+    observation,
+    raw_reference,
+    reason,
+    value=None,
+    qualifier="",
+    outcome="",
+    observed_text="",
+):
     """Add a linked correction; the original row is preserved and remains visible."""
     require_role(actor, ANALYST)
     _require_reason(reason)
@@ -184,12 +224,16 @@ def correct_observation(*, actor, observation, value, raw_reference, reason):
         original = Observation.objects.get(pk=observation.pk)
         if Observation.objects.filter(supersedes=original).exists():
             raise ValidationError("This observation has already been corrected.")
+        reading, text = _reading(test.spec, value, qualifier, outcome, observed_text)
         eligibility = check_eligibility(actor=actor, test=test)
         correction = Observation(
             test=test,
             replicate=original.replicate,
-            value=value,
-            value_text=str(value),
+            value=reading.value,
+            qualifier=reading.qualifier,
+            outcome=reading.outcome,
+            value_text=text,
+            observed_text=observed_text,
             unit=original.unit,
             raw_reference=raw_reference,
             supersedes=original,
@@ -207,18 +251,39 @@ def correct_observation(*, actor, observation, value, raw_reference, reason):
             obj=test,
             before={
                 "observation": original.pk,
-                "value": original.value_text,
+                **_reading_record(original),
                 "raw_reference": original.raw_reference,
             },
             after={
                 "observation": correction.pk,
-                "value": str(value),
+                **_reading_record(correction),
                 "raw_reference": raw_reference,
                 "eligibility": eligibility,
             },
             reason=reason,
         )
         return correction
+
+
+TRIGGER_LENGTH = Investigation._meta.get_field("trigger").max_length
+
+
+def _oos_trigger(test, readings):
+    """Why a submitted result opened an investigation, worded for its result type."""
+    spec = test.spec
+    if spec.is_qualitative:
+        text = (
+            f"Out-of-specification {test.test_code}: observed {test.reportable_display}, "
+            f"expected {spec.expected_label}"
+        )
+    elif any(r.qualifier == LESS_THAN for r in readings):
+        text = (
+            f"Out-of-specification {test.test_code}: {test.reportable_with_unit} cannot be "
+            f"shown to meet {spec.acceptance}"
+        )
+    else:
+        text = f"Out-of-specification {test.test_code}: reportable {test.reportable_with_unit}"
+    return text if len(text) <= TRIGGER_LENGTH else text[: TRIGGER_LENGTH - 1] + "…"
 
 
 def _open_investigation(*, actor, test, trigger):
@@ -254,8 +319,11 @@ def submit_test(*, actor, test, expected_revision, reason):
             status, _ = batch.qc_status()
             if status != "passed":
                 raise ValidationError(f"Batch QC is {status}; tests cannot be submitted.")
-        values = [o.value for o in test.current_observations()]
-        test.mean_value, test.reportable_value, test.conforms = spec.evaluate(values)
+        current = list(test.current_observations())
+        readings = [o.reading for o in current]
+        test.mean_value, test.reportable_value, test.reportable_text, test.conforms = spec.evaluate(
+            readings
+        )
         test.evaluated_at = timezone.now()
         test.submitted_by = actor
         test.state = AnalyticalTest.State.SUBMITTED
@@ -266,8 +334,8 @@ def submit_test(*, actor, test, expected_revision, reason):
             action="test.submitted",
             obj=test,
             after={
-                "values": [str(v) for v in values],
-                "mean": str(test.mean_value),
+                "values": [o.value_text for o in current],
+                "mean": None if test.mean_value is None else str(test.mean_value),
                 "reportable": test.reportable_display,
                 "conforms": test.conforms,
                 "requirement_hash": test.requirement_hash,
@@ -277,10 +345,7 @@ def submit_test(*, actor, test, expected_revision, reason):
         investigation = None
         if not test.conforms and test.investigation_id is None:
             investigation = _open_investigation(
-                actor=actor,
-                test=test,
-                trigger=f"Out-of-specification {test.test_code}: reportable "
-                f"{test.reportable_display} {spec.unit}",
+                actor=actor, test=test, trigger=_oos_trigger(test, readings)
             )
         return test, investigation
 
@@ -342,9 +407,13 @@ def return_test(*, actor, test, expected_revision, reason):
         _check_revision(test, expected_revision)
         (lot,) = _lock_lots(test.lot_id)
         _raise(return_refusal(actor, test))
-        before = {"mean": str(test.mean_value), "reportable": str(test.reportable_value)}
+        before = {
+            "mean": None if test.mean_value is None else str(test.mean_value),
+            "reportable": test.reportable_display,
+        }
         test.state = AnalyticalTest.State.OPEN
         test.mean_value = test.reportable_value = test.conforms = test.evaluated_at = None
+        test.reportable_text = ""
         test.submitted_by = None
         _touch(test)
         _bump(lot)
@@ -357,9 +426,11 @@ def review_test(*, actor, pin, test, expected_revision, reason):
         (lot,) = _lock_lots(locked.lot_id)
         _raise(review_refusal(actor, locked))
         validate_rules(lot.rules)
-        values = [o.value for o in locked.current_observations()]
-        _, reportable, conforms = locked.spec.evaluate(values)
-        if reportable != locked.reportable_value or conforms != locked.conforms:
+        readings = [o.reading for o in locked.current_observations()]
+        _, reportable, text, conforms = locked.spec.evaluate(readings)
+        # Tests submitted before the reportable text was frozen carry none to compare.
+        text_changed = bool(locked.reportable_text) and text != locked.reportable_text
+        if reportable != locked.reportable_value or conforms != locked.conforms or text_changed:
             raise ValidationError("Calculated result changed; return the test for resubmission.")
         locked.state = AnalyticalTest.State.REVIEWED
         _bump(lot)
@@ -556,7 +627,7 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
                 )
             spec = test.spec
             out_of_limits = [
-                o.value_text for o in test.current_observations() if not spec.conforms(o.value)
+                o.value_text for o in test.current_observations() if not spec.conforms(o.reading)
             ]
             test.state = AnalyticalTest.State.INVALIDATED
             _touch(test)

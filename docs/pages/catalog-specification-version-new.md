@@ -4,7 +4,7 @@ urls: catalog:specification_version_new
 views: catalog.views.specification_version_new
 templates: catalog/form.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ Creates the next draft version of an existing specification, starting from the t
 ## Rules and hidden logic
 
 - **Numbering**: the new version number is the highest existing number plus one.
-- **Copied tests**: every test line of the highest-numbered version, whatever its status (including Withdrawn), is copied into the new draft with you as creator. You can then add or remove lines.
+- **Copied tests**: every test line of the highest-numbered version, whatever its status (including Withdrawn), is copied into the new draft with you as creator. You can then add or remove lines. Lines cannot be edited: a copied qualitative line without an expected outcome (from a version approved before outcomes were recorded), or any copied line that no longer meets the Add test rules, must be removed and added again before the draft can be approved.
 - **Interval**: "The effective end must be after the start." The overlap check happens only at approval ("Effective dates overlap an approved version."), not here.
 - **Several drafts** may exist at once; the page does not prevent it.
 - **Audit**: `specification_revision.created`, recording which version the tests were copied from, with your reason.

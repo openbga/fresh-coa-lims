@@ -46,12 +46,12 @@ METHODS = {
 }
 
 
-def numeric(code, name, method, unit, low=None, high=None, decimals=None):
+def numeric(code, name, method, unit, low=None, high=None, decimals=None, result_type="numeric"):
     return {
         "code": code,
         "name": name,
         "method": method,
-        "result_type": "numeric",
+        "result_type": result_type,
         "unit": unit,
         "lower_limit": Decimal(low) if low else None,
         "upper_limit": Decimal(high) if high else None,
@@ -59,13 +59,14 @@ def numeric(code, name, method, unit, low=None, high=None, decimals=None):
     }
 
 
-def qualitative(code, name, method, expected):
+def qualitative(code, name, method, criterion, expected="conforms"):
     return {
         "code": code,
         "name": name,
         "method": method,
         "result_type": "qualitative",
-        "expected_text": expected,
+        "expected_result": expected,
+        "expected_text": criterion,
     }
 
 
@@ -96,7 +97,15 @@ PROFILES = [
                 "identity", "Botanical identity", "hptlc-identity", "Conforms to reference"
             ),
             numeric("lead", "Lead", "icpms-lead", "µg/g", high="1.0", decimals=1),
-            numeric("tamc", "Total aerobic count", "micro-tamc", "CFU/g", high="10000", decimals=0),
+            numeric(
+                "tamc",
+                "Total aerobic count",
+                "micro-tamc",
+                "CFU/g",
+                high="10000",
+                decimals=0,
+                result_type="count",
+            ),
         ],
         "plan": {
             "basis": "fixed",
@@ -111,7 +120,9 @@ PROFILES = [
         "stage": "finished",
         "tests": [
             qualitative("identity", "Appearance and sensory", "organoleptic", "Conforms"),
-            qualitative("salmonella", "Salmonella", "micro-salmonella", "Not detected in 25 g"),
+            qualitative(
+                "salmonella", "Salmonella", "micro-salmonella", "Not detected in 25 g", "absent"
+            ),
             numeric("moisture", "Moisture", "loss-on-drying", "%", high="12.0", decimals=1),
         ],
         "plan": {

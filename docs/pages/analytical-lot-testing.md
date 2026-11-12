@@ -4,7 +4,7 @@ urls: analytical:lot_testing
 views: analytical.views.lot_testing
 templates: analytical/lot_testing.html, analytical/_test_status.html, analytical/_investigation_status.html
 models: quality.Lot, quality.Sample, analytical.AnalyticalTest, analytical.Investigation
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -21,7 +21,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 
 - **Header**: "LOT testing", lot status (Quarantine or the lot's state), material, Rule set, Lot revision; **Lot record** button.
 - **Analytical evidence for QC disposition**: either **Blocked** with the list "QC disposition cannot be approved until these are resolved:" or **Complete**.
-- **One card per sample** (collection order): sample reference, test count, **Assign required tests**, collection time, and a table: Test, Code, Kind, Status, Reportable, Specification. Empty: "No tests assigned".
+- **One card per sample** (collection order): sample reference, test count, **Assign required tests**, collection time, and a table: Test, Code, Kind, Status, Reportable, Acceptance and specification. Empty: "No tests assigned".
 - **No samples**: "No samples recorded" with a **Lot record** link.
 - **Investigations**: list with status and trigger, or "No investigations".
 
@@ -40,8 +40,8 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 | Rule set | `Lot.rules` | "code vN" | — | Rule revision of the lot |
 | Lot revision | `Lot.revision` | Integer | — | Rises with every evidence change; a disposition opened earlier then becomes stale |
 | Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, Awaiting review, Reviewed · conforms, Out of specification (awaiting review or reviewed), Invalidated |
-| Reportable | `AnalyticalTest.reportable_value` | Decimal with unit | — | "—" until submitted |
-| Specification | `AnalyticalTest.requirement` | Text | — | Source and revision of the frozen requirement |
+| Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | As frozen at submission, e.g. "99.8", "<10" or "Absent"; "—" until submitted |
+| Acceptance and specification | `AnalyticalTest.requirement` | Text | — | Acceptance text (for example "less than 0.10 %" or "Absent in 25 g (expected: Absent)") above the source and revision of the frozen requirement |
 | Reason (hidden) | `AuditEvent.reason` | Text | Yes | Fixed text: "Assign required tests from the lot's approved requirements" |
 | Sample (hidden) | `AnalyticalTest.sample` | Sample of this lot | Yes | The card's sample; a sample of another lot, or a value that is not a whole-number ID of at most 19 digits, returns 404 |
 

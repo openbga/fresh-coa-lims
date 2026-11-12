@@ -4,7 +4,7 @@ urls: catalog:specification_revision
 views: catalog.views.specification_revision
 templates: catalog/specification_revision.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -50,8 +50,8 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 | Reason for version | `SpecificationRevision.change_reason` | Text | — | Reason given when the version was created. |
 | # | `SpecificationTest.position` | Integer | — | Display order. |
 | Test | `SpecificationTest.code`, `name` | Text | — | Test code and name. |
-| Acceptance criterion | limits or `expected_text` | Decimal range with unit, or text | — | For example "98 – 102 %"; "≥", ">", "≤", "<" for one-sided limits; "(exclusive bound)" when a bound is exclusive. |
-| Rounding | `SpecificationTest.reporting_decimals` | Integer | — | "N decimals" or "Exact". |
+| Acceptance criterion | limits, or `expected_result` and `expected_text` | Decimal range with unit, or outcome and criterion | — | Numeric and count: "98 – 102 %" when both bounds are inclusive; otherwise each bound with its symbol, e.g. "> 5 and ≤ 10 mg/g", "< 10 CFU/g", "≤ 200 CFU/g". Qualitative: outcome and criterion, e.g. "Absent: Not detected in 25 g"; a line approved before outcomes were recorded shows the criterion alone. The result type ("Numeric with limits", "Count (whole number)", "Qualitative (expected outcome)") is shown below. |
+| Rounding | `SpecificationTest.reporting_decimals` | Integer | — | "N decimals" or "Exact"; "Not applicable" for qualitative tests. |
 | Replication | `replicates`, `replicate_limits`, `max_retests` | Integers | — | "N replicates", ", each within limits" when more than one and enforced, then "up to N retests" or "no retests". |
 | Required | `SpecificationTest.required` | Yes/No | — | "Required" or "Information only". |
 
@@ -59,7 +59,7 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 
 - **Draft only changes**: tests can be added or removed only while the version is Draft. Approved and withdrawn versions and their tests are immutable at the database level.
 - **Revision**: each test added or removed increases the record revision by 1.
-- **Approval prerequisites** (checked at signing, not on this page): at least one test; every test's method has an approved method version effective at the specification's start; no overlap with another approved version of this specification.
+- **Approval prerequisites** (checked at signing, not on this page): at least one test; every test passes the Add test shape rules, and every qualitative test has an expected outcome (remove and re-add a copied line that has none); every test's method has an approved method version effective at the specification's start; no overlap with another approved version of this specification.
 - **Independence**: the author, or anyone who made another change to the draft (any audit event on it other than a signature), cannot approve it. Quality users in that position see the "Independent approval" alert instead of the approve button.
 - **Approval**: signature meaning "approved", binds the record revision, stores a content hash (see the Approve page).
 - **Withdrawn** versions show Withdrawn and no action buttons.

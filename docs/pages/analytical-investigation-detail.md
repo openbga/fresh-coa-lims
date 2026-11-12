@@ -4,7 +4,7 @@ urls: analytical:investigation_detail
 views: analytical.views.investigation_detail
 templates: analytical/investigation_detail.html, analytical/_history.html, analytical/_investigation_status.html, analytical/_test_status.html
 models: analytical.Investigation, analytical.InvestigationEntry, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -41,7 +41,9 @@ One out-of-specification investigation: phase, lineage of the original result an
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Status | `Investigation.phase`, `outcome` | Text | — | Phase I open, Phase II open, Closed · OOS confirmed, Closed · original invalidated |
-| Trigger | `Investigation.trigger` | Text | — | Why it opened |
+| Trigger | `Investigation.trigger` | Text, max 200 | — | Why it opened, worded for the result type: "Out-of-specification CODE: reportable 0.10 %"; for a less-than result "…: <2000 CFU/g cannot be shown to meet at most 1000 CFU/g"; for a qualitative result "…: observed Present, expected Absent". Longer text is shortened with "…" |
+| Replicates | `Observation.value_text`, `observed_text` | Text as recorded, separated by "; ", with unit | — | Current readings of each test; qualitative readings show what was observed in brackets |
+| Reportable | `AnalyticalTest.reportable_text` | Text | — | As frozen at submission, e.g. "99.8", "<10" or "Present"; "—" before |
 | Outcome | `Investigation.outcome` | Text | — | "Original result invalidated: assignable cause" or "Out-of-specification result confirmed" |
 | Assignable cause | `Investigation.assignable_cause` | Text | — | Shown only when recorded |
 | Retests used | `AnalyticalTest.investigation` | Count | — | Linked tests not Invalidated, against the specification's retest allowance |

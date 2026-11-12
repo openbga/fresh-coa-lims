@@ -4,6 +4,7 @@ from django.conf import settings
 from core.forms import SignatureIdentityForm
 
 from .models import (
+    ExpectedResult,
     Material,
     MaterialKind,
     Method,
@@ -178,28 +179,57 @@ class TestLineForm(GroupedForm):
     name = forms.CharField(max_length=160)
     method = forms.ModelChoiceField(queryset=Method.objects.all())
     position = forms.IntegerField(min_value=1, max_value=999, initial=1)
-    result_type = forms.ChoiceField(choices=ResultType.choices)
-    unit = forms.ChoiceField(choices=[("", "—")] + RESULT_UNITS, required=False)
-    lower_limit = forms.DecimalField(max_digits=20, decimal_places=8, required=False)
+    result_type = forms.ChoiceField(
+        choices=ResultType.choices,
+        help_text="Numeric and count tests use the unit, limits and rounding fields; count "
+        "results and limits are whole numbers of 0 or more. Qualitative tests use the expected "
+        "outcome and criterion fields instead.",
+    )
+    unit = forms.ChoiceField(
+        choices=[("", "—")] + RESULT_UNITS,
+        required=False,
+        help_text="Numeric and count tests only.",
+    )
+    lower_limit = forms.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        required=False,
+        help_text="Numeric and count tests: enter at least one limit. Equal lower and upper "
+        "limits must both be inclusive.",
+    )
     lower_inclusive = forms.BooleanField(
-        label="Lower limit is inclusive (≥)", required=False, initial=True
+        label="Lower limit is inclusive (≥)",
+        required=False,
+        initial=True,
+        help_text="Clear for a strict limit (>).",
     )
     upper_limit = forms.DecimalField(max_digits=20, decimal_places=8, required=False)
     upper_inclusive = forms.BooleanField(
-        label="Upper limit is inclusive (≤)", required=False, initial=True
+        label="Upper limit is inclusive (≤)",
+        required=False,
+        initial=True,
+        help_text="Clear for a strict limit (<).",
     )
     reporting_decimals = forms.IntegerField(
         label="Round to decimals before comparison",
         min_value=0,
         max_value=8,
         required=False,
-        help_text="Leave blank to compare the exact recorded value.",
+        help_text="Numeric and count tests only. Leave blank to compare the exact recorded value.",
+    )
+    expected_result = forms.ChoiceField(
+        label="Expected outcome",
+        choices=[("", "—")] + ExpectedResult.choices,
+        required=False,
+        help_text="Qualitative tests only: the outcome that conforms. Conforms is recorded "
+        "against Does not conform; Absent or Present against the other.",
     )
     expected_text = forms.CharField(
-        label="Expected result",
+        label="Criterion",
         max_length=160,
         required=False,
-        help_text="Qualitative tests only, e.g. Conforms or Absent in 10 g.",
+        help_text="Qualitative tests only: the approved wording, e.g. White crystalline powder "
+        "or Not detected in 25 g.",
     )
     required = forms.BooleanField(label="Required for QC disposition", required=False, initial=True)
     replicates = forms.IntegerField(
@@ -209,7 +239,11 @@ class TestLineForm(GroupedForm):
         help_text="Determinations averaged into the reportable value.",
     )
     replicate_limits = forms.BooleanField(
-        label="Each replicate must meet the limits", required=False, initial=True
+        label="Each replicate must meet the limits",
+        required=False,
+        initial=True,
+        help_text="Numeric and count tests. Every replicate of a qualitative test must match "
+        "the expected outcome.",
     )
     max_retests = forms.IntegerField(
         label="Maximum retests",
@@ -232,11 +266,20 @@ class TestLineForm(GroupedForm):
                 "upper_limit",
                 "upper_inclusive",
                 "reporting_decimals",
+                "expected_result",
                 "expected_text",
             ],
         ),
         ("Change control", ["reason"]),
     ]
+
+    def clean(self):
+        data = super().clean()
+        if data.get("result_type") == ResultType.QUALITATIVE:
+            # Bound and replicate options do not apply to a qualitative test; they are stored as
+            # set so the line keeps the one shape the analytical contract accepts.
+            data.update(lower_inclusive=True, upper_inclusive=True, replicate_limits=True)
+        return data
 
 
 class QCCheckForm(GroupedForm):

@@ -44,7 +44,7 @@
           {% for test in payload.tests %}
           <tr>
             <th scope="row"><span class="vr-id">{{ test.code }}</span><br>{{ test.name }}</th>
-            <td>{% if test.result_type == "qualitative" %}{{ test.expected_text }}{% else %}{% if test.lower_limit is not None %}{% if test.lower_inclusive %}≥{% else %}&gt;{% endif %} {{ test.lower_limit }}{% endif %}{% if test.lower_limit is not None and test.upper_limit is not None %} and {% endif %}{% if test.upper_limit is not None %}{% if test.upper_inclusive %}≤{% else %}&lt;{% endif %} {{ test.upper_limit }}{% endif %} {{ test.unit }}{% if test.reporting_decimals is not None %} (rounded to {{ test.reporting_decimals }}){% endif %}{% endif %}</td>
+            <td>{% if test.result_type == "qualitative" %}{% if test.expected_result %}{{ test.expected_result|capfirst }}: {% endif %}{{ test.expected_text }}{% else %}{% if test.lower_limit is not None %}{% if test.lower_inclusive %}≥{% else %}&gt;{% endif %} {{ test.lower_limit }}{% endif %}{% if test.lower_limit is not None and test.upper_limit is not None %} and {% endif %}{% if test.upper_limit is not None %}{% if test.upper_inclusive %}≤{% else %}&lt;{% endif %} {{ test.upper_limit }}{% endif %} {{ test.unit }}{% if test.reporting_decimals is not None %} (rounded to {{ test.reporting_decimals }}){% endif %}{% endif %}</td>
             <td>{{ test.method.code }} v{{ test.method.version }}<br><span class="text-body-secondary">{{ test.method.document_ref }}</span></td>
             <td>{{ test.method.suitability_ref }}</td>
             <td>{% if test.required %}Required{% else %}Information only{% endif %}</td>

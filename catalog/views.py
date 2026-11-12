@@ -272,8 +272,9 @@ def test_new(request, pk):
         ),
         cancel_url=back,
         submit_label="Add test",
-        intro="Numeric tests need a unit and at least one limit; qualitative tests need the "
-        "expected result. Values are stored exactly as entered decimals.",
+        intro="Numeric and count tests need a unit and at least one limit; count limits are "
+        "whole numbers. Qualitative tests need the expected outcome and the criterion wording. "
+        "Values are stored exactly as entered decimals.",
     )
 
 

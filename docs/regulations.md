@@ -166,6 +166,20 @@ ICH guidances below are not standalone US regulations. The binding duties to est
 | REG-IATF02 | IATF 7.1.5.3.2, SI 10 revised: external laboratory scope and acceptability | [IATF Nov 2025 SIs, pp.11-12][iatfsi] | 2026-11-10 | C: A external test/calibration services | Store service scope, accreditation/report marks or applicable evaluation/customer-acceptability evidence; avoid an absolute accredited-only gate; self-calibration software alone is not calibration evidence. | MVP provider-acceptability configuration; Later certificate automation |
 | REG-GAMP01 | GAMP 5, 2nd ed.: risk-based lifecycle assurance and critical thinking | [ISPE publisher explanation, Aug 2022][gamp] | 2026-11-10 | G/C: chosen GxP assurance practice; U full proprietary guide not reviewed | Maintain intended use, risk/control/test traceability, supplier evidence, controlled configuration/releases and proportionate change assessment; no “GAMP-certified software” claim. | MVP assurance approach; Later guide-specific templates |
 
+### Result types, rounding and results reported as less than a value
+
+These rows support qualitative results, counts, results reported as less than a value and limits that exclude their boundary. Two comparison rules are design assumptions of the project and are not stated by any cited source: a result recorded as less than X is shown to conform only when the specification has no lower limit and X does not exceed the upper limit, and no mean is calculated when any replicate is such a result. A result that cannot be shown to conform is treated as not conforming. A quality owner approves these defaults for the intended use.
+
+| Requirement ID | Source clause / obligation | Citation URL | Accessed | Applicability | Software implication (derived requirement) | Priority |
+|---|---|---|---|---|---|---|
+| REG-RT01 | USP General Notices 7.10, 7.20, 8.110: reportable value, inclusive limits, rounding; Ph. Eur. rounding of results against limits | [USP 32 General Notices, 2009 copy][uspgn32], [EDQM FAQ][edqmround] | 2026-11-12 | C: compendial articles and adopted procedures; **U: current official USP-NF and Ph. Eur. text not reviewed** | Round only the final reportable value, half-up, then compare; never round the limit. Limits are inclusive unless the approved specification line states a strict operator. Other rounding conventions need approved configuration. | MVP |
+| REG-RT02 | ICH Q3A(R2) §5 and Attachment 2, Q3B(R2): numerical reporting and a strict reporting threshold; Q2(R2): quantitation limit not above the reporting threshold | [Q3A(R2)][q3a], [Q3B(R2)][q3b], [FDA Q2(R2), March 2024][q2] | 2026-11-12 | G: P/API impurity testing; design decision elsewhere | Keep a below-limit result as recorded, with its qualifier and bound; never substitute zero or a number. Evaluate conformity only where the bound allows; otherwise the result does not pass. | MVP |
+| REG-RT03 | Harmonised microbial enumeration: plate mean within one test; 10^n acceptance criteria read as 2 x 10^n; ICH Q4B Annex 4A(R1) | [JP 4.05 harmonised text][jp405], [Q4B Annex 4A(R1)][q4b4a] | 2026-11-12 | C: pharmacopoeial non-sterile products; **U: current USP <61>/<1111> and Ph. Eur. 2.6.12/5.1.4 not reviewed** | Record counts as whole numbers of zero or more. The approved limit states the explicit maximum (200 for a 10^2 criterion); the software does not interpret powers of ten. Replicates are averaged only as the approved specification line declares. | MVP |
+| REG-RT04 | Harmonised tests for specified microorganisms; ICH Q4B Annex 4B(R1); 211.165(b) | [JP 4.05 harmonised text][jp405], [Q4B Annex 4B(R1)][q4b4b], [eCFR][p165] | 2026-11-12 | M: P where the product must be free of objectionable microorganisms; C: compendial method | Record presence or absence against an approved criterion that names the tested quantity. Any presence fails an absence requirement; no averaging. | MVP |
+| REG-RT05 | 211.84(d)(1), 211.165(a), 111.75(a)(1), 211.194(a)(4),(6), 117.305(b); ICH Q6A description and identification | [§211.84][p84], [§211.165][p165], [§111.75][s75], [§211.194][p194], [§117.305][f305], [Q6A][q6a] | 2026-11-12 | M: P, S, F as applicable; G: Q6A. The need to record the observation itself is inferred from the complete-data duties | Store what was observed separately from the conformity outcome; an outcome alone is not a complete record. | MVP |
+| REG-RT06 | FDA BAM Chapter 3: countable range, estimated and less-than reporting, rounding to two significant figures | [FDA BAM Ch. 3][bam3] | 2026-11-12 | G/C: F methods where adopted | Allow less-than count results as recorded. Method-specific rounding and estimated counts are not implemented; the pharmacopoeial 10^n reading is not applied to food limits. | MVP less-than recording; Later method-specific rounding |
+| REG-RT07 | FDA OOS §IV.C.1, §V.B.1; FDA data integrity Q12-13: individual results, no averaging that masks a failure | [FDA final][oos], [FDA DI][di] | 2026-11-12 | G: P/API chemistry; design decision for other result types and segments | Keep every replicate visible. Every qualitative replicate, and every replicate of a test that includes a less-than result, must conform. | MVP |
+
 ## Changes and dates that affect planning
 
 Dates below concern the specified publication/jurisdiction. A guidance publication date is not a statutory effective date. All linked sources were accessed 2026-11-10.
@@ -205,6 +219,8 @@ Dates below concern the specified publication/jurisdiction. A guidance publicati
 The research used issuing-government, regulator, standards-publisher and accreditor sources. US eCFR pages displayed Title 21 current through **2026-11-06** when accessed on 2026-11-10; eCFR is authoritative but unofficial, with the Federal Register supplying promulgated rules ([eCFR status on §211.160][p160]). The matrix records the actual access date, not a claim that every title changed that day. FDA final/draft labels and Commission operative/draft listings were checked separately from historical dates printed in PDFs.
 
 Outstanding verification is explicit in U rows and the change table: licensed current ISO 9001/internal IATF/USP text, new EU Annex 19 and local applicability. The public NATA worksheet is the accreditor's primary assessment material; it is not represented as the full ISO standard. The detailed proprietary GAMP guide was not accessed. The cited MDSAP audit approach is revision 2024-08-06 and is used for its ISO 13485 clause explanations; its historic FDA QSR cross-references are not the current QMSR. FDA states that its QMSR inspections do not follow the MDSAP audit plan ([FDA FAQ][qmsr]).
+
+The result-type rows (REG-RT01 to REG-RT07) were researched on 2026-11-12. Current USP and Ph. Eur. text could not be opened: the General Notices wording comes from a 2009 public copy of USP 32 and an EDQM FAQ, and the microbial rules from the harmonised text as published in the Japanese Pharmacopoeia and the ICH Q4B annexes. ASTM E29 and ISO 7218 are licensed and were not reviewed. No source was found for reporting "<10 CFU/g" when no colonies grow at a 1:10 dilution under the pharmacopoeial method; FDA BAM is the food equivalent.
 
 [p22]: https://www.ecfr.gov/current/title-21/chapter-I/subchapter-C/part-211/subpart-B/section-211.22
 [p25]: https://www.ecfr.gov/current/title-21/chapter-I/subchapter-C/part-211/subpart-B/section-211.25
@@ -293,3 +309,12 @@ Outstanding verification is explicit in U rows and the change table: licensed cu
 [iatfindex]: https://www.iatfglobaloversight.org/iatf-169492016/iatf-169492016-sis/
 [iatfsi]: https://www.iatfglobaloversight.org/wp/wp-content/uploads/2025/11/IATF-16949-SIs-Nov-2025.pdf
 [gamp]: https://ispe.org/pharmaceutical-engineering/ispeak/gampr-5-second-edition-here
+[uspgn32]: https://ptacts.uspto.gov/ptacts/public-informations/petitions/1510936/download-documents?artifactId=PZb4iUnUTuBJozzLSH_Tf5V0ep3MDG109L_OvG6vDbHl_Fl62RFQ0Ns
+[edqmround]: https://faq.edqm.eu/pages/viewpage.action?pageId=1376855
+[q3a]: https://www.fda.gov/media/71727/download
+[q3b]: https://www.fda.gov/media/71733/download
+[q6a]: https://database.ich.org/sites/default/files/Q6A%20Guideline.pdf
+[jp405]: https://www.mhlw.go.jp/file/06-Seisakujouhou-11120000-Iyakushokuhinkyoku/JPe15itibu2_2.pdf
+[q4b4a]: https://www.fda.gov/media/71241/download
+[q4b4b]: https://www.fda.gov/media/71267/download
+[bam3]: https://www.fda.gov/media/191248/download

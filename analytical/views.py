@@ -13,7 +13,7 @@ from core.services import require_role
 from quality.models import Lot, Sample
 
 from . import gates, services
-from .contracts import batch_methods
+from .contracts import batch_methods, plain
 from .forms import (
     BatchAssignForm,
     BatchForm,
@@ -21,6 +21,8 @@ from .forms import (
     CorrectionForm,
     EntryForm,
     ObservationForm,
+    ReadingCorrectionForm,
+    ReadingForm,
     ReasonForm,
     RetestForm,
     RevisionReasonForm,
@@ -311,12 +313,22 @@ def test_summary(test):
     return [
         ("Test", f"{test.label} · {spec.name} ({test.test_code})"),
         ("Lot and sample", f"{test.lot.number} / {test.sample.reference}"),
-        ("Specification", f"{spec.source} · {limits_text(spec)}"),
+        ("Specification", f"{spec.source} · {spec.acceptance}"),
         ("Record revision", test.revision),
     ]
 
 
+def readings_text(test):
+    """Current replicates as recorded, with what was observed for qualitative readings."""
+    readings = "; ".join(
+        o.value_text + (f" ({o.observed_text})" if o.observed_text else "")
+        for o in test.current_observations()
+    )
+    return f"{readings} {test.spec.unit}" if readings and test.spec.unit else readings
+
+
 def limits_text(spec):
+    """Inclusive QC check limits (batch QC checks stay numeric and inclusive)."""
     if spec.lower is not None and spec.upper is not None:
         return f"{spec.lower} to {spec.upper} {spec.unit}"
     if spec.lower is not None:
@@ -343,7 +355,7 @@ def test_detail(request, pk):
     superseded = {o.supersedes_id for o in observations if o.supersedes_id}
     for obs in observations:
         obs.is_current = obs.pk not in superseded
-        obs.in_limits = spec.conforms(obs.value)
+        obs.in_limits = spec.conforms(obs.reading)
     user_roles = roles(request.user)
     is_open = test.state == "open" and test.lot.state == "quarantine"
     current_count = sum(1 for o in observations if o.is_current)
@@ -358,7 +370,6 @@ def test_detail(request, pk):
             "page_title": test.label,
             "test": test,
             "spec": spec,
-            "limits": limits_text(spec),
             "observations": observations,
             "current_count": current_count,
             "batch_status": batch_status,
@@ -402,7 +413,7 @@ def observation_new(request, pk):
         return unavailable(request, "Add this test to a QC batch before recording results.", back)
     if test.current_observations().count() >= test.spec.replicates:
         return unavailable(request, "All replicates are recorded. Correct a value instead.", back)
-    form = ObservationForm(request.POST or None)
+    form = ReadingForm(request.POST or None, spec=test.spec)
     if request.method == "POST" and form.is_valid():
         if perform(
             form,
@@ -418,7 +429,7 @@ def observation_new(request, pk):
         submit="Record observation",
         crumbs=test_crumbs(test, "Record observation"),
         cancel_url=reverse("analytical:test_detail", args=[test.pk]),
-        summary=[*test_summary(test), ("Unit", test.spec.unit)],
+        summary=[*test_summary(test), *([("Unit", test.spec.unit)] if test.spec.unit else [])],
     )
 
 
@@ -434,8 +445,8 @@ def observation_correct(request, pk):
             "Only current observations of open tests can be corrected.",
             reverse("analytical:test_detail", args=[test.pk]),
         )
-    form = CorrectionForm(
-        request.POST or None, initial={"raw_reference": observation.raw_reference}
+    form = ReadingCorrectionForm(
+        request.POST or None, spec=test.spec, initial={"raw_reference": observation.raw_reference}
     )
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -455,7 +466,15 @@ def observation_correct(request, pk):
         cancel_url=reverse("analytical:test_detail", args=[test.pk]),
         summary=[
             *test_summary(test),
-            ("Value being corrected", f"{observation.value_text} {observation.unit}"),
+            (
+                "Result being corrected",
+                f"{observation.value_text} {observation.unit}".strip(),
+            ),
+            *(
+                [("What was observed", observation.observed_text)]
+                if observation.observed_text
+                else []
+            ),
             ("Original record", observation.raw_reference),
         ],
     )
@@ -555,7 +574,7 @@ def test_return(request, pk):
         cancel_url=reverse("analytical:test_detail", args=[test.pk]),
         summary=[
             *test_summary(test),
-            ("Reportable", f"{test.reportable_display} {test.spec.unit}"),
+            ("Reportable", test.reportable_with_unit),
         ],
     )
 
@@ -576,8 +595,6 @@ def test_review(request, pk):
         if perform(form, lambda: services.review_test(actor=request.user, test=test, **data)):
             messages.success(request, f"Signed review recorded for {test.label}.")
             return redirect("analytical:test_detail", pk=test.pk)
-    spec = test.spec
-    values = ", ".join(o.value_text for o in test.current_observations())
     return sign_page(
         request,
         form,
@@ -590,10 +607,15 @@ def test_review(request, pk):
         cancel_url=reverse("analytical:test_detail", args=[test.pk]),
         summary=[
             *test_summary(test),
-            ("Replicates", f"{values} {spec.unit}"),
+            ("Replicates", readings_text(test)),
+            *(
+                [("Mean", f"{plain(test.mean_value)} {test.spec.unit}")]
+                if test.mean_value is not None
+                else []
+            ),
             (
                 "Reportable",
-                f"{test.reportable_display} {spec.unit}"
+                test.reportable_with_unit
                 + (" · conforms" if test.conforms else " · OUT OF SPECIFICATION"),
             ),
         ],
@@ -831,7 +853,7 @@ def investigation_detail(request, pk):
     original = inv.test
     tests = [original, *inv.tests.select_related("sample").order_by("pk")]
     for test in tests:
-        test.values = ", ".join(o.value_text for o in test.current_observations())
+        test.values = readings_text(test)
     return render(
         request,
         "analytical/investigation_detail.html",

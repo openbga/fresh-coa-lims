@@ -38,8 +38,8 @@
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
           <td>{% if forloop.first %}Original result{% else %}{{ t.get_kind_display }}{% endif %}</td>
           <td class="vr-id">{{ t.sample.reference }}</td>
-          <td>{{ t.values|default:"—" }} <span class="vr-muted small">{{ t.spec.unit }}</span></td>
-          <td class="text-end vr-nowrap">{% if t.reportable_value is not None %}{{ t.reportable_display }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{{ t.values|default:"—" }}</td>
+          <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
           <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>
         </tr>{% endfor %}</tbody>
       </table>
