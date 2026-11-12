@@ -46,6 +46,8 @@ The announcement is shown only while it is published; it is public, so it appear
 
 A successful sign-in starts a controlled session. Accounts requiring password replacement go to Change password before entering the workspace. An account without a recognized laboratory role reaches Account access from the workspace entry point. Each destination still checks its own permissions. Signing in does not approve a scientific record or apply an electronic signature.
 
+Each successful sign-in, failed attempt and sign-out (including a session ended by expiry or revocation) writes one line to the application log on standard output: `signin.success`, `signin.failed` or `signout`, the username and the platform request ID. A failed attempt names the account only when it exists; otherwise it shows `<unknown>`. Passwords are never logged. These lines are not audit events and are not stored in the database, so they follow the deployment's log retention rather than database backups or resets.
+
 ## Related pages
 
 - [Material lots](/)
