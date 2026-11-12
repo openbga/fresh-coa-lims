@@ -2,5 +2,7 @@
 {% block content %}
 <h1>{{ heading }}</h1>
 {% if signing %}<p>You are signing as {{ user.get_username }} with meaning <strong>approved</strong>. Review {{ record }} before entering your private PIN. Server time and the exact revision will be retained.</p><dl class="vr-facts"><dt>Rule policy</dt><dd>{{ record.policy }}</dd><dt>Author</dt><dd>{{ record.author }}</dd><dt>Effective interval</dt><dd>{{ record.effective_from|date:"c" }} – {{ record.effective_until|date:"c" }}</dd><dt>Revision</dt><dd>Reviewing {{ record.revision }}; signature binds approved revision {{ record.revision|add:"1" }}.</dd></dl>{% endif %}
+{% if unavailable %}<p class="alert alert-info">{{ unavailable }}</p>{% else %}
 <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">{% if signing %}Sign approval{% else %}Save{% endif %}</button></form>
+{% endif %}
 {% endblock %}

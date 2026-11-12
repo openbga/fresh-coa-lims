@@ -37,6 +37,10 @@ def set_pin(*, actor, pin, password):
         actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
         if not actor.is_active or actor.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Password confirmation failed.")
+        if actor.credentials_locked:
+            from accounts.administration import CREDENTIALS_LOCKED
+
+            raise PermissionDenied(CREDENTIALS_LOCKED)
         PINCredential.objects.update_or_create(
             user=actor,
             defaults={"encoded": make_password(pin), "failures": 0, "locked_until": None},

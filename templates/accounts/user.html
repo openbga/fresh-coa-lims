@@ -6,6 +6,7 @@
 <div><dt>Roles</dt><dd>{{ evidence.roles|join:", "|default:"No role assigned" }}</dd></div><div><dt>Status</dt><dd>{{ target.is_active|yesno:"Active,Inactive" }}</dd></div>
 <div><dt>Last sign-in</dt><dd>{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</dd></div><div><dt>Password change required</dt><dd>{{ target.password_change_required|yesno:"Yes,No" }}</dd></div>
 <div><dt>Signature PIN</dt><dd>{{ evidence.pin_enrolled|yesno:"Enrolled,Enrollment required" }}{% if evidence.pin_locked_until %}; lock until {{ evidence.pin_locked_until }}{% endif %}; {{ evidence.pin_failures }} failed attempts</dd></div>
+{% if target.credentials_locked %}<div><dt>Shared demonstration account</dt><dd>Cannot change its own password or signature PIN. <strong>Force password reset</strong> or <strong>Require PIN re-enrollment</strong> ends this.</dd></div>{% endif %}
 <div><dt>Management revision</dt><dd>{{ target.management_revision }}</dd></div><div><dt>Django staff / superuser</dt><dd>{{ target.is_staff|yesno:"Yes,No" }} / {{ target.is_superuser|yesno:"Yes,No" }} (read-only)</dd></div>
 </dl></div></section>
 <div class="d-flex flex-wrap gap-2 mb-4">{% for label, url in actions %}<a class="btn btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endfor %}</div>

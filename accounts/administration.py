@@ -33,6 +33,12 @@ ACTIONS = {
 }
 
 
+CREDENTIALS_LOCKED = (
+    "This is a shared demonstration account. Its password and signature PIN are published on "
+    "the sign-in page and cannot be changed here."
+)
+
+
 def account_lock():
     # Serializes the last-admin predicate, including changes targeting different users.
     with connection.cursor() as cursor:
@@ -91,6 +97,7 @@ def safe_snapshot(user):
         "roles": sorted(role_names(user)),
         "revision": user.management_revision,
         "password_change_required": user.password_change_required,
+        "credentials_locked": user.credentials_locked,
         "session_epoch": user.session_epoch,
         "pin_enrolled": credential is not None,
         "pin_failures": credential.failures if credential else 0,
@@ -247,6 +254,11 @@ def change_account(
                 )
             user.password_change_required = True
             changed.append("password_change_required")
+        if action in {"reenroll_pin", "reset_password"} and user.credentials_locked:
+            # The administrator replaces a published credential, so the owner must be able to
+            # set the next one; the account stops being a shared demonstration account.
+            user.credentials_locked = False
+            changed.append("credentials_locked")
         user.management_revision += 1
         user.session_epoch += 1
         user.full_clean()
@@ -268,6 +280,8 @@ def change_own_password(*, actor, current_password, password, reason):
         user = get_user_model().objects.select_for_update().get(pk=actor.pk)
         if not user.is_active or user.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Current password was not accepted.")
+        if user.credentials_locked:
+            raise PermissionDenied(CREDENTIALS_LOCKED)
         validate_password(password, user)
         if user.check_password(password):
             raise ValidationError("Choose a different password.")
@@ -293,3 +307,34 @@ def change_own_password(*, actor, current_password, password, reason):
             reason=reason,
         )
     return user
+
+
+@transaction.atomic
+def lock_credentials(*, actor, users, reason):
+    """Stop shared demonstration accounts changing their own password and PIN.
+
+    For accounts whose credentials are about to be published in the sign-in announcement. An
+    administrator's forced password reset or PIN re-enrollment ends the lock.
+    """
+    require_role(actor, "admin")
+    reason_required(reason)
+    account_lock()
+    locked = (
+        get_user_model()
+        .objects.select_for_update()
+        .filter(pk__in=[user.pk for user in users], credentials_locked=False)
+        .order_by("pk")
+    )
+    for user in locked:
+        before = safe_snapshot(user)
+        user.credentials_locked = True
+        user.management_revision += 1
+        user.save(update_fields=["credentials_locked", "management_revision"])
+        record_event(
+            actor=actor,
+            obj=user,
+            action="account.credentials_locked",
+            before=before,
+            after=safe_snapshot(user),
+            reason=reason,
+        )

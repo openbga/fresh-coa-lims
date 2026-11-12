@@ -37,7 +37,8 @@ def test_defaults_upgrade_preserves_rows_and_accepts_old_instance_inserts(django
             "session_epoch": "1",
             "password_change_required": "false",
         }
-        existing.refresh_from_db()
+        # Only these columns: the table is at 0003 here, without columns added by later migrations.
+        existing.refresh_from_db(fields=[*columns, "password"])
         assert (
             existing.management_revision,
             existing.session_epoch,
@@ -51,7 +52,7 @@ def test_defaults_upgrade_preserves_rows_and_accepts_old_instance_inserts(django
         inserted = old_users.objects.create(
             username="overlapping-old-instance", password="!unusable"
         )
-        current = django_user_model.objects.get(pk=inserted.pk)
+        current = django_user_model.objects.only(*columns).get(pk=inserted.pk)
         assert (
             current.management_revision,
             current.session_epoch,

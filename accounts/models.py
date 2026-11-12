@@ -10,6 +10,9 @@ class User(AbstractUser):
     management_revision = models.PositiveIntegerField(default=1, db_default=1)
     session_epoch = models.PositiveIntegerField(default=1, db_default=1)
     password_change_required = models.BooleanField(default=False, db_default=False)
+    # A shared demonstration account whose password and PIN are published in the sign-in
+    # announcement. Its owner cannot change them; only seed_demo --publish-accounts sets this.
+    credentials_locked = models.BooleanField(default=False, db_default=False)
 
 
 class LoginThrottle(models.Model):

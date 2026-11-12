@@ -4,7 +4,7 @@ urls: accounts:user_action
 views: accounts.views.user_action
 templates: accounts/form.html
 models: accounts.User, auth.Group, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -31,9 +31,9 @@ Submit buttons and editable fields below appear only when the form is available.
 | Assign roles / Sign and assign roles | Roles | Replaces the entire role set; none revokes all roles. No self-addition; preserve at least one active admin |
 | Deactivate account / Sign and deactivate account | None beyond reason/signing | Disables login; already-inactive accounts and the last active admin are refused. Existing roles and history remain |
 | Reactivate account / Sign and reactivate account | None beyond reason/signing | Enables login; already-active accounts are refused. Does not add roles or clear a required password change |
-| Force password reset / Sign and force password reset | Optional Temporary password and confirmation | Requires a new password after sign-in. Blank keeps the current password for that sign-in; an account without a usable password requires a temporary one |
+| Force password reset / Sign and force password reset | Optional Temporary password and confirmation | Requires a new password after sign-in. Blank keeps the current password for that sign-in; an account without a usable password requires a temporary one. Ends a shared demonstration account's lock on its own password and PIN |
 | Clear PIN lockout / Sign and clear PIN lockout | None beyond reason/signing | Clears failure count and lock deadline without changing the PIN. Requires an enrolled PIN, even if not currently locked |
-| Require PIN re-enrollment / Sign and require PIN re-enrollment | None beyond reason/signing | Removes the enrolled credential; owner must enroll a new PIN. Requires an enrolled PIN; prior signatures remain |
+| Require PIN re-enrollment / Sign and require PIN re-enrollment | None beyond reason/signing | Removes the enrolled credential; owner must enroll a new PIN. Requires an enrolled PIN; prior signatures remain. Ends a shared demonstration account's lock on its own password and PIN |
 | Enroll or change your signature PIN | Always shown | Opens your own PIN page, not the target account's enrollment |
 | Cancel | Form available | Returns to the target's account record without a change |
 | Return without changes | Action unavailable | Returns to the target's account record without a change |
