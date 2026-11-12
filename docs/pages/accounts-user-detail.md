@@ -4,7 +4,7 @@ urls: accounts:user_detail
 views: accounts.views.user_detail
 templates: accounts/user.html, includes/history_item.html
 models: accounts.User, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -46,6 +46,7 @@ Visible actions still enforce their rules on submission, including no self-addit
 | Last sign-in | `User.last_login` | Date/time and zone | — | Last login, or Never signed in |
 | Password change required | `User.password_change_required` | Yes/No | — | Whether the user must replace their password before continuing |
 | Signature PIN | `PINCredential.user`, `locked_until`, `failures` | Enrollment, timestamp, count | — | Enrollment required/Enrolled, stored lock deadline when present and failure count; no PIN/hash is displayed |
+| Shared demonstration account | `User.credentials_locked` | Display text | — | Shown only for an account the demonstration seed published in the sign-in announcement: it cannot change its own password or signature PIN |
 | Management revision | `User.management_revision` | Integer | — | Revision checked by signed account-change forms |
 | Django staff / superuser | `User.is_staff`, `is_superuser` | Yes/No | — | Read-only flags; these actions never change them |
 | History action / time / actor / reason | `AuditEvent.action`, `occurred_at`, `actor`, `reason` | Text/date-time | — | Attribution and rationale for the event |
@@ -58,6 +59,8 @@ Visible actions still enforce their rules on submission, including no self-addit
 History contains events for this account, ordered by time descending then event ID descending. Non-numeric pages select page 1; out-of-range pages select the last page. Not every event is signed: self-service password changes are audited without an electronic signature.
 
 Signed administration preserves an account snapshot and signature with meaning **account_authorized**. Every administrative account change advances the management revision and invalidates existing target sessions. The next request requires sign-in again; changing your own account logs you out immediately after success. Clearing PIN lockout does not change the PIN. Re-enrollment removes the credential but preserves prior signatures/history.
+
+For a shared demonstration account, **Force password reset** and **Require PIN re-enrollment** also end the shared state, so the owner can set the next credential; **Clear PIN lockout** does not. The history shows **account.credentials_locked** when the seed marked the account.
 
 ## Related pages
 

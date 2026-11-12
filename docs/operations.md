@@ -19,7 +19,7 @@ Replace both occurrences of `admin` that identify the account if using another u
 
 `createsuperuser` alone grants no laboratory role. The laboratory `admin` role permits reading every area (including audit export and CoA PDF) and account administration, not scientific mutation; those still require explicit roles and independent actors. It does not grant Django `is_staff` or superuser status. The signed-in **Account access** page explains missing roles and links authorized staff administrators to the existing read-only Django account view. Explicit admins also see **Users and roles**, the signed web management interface. A superuser without the explicit role sees bootstrap guidance but cannot use that interface. Users without a role should ask their organization's account administrator; the access page and sign-out remain available.
 
-For an authorized synthetic demonstration in `DEBUG=true`, run `python manage.py seed_demo --actor admin --journey` only after the bootstrap sequence. The command accepts a superuser actor without the `admin` role but warns that the actor still lacks it; it never assigns roles to that actor. Seeding is deliberate and is not part of deployment or regulated production setup. `--publish-accounts` additionally writes the seeded non-administrator accounts, their shared password and their PIN into the sign-in announcement, signed by `demo_admin`, whose own credentials must differ (`DEMO_ADMIN_PASSWORD`, `DEMO_ADMIN_PIN`). Use it only on an instance meant to be open to anyone who can reach it.
+For an authorized synthetic demonstration in `DEBUG=true`, run `python manage.py seed_demo --actor admin --journey` only after the bootstrap sequence. The command accepts a superuser actor without the `admin` role but warns that the actor still lacks it; it never assigns roles to that actor. Seeding is deliberate and is not part of deployment or regulated production setup. `--publish-accounts` additionally writes the seeded non-administrator accounts, their shared password and their PIN into the sign-in announcement, signed by `demo_admin`, whose own credentials must differ (`DEMO_ADMIN_PASSWORD`, `DEMO_ADMIN_PIN`). Use it only on an instance meant to be open to anyone who can reach it. The published accounts can no longer change their own password or PIN; an administrator's forced password reset or PIN re-enrollment ends that for an account.
 
 ## Signed account administration
 
@@ -175,6 +175,40 @@ For an incident, preserve the original service/database, record the requested re
 The project's synthetic demonstration follows `develop`: the Blueprint sets `branch: develop` and `autoDeployTrigger: checksPass`, so Render deploys a commit only after all of its GitHub checks succeed, and does not deploy a commit with a failed check or with none. Under the workspace's **Wait** overlapping-deploy policy, a deploy triggered while another is running waits for it and only the newest waiting commit is deployed; confirm the policy in the workspace settings. A failed build or pre-deploy leaves the previous version serving. Put `[skip render]` in a commit message to keep that commit from deploying.
 
 Each deploy runs the pre-deploy migration against the demonstration's persistent database. A migration merged to `develop` has therefore been applied; correct it with a new migration, never by editing it. This arrangement suits synthetic data only. A deployment holding controlled records keeps auto-deploy off, tracks a release branch and follows the manual procedure below.
+
+## Demonstration reset
+
+A public demonstration whose accounts are published can return to the seed's state on a schedule. This is for synthetic data only. `reset_demo` empties every application table, including accounts, sessions, signatures, audit history and issued reports, and restarts identifiers. The database triggers that keep history rows from being updated or deleted do not apply to this whole-table erase. That is deliberate, and it is why the command is fenced.
+
+```sh
+ALLOW_DEMO_RESET=true python manage.py reset_demo --publish-accounts
+```
+
+It asks for confirmation unless `--noinput` is given, never asks for credentials, and refuses before erasing anything unless all of these hold:
+
+| Check | Why |
+|---|---|
+| `ALLOW_DEMO_RESET=true` in the job's environment | The deployment declares itself a demonstration. `DEBUG` alone is not enough, and a laboratory's deployment never sets it |
+| `DEMO_PASSWORD`, `DEMO_PIN`, `DEMO_ADMIN_PASSWORD` and `DEMO_ADMIN_PIN` are set, both PINs have 8–32 digits, and `demo_admin`'s pair differs from the published pair | After a reset `demo_admin` is the only administrator, so nothing published may open it |
+| The database is empty, or holds the `demo_admin` account that `seed_demo` created | A laboratory's database is never erased |
+| No migration is pending and none is unknown to the release | A job from another release than the web service would seed the wrong schema |
+| `--journey` is given only with `DEBUG=true` | The journey's result uses the development-only entry path |
+
+A run has two parts:
+
+1. One transaction erases the tables, creates `demo_admin` (the admin role only, no staff or superuser status) with its private password and PIN, and runs `seed_demo` for the other accounts and the draft rules and catalog/sampling profiles. If any of it fails, the transaction rolls back and nothing changes. Requests that arrive meanwhile wait, then see the fresh demonstration; everyone is signed out.
+2. The signed steps follow in transactions of their own, because signing never runs inside an enclosing transaction. With `--publish-accounts` the listed accounts' credentials are locked and the announcement is published, signed by `demo_admin`. With `--journey` the chemical rule is approved and the result awaiting review is created. If a signed step fails, the command fails and says so: the demonstration is seeded but lacks that step until the next run.
+
+`ALLOW_DEMO_RESET=true` also lets `seed_demo` run without `DEBUG`, without `--journey`. `DEMO_RESET_NOTE`, if set, ends the announcement, for example with the time of the reset.
+
+On Render the schedule is `render.demo.yaml`, a Blueprint separate from `render.yaml`. In the workspace that already runs the demonstration from `render.yaml`:
+
+1. Create a new Blueprint from the same repository and branch with **Blueprint Path** `render.demo.yaml`. It adds one paid cron job, `fresh-coa-lims-demo-reset`, and refers to the existing web service and database by name. Render asks once for `DEMO_PASSWORD` and `DEMO_PIN`, which will be public, and `DEMO_ADMIN_PASSWORD` and `DEMO_ADMIN_PIN`, which must differ and stay private.
+2. Use **Trigger Run** on the job to reset straight away, or wait for the schedule (every day at 08:00 UTC). Change the time in the file's `schedule` and `DEMO_RESET_NOTE` together.
+
+The first run erases whatever the demonstration holds, including accounts created by hand; afterwards administer it as `demo_admin`. The job follows `develop` with the same trigger as the web service. While a release with a migration is being deployed, a run may refuse until the web service has migrated; the next run succeeds.
+
+Render bills a cron job by the second of running time, with a minimum monthly charge per cron job service, and schedules use UTC. [Render cron jobs](https://render.com/docs/cronjobs), accessed 2026-11-12. `render blueprints validate render.demo.yaml` (CLI 2.36.0) accepted the file against the demonstration's workspace on that date, planning one new service; it creates nothing.
 
 ## Manual deployment and migrations
 

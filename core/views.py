@@ -23,6 +23,15 @@ from .services import (
 @login_required
 @require_http_methods(["GET", "POST"])
 def pin(request):
+    if request.user.credentials_locked:
+        from accounts.administration import CREDENTIALS_LOCKED
+
+        return render(
+            request,
+            "core/form.html",
+            {"heading": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
+            status=403 if request.method == "POST" else 200,
+        )
     form = PINForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:

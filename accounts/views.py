@@ -315,11 +315,22 @@ def password_change(request):
     from django.shortcuts import redirect
     from django.urls import reverse
 
-    from .administration import change_own_password
+    from .administration import CREDENTIALS_LOCKED, change_own_password
     from .forms import OwnPasswordForm
 
     if request.method not in {"GET", "POST"}:
         return HttpResponseNotAllowed(["GET", "POST"])
+    if request.user.credentials_locked:
+        return render(
+            request,
+            "accounts/form.html",
+            {
+                "page_title": "Change password",
+                "unavailable": CREDENTIALS_LOCKED,
+                "cancel_url": reverse("accounts:access"),
+            },
+            status=403 if request.method == "POST" else 200,
+        )
     form = OwnPasswordForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
