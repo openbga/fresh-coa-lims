@@ -29,7 +29,7 @@ jobs:
   application:
     # Integrated PostgreSQL suites retain real password/PIN hashers.
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:17
