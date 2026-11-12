@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.html import escape
 
 from core.forms import SignatureIdentityForm, StyledForm
 
@@ -16,6 +17,14 @@ def _reason(label="Reason", help_text=""):
     )
 
 
+def _raw_reference():
+    return forms.CharField(
+        label="Original record",
+        max_length=200,
+        help_text="Notebook page, instrument file or worksheet holding the original observation.",
+    )
+
+
 class ReasonForm(StyledForm):
     reason = _reason()
 
@@ -30,15 +39,81 @@ class ObservationForm(StyledForm):
         help_text="Exact value as read; at most 8 decimal places. Never enter a nondetect as zero.",
         **VALUE,
     )
-    raw_reference = forms.CharField(
-        label="Original record",
-        max_length=200,
-        help_text="Notebook page, instrument file or worksheet holding the original observation.",
-    )
+    raw_reference = _raw_reference()
 
 
 class CorrectionForm(ObservationForm):
+    """QC result correction (batch QC checks stay numeric)."""
+
     reason = _reason("Reason for correction", "The original value stays visible in the record.")
+
+
+class ReadingForm(StyledForm):
+    """A test observation shaped by its frozen requirement.
+
+    Numeric and count: a value with an optional "reported as less than" choice. Qualitative: one
+    outcome from the requirement's controlled pair plus what was observed. ``cleaned_data`` holds
+    exactly the service's reading arguments (value, qualifier, outcome, observed_text).
+    """
+
+    raw_reference = _raw_reference()
+
+    def __init__(self, *args, spec, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.spec = spec
+        fields = {}
+        if spec.is_qualitative:
+            fields["outcome"] = forms.ChoiceField(
+                label="Observed result",
+                choices=spec.outcomes,
+                widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+                help_text=f"Acceptance: {escape(spec.acceptance)}.",  # help text renders unescaped
+            )
+            fields["observed_text"] = forms.CharField(
+                label="What was observed",
+                max_length=200,
+                help_text="Describe the observation itself, e.g. what was seen or how the "
+                "test reacted; the outcome is recorded separately.",
+            )
+        else:
+            count = spec.result_type == "count"
+            fields["value"] = forms.DecimalField(
+                label="Observed count" if count else "Observed value",
+                help_text=(
+                    "Whole number of zero or more, exactly as read. "
+                    if count
+                    else "Exact value as read; at most 8 decimal places. "
+                )
+                + "Never enter a nondetect as zero: enter the reporting limit and choose "
+                "\u201cReported as less than this value\u201d.",
+                **VALUE,
+            )
+            fields["less_than"] = forms.BooleanField(
+                label="Reported as less than this value",
+                required=False,
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+                help_text="For a result below the reporting or detection limit (shown as &lt;10). "
+                "It is stored as recorded and never converted to zero or to the number.",
+            )
+        for field in fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        reason = self.fields.pop("reason", None)
+        self.fields = {**fields, **self.fields}
+        if reason is not None:
+            self.fields["reason"] = reason
+
+    def clean(self):
+        data = super().clean()
+        if self.spec.is_qualitative:
+            data["value"], data["qualifier"] = None, ""
+        else:
+            data["qualifier"] = "<" if data.pop("less_than", False) else ""
+            data["outcome"], data["observed_text"] = "", ""
+        return data
+
+
+class ReadingCorrectionForm(ReadingForm):
+    reason = _reason("Reason for correction", "The original result stays visible in the record.")
 
 
 class BatchForm(StyledForm):

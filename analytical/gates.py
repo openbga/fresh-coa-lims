@@ -158,7 +158,11 @@ def _signature(object_type, object_id, meaning):
 
 
 def lot_evidence(lot):
-    """Frozen-ready JSON evidence for reports. Values are strings; nothing is recomputed later."""
+    """Frozen-ready JSON evidence for reports. Values are strings; nothing is recomputed later.
+
+    Replicate values are the text as recorded ("99.80", "<10", "Absent"); ``mean`` is null when
+    the result has none (qualitative, or a replicate reported as less than a value).
+    """
     blockers, reportable, tests, investigations = lot_status(lot)
     results = []
     references = {t.sample_id: t.sample.reference for t in tests}
@@ -176,13 +180,20 @@ def lot_evidence(lot):
                     "requirement_source": spec.source,
                     "requirement_hash": test.requirement_hash,
                     "method": {"code": spec.method.code, "revision": spec.method.revision},
+                    "result_type": spec.result_type,
                     "unit": spec.unit,
                     "lower_limit": None if spec.lower is None else str(spec.lower),
                     "upper_limit": None if spec.upper is None else str(spec.upper),
+                    "lower_inclusive": spec.lower_inclusive,
+                    "upper_inclusive": spec.upper_inclusive,
+                    "expected_result": spec.expected_result or None,
+                    "criterion": spec.criterion,
+                    "acceptance": spec.acceptance,
                     "replicates": [
                         {
                             "replicate": o.replicate,
                             "value": o.value_text,
+                            "observed": o.observed_text,
                             "raw_reference": o.raw_reference,
                             "eligibility": o.eligibility,
                             "recorded_by": o.recorded_by.get_username(),
@@ -190,7 +201,7 @@ def lot_evidence(lot):
                         }
                         for o in test.current_observations()
                     ],
-                    "mean": str(test.mean_value),
+                    "mean": None if test.mean_value is None else str(test.mean_value),
                     "reportable": test.reportable_display,
                     "reporting_decimals": spec.reporting_decimals,
                     "batch": test.batch.number if test.batch else None,

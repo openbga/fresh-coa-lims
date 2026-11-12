@@ -10,11 +10,11 @@ OpenBGA Fresh CoA LIMS is an open-source laboratory information management syste
 
 ## What is implemented
 
-The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented.
+The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric, count and qualitative observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented.
 
 | Implemented boundary | Current limit |
 |---|---|
-| Native analytical testing | Numeric results with inclusive limits; approved precision rounds half-up, null precision compares the exact mean. Nonterminating or more-than-eight-decimal exact means fail submission; qualitative/exclusive requirements remain held |
+| Native analytical testing | Numeric, count and qualitative results; limits that include or exclude their boundary; results reported as less than a value kept as recorded. Approved precision rounds half-up, null precision compares the exact mean. Nonterminating or more-than-eight-decimal exact means fail submission. Greater-than results, calculations from raw data and non-numeric batch QC checks are not supported |
 | Laboratory operations | Method-specific analyst qualification gates native observations/corrections; equipment/reagent selection and use remain a separate explicit authorization workflow |
 | Stability | Protocols, scheduled pulls, acceptance and controlled evidence links; testing of released lots uses external evidence because released lot records remain immutable |
 | Reporting | Signed issuance/amendments with stored PDF bytes, snapshots and checksums; manufacturer batch release remains a separate decision |

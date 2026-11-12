@@ -41,8 +41,8 @@
             <td>{{ r.sample }}</td>
             <td>{{ r.method.code }} r{{ r.method.revision }}</td>
             <td>{% for rep in r.replicates %}{{ rep.value }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
-            <td class="text-end">{{ r.reportable }} {{ r.unit }}</td>
-            <td>{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}</td>
+            <td class="text-end">{{ r.reportable }}{% if r.unit %} {{ r.unit }}{% endif %}</td>
+            <td>{% if r.acceptance %}{{ r.acceptance }}{% else %}{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}{% endif %}</td>
             <td>{% if r.review %}{{ r.review.signer }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not reviewed" tone="warning" plain=True %}{% endif %}</td>
           </tr>
         {% endfor %}

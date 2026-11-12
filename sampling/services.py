@@ -8,7 +8,7 @@ Published contract for other apps:
 - ``lot_blockers(lot)`` -> sampling reasons blocking QC disposition (call under the lot lock).
 - ``lot_author_ids(lot)`` -> ids of everyone who sampled or recorded (including corrections)
   any sampling record of the lot; they must not sign its QC disposition.
-- ``test_requirements(lot)`` -> {test_code: oq.test-requirement/1 payload} for analytical, or hold.
+- ``test_requirements(lot)`` -> {code: oq.test-requirement/1 or /2 payload} for analytical, or hold.
 - ``catalog.services.batch_method_requirements()`` -> analytical method payloads for batches.
 """
 
@@ -170,7 +170,7 @@ def current_requirements(lot):
 
 
 def test_requirements(lot):
-    """{test_code: oq.test-requirement/1 payload} for the lot's required tests, or hold.
+    """{test_code: oq.test-requirement/1 or /2 payload} for the lot's required tests, or hold.
 
     Information-only tests are not requirements. ``source`` names the frozen specification
     version and the lot's requirement payload hash, so it changes whenever requirements do.

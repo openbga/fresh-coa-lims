@@ -11,6 +11,7 @@ from catalog.services import ApplicabilityHold
 from catalog.tests.factories import (
     approve,
     approved_rules,
+    count_line,
     material,
     numeric_line,
     qualitative_line,
@@ -93,6 +94,15 @@ def lot_with_requirements(people):
         reporting_decimals=2,
     )
     numeric_line(people["author"], spec, hplc, code="exact", reporting_decimals=None)
+    count_line(people["author"], spec, hplc, code="tamc", high="100", reporting_decimals=0)
+    qualitative_line(
+        people["author"],
+        spec,
+        ident,
+        code="salmonella",
+        expected="Not detected in 25 g",
+        outcome="absent",
+    )
     numeric_line(people["author"], spec, hplc, code="info", reporting_decimals=1, required=False)
     approve(spec, people["approver"])
     approve(plan_revision(people["author"], mat), people["approver"])
@@ -111,16 +121,43 @@ def lot_with_requirements(people):
 
 def test_supported_tests_parse_and_unsupported_hold(people, lot_with_requirements):
     payloads = services.test_requirements(lot_with_requirements)
-    assert set(payloads) == {"identity", "assay", "impurity", "exact"}  # info-only excluded
+    assert set(payloads) == {"identity", "assay", "impurity", "exact", "tamc", "salmonella"}
+    schemas = {code: payload["schema"] for code, payload in payloads.items()}
+    assert schemas == {
+        "assay": "oq.test-requirement/1",  # numeric with inclusive bounds stays v1
+        "exact": "oq.test-requirement/1",
+        "impurity": "oq.test-requirement/2",
+        "tamc": "oq.test-requirement/2",
+        "identity": "oq.test-requirement/2",
+        "salmonella": "oq.test-requirement/2",
+    }
     assay = parse_requirement(payloads["assay"])
     assert (assay.replicates, assay.reporting_decimals, assay.max_retests) == (2, 1, 1)
     assert assay.lower == Decimal("98") and assay.upper == Decimal("102")
     assert assay.method.requires_batch and assay.method.qc_checks[0].code == "blank"
     assert payloads["assay"]["source"].startswith("catalog:spec-api@v1#rev")
     assert parse_requirement(payloads["exact"]).reporting_decimals is None  # exact comparison
-    for code, reason in [("identity", "numeric"), ("impurity", "inclusive")]:
-        with pytest.raises(ValidationError, match=reason):
-            parse_requirement(payloads[code])
+    impurity = parse_requirement(payloads["impurity"])
+    assert impurity.upper == Decimal("0.5") and impurity.upper_inclusive is False
+    tamc = parse_requirement(payloads["tamc"])
+    assert (tamc.result_type, tamc.upper, tamc.unit) == ("count", Decimal("100"), "CFU/g")
+    salmonella = parse_requirement(payloads["salmonella"])
+    assert (salmonella.expected_result, salmonella.criterion) == (
+        "absent",
+        "Not detected in 25 g",
+    )
+    assert parse_requirement(payloads["identity"]).expected_result == "conforms"
+
+
+def test_legacy_qualitative_line_translates_to_a_hold(people, lot_with_requirements):
+    """A qualitative line frozen before outcomes existed has no expected_result key."""
+    frozen = services.current_requirements(lot_with_requirements)
+    identity = next(t for t in frozen["tests"] if t["code"] == "identity")
+    legacy = {k: v for k, v in identity.items() if k != "expected_result"}
+    payload = catalog.test_requirement(legacy, "catalog:legacy")
+    assert payload["expected_result"] is None
+    with pytest.raises(ValidationError):
+        parse_requirement(payload)
 
 
 def test_batch_methods_parse_in_analytical_contract(people):
