@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% comment %}Views pass page_title; Django's default permission-denied handler does not, so the heading falls back.{% endcomment %}
-{% block title %}{% firstof page_title "Access not permitted" %} · OpenBGA QLab{% endblock %}
+{% block title %}{% firstof page_title "Access not permitted" %} · OpenBGA Fresh CoA LIMS{% endblock %}
 {% block page_header %}{% if page_title %}{{ block.super }}{% else %}<div class="vr-page-header"><div class="vr-page-header-row"><div><h1 class="vr-page-title">Access not permitted</h1></div></div></div>{% endif %}{% endblock %}
 {% block content %}
 {% if user.is_authenticated %}

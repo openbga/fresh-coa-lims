@@ -152,10 +152,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Build application image (no push)
-        run: docker build --tag openbga-qlab:ci .
+        run: docker build --tag freshcoa:ci .
       - name: Configure disposable smoke environment
         run: |
-          cat > "$RUNNER_TEMP/openbga-qlab-smoke.env" <<'ENV'
+          cat > "$RUNNER_TEMP/freshcoa-smoke.env" <<'ENV'
           DEBUG=false
           SECRET_KEY=disposable-ci-only-key-never-for-a-real-deployment-2026
           DATABASE_URL=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432/open_qual_container_smoke
@@ -166,19 +166,19 @@ jobs:
           ENV
       - name: Migrate empty smoke database and check Django
         run: |
-          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci python manage.py migrate --noinput
-          docker run --rm --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci python manage.py check
+          docker run --rm --network host --env-file "$RUNNER_TEMP/freshcoa-smoke.env" freshcoa:ci python manage.py migrate --noinput
+          docker run --rm --network host --env-file "$RUNNER_TEMP/freshcoa-smoke.env" freshcoa:ci python manage.py check
       - name: Verify non-root Render SSH prerequisites
         run: |
-          docker run --rm openbga-qlab:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
+          docker run --rm freshcoa:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
       - name: Verify image contents
         # In-app documentation is read from docs/pages at runtime; application files are
         # read-only for the runtime user; build tooling and local state stay out.
         run: |
-          docker run --rm openbga-qlab:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests"))'
+          docker run --rm freshcoa:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests"))'
       - name: Start production server and check HTTP endpoints
         run: |
-          docker run --detach --name openbga-qlab-smoke --network host --env-file "$RUNNER_TEMP/openbga-qlab-smoke.env" openbga-qlab:ci
+          docker run --detach --name freshcoa-smoke --network host --env-file "$RUNNER_TEMP/freshcoa-smoke.env" freshcoa:ci
           for _ in $(seq 1 30); do
             if curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/; then break; fi
             sleep 2
@@ -190,6 +190,6 @@ jobs:
       - name: Logs and cleanup
         if: always()
         run: |
-          docker logs openbga-qlab-smoke || true
-          docker rm -f openbga-qlab-smoke || true
-          rm -f "$RUNNER_TEMP/openbga-qlab-smoke.env"
+          docker logs freshcoa-smoke || true
+          docker rm -f freshcoa-smoke || true
+          rm -f "$RUNNER_TEMP/freshcoa-smoke.env"

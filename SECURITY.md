@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-OpenBGA QLab is pre-1.0 (see `version` in `pyproject.toml`). Only the latest commit on `main` receives security fixes. There are no maintained release branches.
+OpenBGA Fresh CoA LIMS is pre-1.0 (see `version` in `pyproject.toml`). Only the latest commit on `main` receives security fixes. There are no maintained release branches.
 
 ## Reporting a vulnerability
 
-Report vulnerabilities privately through GitHub private vulnerability reporting: open the repository **Security** tab, choose **Report a vulnerability**, or go to <https://github.com/openbga/qlab/security/advisories/new>.
+Report vulnerabilities privately through GitHub private vulnerability reporting: open the repository **Security** tab, choose **Report a vulnerability**, or go to <https://github.com/openbga/freshcoa/security/advisories/new>.
 
 Do not open a public issue, pull request or discussion for a vulnerability, and do not post details elsewhere before a fix is available.
 
@@ -43,7 +43,7 @@ Please allow time for a fix before publishing details. We will agree a disclosur
 
 Running this software safely is the responsibility of whoever deploys it. Read [docs/operations.md](docs/operations.md) and the deployment section of the [README](README.md#deployment) before exposing an instance. At minimum: use a unique `SECRET_KEY`, never enable `DEBUG` on a public instance, serve over HTTPS with correct hosts and trusted origins, do not seed demonstration data, and keep backups encrypted and restricted.
 
-OpenBGA QLab makes no claim of regulatory compliance or validation. See the README for the stated limits.
+OpenBGA Fresh CoA LIMS makes no claim of regulatory compliance or validation. See the README for the stated limits.
 
 ## Hardening checklist
 

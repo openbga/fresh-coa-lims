@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% comment %}Signing page; the shared script upgrades it to a modal dialog. Opening it never signs.{% endcomment %}
-{% block title %}{{ page_title }} · OpenBGA QLab{% endblock %}
+{% block title %}{{ page_title }} · OpenBGA Fresh CoA LIMS{% endblock %}
 {% block page_header %}{% if crumbs %}<div class="vr-page-header">{% include "includes/breadcrumbs.html" with crumbs=crumbs %}</div>{% endif %}{% endblock %}
 {% block content %}
 <section class="card"{% if not denial %} aria-labelledby="sign-title" data-signature-dialog{% endif %}>

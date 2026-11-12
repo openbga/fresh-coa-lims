@@ -51,7 +51,7 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             page.mouse.up()
             resized_width = int(splitter.get_attribute("aria-valuenow"))
             assert resized_width > original_width + 64
-            assert page.evaluate("localStorage.getItem('openbga-qlab-pagedocs-width')") == str(
+            assert page.evaluate("localStorage.getItem('freshcoa-pagedocs-width')") == str(
                 resized_width
             )
             page.reload()
@@ -100,7 +100,7 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             expect(panel).not_to_be_visible()
             expect(toggle).to_be_focused()
             expect(page.locator("#main")).to_have_js_property("inert", False)
-            assert page.evaluate("localStorage.getItem('openbga-qlab-pagedocs-open')") == "0"
+            assert page.evaluate("localStorage.getItem('freshcoa-pagedocs-open')") == "0"
             toggle.click()
             expect(page.locator("#main")).to_have_js_property("inert", True)
             # Growing past the breakpoint restores the side-by-side page with the panel open.

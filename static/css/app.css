@@ -1,5 +1,5 @@
 /*
- * OpenBGA QLab application theme for Bootstrap 5.3: the "field notebook".
+ * OpenBGA Fresh CoA LIMS application theme for Bootstrap 5.3: the "field notebook".
  *
  * Bootstrap supplies every control, dialog, dropdown, table and form widget; DataTables supplies
  * grid behaviour. This file sets the design tokens for the light and dark colour modes
@@ -2540,6 +2540,7 @@ fieldset.vr-field > legend {
 .vr-entrance-brand img {
   width: 2rem;
   height: 2rem;
+  flex-shrink: 0;
 }
 
 .vr-entrance-panel {

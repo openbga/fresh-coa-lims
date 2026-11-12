@@ -1,10 +1,10 @@
-# OpenBGA QLab product
+# OpenBGA Fresh CoA LIMS product
 
-OpenBGA QLab is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/qlab](https://github.com/openbga/qlab).
+OpenBGA Fresh CoA LIMS is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/freshcoa](https://github.com/openbga/freshcoa).
 
 Are you looking for support? Contact [bgasoft.com](https://bgasoft.com).
 
-OpenBGA QLab supports manufacturing quality-control laboratories in pharma/biotech, dietary supplements, food, chemical/industrial and medical devices in **one system**. Segment and destination-market obligations are controlled configuration, not separate products. One organization/site per deployment and online staff access are initial assumptions; neither a customer portal nor shared tenancy is part of this foundation.
+OpenBGA Fresh CoA LIMS supports manufacturing quality-control laboratories in pharma/biotech, dietary supplements, food, chemical/industrial and medical devices in **one system**. Segment and destination-market obligations are controlled configuration, not separate products. One organization/site per deployment and online staff access are initial assumptions; neither a customer portal nor shared tenancy is part of this foundation.
 
 The [regulatory matrix](regulations.md) is the authority for researched applicability, sources, jurisdiction and caveats, with a baseline of 2026-11-10. No environmental laboratory rule is inherited merely because code is reusable.
 

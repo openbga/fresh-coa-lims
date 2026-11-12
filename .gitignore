@@ -25,4 +25,5 @@ build/
 
 # Editor and tool state
 .impeccable/
+.playwright-cli/
 .DS_Store

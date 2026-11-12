@@ -1,8 +1,13 @@
 # Changelog
 
-All notable changes to OpenBGA QLab are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project is pre-1.0 and does not yet promise a stable interface.
+All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project is pre-1.0 and does not yet promise a stable interface.
 
 ## [Unreleased]
+
+### Changed
+
+- Adopted the OpenBGA Fresh CoA LIMS name and certificate-and-leaf mark across the application, presentation and newly issued certificates.
+- Moved the source repository and presentation to the `freshcoa` slug, with the hosted demo at `freshcoa.onrender.com`.
 
 ### Added
 

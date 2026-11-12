@@ -1,6 +1,6 @@
-# Contributing to OpenBGA QLab
+# Contributing to OpenBGA Fresh CoA LIMS
 
-Thank you for your interest in OpenBGA QLab, an open-source manufacturing quality-control LIMS. This guide explains how to contribute and what reviewers look for. Please also read the [Code of Conduct](CODE_OF_CONDUCT.md).
+Thank you for your interest in OpenBGA Fresh CoA LIMS, an open-source manufacturing quality-control LIMS. This guide explains how to contribute and what reviewers look for. Please also read the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Ways to contribute
 
@@ -61,4 +61,4 @@ Reviewers enforce these. Read [AGENTS.md](AGENTS.md), [docs/architecture.md](doc
 
 ## Licensing of contributions
 
-OpenBGA QLab is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE) and [NOTICE](NOTICE). By submitting a contribution you agree that it is licensed under the same terms (AGPL-3.0-only), and that you have the right to submit it. You keep the copyright in your contribution. There is no separate contributor agreement. Do not submit code you do not have the right to license this way, and tell us about any third-party material and its licence so it can be listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+OpenBGA Fresh CoA LIMS is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE) and [NOTICE](NOTICE). By submitting a contribution you agree that it is licensed under the same terms (AGPL-3.0-only), and that you have the right to submit it. You keep the copyright in your contribution. There is no separate contributor agreement. Do not submit code you do not have the right to license this way, and tell us about any third-party material and its licence so it can be listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
