@@ -9,7 +9,7 @@ reviewed: 2026-11-11
 
 ## Purpose
 
-Sign in to OpenBGA QLab with the individual account issued by your laboratory administrator.
+Sign in to OpenBGA Fresh CoA LIMS with the individual account issued by your laboratory administrator.
 
 ## Who can use it
 
@@ -19,7 +19,7 @@ Anyone can open the entrance page. Signing in requires an active account and its
 
 On wide screens, an illustrative manufacturing cutaway appears beside the sign-in panel. It depicts production equipment, a packaging line and a quality-control laboratory. The illustration changes from morning to dusk with the theme. On narrower screens it is hidden so the form remains the focus.
 
-The page shows the OpenBGA QLab brand, **Sign in**, account guidance, and the licence and **Source code** footer. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
+The page shows the certificate-and-leaf mark and **OpenBGA Fresh CoA LIMS** name, **Sign in**, account guidance, and the licence and **Source code** footer. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
 
 ## Actions
 

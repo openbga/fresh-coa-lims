@@ -4,8 +4,8 @@
 (function () {
   "use strict";
 
-  var OPEN_KEY = "openbga-qlab-pagedocs-open";
-  var WIDTH_KEY = "openbga-qlab-pagedocs-width";
+  var OPEN_KEY = "freshcoa-pagedocs-open";
+  var WIDTH_KEY = "freshcoa-pagedocs-width";
   var MIN = 280;
   var LIMIT = 960;
   var DEFAULT = 400;

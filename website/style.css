@@ -9,6 +9,11 @@ h1, h2, h3 { color: var(--vr-ink); text-wrap: balance; }
 .qual-header { background: var(--vr-band); border-bottom: 1px solid var(--vr-border); }
 .qual-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem 2rem; flex-wrap: wrap; padding-block: 1.25rem; }
 .qual-brand { display: inline-flex; align-items: center; gap: 0.75rem; color: var(--vr-ink); font-size: 1.25rem; font-weight: 700; text-decoration: none; }
+.qual-brand img { flex: 0 0 auto; }
+.qual-wordmark { display: grid; gap: 0.25rem; }
+.qual-product { font-size: 1.5rem; line-height: 1.1; letter-spacing: -0.025em; }
+.qual-lims { font-size: 0.75em; font-weight: 500; letter-spacing: 0; }
+.qual-parent { font-size: 0.75rem; line-height: 1.25; font-weight: 500; color: var(--vr-text-muted); }
 .qual-nav-links { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 .qual-nav-links a { color: var(--vr-ink); font-weight: 600; }
 .qual-intro { padding-block: clamp(3rem, 7vw, 6.5rem); border-bottom: 1px solid var(--vr-border); }
@@ -16,6 +21,7 @@ h1, h2, h3 { color: var(--vr-ink); text-wrap: balance; }
 .qual-lead { font-size: 1.25rem; line-height: 1.65; }
 .qual-actions { margin-top: 2rem; }
 .qual-actions .btn { padding: 0.75rem 1.25rem; }
+.qual-demo-note { margin-top: 0.75rem; color: var(--vr-text-muted); font-size: 0.875rem; }
 .qual-support { margin: 1.5rem 0 0; font-size: 0.9375rem; }
 .qual-record { padding: clamp(1.5rem, 3vw, 2.5rem); background: var(--vr-surface-2); border: 1px solid var(--vr-border); }
 .qual-record h2 { margin: 0 0 1.75rem; font-size: 1.5rem; line-height: 1.3; }

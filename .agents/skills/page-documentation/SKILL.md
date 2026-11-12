@@ -1,6 +1,6 @@
 ---
 name: page-documentation
-description: Write or update the in-app documentation for an OpenBGA QLab page (docs/pages/*.md, shown in the top-bar documentation panel). Use whenever a page, its view, form, template, model fields, permissions, filters or state rules are added or changed, and when a named URL is added, renamed or removed.
+description: Write or update the in-app documentation for an OpenBGA Fresh CoA LIMS page (docs/pages/*.md, shown in the top-bar documentation panel). Use whenever a page, its view, form, template, model fields, permissions, filters or state rules are added or changed, and when a named URL is added, renamed or removed.
 ---
 
 # Page documentation

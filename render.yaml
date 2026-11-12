@@ -1,11 +1,11 @@
-# Render Blueprint for OpenBGA QLab: one Docker web service built from Dockerfile and one
+# Render Blueprint for OpenBGA Fresh CoA LIMS: one Docker web service built from Dockerfile and one
 # PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check,
 # automatic deploys are off and the database accepts no external connections. Adjust names,
 # plans and region for your own account.
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
 services:
   - type: web
-    name: openbga-qlab
+    name: freshcoa
     runtime: docker
     plan: 1c-2g
     region: virginia
@@ -15,7 +15,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: openbga-qlab-db
+          name: freshcoa-db
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -29,7 +29,7 @@ services:
         value: django.core.mail.backends.dummy.EmailBackend
 
 databases:
-  - name: openbga-qlab-db
+  - name: freshcoa-db
     databaseName: open_qual
     user: open_qual
     plan: 0.5c-1g

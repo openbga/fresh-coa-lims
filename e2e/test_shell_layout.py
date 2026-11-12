@@ -44,6 +44,6 @@ def test_shell_controls_fit_the_viewport(live_server, django_user_model, artifac
                 page.screenshot(path=str(artifacts / f"ci-shell-{width}.png"), full_page=True)
         # Error pages carry the shell, a page title and one level-one heading.
         page.goto(f"{live_server.url}/no-such-synthetic-page/")
-        expect(page).to_have_title("Page not found · OpenBGA QLab")
+        expect(page).to_have_title("Page not found · OpenBGA Fresh CoA LIMS")
         expect(page.get_by_role("heading", level=1)).to_have_text("Page not found")
         browser.close()

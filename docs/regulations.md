@@ -1,6 +1,6 @@
 # Manufacturing QC laboratory regulations and LIMS requirements
 
-Research date and access date: **2026-11-10**. Jurisdictions: United States, European Union and United Kingdom; international standards are identified separately. This is a product requirements baseline, not a legal opinion, certification, or a claim that OpenBGA QLab or its users will be compliant. Software controls support a laboratory's procedures, qualified people, validation and quality system; they do not replace them.
+Research date and access date: **2026-11-10**. Jurisdictions: United States, European Union and United Kingdom; international standards are identified separately. This is a product requirements baseline, not a legal opinion, certification, or a claim that OpenBGA Fresh CoA LIMS or its users will be compliant. Software controls support a laboratory's procedures, qualified people, validation and quality system; they do not replace them.
 
 ## Confirmed scope: one system, configured obligations
 
