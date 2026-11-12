@@ -5,6 +5,7 @@
 # region for your own account; for a controlled deployment set a release branch and
 # autoDeployTrigger "off", then deploy reviewed commits manually (docs/operations.md).
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
+# render.demo.yaml is a separate Blueprint, for the demonstration only: its daily reset job.
 services:
   - type: web
     name: fresh-coa-lims
