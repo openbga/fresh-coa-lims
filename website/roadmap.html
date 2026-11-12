@@ -69,13 +69,13 @@
         <div class="col-lg-4">
           <p class="qual-stage"><span class="vr-status" data-tone="success">Done</span></p>
           <h2 id="done-heading">Available today</h2>
-          <p>A lot whose tests are all numeric can go from receipt to a signed certificate of analysis. These areas are in the current source and are tested on PostgreSQL and in browser journeys.</p>
+          <p>A lot can go from receipt to a signed certificate of analysis with numeric, count and qualitative tests. These areas are in the current source and are tested on PostgreSQL and in browser journeys.</p>
         </div>
         <div class="col-lg-8">
           <ul class="qual-areas">
             <li id="configuration"><h3>Approved configuration</h3><p>Rule sets, specifications, methods and sampling plans are versioned and effective-dated. Someone other than the author signs each approval. Every lot keeps a snapshot of the revisions it was tested against.</p></li>
             <li id="receipt-sampling"><h3>Lot receipt and sampling</h3><p>Lots are received into quarantine and assigned their specifications and sampling plan. Sampling records show which containers were sampled, where, when and by whom, with deviations assessed.</p></li>
-            <li id="testing"><h3>Testing</h3><p>Numeric results with units, replicates, declared rounding and batch QC checks. A correction adds an entry and keeps the original. Recording a result requires a current analyst qualification for the method.</p></li>
+            <li id="testing"><h3>Testing</h3><p>Numeric results and counts with units, replicates, declared rounding and batch QC checks. Qualitative results (conforms or does not conform, present or absent) are recorded with what was observed. A result reported as less than a value is kept as recorded and never becomes zero. Limits can include or exclude their boundary. A correction adds an entry and keeps the original. Recording a result requires a current analyst qualification for the method.</p></li>
             <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
             <li id="review-disposition"><h3>Review and QC disposition</h3><p>A reviewer who did not record the results signs the review. Quality signs the disposition, which is blocked while tests are missing or failing or while investigations or holds are open.</p></li>
             <li id="issued-certificates"><h3>Certificates of analysis</h3><p>A signed, versioned PDF built from the reviewed evidence. The issued file is stored with its checksum and returned unchanged on every download. An amendment states its reason and links to the original.</p></li>
@@ -99,16 +99,6 @@
           </div>
           <div class="col-lg-8">
             <ol class="qual-workflow">
-              <li id="result-types">
-                <h3>More result types</h3>
-                <p>Most release specifications include tests that are not a number within a range, such as appearance, identity and microbial limits. Today the system puts those requirements on hold.</p>
-                <ul>
-                  <li>Qualitative results: conforms or does not conform, present or absent.</li>
-                  <li>Counts, and results reported as less than a limit, kept as recorded and never turned into zero.</li>
-                  <li>Limits that exclude their boundary (less than, more than) beside the inclusive limits.</li>
-                </ul>
-                <p class="qual-ref">Requirement OQ-007</p>
-              </li>
               <li id="calculations">
                 <h3>Calculations and raw data</h3>
                 <p>A reviewer needs to see how a reported value was reached from the raw measurements.</p>

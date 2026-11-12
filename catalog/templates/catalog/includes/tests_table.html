@@ -9,8 +9,8 @@
         <td>{{ line.position }}</td>
         <th scope="row"><span class="vr-id">{{ line.code }}</span><br>{{ line.name }}</th>
         <td><a href="{% url 'catalog:method' line.method_id %}">{{ line.method.code }}</a></td>
-        <td>{{ line.limit_text }}</td>
-        <td>{% if line.reporting_decimals is not None %}{{ line.reporting_decimals }} decimal{{ line.reporting_decimals|pluralize }}{% else %}Exact{% endif %}</td>
+        <td>{{ line.limit_text }}<br><span class="vr-muted small">{{ line.get_result_type_display }}</span></td>
+        <td>{% if line.result_type == "qualitative" %}Not applicable{% elif line.reporting_decimals is not None %}{{ line.reporting_decimals }} decimal{{ line.reporting_decimals|pluralize }}{% else %}Exact{% endif %}</td>
         <td>{{ line.replicates }} replicate{{ line.replicates|pluralize }}{% if line.replicates > 1 and line.replicate_limits %}, each within limits{% endif %} · {% if line.max_retests %}up to {{ line.max_retests }} retest{{ line.max_retests|pluralize }}{% else %}no retests{% endif %}</td>
         <td>{% if line.required %}Required{% else %}Information only{% endif %}</td>
         {% if remove %}<td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:test_remove' line.specification_revision_id line.pk %}">Remove<span class="visually-hidden"> {{ line.code }}</span></a></td>{% endif %}

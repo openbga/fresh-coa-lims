@@ -20,6 +20,7 @@ from core.models import AuditEvent
 from core.services import require_role, sign_transition, validate_rules
 
 from .models import (
+    ExpectedResult,
     Material,
     Method,
     MethodQCCheck,
@@ -288,29 +289,54 @@ def new_specification_revision(
     return revision
 
 
+def _whole_non_negative(value):
+    return value >= 0 and value == value.to_integral_value()
+
+
 def validate_test_line(line):
-    """Shape rules shared by forms and services; the database repeats them as constraints."""
+    """Shape rules shared by forms and services; the database repeats the basic shape.
+
+    Rules the database cannot hold for legacy rows (expected outcome of qualitative lines, equal
+    limits, whole-number count limits) are enforced here, on every add and again at approval.
+    """
     errors = {}
-    if line.result_type == "numeric":
+    low, high = line.lower_limit, line.upper_limit
+    if line.result_type in ("numeric", "count"):
+        kind = "count" if line.result_type == "count" else "numeric"
         if not line.unit:
-            errors["unit"] = "A numeric test needs a unit."
-        if line.lower_limit is None and line.upper_limit is None:
+            errors["unit"] = f"A {kind} test needs a unit."
+        if low is None and high is None:
             errors["lower_limit"] = "Enter at least one limit."
         if line.expected_text:
-            errors["expected_text"] = "Expected text applies only to qualitative tests."
-        if (
-            line.lower_limit is not None
-            and line.upper_limit is not None
-            and line.lower_limit > line.upper_limit
-        ):
-            errors["upper_limit"] = "The upper limit must not be below the lower limit."
+            errors["expected_text"] = "The criterion text applies only to qualitative tests."
+        if line.expected_result:
+            errors["expected_result"] = "The expected outcome applies only to qualitative tests."
+        if low is not None and high is not None:
+            if low > high:
+                errors["upper_limit"] = "The upper limit must not be below the lower limit."
+            elif low == high and not (line.lower_inclusive and line.upper_inclusive):
+                errors["upper_limit"] = (
+                    "Equal lower and upper limits must both be inclusive; otherwise no result "
+                    "can conform."
+                )
+        if kind == "count":
+            for field, value in (("lower_limit", low), ("upper_limit", high)):
+                if value is not None and not _whole_non_negative(value):
+                    errors.setdefault(field, "Count limits must be whole numbers of 0 or more.")
     elif line.result_type == "qualitative":
-        if not line.expected_text:
-            errors["expected_text"] = "Enter the expected result."
-        if line.lower_limit is not None or line.upper_limit is not None:
+        if not line.expected_result:
+            errors["expected_result"] = "Choose the expected outcome."
+        if not line.expected_text.strip():
+            errors["expected_text"] = "Enter the criterion, e.g. Absent in 25 g."
+        if low is not None or high is not None:
             errors["lower_limit"] = "Qualitative tests have no numeric limits."
         if line.reporting_decimals is not None:
-            errors["reporting_decimals"] = "Rounding applies only to numeric tests."
+            errors["reporting_decimals"] = "Rounding applies only to numeric and count tests."
+        if not (line.lower_inclusive and line.upper_inclusive and line.replicate_limits):
+            errors["replicate_limits"] = (
+                "Qualitative tests have no limits and every replicate must match the expected "
+                "outcome; leave the inclusive and each-replicate options set."
+            )
     if not 1 <= (line.replicates or 0) <= 10:
         errors["replicates"] = "Use 1 to 10 replicates."
     if not 0 <= (line.max_retests or 0) <= 3:
@@ -391,7 +417,16 @@ def _check_specification_revision(revision):
         raise ValidationError("Add at least one test before approval.")
     missing = []
     for line in lines:
-        validate_test_line(line)
+        if line.result_type == "qualitative" and not line.expected_result:
+            raise ValidationError(
+                f"Test {line.code} has no expected outcome (it was copied from a version approved "
+                "before outcomes were recorded). Remove the test and add it again with the "
+                "expected outcome, then approve."
+            )
+        try:
+            validate_test_line(line)
+        except ValidationError as exc:
+            raise ValidationError([f"Test {line.code}: {m}" for m in exc.messages]) from exc
         if effective_revision(MethodRevision, line.method, revision.effective_from) is None:
             missing.append(line.method.code)
     if missing:
@@ -597,9 +632,10 @@ def resolve_requirements(*, material, stage, scope="general", rules=None, at=Non
     }
 
 
-# Analytical testing contract (oq.test-requirement/1) --------------------------------------------
+# Analytical testing contract (oq.test-requirement/1 and /2) -------------------------------------
 
 TEST_REQUIREMENT_SCHEMA = "oq.test-requirement/1"
+TEST_REQUIREMENT_SCHEMA_V2 = "oq.test-requirement/2"
 
 
 def method_requirement(method):
@@ -615,21 +651,43 @@ def method_requirement(method):
 def test_requirement(test, source):
     """Translate one frozen catalog test line to the analytical keys without coercion.
 
-    Shapes the analytical contract cannot represent (qualitative ``result_type``,
-    ``bounds: "exclusive"``) pass through faithfully so its parser holds them.
+    A numeric line with both bounds inclusive is emitted as ``oq.test-requirement/1``, byte for
+    byte as before, because tests in progress froze that payload and its hash. Every other shape
+    is ``oq.test-requirement/2``. Values pass through as frozen, so shapes the analytical parser
+    cannot execute (for example a qualitative line approved without an expected outcome, which
+    yields ``expected_result: None``) are held there, never repaired here.
     ``reporting_decimals: None`` passes through as exact comparison without rounding.
     """
-    inclusive = test["lower_inclusive"] and test["upper_inclusive"]
+    if test["result_type"] == "numeric" and test["lower_inclusive"] and test["upper_inclusive"]:
+        return {
+            "schema": TEST_REQUIREMENT_SCHEMA,
+            "source": source,
+            "test_code": test["code"],
+            "name": test["name"],
+            "result_type": test["result_type"],
+            "bounds": "inclusive",
+            "unit": test["unit"],
+            "lower_limit": test["lower_limit"],
+            "upper_limit": test["upper_limit"],
+            "replicates": test["replicates"],
+            "reporting_decimals": test["reporting_decimals"],
+            "replicate_limits": test["replicate_limits"],
+            "max_retests": test["max_retests"],
+            "method": method_requirement(test["method"]),
+        }
     return {
-        "schema": TEST_REQUIREMENT_SCHEMA,
+        "schema": TEST_REQUIREMENT_SCHEMA_V2,
         "source": source,
         "test_code": test["code"],
         "name": test["name"],
         "result_type": test["result_type"],
-        "bounds": "inclusive" if inclusive else "exclusive",
         "unit": test["unit"],
         "lower_limit": test["lower_limit"],
         "upper_limit": test["upper_limit"],
+        "lower_inclusive": test["lower_inclusive"],
+        "upper_inclusive": test["upper_inclusive"],
+        "expected_result": test.get("expected_result") or None,
+        "criterion": test["expected_text"],
         "replicates": test["replicates"],
         "reporting_decimals": test["reporting_decimals"],
         "replicate_limits": test["replicate_limits"],
@@ -646,25 +704,45 @@ def batch_method_requirements(at=None):
 
 
 def describe_limits(test):
+    """Acceptance text of one frozen test line.
+
+    For example "98 – 102 % w/w", "> 5 and ≤ 10 mg/g", "< 10 CFU/g" or
+    "Absent: Not detected in 25 g".
+
+    Accepts lines frozen before ``expected_result`` existed: their criterion is shown alone.
+    """
     if test["result_type"] == "qualitative":
-        return test["expected_text"]
+        expected = test.get("expected_result") or ""
+        if not expected:
+            return test["expected_text"]
+        return f"{ExpectedResult(expected).label}: {test['expected_text']}"
     unit = f" {test['unit']}" if test["unit"] else ""
     low, high = test["lower_limit"], test["upper_limit"]
+    lower = f"{'≥' if test['lower_inclusive'] else '>'} {low}"
+    upper = f"{'≤' if test['upper_inclusive'] else '<'} {high}"
     if low is not None and high is not None:
-        return f"{low} – {high}{unit}" + (
-            "" if test["lower_inclusive"] and test["upper_inclusive"] else " (exclusive bound)"
-        )
+        if test["lower_inclusive"] and test["upper_inclusive"]:
+            return f"{low} – {high}{unit}"
+        return f"{lower} and {upper}{unit}"
     if low is not None:
-        return f"{'≥' if test['lower_inclusive'] else '>'} {low}{unit}"
-    return f"{'≤' if test['upper_inclusive'] else '<'} {high}{unit}"
+        return f"{lower}{unit}"
+    return f"{upper}{unit}"
 
 
 def conforms(test, value):
-    """Compare one observation with a payload test line. Missing values never conform."""
+    """Compare one observation with a payload test line. Missing values never conform.
+
+    Qualitative lines compare with the expected outcome (its code or label); a line frozen
+    before outcomes existed compares with its criterion text. Counts compare as numbers.
+    """
     if value is None or value == "":
         return False
     if test["result_type"] == "qualitative":
-        return str(value).strip().casefold() == test["expected_text"].strip().casefold()
+        observed = str(value).strip().casefold()
+        expected = test.get("expected_result") or ""
+        if expected:
+            return observed in {expected, ExpectedResult(expected).label.casefold()}
+        return observed == test["expected_text"].strip().casefold()
     try:
         observed = rounded(Decimal(str(value)), test["reporting_decimals"])
     except (InvalidOperation, ValueError) as exc:

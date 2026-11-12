@@ -4,7 +4,7 @@ urls: analytical:test_list
 views: analytical.views.test_list
 templates: analytical/test_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_test_status.html
 models: analytical.AnalyticalTest
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ List every analytical test, from assignment through independent review, so work 
 | Test | — | "T-" and the record number | — | Link to the test |
 | Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated |
 | Kind | `AnalyticalTest.kind` | Original, Retest, Resample, Rerun after QC failure | — | How the test arose |
-| Reportable | `AnalyticalTest.reportable_value` | Decimal with unit | — | Calculated on submission, shown at the approved reporting precision; "—" before |
+| Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | Frozen on submission: a number at the approved reporting precision, a less-than reading such as "<10", or a qualitative outcome; "—" before |
 | Batch | `AnalyticalTest.batch` | Batch number | — | QC batch, or "—" |
 | Assigned | `AnalyticalTest.created_at` | Date and time | — | When the test was created |
 

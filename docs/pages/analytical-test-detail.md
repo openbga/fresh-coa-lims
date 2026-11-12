@@ -4,7 +4,7 @@ urls: analytical:test_detail
 views: analytical.views.test_detail
 templates: analytical/test_detail.html, analytical/_history.html, analytical/_test_status.html, analytical/_qc_status.html
 models: analytical.AnalyticalTest, analytical.Observation, analytical.QCBatch, analytical.Investigation, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -23,9 +23,9 @@ One analytical test: its frozen specification, replicate observations, calculate
 
 - **Header**: "T-n" and test name; status, kind, lot and sample, Revision. Buttons: **Sign review**, **Return test**, **Add to QC batch**, **Record observation**.
 - **Alerts**: the test opened an investigation (cannot be corrected or returned); or it is an investigation test (retest or resample).
-- **Observations** ("N of M"): Replicate, Value, Within limits, Original record, Recorded, and **Correct**. Superseded values are struck through and marked "superseded"; corrections are marked "correction". Empty states depend on whether a QC batch is still needed.
+- **Observations** ("N of M"): Replicate, Value (unit in the heading) and Within limits for numeric and count tests, or Result and As expected for qualitative tests, then Original record, Recorded, and **Correct**. A qualitative result shows what was observed under it. Superseded values are struck through and marked "superseded"; corrections are marked "correction". Empty states depend on whether a QC batch is still needed.
 - **Submit form** (analysts, when all replicates are present and QC is ready): Reason and **Submit for review**. Otherwise a note explains why submission or review is blocked.
-- **Specification and result** panel: Test code, Specification revision with snapshot hash, Limits, Method, Replicates, QC batch, Mean, Reportable, Submitted by, Replaces, Linked tests.
+- **Specification and result** panel: Test code, Specification revision with snapshot hash, Acceptance, Method, Replicates, QC batch, Mean (not shown for qualitative tests), Reportable, Submitted by, Replaces, Linked tests.
 - **Electronic signatures** and **History**.
 
 ## Actions
@@ -46,12 +46,12 @@ Submitting an out-of-specification result opens an investigation, redirects to i
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, Awaiting review, Reviewed · conforms, Out of specification · awaiting review or reviewed, Invalidated |
-| Value | `Observation.value_text` | Decimal in the test unit | — | Value as entered |
-| Within limits | `Observation.value` | Yes or No | — | Value against the specification limits |
+| Value / Result | `Observation.value_text`, `observed_text` | Text as recorded, e.g. "99.80", "<10" or "Absent" | — | Result as recorded; for qualitative tests what was observed is shown below it |
+| Within limits / As expected | `Observation.value`, `qualifier`, `outcome` | Yes, No or Cannot be shown | — | The reading on its own against the acceptance. A less-than reading "<X" is Yes only when there is no lower limit and X is within the upper limit; otherwise "Cannot be shown". A qualitative reading is Yes only when it shows the expected outcome |
 | Original record | `Observation.raw_reference` | Text | — | Where the original observation is kept; correction reason shown below it |
-| Mean | `AnalyticalTest.mean_value` | Decimal | — | Exact mean, "Not calculated" before submission |
-| Reportable | `AnalyticalTest.reportable_value` | Decimal with unit | — | Mean rounded half-up to the approved decimals; when the specification sets no reporting precision, the exact mean (submission is refused if it is not exact within 8 decimals) |
-| Limits | `AnalyticalTest.requirement` | Range | — | Inclusive; "Each replicate and the reportable value must conform." when replicate limits apply |
+| Mean | `AnalyticalTest.mean_value` | Decimal | — | Exact mean; "Not calculated" before submission; "None: a replicate is reported as less than a value" when a submitted result has a less-than replicate; not shown for qualitative tests |
+| Reportable | `AnalyticalTest.reportable_text` (`reportable_value` for tests submitted before the text was stored) | Text with unit | — | Frozen at submission. Numeric and count: mean rounded half-up to the approved decimals; when the specification sets no reporting precision, the exact mean (submission is refused if it is not exact within 8 decimals). With any less-than replicate: the common reading ("<10") or the readings joined with "; " in replicate order, and no numeric value. Qualitative: the expected outcome when every replicate shows it, otherwise the deviating outcome |
+| Acceptance | `AnalyticalTest.requirement` | Text | — | Each limit is inclusive ("at least", "at most", "L to U") or exclusive ("more than", "less than"); qualitative: criterion and expected outcome, with "Every replicate must read …". Numeric notes: "Each replicate and the reportable value must conform." when replicate limits apply, and the less-than rule |
 | Reason (submit) | `AuditEvent.reason` | Text, max 2000 | Yes | Initial text "Results complete" |
 | Expected revision (hidden) | `AnalyticalTest.revision` | Integer | Yes | Revision shown when the page opened |
 
@@ -59,7 +59,7 @@ Submitting an out-of-specification result opens an investigation, redirects to i
 
 - **Specification**: frozen from the configured approved-requirements provider when the test was assigned. Not enforced by this page: whether the provider's specification is the correct one.
 - **Submit**: needs the test Open, lot in quarantine and, when the method requires a batch, an open batch whose QC has passed ("Batch QC is failed; tests cannot be submitted." or incomplete). When the batch is not open or its QC has not passed, the form is replaced by the note "Results cannot be submitted until the test's QC batch is open and its QC passes."; the server also refuses ("Batch QC is failed; tests cannot be submitted."). A stale page gives "Record changed. Reload and review before continuing.".
-- **Conformance**: reportable value within limits and, if replicate limits apply, every replicate within limits.
+- **Conformance**: numeric and count: the rounded reportable value within the limits (strictly where a limit excludes its boundary) and, if replicate limits apply, every replicate within limits. If any replicate is a less-than reading there is no mean and every replicate must conform on its own, whatever the replicate-limits setting; a less-than reading that cannot be shown to meet the limits does not conform. Qualitative: every replicate must show the expected outcome.
 - **Review blocked**: for a submitted test whose QC batch no longer passes, **Sign review** is hidden and the page says "Review is blocked: the test's QC batch no longer passes."
 - **Out of specification**: cannot be corrected or returned; the investigation decides.
 - **Revisions**: every evidence change (observation, correction, submit, return, batching, review) raises the test revision and the lot revision by 1.

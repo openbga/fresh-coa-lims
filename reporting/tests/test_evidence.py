@@ -210,3 +210,102 @@ def test_native_certificate_renders(people, good):
     assert "c" * 64 in squashed and "b" * 64 in squashed  # hashes kept, in technical identifiers
     assert len([p for p in text.split("\x0c") if p.strip()]) == 1  # compact certificate: one page
     assert "2026-11-10 10:00:00 UTC" in text
+
+
+def result_types_payload(good):
+    """Native evidence with results published after qualitative/less-than support was added."""
+    payload = native_payload(good)
+    legacy = payload["native"]["analytical"]["results"][0]
+    new = {
+        "result_type": "qualitative",
+        "unit": "",
+        "lower_limit": None,
+        "upper_limit": None,
+        "lower_inclusive": True,
+        "upper_inclusive": True,
+        "expected_result": "absent",
+        "criterion": "Absent in 25 g",
+        "acceptance": "Absent in 25 g (expected: Absent)",
+        "mean": None,
+        "reportable": "Absent",
+    }
+    count = {
+        "result_type": "count",
+        "unit": "CFU/g",
+        "lower_limit": None,
+        "upper_limit": "1000",
+        "lower_inclusive": True,
+        "upper_inclusive": False,
+        "expected_result": None,
+        "criterion": "",
+        "acceptance": "less than 1000 CFU/g",
+        "mean": None,
+        "reportable": "<10; 50",
+    }
+    payload["native"]["analytical"]["results"] += [
+        {
+            **legacy,
+            **new,
+            "test_code": "pathogen",
+            "replicates": [
+                {"replicate": 1, "value": "Absent", "observed": "No growth"},
+                {"replicate": 2, "value": "Absent", "observed": "No growth"},
+            ],
+        },
+        {
+            **legacy,
+            **count,
+            "test_code": "tamc",
+            "replicates": [{"replicate": 1, "value": "<10"}, {"replicate": 2, "value": "50"}],
+        },
+    ]
+    return payload
+
+
+def certificate_row(html, code):
+    start = html.index(f'<th scope="row">{code}')
+    return " ".join(html[start : html.index("</tr>", start)].split())
+
+
+def test_certificate_renders_frozen_and_new_evidence(good):
+    from django.template.loader import render_to_string
+
+    html = render_to_string("reporting/_certificate.html", {"snapshot": result_types_payload(good)})
+    legacy = certificate_row(html, "assay")  # frozen before this change: no acceptance key
+    assert "<td>100.25</td>" in legacy
+    assert '<td class="text-end">100.3 mg/g</td>' in legacy
+    assert "<td>98 to no upper limit mg/g</td>" in legacy
+    pathogen = certificate_row(html, "pathogen")
+    assert "<td>Absent; Absent</td>" in pathogen
+    assert '<td class="text-end">Absent</td>' in pathogen
+    assert "<td>Absent in 25 g (expected: Absent)</td>" in pathogen
+    tamc = certificate_row(html, "tamc")
+    assert "<td>&lt;10; 50</td>" in tamc
+    assert '<td class="text-end">&lt;10; 50 CFU/g</td>' in tamc
+    assert "<td>less than 1000 CFU/g</td>" in tamc
+    assert "None" not in html
+
+
+def test_certificate_pdf_renders_new_evidence(good):
+    from reporting.render import render_certificate
+    from reporting.tests.test_services import normalized, pdf_text
+
+    payload = result_types_payload(good)
+    payload["evidence_hash"] = ev.canonical_hash(good)
+    payload["report"] = {
+        "number": "CoA-RT-1",
+        "version": 1,
+        "kind": "issue",
+        "recipient": "",
+        "remarks": "",
+        "reason": "x",
+        "amends_version": None,
+        "issued_by": "Quality Synthetic",
+        "issued_by_id": 1,
+        "issued_at": "2026-11-12T12:00:00Z",
+        "lot_revision": 5,
+    }
+    spoken = normalized(pdf_text(render_certificate(payload)))
+    for phrase in ("100.3 mg/g", "no upper limit", "Absent in 25 g", "<10; 50 CFU/g", "less than"):
+        assert phrase in spoken, phrase
+    assert "None" not in spoken

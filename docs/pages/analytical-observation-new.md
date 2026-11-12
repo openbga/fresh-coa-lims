@@ -4,7 +4,7 @@ urls: analytical:observation_new
 views: analytical.views.observation_new
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -20,8 +20,10 @@ Record the next replicate observation of a test, with the location of its origin
 ## Layout
 
 - Heading "Record replicate N · T-n" and breadcrumbs.
-- Summary card: Test, Lot and sample, Specification, Record revision, Unit.
-- Form: **Observed value**, **Original record**, **Cancel**, **Record observation**.
+- Summary card: Test, Lot and sample, Specification, Record revision, Unit (numeric and count tests only).
+- Form, numeric and count tests: **Observed value** (**Observed count** for counts), **Reported as less than this value**, **Original record**.
+- Form, qualitative tests: **Observed result** (radio pair), **What was observed**, **Original record**.
+- **Cancel**, **Record observation**.
 
 ## Actions
 
@@ -34,13 +36,16 @@ Record the next replicate observation of a test, with the location of its origin
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Observed value | `Observation.value`, `value_text` | Decimal, 20 digits, 8 decimals; unit from the specification | Yes | "Exact value as read; at most 8 decimal places. Never enter a nondetect as zero." |
+| Observed value / Observed count | `Observation.value`, `qualifier`, `value_text` | Decimal, 20 digits, 8 decimals; unit from the specification | Yes (numeric and count tests) | "Exact value as read; at most 8 decimal places." (count: "Whole number of zero or more, exactly as read.") followed by "Never enter a nondetect as zero: enter the reporting limit and choose “Reported as less than this value”." |
+| Reported as less than this value | `Observation.qualifier` ("<") | Checkbox | No (numeric and count tests) | "For a result below the reporting or detection limit (shown as <10). It is stored as recorded and never converted to zero or to the number." The value is kept as the limit with the "<" qualifier |
+| Observed result | `Observation.outcome`, `value_text` | Radio: Conforms / Does not conform, or Absent / Present (the pair approved for the test) | Yes (qualitative tests) | Help text shows the acceptance, e.g. "Acceptance: Absent in 25 g (expected: Absent)." |
+| What was observed | `Observation.observed_text` | Text, max 200 | Yes (qualitative tests) | "Describe the observation itself, e.g. what was seen or how the test reacted; the outcome is recorded separately." |
 | Original record | `Observation.raw_reference` | Text, max 200 | Yes | "Notebook page, instrument file or worksheet holding the original observation." |
 | Test (summary) | `AnalyticalTest.id` (shown as T-n), `AnalyticalTest.requirement` name, `AnalyticalTest.test_code` | Text | — | "T-n · name (code)": the test being recorded |
 | Lot and sample (summary) | `Lot.number`, `Sample.reference` | Text | — | "lot / sample" the test belongs to |
-| Specification (summary) | `AnalyticalTest.requirement` (source, lower/upper limits, unit) | Text | — | Frozen approved requirement: "source · L to U unit", "at least L unit" or "at most U unit" |
+| Specification (summary) | `AnalyticalTest.requirement` (source, acceptance) | Text | — | Frozen approved requirement: "source · acceptance", e.g. "95.0 to 105.0 unit", "at least L unit", "more than L and at most U unit", "less than U unit" or, for a qualitative test, "Absent in 25 g (expected: Absent)" |
 | Record revision (summary) | `AnalyticalTest.revision` | Integer | — | Test revision when the page opened; recording raises it by 1 |
-| Unit (summary) | `AnalyticalTest.requirement` unit | Text | — | Unit the value is stored in (`Observation.unit`); not editable |
+| Unit (summary) | `AnalyticalTest.requirement` unit | Text | — | Unit the value is stored in (`Observation.unit`); not editable; not shown for qualitative tests, which have no unit |
 | Replicate number (title) | `Observation.replicate` | Integer | — | "Record replicate N": current observations + 1, assigned by the server |
 
 ## Rules and hidden logic
@@ -49,10 +54,13 @@ Record the next replicate observation of a test, with the location of its origin
 - **Preconditions**: test Open ("This test is not accepting observations."); lot in quarantine ("Lot ... is no longer in quarantine."); a QC batch assigned when the method needs one ("Assign this test to a QC batch before recording results."); fewer current values than replicates ("All replicates are recorded. Correct a value instead.").
 - **Analyst eligibility**: before accepting the value the server checks that you hold a current qualification for this test's method. The qualification's activity must match the approved method code (case-insensitive) and be approved, within its validity dates and not revoked at the time of entry; your account must be active. A laboratory role alone is not enough. If you are not eligible the reasons (for example "No approved, current qualification for “<method>”.") appear as a form error and nothing is saved. Without a configured check: "No analyst eligibility check is configured; observations are held." The evidence (user, activity, qualification) is frozen on the observation and in its audit event.
 - **Not checked here**: this check does not select or verify equipment or reagent lots, and it is not applied to batch QC recording or correction.
+- **Form by result type** (from the frozen requirement): numeric and count tests show the value and the less-than checkbox; qualitative tests show the outcome radio pair and **What was observed**, with no numeric field.
+- **Reading validation** (form errors, status 422, nothing saved): "A count must be a whole number of zero or more."; "A less-than result needs a value greater than zero."; "A qualitative result cannot be reported as less than a value."; "Choose the observed result: Absent or Present." (or Conforms or Does not conform); "Describe what was observed; the outcome alone is not a complete record."
+- **As recorded**: the result text is stored exactly as entered ("99.80", "<10") or as the outcome label ("Absent"). A less-than result is never treated as zero or as its number.
 - **Blank record**: "Record where the original observation is kept." when the original record is only spaces.
-- **Effect**: in one transaction the observation is stored with the next replicate number, the test revision and lot revision rise by 1, and `observation.recorded` is audited with your identity. The server sets time and recorder.
+- **Effect**: in one transaction the observation is stored with the next replicate number, the test revision and lot revision rise by 1, and `observation.recorded` is audited with your identity and the reading as recorded (value text, qualifier, outcome, what was observed). The server sets time and recorder.
 - **Validation errors** show on the form with status 422; nothing is saved.
-- Out-of-limit values are recorded as entered and marked "No" under Within limits.
+- Out-of-limit values are recorded as entered and marked "No" under Within limits ("Cannot be shown" for a less-than result that cannot be shown to conform; "No" under As expected for a deviating qualitative outcome).
 
 ## Related pages
 

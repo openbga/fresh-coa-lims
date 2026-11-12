@@ -1,11 +1,10 @@
-from decimal import Decimal
 from functools import cached_property
 
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from .contracts import parse_method, parse_requirement
+from .contracts import LESS_THAN, OUTCOMES, Reading, parse_method, parse_requirement
 
 DECIMAL = {"max_digits": 20, "decimal_places": 8}
 
@@ -103,6 +102,12 @@ class AnalyticalTest(models.Model):
     state = models.CharField(max_length=16, choices=State.choices, default=State.OPEN)
     mean_value = models.DecimalField(null=True, blank=True, **DECIMAL)
     reportable_value = models.DecimalField(null=True, blank=True, **DECIMAL)
+    reportable_text = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Reportable result as frozen at submission, e.g. 99.8, <10 or Absent",
+    )
     conforms = models.BooleanField(null=True, blank=True)
     evaluated_at = models.DateTimeField(null=True, blank=True)
     submitted_by = models.ForeignKey(
@@ -144,14 +149,22 @@ class AnalyticalTest(models.Model):
 
     @property
     def reportable_display(self):
-        """Reportable value at the approved reporting precision, e.g. 99.8 not 99.80000000."""
+        """Reportable result as frozen at submission, e.g. 99.8, <10 or Absent ("" if none).
+
+        Tests submitted before the text was frozen fall back to formatting the numeric value at
+        the approved reporting precision.
+        """
+        if self.reportable_text:
+            return self.reportable_text
         if self.reportable_value is None:
             return ""
-        decimals = self.spec.reporting_decimals
-        if decimals is None:  # exact value, without padded scale
-            text = format(self.reportable_value.normalize(), "f")
-            return "0" if text in {"-0", ""} else text
-        return str(self.reportable_value.quantize(Decimal(1).scaleb(-decimals)))
+        return self.spec.format_value(self.reportable_value)
+
+    @property
+    def reportable_with_unit(self):
+        text = self.reportable_display
+        unit = self.spec.unit
+        return f"{text} {unit}" if text and unit else text
 
     def current_observations(self):
         return self.observations.filter(correction__isnull=True).select_related("recorded_by")
@@ -161,10 +174,33 @@ class Observation(models.Model):
     """One replicate observation. Rows are append-only; a correction is a new linked row."""
 
     test = models.ForeignKey(AnalyticalTest, on_delete=models.PROTECT, related_name="observations")
+
+    class Qualifier(models.TextChoices):
+        NONE = "", "As recorded"
+        LESS_THAN = LESS_THAN, "Less than"
+
     replicate = models.PositiveSmallIntegerField()
-    value = models.DecimalField(**DECIMAL)
-    value_text = models.CharField(max_length=40, help_text="Value exactly as entered")
-    unit = models.CharField(max_length=40)
+    value = models.DecimalField(
+        null=True, blank=True, help_text="Numeric value; empty for a qualitative result", **DECIMAL
+    )
+    qualifier = models.CharField(
+        max_length=1, choices=Qualifier.choices, blank=True, default=Qualifier.NONE
+    )
+    outcome = models.CharField(
+        max_length=20,
+        choices=list(OUTCOMES.items()),
+        blank=True,
+        default="",
+        help_text="Qualitative outcome; blank for a numeric or count result",
+    )
+    value_text = models.CharField(max_length=40, help_text="Result exactly as recorded")
+    observed_text = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        help_text="What was observed; required for a qualitative result",
+    )
+    unit = models.CharField(max_length=40, blank=True, help_text="Blank for a qualitative result")
     raw_reference = models.CharField(max_length=200)
     supersedes = models.OneToOneField(
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="correction"
@@ -178,6 +214,24 @@ class Observation(models.Model):
 
     class Meta:
         ordering = ["replicate", "recorded_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    ~Q(outcome="")
+                    & Q(value__isnull=True)
+                    & Q(qualifier="")
+                    & ~Q(observed_text__regex=r"^\s*$")
+                )
+                | (Q(outcome="") & Q(value__isnull=False) & Q(qualifier__in=["", LESS_THAN])),
+                name="analytical_observation_shape",
+            ),
+        ]
+
+    @property
+    def reading(self):
+        return Reading(
+            value=self.value, qualifier=self.qualifier, outcome=self.outcome, text=self.value_text
+        )
 
 
 class Investigation(models.Model):

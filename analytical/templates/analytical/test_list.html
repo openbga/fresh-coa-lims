@@ -22,7 +22,7 @@
           <td class="vr-id">{{ t.sample.reference }}</td>
           <td>{{ t.test_code }}</td>
           <td>{{ t.get_kind_display }}</td>
-          <td class="text-end vr-nowrap">{% if t.reportable_value is not None %}{{ t.reportable_display }} <span class="vr-muted small">{{ t.spec.unit }}</span>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% if t.spec.unit %} <span class="vr-muted small">{{ t.spec.unit }}</span>{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
           <td>{% if t.batch %}<a class="vr-id" href="{% url 'analytical:batch_detail' t.batch_id %}">{{ t.batch.number }}</a>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
           <td class="vr-nowrap"><time datetime="{{ t.created_at|date:'c' }}">{{ t.created_at|date:"Y-m-d H:i" }}</time></td>
         </tr>

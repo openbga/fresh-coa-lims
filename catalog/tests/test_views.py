@@ -487,3 +487,80 @@ def test_sort_toggle_descending(client, people):
     client = login(client, people["analyst"])
     body = client.get(reverse("catalog:materials"), {"sort": "-name"}).content.decode()
     assert body.index("syn-b") < body.index("syn-a")
+
+
+def test_add_count_and_qualitative_tests_via_web(client, people):
+    mat = material(people["author"])
+    method = approve(method_revision(people["author"]), people["approver"]).method
+    _, revision = specification(people["author"], mat)
+    client = login(client, people["author"])
+    add = reverse("catalog:test_new", args=[revision.pk])
+    form = client.get(add).content.decode()
+    assert "Count (whole number)" in form and 'name="expected_result"' in form
+    base = {"method": method.pk, "position": 1, "replicates": "1", "max_retests": "0"}
+    base.update(required="on", reason="Add")
+    # Qualitative without an outcome is refused and keeps the entered criterion.
+    bad = client.post(
+        add,
+        {
+            **base,
+            "code": "salmonella",
+            "name": "Salmonella",
+            "result_type": "qualitative",
+            "expected_text": "Not detected in 25 g",
+        },
+    )
+    assert bad.status_code == 422
+    body = bad.content.decode()
+    assert "Choose the expected outcome." in body and "Not detected in 25 g" in body
+    # Unticked bound/replicate boxes do not apply to qualitative tests and are stored as set.
+    good = client.post(
+        add,
+        {
+            **base,
+            "code": "salmonella",
+            "name": "Salmonella",
+            "result_type": "qualitative",
+            "expected_result": "absent",
+            "expected_text": "Not detected in 25 g",
+        },
+    )
+    assert good.status_code == 302
+    fractional = client.post(
+        add,
+        {
+            **base,
+            "code": "tamc",
+            "name": "TAMC",
+            "result_type": "count",
+            "unit": "CFU/g",
+            "upper_limit": "10.5",
+            "upper_inclusive": "on",
+            "lower_inclusive": "on",
+        },
+    )
+    assert fractional.status_code == 422
+    assert "Count limits must be whole numbers of 0 or more." in fractional.content.decode()
+    count = client.post(
+        add,
+        {
+            **base,
+            "code": "tamc",
+            "name": "TAMC",
+            "result_type": "count",
+            "unit": "CFU/g",
+            "upper_limit": "10",
+            "lower_inclusive": "on",
+        },
+    )
+    assert count.status_code == 302
+    line = revision.tests.get(code="salmonella")
+    assert (line.expected_result, line.lower_inclusive, line.replicate_limits) == (
+        "absent",
+        True,
+        True,
+    )
+    page = client.get(reverse("catalog:specification_revision", args=[revision.pk])).content
+    page = page.decode()
+    assert "Absent: Not detected in 25 g" in page
+    assert "&lt; 10 CFU/g" in page and "Count (whole number)" in page

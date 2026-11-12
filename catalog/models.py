@@ -280,7 +280,16 @@ class SpecificationRevision(ControlledRevision):
 
 class ResultType(models.TextChoices):
     NUMERIC = "numeric", "Numeric with limits"
-    QUALITATIVE = "qualitative", "Qualitative (expected text)"
+    COUNT = "count", "Count (whole number)"
+    QUALITATIVE = "qualitative", "Qualitative (expected outcome)"
+
+
+class ExpectedResult(models.TextChoices):
+    """Expected outcome of a qualitative test; each has one deviating counterpart."""
+
+    CONFORMS = "conforms", "Conforms"
+    ABSENT = "absent", "Absent"
+    PRESENT = "present", "Present"
 
 
 class SpecificationTest(models.Model):
@@ -305,6 +314,11 @@ class SpecificationTest(models.Model):
         help_text="If set, results are rounded half up to this many decimals before comparison.",
     )
     expected_text = models.CharField(max_length=160, blank=True)
+    # Blank on numeric/count lines and on qualitative lines approved before outcomes existed;
+    # services require it for new qualitative lines and refuse to approve a draft without it.
+    expected_result = models.CharField(
+        max_length=12, choices=ExpectedResult.choices, blank=True, default=""
+    )
     required = models.BooleanField(
         default=True, help_text="Required tests must be complete before QC disposition."
     )
@@ -339,10 +353,11 @@ class SpecificationTest(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(result_type="numeric")
+                    Q(result_type__in=["numeric", "count"])
                     & ~Q(unit="")
                     & (Q(lower_limit__isnull=False) | Q(upper_limit__isnull=False))
                     & Q(expected_text="")
+                    & Q(expected_result="")
                 )
                 | (
                     Q(result_type="qualitative")
@@ -350,6 +365,7 @@ class SpecificationTest(models.Model):
                     & Q(upper_limit__isnull=True)
                     & Q(reporting_decimals__isnull=True)
                     & ~Q(expected_text="")
+                    & Q(expected_result__in=["", "conforms", "absent", "present"])
                 ),
                 name="specification_test_shape",
             ),
@@ -376,6 +392,7 @@ class SpecificationTest(models.Model):
             "upper_inclusive": self.upper_inclusive,
             "reporting_decimals": self.reporting_decimals,
             "expected_text": self.expected_text,
+            "expected_result": self.expected_result,
             "required": self.required,
             "replicates": self.replicates,
             "replicate_limits": self.replicate_limits,

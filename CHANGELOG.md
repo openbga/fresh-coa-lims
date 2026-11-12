@@ -12,6 +12,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Added
 
+- More result types in native testing: counts, qualitative results (conforms or does not conform, absent or present) recorded with what was observed, results reported as less than a value kept as recorded, and specification limits that exclude their boundary. Certificates show the acceptance text and the result as recorded. A qualitative specification line now needs an expected outcome; lines approved without one are held until a new version states it.
 - Sign-in announcement: one notice on the sign-in page that administrators write, publish and withdraw with a signed, audited change. The development seed can publish its non-administrator demo accounts there (`seed_demo --publish-accounts`).
 
 Initial public source release (project version 0.1.0), licensed AGPL-3.0-only. Implemented areas:
@@ -31,7 +32,7 @@ Initial public source release (project version 0.1.0), licensed AGPL-3.0-only. I
 
 ### Limits
 
-- Numeric results with inclusive limits only; qualitative and exclusive requirements are held.
+- Greater-than results, calculations from raw data and batch QC checks other than numeric with inclusive limits are not supported.
 - Stability testing of released lots uses external evidence, because released lot records are immutable.
 - Manufacturer batch release is a separate decision and is not performed by the software.
 - Multi-factor authentication, identity proofing, PIN recovery policy, backup and restore acceptance, retention and intended-use validation remain the responsibility of each deployment.

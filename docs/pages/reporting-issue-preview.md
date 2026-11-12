@@ -4,7 +4,7 @@ urls: reporting:issue_preview
 views: reporting.views.issue_preview
 templates: reporting/preview.html, reporting/_certificate.html
 models: quality.Lot, reporting.Report, core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -40,7 +40,7 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 | Rule set, Effective, Required tests | `RuleSet.code`, `version`, `revision`, `segment`, `effective_from`, `effective_until`, `policy` | Text, UTC time | — | Rule revision applied to the lot |
 | Specification, Methods | — | Text | — | Shown only for lots released through native testing: the specification from the assignment frozen at disposition (code and version) and the currently required test methods (code and version, controlled document, suitability evidence, batch-QC need). Otherwise "No approved snapshot was supplied" (specification adds "; limits are those recorded with each result") |
 | Results | `Result.test_code`, `value`, `unit`, `lower_limit`, `upper_limit` | Decimal with unit | — | Foundation lots: exact stored values, trailing zeros removed; limits shown as "low to high unit" |
-| Reportable results (native testing) | `Lot.disposition_evidence` | Test, sample, method and revision, replicates, reportable result with unit, limits ("no lower limit" / "no upper limit" when open), review | — | Lots released through approved native testing show the evidence frozen at disposition, with the requirement source and assignment hash |
+| Reportable results (native testing) | `Lot.disposition_evidence` | Test, sample, method and revision, replicates as recorded (e.g. "<10", "Absent"), reportable result with unit (none for qualitative results), limits, review | — | Lots released through approved native testing show the evidence frozen at disposition, with the requirement source and assignment hash. The Limits column shows the frozen acceptance text (for example "less than 1000 CFU/g" or "Absent in 25 g (expected: Absent)"); evidence frozen before acceptance text was published shows "low to high unit" with "no lower limit" / "no upper limit" when open |
 | Status, Analyst, Independent review | `Result.conforms`, `Result.analyst`, review signature | Text | — | Conforms / Out of limits; who recorded; who reviewed and when |
 | Holds and corrections | — | Text | — | Each hold with description and status, or "No holds in the hold snapshot."; corrections when any. If no hold snapshot were supplied: "A hold snapshot was not available to this system; hold status is not asserted by this certificate." |
 | Evidence hash | — | SHA-256 | — | Fingerprint of everything shown; signing is refused if it changes |
