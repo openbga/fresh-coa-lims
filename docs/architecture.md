@@ -59,7 +59,7 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 | Item | Contract |
 |---|---|
 | Local database | Compose PostgreSQL 17 on loopback port 55433 |
-| Render web | `fresh-coa-lims`, Docker, 1c-2g, Virginia, automatic deployment off |
+| Render web | `fresh-coa-lims`, Docker, 1c-2g, Virginia, deploys `develop` automatically after CI checks pass (synthetic demonstration) |
 | Render database | `fresh-coa-lims-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |
 | Health | `/health/` process health; `/ready/` checks database availability |

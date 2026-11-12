@@ -90,5 +90,5 @@ Five editable segment presets are examples requiring quality-owner review. They 
 | Data and credentials | Synthetic demonstration data only; credentials supplied locally, never committed |
 | Time | UTC initial deployment default; explicit zone display and immutable historical timestamps |
 | Signing | Separate hashed PIN, 8–32 digits; username/PIN re-entry for HTTP signing, five-failure/15-minute lock, 15-minute idle and 8-hour absolute session defaults; identity/MFA/recovery validation remains |
-| Hosting | Authorized Render web 1c-2g and PG17 0.5c-1g/5 GB in Virginia after integrated checks; automatic deployment off |
+| Hosting | Authorized Render web 1c-2g and PG17 0.5c-1g/5 GB in Virginia; the synthetic demonstration deploys `develop` automatically after CI checks pass |
 | Pending operational decisions | Exact assays/specifications, applicability ownership, training evidence, signer identity verification, recovery procedures, retention schedules, RPO/RTO and production validation |

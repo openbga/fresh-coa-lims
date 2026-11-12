@@ -163,13 +163,19 @@ Zero signatures is meaningful only for a genuinely unsigned source database. Che
 
 ## Render backup and recovery
 
-The Blueprint names `fresh-coa-lims` and `fresh-coa-lims-db` (database name/user `open_qual`), with automatic deploys off and database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
+The Blueprint names `fresh-coa-lims` and `fresh-coa-lims-db` (database name/user `open_qual`), with database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
 
 Paid Render databases provide PITR into a new database instance, allowing validation before switching the web service. Availability depends on the workspace's current recovery window; verify the available point in the dashboard. Managed retention is not the organization's records-retention policy, so retain approved encrypted exports independently. New recovery resources and access changes follow the deployment owner's authorization. [Render recovery and backup procedure](https://render.com/docs/postgresql-backups), accessed 2026-11-10.
 
 For an incident, preserve the original service/database, record the requested recovery time, and restore into a separate instance. Keep it private. Run the integrity acceptance against matching code, reconcile transactions after the recovery point, and obtain quality-owner acceptance. Switch `DATABASE_URL` only as a coordinated cutover with writers stopped; prevent old and recovered databases from both accepting new scientific records. Keep the previous instance until acceptance and retention decisions are recorded.
 
 ## Manual deployment and migrations
+## Demonstration deployment from `develop`
+
+The project's synthetic demonstration follows `develop`: the Blueprint sets `branch: develop` and `autoDeployTrigger: checksPass`, so Render deploys a commit only after all of its GitHub checks succeed, and does not deploy a commit with a failed check or with none. Under the workspace's **Wait** overlapping-deploy policy, a deploy triggered while another is running waits for it and only the newest waiting commit is deployed; confirm the policy in the workspace settings. A failed build or pre-deploy leaves the previous version serving. Put `[skip render]` in a commit message to keep that commit from deploying.
+
+Each deploy runs the pre-deploy migration against the demonstration's persistent database. A migration merged to `develop` has therefore been applied; correct it with a new migration, never by editing it. This arrangement suits synthetic data only. A deployment holding controlled records keeps auto-deploy off, tracks a release branch and follows the manual procedure below.
+
 
 The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 
@@ -179,7 +185,7 @@ The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE
 4. Inspect deploy/migration logs, then verify `/health/`, `/ready/`, login and authorized read/signing flows using controlled synthetic records. Record outcomes and operator/time.
 5. If code is rolled back, first verify compatibility with the already-migrated schema. Code rollback does not reverse migrations. For incompatible/destructive changes, use the separately rehearsed recovery plan and reconcile lost work.
 
-Render supports manual deployment of a selected commit and a pre-deploy stage. Current service configuration remains the source of truth. [Render deployment documentation](https://render.com/docs/deploys), accessed 2026-11-10.
+Render supports automatic deployment after CI checks, manual deployment of a selected commit and a pre-deploy stage. Current service configuration remains the source of truth. [Render deployment documentation](https://render.com/docs/deploys), accessed 2026-11-12.
 
 For an exceptional operator-run migration, stop competing deployment attempts first, confirm the shell contains the intended application revision and database, and run `python manage.py showmigrations --plan`, then the reviewed `python manage.py migrate --noinput`, followed by `python manage.py migrate --check` and `python manage.py check`. Never run `makemigrations` on a deployed instance or edit historical migrations to resolve a failure. Do not run seed/reset commands during routine deployment.
 

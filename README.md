@@ -26,7 +26,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | [Product](docs/product.md) | Scope, roles, journeys and product requirements |
 | [Roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) | What is done, what comes next and what is planned for later, by capability area |
 | [Architecture](docs/architecture.md) | Shared integrity contracts and operational boundaries |
-| [Operations](docs/operations.md) | Backup/restore, manual deployment and identity/signing procedures |
+| [Operations](docs/operations.md) | Backup/restore, deployment and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
 | [Regulatory requirements](docs/regulations.md) | Dated regulatory matrix, sources and applicability caveats |
 | [Page documentation](docs/pages/) | One file per staff page; the same text is shown in the in-app documentation panel |
@@ -108,10 +108,10 @@ uv run ruff format --check .
 uv run python manage.py check
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py collectstatic --noinput
-uv run pytest
+uv run pytest -n auto
 ```
 
-PostgreSQL is required for row locks and immutable-history triggers; SQLite is not a substitute. Headless browser tooling is in the `e2e` dependency group (`uv sync --group e2e`, then `uv run playwright install --only-shell chromium`). Run the browser journeys with `uv run --group e2e pytest -c e2e/pytest.ini e2e`; they use their own disposable test database, and screenshots go to `build/e2e/` (override with `E2E_ARTIFACTS_DIR`). The CI workflow runs the same checks, the browser journeys and a container smoke test.
+`-n auto` runs the tests on one worker per CPU core, each with its own test database (the name gets a `_gw0`, `_gw1`, ... suffix); omit it to run a few tests in one process. PostgreSQL is required for row locks and immutable-history triggers; SQLite is not a substitute. Headless browser tooling is in the `e2e` dependency group (`uv sync --group e2e`, then `uv run playwright install --only-shell chromium`). Run the browser journeys with `uv run --group e2e pytest -c e2e/pytest.ini e2e`; they use their own disposable test database, and screenshots go to `build/e2e/` (override with `E2E_ARTIFACTS_DIR`). The CI workflow runs the same checks, the browser journeys and a container smoke test. It runs them on pull requests into `develop` and on pushes to `develop`; a release pull request into `main` relies on the results for the same `develop` commit, and a push to `main` repeats only the container smoke test.
 
 ## Presentation website
 
@@ -126,7 +126,7 @@ Open <http://127.0.0.1:8081/>. The generated `build/website/` directory is a sta
 
 ## Deployment
 
-`Dockerfile`, the CI workflow and `render.yaml` define a container deployment. The example Render Blueprint describes `fresh-coa-lims` (Docker, 1c-2g, Virginia) and `fresh-coa-lims-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off; adjust names, sizes and region for your own account. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. The Blueprint is a definition, not evidence that any instance is deployed or validated.
+`Dockerfile`, the CI workflow and `render.yaml` define a container deployment. The example Render Blueprint describes `fresh-coa-lims` (Docker, 1c-2g, Virginia) and `fresh-coa-lims-db` (PostgreSQL 17, 0.5c-1g, 5 GB). As the project's synthetic demonstration it deploys `develop` automatically once CI checks pass; for a controlled deployment turn automatic deployment off and adjust names, sizes and region for your own account. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. The Blueprint is a definition, not evidence that any instance is deployed or validated.
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 

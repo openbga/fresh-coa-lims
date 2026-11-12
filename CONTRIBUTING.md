@@ -27,7 +27,7 @@ Run the commands in [Checks](README.md#checks) in the README against the Compose
 - `uv run python manage.py check`
 - `uv run python manage.py makemigrations --check --dry-run`
 - `uv run python manage.py collectstatic --noinput` (needed before template tests)
-- `uv run pytest`
+- `uv run pytest -n auto` (parallel workers; plain `uv run pytest` runs the same tests in one process)
 
 Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them.
 

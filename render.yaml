@@ -1,7 +1,9 @@
 # Render Blueprint for OpenBGA Fresh CoA LIMS: one Docker web service built from Dockerfile and one
-# PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check,
-# automatic deploys are off and the database accepts no external connections. Adjust names,
-# plans and region for your own account.
+# PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check and
+# the database accepts no external connections. This is the project's synthetic demonstration:
+# it deploys develop automatically once the commit's CI checks pass. Adjust names, plans and
+# region for your own account; for a controlled deployment set a release branch and
+# autoDeployTrigger "off", then deploy reviewed commits manually (docs/operations.md).
 # databaseName/user stay "open_qual": they identify stored data and are not renamed.
 services:
   - type: web
@@ -9,7 +11,8 @@ services:
     runtime: docker
     plan: 1c-2g
     region: virginia
-    autoDeployTrigger: "off"
+    branch: develop
+    autoDeployTrigger: checksPass
     healthCheckPath: /health/
     preDeployCommand: python manage.py migrate --noinput
     envVars:
