@@ -4,7 +4,7 @@ urls: core:audit
 views: core.views.audit
 templates: core/audit.html
 models: core.AuditEvent, core.AuditReview
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -13,7 +13,7 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Who can use it
 
-- Sign-in required. **Admin**, **quality** or **auditor** role to view, filter and export; others receive 403.
+- Sign-in required. **Admin**, **quality** or **auditor** role to view, filter and export. The shared menu shows **Audit trail** only for these roles; others receive 403 if they open the URL directly.
 - Recording an audit review requires **quality** or **auditor**. Admin-only users have no selection boxes or review form; direct review submissions receive 403.
 - Quality/auditor reviewers cannot review their own events: their checkbox is disabled and marked "Your event".
 
