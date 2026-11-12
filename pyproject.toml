@@ -1,5 +1,5 @@
 [project]
-name = "openbga-freshcoa"
+name = "openbga-fresh-coa-lims"
 version = "0.1.0"
 description = "OpenBGA Fresh CoA LIMS: open-source software for manufacturing quality-control laboratories"
 readme = "README.md"
@@ -17,11 +17,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://openbga.github.io/freshcoa/"
-Repository = "https://github.com/openbga/freshcoa"
-Documentation = "https://github.com/openbga/freshcoa/tree/main/docs"
-Issues = "https://github.com/openbga/freshcoa/issues"
-Changelog = "https://github.com/openbga/freshcoa/blob/main/CHANGELOG.md"
+Homepage = "https://openbga.github.io/fresh-coa-lims/"
+Repository = "https://github.com/openbga/fresh-coa-lims"
+Documentation = "https://github.com/openbga/fresh-coa-lims/tree/main/docs"
+Issues = "https://github.com/openbga/fresh-coa-lims/issues"
+Changelog = "https://github.com/openbga/fresh-coa-lims/blob/main/CHANGELOG.md"
 Support = "https://bgasoft.com"
 
 [dependency-groups]

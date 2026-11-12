@@ -151,7 +151,7 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 # AGPL-3.0 section 13: link users to the source of the running version. Point this at your own
 # repository when you deploy a modified version.
-SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/freshcoa")
+SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/fresh-coa-lims")
 
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"

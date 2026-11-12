@@ -1,12 +1,12 @@
 # OpenBGA Fresh CoA LIMS
 
-[![checks](https://github.com/openbga/freshcoa/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/freshcoa/actions/workflows/checks.yml)
+[![checks](https://github.com/openbga/fresh-coa-lims/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/fresh-coa-lims/actions/workflows/checks.yml)
 
-OpenBGA Fresh CoA LIMS is an open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/freshcoa/>.
+OpenBGA Fresh CoA LIMS is an open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/fresh-coa-lims/>.
 
 > **Status: early development (version 0.1.0).** This is not a completed MVP and has not been validated for production or regulated use. Use synthetic data only. No regulatory compliance is claimed.
 
-**Hosted demo:** [OpenBGA Fresh CoA LIMS on Render](https://freshcoa.onrender.com/). Sign in with an assigned demo account; there is no public signup. Use synthetic data only.
+**Hosted demo:** [OpenBGA Fresh CoA LIMS on Render](https://fresh-coa-lims.onrender.com/). Sign in with an assigned demo account; there is no public signup. Use synthetic data only.
 
 ## What is implemented
 
@@ -114,7 +114,7 @@ PostgreSQL is required for row locks and immutable-history triggers; SQLite is n
 
 ## Presentation website
 
-The presentation is published at <https://openbga.github.io/freshcoa/>. Its source is the static page in `website/`, which introduces OpenBGA Fresh CoA LIMS and links to the repository, documentation and support, using the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
+The presentation is published at <https://openbga.github.io/fresh-coa-lims/>. Its source is the static page in `website/`, which introduces OpenBGA Fresh CoA LIMS and links to the repository, documentation and support, using the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
 
 ```sh
 python3 scripts/build_website.py
@@ -125,7 +125,7 @@ Open <http://127.0.0.1:8081/>. The generated `build/website/` directory is a sta
 
 ## Deployment
 
-`Dockerfile`, the CI workflow and `render.yaml` define a container deployment. The example Render Blueprint describes `freshcoa` (Docker, 1c-2g, Virginia) and `freshcoa-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off; adjust names, sizes and region for your own account. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. The Blueprint is a definition, not evidence that any instance is deployed or validated.
+`Dockerfile`, the CI workflow and `render.yaml` define a container deployment. The example Render Blueprint describes `fresh-coa-lims` (Docker, 1c-2g, Virginia) and `fresh-coa-lims-db` (PostgreSQL 17, 0.5c-1g, 5 GB), with automatic deployment off; adjust names, sizes and region for your own account. The database name and user stay `open_qual` because they identify stored data. It runs migrations in pre-deploy and checks `/health/`; `/ready/` also checks the database. The Blueprint is a definition, not evidence that any instance is deployed or validated.
 
 Production requires a unique `SECRET_KEY`, correct hosts/trusted origins, HTTPS and controlled account setup. Never enable `DEBUG` on a public instance. Do not seed or reset data during normal deploy. Identity proofing, MFA/session policy, PIN recovery, appropriate signature-component validation, backups/restores, retention and intended-use validation remain operational work before regulated use. HTTP signing requires typed username and PIN each time; controlled sessions expire after 15 minutes idle or 8 hours total by default. MFA and deployment-specific identity/component validation remain outstanding. Issued PDF bytes are stored with their immutable versions in PostgreSQL. Render's filesystem is ephemeral; future instrument files or other uploads need controlled durable storage.
 

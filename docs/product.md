@@ -1,6 +1,6 @@
 # OpenBGA Fresh CoA LIMS product
 
-OpenBGA Fresh CoA LIMS is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/freshcoa](https://github.com/openbga/freshcoa).
+OpenBGA Fresh CoA LIMS is part of [OpenBGA](https://github.com/openbga). The repository is [openbga/fresh-coa-lims](https://github.com/openbga/fresh-coa-lims).
 
 Are you looking for support? Contact [bgasoft.com](https://bgasoft.com).
 

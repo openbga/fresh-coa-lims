@@ -19,7 +19,7 @@ RUN DEBUG=true .venv/bin/python manage.py collectstatic --noinput \
 FROM python:3.14.10-slim-trixie@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 LABEL org.opencontainers.image.title="OpenBGA Fresh CoA LIMS" \
       org.opencontainers.image.description="Quality-control laboratory information management system for manufacturing (Django, PostgreSQL)" \
-      org.opencontainers.image.source="https://github.com/openbga/freshcoa" \
+      org.opencontainers.image.source="https://github.com/openbga/fresh-coa-lims" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update \

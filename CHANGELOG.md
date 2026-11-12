@@ -7,7 +7,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 ### Changed
 
 - Adopted the OpenBGA Fresh CoA LIMS name and certificate-and-leaf mark across the application, presentation and newly issued certificates.
-- Moved the source repository and presentation to the `freshcoa` slug, with the hosted demo at `freshcoa.onrender.com`.
+- Moved the source repository and presentation to the `fresh-coa-lims` slug, with the hosted demo at `fresh-coa-lims.onrender.com`.
 
 ### Added
 
