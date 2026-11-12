@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability (private)
-    url: https://github.com/openbga/qlab/security/advisories/new
+    url: https://github.com/openbga/freshcoa/security/advisories/new
     about: Do not open a public issue for a vulnerability. Report it privately here.
   - name: Project and support
-    url: https://github.com/openbga/qlab#project-and-support
+    url: https://github.com/openbga/freshcoa#project-and-support
     about: How the project is maintained and where to find out about support.

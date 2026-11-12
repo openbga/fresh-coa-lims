@@ -1,4 +1,4 @@
 {% extends "base.html" %}
-{% block title %}{{ title }} · OpenBGA QLab{% endblock %}
+{% block title %}{{ title }} · OpenBGA Fresh CoA LIMS{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}<h1>{{ title }}</h1><form method="post" class="card"><div class="card-body">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">{{ submit }}</button> <a class="btn btn-outline-secondary" href="{% url 'quality:lot_list' %}">Cancel</a></div></form>{% endblock %}

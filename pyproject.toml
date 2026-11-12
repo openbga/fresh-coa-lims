@@ -1,7 +1,7 @@
 [project]
-name = "openbga-qlab"
+name = "openbga-freshcoa"
 version = "0.1.0"
-description = "OpenBGA QLab: free, open-source LIMS for manufacturing quality-control laboratories"
+description = "OpenBGA Fresh CoA LIMS: open-source software for manufacturing quality-control laboratories"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 license = "AGPL-3.0-only"
@@ -17,11 +17,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://openbga.github.io/qlab/"
-Repository = "https://github.com/openbga/qlab"
-Documentation = "https://github.com/openbga/qlab/tree/main/docs"
-Issues = "https://github.com/openbga/qlab/issues"
-Changelog = "https://github.com/openbga/qlab/blob/main/CHANGELOG.md"
+Homepage = "https://openbga.github.io/freshcoa/"
+Repository = "https://github.com/openbga/freshcoa"
+Documentation = "https://github.com/openbga/freshcoa/tree/main/docs"
+Issues = "https://github.com/openbga/freshcoa/issues"
+Changelog = "https://github.com/openbga/freshcoa/blob/main/CHANGELOG.md"
 Support = "https://bgasoft.com"
 
 [dependency-groups]

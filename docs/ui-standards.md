@@ -1,10 +1,10 @@
 # UI standards
 
-These are the OpenBGA QLab house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+These are the OpenBGA Fresh CoA LIMS house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
 
 ## Components and theme
 
-The product name is **OpenBGA QLab** throughout the application shell, sign-in page, browser titles, documentation and newly issued certificates. Existing issued PDF bytes retain their original branding. The repository is [openbga/qlab](https://github.com/openbga/qlab).
+The product name is **OpenBGA Fresh CoA LIMS** throughout the application shell, sign-in page, browser titles, documentation and newly issued certificates. Use spaces in the display name and the single lowercase word `freshcoa` in repository and deployment URLs. The presentation wordmark leads with **Fresh CoA LIMS** and identifies it as an OpenBGA project. The shared mark combines a certificate sheet with a leaf-shaped folded corner, in the existing teal and green palette. Existing issued PDF bytes retain their original branding. The repository is [openbga/freshcoa](https://github.com/openbga/freshcoa).
 
 Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to Bootstrap variables; the retained prefix is a compatibility choice, not product branding. Use the local pinned assets and retained vendor notices. New pages must not invent a second control, dialog or table framework. No template-specific colours, inline styles or utilities that bypass light/dark theme tokens. Print uses a legible light theme.
 
@@ -17,7 +17,7 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA QLab name and mark throughout, with manufacturing QC imagery and terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA Fresh CoA LIMS name and mark throughout, with manufacturing QC imagery and terms.
 
 Sibling list and overview pages put section navigation above the page header, in one consistent
 position independent of title length, descriptions, datelines, messages or available actions.

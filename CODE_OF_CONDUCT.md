@@ -37,7 +37,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at BGASoft, the maintainer of the project, through [bgasoft.com](https://bgasoft.com); say that you are reporting a conduct concern for OpenBGA QLab. Please do not put conduct reports in public issues or pull requests. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at BGASoft, the maintainer of the project, through [bgasoft.com](https://bgasoft.com); say that you are reporting a conduct concern for OpenBGA Fresh CoA LIMS. Please do not put conduct reports in public issues or pull requests. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

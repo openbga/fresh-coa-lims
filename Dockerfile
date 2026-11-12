@@ -1,4 +1,4 @@
-# OpenBGA QLab application image. Base images are pinned by tag and digest; Dependabot
+# OpenBGA Fresh CoA LIMS application image. Base images are pinned by tag and digest; Dependabot
 # proposes updates to both.
 FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
 
@@ -17,9 +17,9 @@ RUN DEBUG=true .venv/bin/python manage.py collectstatic --noinput \
 # Runtime stage: application files are owned by root and read-only for the unprivileged
 # runtime user, whose home directory and ~/.ssh remain writable for an operator shell.
 FROM python:3.14.10-slim-trixie@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
-LABEL org.opencontainers.image.title="OpenBGA QLab" \
+LABEL org.opencontainers.image.title="OpenBGA Fresh CoA LIMS" \
       org.opencontainers.image.description="Quality-control laboratory information management system for manufacturing (Django, PostgreSQL)" \
-      org.opencontainers.image.source="https://github.com/openbga/qlab" \
+      org.opencontainers.image.source="https://github.com/openbga/freshcoa" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 RUN apt-get update \
