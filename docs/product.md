@@ -17,12 +17,14 @@ The platform and bounded native QC modules are under development. This is not a 
 | Analyst | Receive lots/samples, record observations and batch QC | Cannot review their own work |
 | Reviewer | Review original records and results with PIN signature | Must be independent of authorship; return/correction flows retain history |
 | Quality | Approve configuration and make QC disposition decisions | Cannot bypass missing/failing requirements or self-review |
-| Admin | Read every laboratory area; manage named users and roles | No scientific mutation or signing without its designated lab role; no self-granted additional roles or removal of the last active admin |
+| Admin | Read every laboratory area; manage named users and roles; control the sign-in announcement | No scientific mutation or signing without its designated lab role; no self-granted additional roles or removal of the last active admin |
 | Auditor | Read records and inspect audit history | No scientific mutation |
 
 The initial roles map to explicit Django groups. Later receiving, supervisor and metrology responsibilities may be split without weakening independence. Qualifications belong to the relevant method/activity, not merely to group membership. Account ownership must remain individual; shared signers are prohibited. Superusers receive no implicit laboratory or web account-management role. Accounts without a recognized role reach an access-guidance page instead of a permission loop.
 
 Account administrators can create users, update identity, assign/revoke roles, deactivate/reactivate, clear PIN lockout, require PIN re-enrollment and force password replacement. Every administrative web change requires a reason and a fresh username/PIN signature bound to the resulting account revision. Initial and optional recovery passwords are entered privately and must be replaced before workspace access; no email delivery is assumed. Changes invalidate existing target sessions. Self-service password replacement requires the current password and a reason, with an audit event but no PIN, so credential recovery remains possible. The audited operator commands support bootstrap and controlled recovery; they are a separate trusted channel.
+
+Account administrators also control one sign-in announcement: a notice shown on the sign-in page to anyone, before authentication. They write, publish and withdraw it with a reason and signature, and every version stays in the audit trail. It exists for operational notices and, on a synthetic demonstration instance, for listing shared demonstration accounts. Such accounts are not individual signers; an instance that publishes them holds demonstration data only, and must never list an account that can change the announcement.
 
 Accepted limitation: administrators are trusted to perform account administration. An admin who sets an initial or temporary password and requires PIN re-enrollment could act as that account. The application does not prevent this; laboratory SOPs and review of the audit trail (including `account.created`, `account.reset_password` and `account.reenroll_pin`) are the mitigations.
 

@@ -2308,6 +2308,10 @@ fieldset.vr-field > legend {
   resize: vertical;
 }
 
+.vr-form textarea.vr-announcement-input {
+  height: 14rem;
+}
+
 /* Action row (standard 7.5): Cancel, then the primary action at the end of the row; a destructive
    action, when present, starts the row (.vr-form-actions-start). Sticky at the bottom of the
    viewport on every page-level form and entry grid, so Save stays in reach: a strip of paper
@@ -2609,6 +2613,90 @@ fieldset.vr-field > legend {
 
 .vr-entrance-panel .vr-form-actions {
   justify-content: stretch;
+}
+
+/* Sign-in announcement (accounts/includes/announcement.html): the administrator's notice on the
+   sign-in sheet and its preview on the Sign-in announcement page. Its text is rendered from the
+   page-documentation subset, so tables, lists and code need their own compact rules here: the
+   documentation panel's stylesheet is not loaded before sign-in. */
+.vr-announcement {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--vr-info-border);
+  border-left-width: 3px;
+  border-radius: var(--vr-radius);
+  background: var(--vr-info-bg);
+  color: var(--vr-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.vr-announcement-title {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.vr-announcement-body :is(h3, h4, h5, h6) {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.vr-announcement-body :is(p, ul, ol, pre, .table-responsive, .pagedocs-note) {
+  margin: 0 0 0.5rem;
+}
+
+.vr-announcement-body > :last-child {
+  margin-bottom: 0;
+}
+
+.vr-announcement-body .table {
+  --bs-table-bg: transparent;
+  margin: 0;
+  font-size: inherit;
+}
+
+.vr-announcement-body th {
+  color: var(--vr-text-muted);
+  font-weight: 600;
+}
+
+.vr-announcement-body code {
+  color: inherit;
+}
+
+.vr-announcement-body pre {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--vr-border);
+  border-radius: var(--vr-radius);
+  background: var(--vr-paper);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vr-announcement-preview {
+  max-width: 28rem;
+  margin-top: 1rem;
+}
+
+.vr-announcement-preview > .vr-announcement {
+  margin-bottom: 0;
+}
+
+.vr-announcement-evidence {
+  margin: 0.5rem 0 0;
+}
+
+.vr-announcement-evidence dd {
+  margin: 0 0 0.5rem;
+}
+
+.vr-announcement-evidence pre {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* "or" divider between password sign-in and the alternative methods */

@@ -79,7 +79,8 @@
           <ul class="vr-nav-list" aria-labelledby="vr-nav-account">
             <li><a class="vr-navlink" href="/signature-pin/"{% if request.path == '/signature-pin/' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="key" %}<span data-label="Signature PIN">Signature PIN</span></a></li>
             <li><a class="vr-navlink" href="{% url 'accounts:access' %}"{% if request.resolver_match.view_name == 'accounts:access' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="person-circle" %}<span data-label="Account access">Account access</span></a></li>
-            {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="people" %}<span data-label="Users and roles">Users and roles</span></a></li>{% endif %}
+            {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="people" %}<span data-label="Users and roles">Users and roles</span></a></li>
+            <li><a class="vr-navlink" href="{% url 'accounts:announcement' %}"{% if request.resolver_match.view_name == 'accounts:announcement' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="info-circle" %}<span data-label="Sign-in announcement">Sign-in announcement</span></a></li>{% endif %}
           </ul>
         </div>
         {% endif %}

@@ -7,12 +7,16 @@ from getpass import getpass
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
+from accounts.announcements import ROLE as ANNOUNCEMENT_ROLE
+from accounts.announcements import change_announcement, current_announcement
 from accounts.services import ROLES, provision_account
 from core.management.commands.seed_rules import SEED_REASON
 from core.models import AuditEvent, PINCredential, RuleSet
@@ -25,6 +29,33 @@ LOT_NUMBER = "SYNTHETIC-DEMO-001"
 SAMPLE_REFERENCE = "SYNTHETIC-DEMO-S001"
 DEMO_ROLES = {role: role for role in ROLES} | {"config_author": "quality"}
 SEGMENTS = ("pharma", "supplement", "food", "chemical", "device")
+ANNOUNCEMENT_TITLE = "Demonstration accounts"
+ANNOUNCEMENT_REASON = "Synthetic demo accounts published by seed_demo --publish-accounts."
+
+
+def _secret(name, prompt):
+    return os.environ.get(name) or getpass(prompt)
+
+
+def _pin(name, prompt):
+    value = _secret(name, prompt)
+    if not value.isascii() or not value.isdigit() or not 8 <= len(value) <= 32:
+        raise CommandError(f"{name} must contain 8–32 ASCII digits.")
+    return value
+
+
+def _announcement_text(accounts, password, pin):
+    rows = "\n".join(f"| `{username}` | {roles} |" for username, roles in accounts)
+    return (
+        "These synthetic accounts are open to anyone. Sign in with a username from the table "
+        "and the password below. Signing a record asks for the same username and the "
+        "signature PIN. Enter synthetic data only.\n\n"
+        f"| Username | Role |\n|---|---|\n{rows}\n\n"
+        f"Password\n\n```\n{password}\n```\n\n"
+        f"Signature PIN\n\n```\n{pin}\n```\n\n"
+        "A record cannot be reviewed or approved by the account that created it; "
+        "use another account for that step."
+    )
 
 
 class Command(BaseCommand):
@@ -38,6 +69,12 @@ class Command(BaseCommand):
             "--journey",
             action="store_true",
             help="Approve the synthetic chemical preset and create a result awaiting review",
+        )
+        parser.add_argument(
+            "--publish-accounts",
+            action="store_true",
+            help="Show the demo accounts that cannot change the sign-in announcement, with "
+            "their password and signature PIN, in that announcement",
         )
 
     def handle(self, *args, **options):
@@ -108,26 +145,54 @@ class Command(BaseCommand):
         sample = Sample.objects.filter(reference=SAMPLE_REFERENCE).first()
         if sample and (lot is None or sample.lot_id != lot.pk):
             raise CommandError("Refusing non-demo sample collision.")
+        publish = options["publish_accounts"]
+        if publish and current_announcement().body:
+            # An administrator's text is never replaced, and no credential is asked for.
+            self.stdout.write("The sign-in announcement already has text; it was left unchanged.")
+            publish = False
         password = pin = None
-        if len(existing) != len(DEMO_ROLES):
-            password = os.environ.get("DEMO_PASSWORD") or getpass("Synthetic demo login password: ")
-            pin = os.environ.get("DEMO_PIN") or getpass("Synthetic demo signature PIN: ")
-            if not pin.isascii() or not pin.isdigit() or not 8 <= len(pin) <= 32:
-                raise CommandError("DEMO_PIN must contain 8–32 ASCII digits.")
+        if publish or len(existing) != len(DEMO_ROLES):
+            password = _secret("DEMO_PASSWORD", "Synthetic demo login password: ")
+            pin = _pin("DEMO_PIN", "Synthetic demo signature PIN: ")
+        # demo_admin shares the demo credentials unless its own are supplied. Publishing requires
+        # its own: published credentials must not open an account that can change the announcement.
+        admin_password = os.environ.get("DEMO_ADMIN_PASSWORD") or password
+        admin_pin = os.environ.get("DEMO_ADMIN_PIN") or pin
+        if publish:
+            if "admin" not in existing:
+                admin_password = _secret(
+                    "DEMO_ADMIN_PASSWORD", "Synthetic demo administrator login password: "
+                )
+            admin_pin = _pin("DEMO_ADMIN_PIN", "Synthetic demo administrator signature PIN: ")
+            if admin_pin == pin or ("admin" not in existing and admin_password == password):
+                raise CommandError(
+                    "demo_admin needs a password and PIN different from the published accounts."
+                )
+            # The announcement shows the password on a line of its own inside a code fence.
+            if (
+                password != password.strip()
+                or "\n" in password
+                or "\r" in password
+                or password.startswith("```")
+            ):
+                raise CommandError("DEMO_PASSWORD cannot be shown exactly in the announcement.")
         try:
             with transaction.atomic():
                 for role in sorted(DEMO_ROLES):
                     if role not in existing:
+                        secret, code = (
+                            (admin_password, admin_pin) if role == "admin" else (password, pin)
+                        )
                         user = provision_account(
                             actor=actor,
                             username=f"demo_{role}",
-                            password=password,
+                            password=secret,
                             first_name="Synthetic",
                             last_name=role.title(),
                             roles=[DEMO_ROLES[role]],
                             reason=MARKER,
                         )
-                        set_pin(actor=user, pin=pin, password=password)
+                        set_pin(actor=user, pin=code, password=secret)
                         existing[role] = user
                 call_command(
                     "seed_rules", actor=existing["config_author"].username, stdout=self.stdout
@@ -139,6 +204,8 @@ class Command(BaseCommand):
                 )
             if options["journey"]:
                 self.seed_journey(existing, pin)
+            if publish:
+                self.publish_accounts(existing, password, pin, admin_pin)
         except (PermissionDenied, ValidationError) as exc:
             # Domain validation messages never include supplied credentials.
             raise CommandError(str(exc)) from exc
@@ -147,6 +214,68 @@ class Command(BaseCommand):
                 "Synthetic demo ready. Existing credentials and records were preserved. "
                 "Accounts: " + ", ".join(f"demo_{role}" for role in sorted(DEMO_ROLES))
             )
+        )
+
+    def publish_accounts(self, people, password, pin, admin_pin):
+        """Announce the demo accounts that cannot change the announcement, signed by demo_admin.
+
+        Nothing is published unless every listed account accepts the credentials shown and no
+        administrator (the admin role, which changes the announcement, or a superuser, who can
+        take that role) accepts either of them.
+        """
+        users = get_user_model()
+        managers = list(
+            users.objects.filter(is_active=True)
+            .filter(Q(groups__name=ANNOUNCEMENT_ROLE) | Q(is_superuser=True))
+            .distinct()
+        )
+        listed = list(
+            users.objects.filter(pk__in=[user.pk for user in people.values()], is_active=True)
+            .exclude(pk__in=[user.pk for user in managers])
+            .order_by("username")
+        )
+        if not listed:
+            raise CommandError("Every demo account is an administrator; none can be published.")
+
+        def accepts(user):
+            credential = PINCredential.objects.filter(user=user).first()
+            return (
+                check_password(password, user.password),
+                credential is not None and check_password(pin, credential.encoded),
+            )
+
+        for user in listed:
+            if accepts(user) != (True, True):
+                raise CommandError(
+                    f"{user.username} does not accept the password and PIN to publish. "
+                    "Nothing was published."
+                )
+        for user in managers:
+            if any(accepts(user)):
+                raise CommandError(
+                    f"{user.username} is an administrator and accepts a credential that "
+                    "would be published. Give it a different password and PIN, then run "
+                    "again. Nothing was published."
+                )
+        accounts = [
+            (
+                user.username,
+                ", ".join(name.title() for name in sorted(g.name for g in user.groups.all()))
+                or "No role",
+            )
+            for user in listed
+        ]
+        change_announcement(
+            actor=people["admin"],
+            pin=admin_pin,
+            expected_revision=current_announcement().revision,
+            title=ANNOUNCEMENT_TITLE,
+            body=_announcement_text(accounts, password, pin),
+            published=True,
+            reason=ANNOUNCEMENT_REASON,
+        )
+        self.stdout.write(
+            "Sign-in announcement published for: " + ", ".join(username for username, _ in accounts)
         )
 
     def seed_journey(self, people, pin):

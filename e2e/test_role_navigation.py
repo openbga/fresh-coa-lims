@@ -40,7 +40,7 @@ def test_menu_after_sign_in(live_server, django_user_model, artifacts, roles):
             *expected,
         ]
     if "admin" in roles:
-        expected.append("Users and roles")
+        expected += ["Users and roles", "Sign-in announcement"]
 
     with sync_playwright() as p:
         browser = p.chromium.launch()

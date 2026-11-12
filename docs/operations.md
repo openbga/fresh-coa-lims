@@ -19,7 +19,7 @@ Replace both occurrences of `admin` that identify the account if using another u
 
 `createsuperuser` alone grants no laboratory role. The laboratory `admin` role permits reading every area (including audit export and CoA PDF) and account administration, not scientific mutation; those still require explicit roles and independent actors. It does not grant Django `is_staff` or superuser status. The signed-in **Account access** page explains missing roles and links authorized staff administrators to the existing read-only Django account view. Explicit admins also see **Users and roles**, the signed web management interface. A superuser without the explicit role sees bootstrap guidance but cannot use that interface. Users without a role should ask their organization's account administrator; the access page and sign-out remain available.
 
-For an authorized synthetic demonstration in `DEBUG=true`, run `python manage.py seed_demo --actor admin --journey` only after the bootstrap sequence. The command accepts a superuser actor without the `admin` role but warns that the actor still lacks it; it never assigns roles to that actor. Seeding is deliberate and is not part of deployment or regulated production setup.
+For an authorized synthetic demonstration in `DEBUG=true`, run `python manage.py seed_demo --actor admin --journey` only after the bootstrap sequence. The command accepts a superuser actor without the `admin` role but warns that the actor still lacks it; it never assigns roles to that actor. Seeding is deliberate and is not part of deployment or regulated production setup. `--publish-accounts` additionally writes the seeded non-administrator accounts, their shared password and their PIN into the sign-in announcement, signed by `demo_admin`, whose own credentials must differ (`DEMO_ADMIN_PASSWORD`, `DEMO_ADMIN_PIN`). Use it only on an instance meant to be open to anyone who can reach it.
 
 ## Signed account administration
 
@@ -36,8 +36,9 @@ Enroll the administrator's own PIN at `/signature-pin/` by confirming the login 
 | Require PIN re-enrollment | Reason and sign; removes the old hashed credential. The owner must enroll a new PIN with their current login password |
 | Force password reset | Reason and sign; optionally enter a private temporary password. If left blank, the user signs in with their current password. Either way, replacement is mandatory before workspace access; the application sends no email |
 | Change own password | Confirm the current password and provide a reason; no PIN is required for this recovery-capable operation. Only the current session is retained |
+| Change sign-in announcement | Enter or edit the title and text, choose whether the sign-in page shows it, give a reason and sign. The text is public before sign-in and its earlier versions stay in the audit trail |
 
-Every administrative web change signs the account revision with meaning `account_authorized` and records safe before/after values. The account detail history shows this evidence; no password, PIN or credential hash is exposed. All account-management changes revoke existing target sessions on their next request; signatures additionally check revocation inside their transaction. Self-administration signs out the actor immediately. A stale page must be reloaded and reviewed before signing. Installing this release invalidates older sessions without account security epochs. Trusted `create_staff`/`assign_roles` operator commands remain audited but unsigned; restrict application-shell access and document its use under the recovery procedure.
+Every administrative web change signs the account revision with meaning `account_authorized` and records safe before/after values. A sign-in announcement change signs the announcement revision with meaning `announcement_authorized` and records the previous and new text. The account detail history shows this evidence; no password, PIN or credential hash is exposed. All account-management changes revoke existing target sessions on their next request; signatures additionally check revocation inside their transaction. Self-administration signs out the actor immediately. A stale page must be reloaded and reviewed before signing. Installing this release invalidates older sessions without account security epochs. Trusted `create_staff`/`assign_roles` operator commands remain audited but unsigned; restrict application-shell access and document its use under the recovery procedure.
 
 ## Responsibilities and recovery decisions
 
@@ -169,13 +170,13 @@ Paid Render databases provide PITR into a new database instance, allowing valida
 
 For an incident, preserve the original service/database, record the requested recovery time, and restore into a separate instance. Keep it private. Run the integrity acceptance against matching code, reconcile transactions after the recovery point, and obtain quality-owner acceptance. Switch `DATABASE_URL` only as a coordinated cutover with writers stopped; prevent old and recovered databases from both accepting new scientific records. Keep the previous instance until acceptance and retention decisions are recorded.
 
-## Manual deployment and migrations
 ## Demonstration deployment from `develop`
 
 The project's synthetic demonstration follows `develop`: the Blueprint sets `branch: develop` and `autoDeployTrigger: checksPass`, so Render deploys a commit only after all of its GitHub checks succeed, and does not deploy a commit with a failed check or with none. Under the workspace's **Wait** overlapping-deploy policy, a deploy triggered while another is running waits for it and only the newest waiting commit is deployed; confirm the policy in the workspace settings. A failed build or pre-deploy leaves the previous version serving. Put `[skip render]` in a commit message to keep that commit from deploying.
 
 Each deploy runs the pre-deploy migration against the demonstration's persistent database. A migration merged to `develop` has therefore been applied; correct it with a new migration, never by editing it. This arrangement suits synthetic data only. A deployment holding controlled records keeps auto-deploy off, tracks a release branch and follows the manual procedure below.
 
+## Manual deployment and migrations
 
 The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 

@@ -12,6 +12,8 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Added
 
+- Sign-in announcement: one notice on the sign-in page that administrators write, publish and withdraw with a signed, audited change. The development seed can publish its non-administrator demo accounts there (`seed_demo --publish-accounts`).
+
 Initial public source release (project version 0.1.0), licensed AGPL-3.0-only. Implemented areas:
 
 - Approved methods and specifications, sampling plans and sampling assignments, with independently approved revisions and frozen applicability snapshots on lot assignments.

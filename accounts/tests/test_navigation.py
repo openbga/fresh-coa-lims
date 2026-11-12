@@ -22,6 +22,7 @@ WORKSPACE_PATHS = {
     "/reports/",
 }
 ACCOUNT_PATHS = {"/signature-pin/", "/accounts/access/"}
+ADMIN_PATHS = {"/accounts/users/", "/accounts/announcement/"}
 
 
 class PrimaryNavigation(HTMLParser):
@@ -81,12 +82,12 @@ def test_menu_matches_destination_access(client, django_user_model, roles, staff
     if set(roles) & {"admin", "quality", "auditor"}:
         expected.add("/audit/")
     if "admin" in roles:
-        expected.add(reverse("accounts:user_list"))
+        expected |= ADMIN_PATHS
     assert nav.links == expected
     assert nav.headings == headings
 
     # Compare the rendered menu to the actual route guards, including denied deep links.
-    destinations = WORKSPACE_PATHS | ACCOUNT_PATHS | {"/audit/", reverse("accounts:user_list")}
+    destinations = WORKSPACE_PATHS | ACCOUNT_PATHS | ADMIN_PATHS | {"/audit/"}
     for path in destinations:
         destination = client.get(path)
         if path in expected:

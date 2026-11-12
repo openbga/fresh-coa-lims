@@ -15,6 +15,7 @@
     <div class="vr-entrance-theme">{% include "includes/theme_menu.html" %}</div>
     <main id="main" class="vr-login-main" tabindex="-1">
       {% include "includes/brand.html" with variant="entrance" %}
+      {% if announcement %}{% include "accounts/includes/announcement.html" %}{% endif %}
       <div class="vr-entrance-panel">
         <h1>Sign in</h1>
         <p class="vr-entrance-lead">Use your individual laboratory account.</p>
