@@ -216,7 +216,7 @@ wheels = [
 ]
 
 [[package]]
-name = "openbga-freshcoa"
+name = "openbga-fresh-coa-lims"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

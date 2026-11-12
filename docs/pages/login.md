@@ -27,7 +27,7 @@ The page shows the certificate-and-leaf mark and **OpenBGA Fresh CoA LIMS** name
 |---|---|
 | Sign in | Validates the credentials and opens the requested local page, or Material lots by default |
 | Theme | Choose Light, Dark or System; the browser remembers the choice |
-| Source code | Opens the source repository configured for this deployment |
+| Source code | Opens the source repository configured for this deployment; the default is [openbga/fresh-coa-lims](https://github.com/openbga/fresh-coa-lims) |
 
 ## Fields
 
