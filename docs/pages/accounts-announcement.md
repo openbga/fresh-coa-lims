@@ -57,7 +57,7 @@ Refusals return status 422 with your text kept and the PIN cleared, and change n
 
 > The text is public and its history is permanent. Enter credentials only for synthetic demonstration accounts, and never for an account that holds the admin role. Not enforced by this page: it does not inspect what the text contains.
 
-In a development instance, `seed_demo --publish-accounts` can write the first announcement. It lists only seeded accounts that cannot change the announcement and never replaces existing text.
+In a development instance or a demonstration deployment, `seed_demo --publish-accounts` can write the first announcement. It lists only seeded accounts that cannot change the announcement, stops them changing their own password and PIN, and never replaces existing text.
 
 ## Related pages
 

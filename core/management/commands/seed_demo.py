@@ -1,4 +1,8 @@
-"""Development-only synthetic fixtures, created through the application's public services."""
+"""Synthetic demonstration fixtures, created through the application's public services.
+
+For development (DEBUG) and for a deployment that declares itself a demonstration with
+ALLOW_DEMO_RESET=true. Never for a database where a laboratory keeps its records.
+"""
 
 import os
 import shlex
@@ -15,8 +19,10 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from accounts.administration import lock_credentials
 from accounts.announcements import ROLE as ANNOUNCEMENT_ROLE
 from accounts.announcements import change_announcement, current_announcement
+from accounts.models import LoginAnnouncement
 from accounts.services import ROLES, provision_account
 from core.management.commands.seed_rules import SEED_REASON
 from core.models import AuditEvent, PINCredential, RuleSet
@@ -31,6 +37,36 @@ DEMO_ROLES = {role: role for role in ROLES} | {"config_author": "quality"}
 SEGMENTS = ("pharma", "supplement", "food", "chemical", "device")
 ANNOUNCEMENT_TITLE = "Demonstration accounts"
 ANNOUNCEMENT_REASON = "Synthetic demo accounts published by seed_demo --publish-accounts."
+LOCK_REASON = (
+    "Published in the sign-in announcement by seed_demo --publish-accounts; anyone can sign in "
+    "to this account."
+)
+JOURNEY_NEEDS_DEBUG = (
+    "--journey records a result through the development-only entry path and needs DEBUG=true. "
+    "Nothing was changed."
+)
+# What each published account is for, in the order of the work.
+PUBLISHED_USES = {
+    "demo_analyst": "Receive lots and samples, record observations and batch QC",
+    "demo_reviewer": "Review records and results",
+    "demo_quality": "Approve configuration and make QC disposition decisions",
+    "demo_config_author": "Draft configuration for `demo_quality` to approve",
+    "demo_auditor": "Read records and the audit history",
+}
+
+
+def demo_deployment():
+    """Whether this deployment declares itself a demonstration that may be seeded and reset.
+
+    ALLOW_DEMO_RESET=true belongs on a demonstration's reset job only, never where a laboratory
+    keeps its records.
+    """
+    return os.environ.get("ALLOW_DEMO_RESET", "").lower() == "true"
+
+
+def reset_note():
+    """The announcement's last sentence, for a deployment with a scheduled reset_demo."""
+    return " ".join(os.environ.get("DEMO_RESET_NOTE", "").split())
 
 
 def _secret(name, prompt):
@@ -44,22 +80,46 @@ def _pin(name, prompt):
     return value
 
 
-def _announcement_text(accounts, password, pin):
-    rows = "\n".join(f"| `{username}` | {roles} |" for username, roles in accounts)
+def _announcement_text(accounts, password, pin, note=""):
+    order = list(PUBLISHED_USES)
+    accounts = sorted(
+        accounts, key=lambda row: (order.index(row[0]) if row[0] in order else len(order), row[0])
+    )
+    rows = "\n".join(
+        f"| `{username}` | {roles} | {PUBLISHED_USES.get(username, '—')} |"
+        for username, roles in accounts
+    )
     return (
-        "These synthetic accounts are open to anyone. Sign in with a username from the table "
-        "and the password below. Signing a record asks for the same username and the "
-        "signature PIN. Enter synthetic data only.\n\n"
-        f"| Username | Role |\n|---|---|\n{rows}\n\n"
-        f"Password\n\n```\n{password}\n```\n\n"
-        f"Signature PIN\n\n```\n{pin}\n```\n\n"
+        "Public demonstration with synthetic data. Sign in as:\n\n"
+        f"| Username | Role | Use it to |\n|---|---|---|\n{rows}\n\n"
+        f"Password for each\n\n```\n{password}\n```\n\n"
+        f"Signature PIN for each, asked when signing a record\n\n```\n{pin}\n```\n\n"
         "A record cannot be reviewed or approved by the account that created it; "
-        "use another account for that step."
+        "use another account for that step.\n\n"
+        "Do not enter real data. Anyone can use these accounts." + (f" {note}" if note else "")
     )
 
 
+def check_publishable(password, pin, note):
+    """Refuse, before anything is written, what the announcement cannot show."""
+    # The announcement shows the password on a line of its own inside a code fence.
+    if (
+        password != password.strip()
+        or "\n" in password
+        or "\r" in password
+        or password.startswith("```")
+    ):
+        raise CommandError("DEMO_PASSWORD cannot be shown exactly in the announcement.")
+    rows = [(username, "Reviewer") for username in PUBLISHED_USES]
+    if len(_announcement_text(rows, password, pin, note)) > LoginAnnouncement.BODY_LIMIT:
+        raise CommandError("The announcement would be too long. Shorten DEMO_RESET_NOTE.")
+
+
 class Command(BaseCommand):
-    help = "Seed synthetic demo accounts and draft presets (DEBUG only); never reset credentials."
+    help = (
+        "Seed synthetic demo accounts and draft presets (DEBUG, or a demonstration deployment "
+        "with ALLOW_DEMO_RESET=true); never reset credentials."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -78,8 +138,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        if not settings.DEBUG:
-            raise CommandError("seed_demo is available only with DEBUG=true.")
+        if not settings.DEBUG and not demo_deployment():
+            raise CommandError(
+                "seed_demo is available only with DEBUG=true, or on a demonstration deployment "
+                "that sets ALLOW_DEMO_RESET=true."
+            )
+        if options["journey"] and not settings.DEBUG:
+            raise CommandError(JOURNEY_NEEDS_DEBUG)
         users = get_user_model()
         try:
             actor = users.objects.get(username=options["actor"], is_active=True)
@@ -168,14 +233,7 @@ class Command(BaseCommand):
                 raise CommandError(
                     "demo_admin needs a password and PIN different from the published accounts."
                 )
-            # The announcement shows the password on a line of its own inside a code fence.
-            if (
-                password != password.strip()
-                or "\n" in password
-                or "\r" in password
-                or password.startswith("```")
-            ):
-                raise CommandError("DEMO_PASSWORD cannot be shown exactly in the announcement.")
+            check_publishable(password, pin, reset_note())
         try:
             with transaction.atomic():
                 for role in sorted(DEMO_ROLES):
@@ -221,7 +279,8 @@ class Command(BaseCommand):
 
         Nothing is published unless every listed account accepts the credentials shown and no
         administrator (the admin role, which changes the announcement, or a superuser, who can
-        take that role) accepts either of them.
+        take that role) accepts either of them. The listed accounts can no longer change their
+        own password or PIN.
         """
         users = get_user_model()
         managers = list(
@@ -265,12 +324,14 @@ class Command(BaseCommand):
             )
             for user in listed
         ]
+        # Anyone can sign in to the listed accounts, so none may change its password or PIN.
+        lock_credentials(actor=people["admin"], users=listed, reason=LOCK_REASON)
         change_announcement(
             actor=people["admin"],
             pin=admin_pin,
             expected_revision=current_announcement().revision,
             title=ANNOUNCEMENT_TITLE,
-            body=_announcement_text(accounts, password, pin),
+            body=_announcement_text(accounts, password, pin, reset_note()),
             published=True,
             reason=ANNOUNCEMENT_REASON,
         )
