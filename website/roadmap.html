@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Roadmap · OpenBGA Fresh CoA LIMS</title>
+  <meta name="description" content="The OpenBGA Fresh CoA LIMS roadmap: what is done, what comes next and what is planned for later, grouped by capability area.">
+  <meta property="og:title" content="Roadmap · OpenBGA Fresh CoA LIMS">
+  <meta property="og:description" content="The OpenBGA Fresh CoA LIMS roadmap: what is done, what comes next and what is planned for later, grouped by capability area.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://openbga.github.io/fresh-coa-lims/roadmap.html">
+  <link rel="canonical" href="https://openbga.github.io/fresh-coa-lims/roadmap.html">
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
+  <header class="qual-header">
+    <nav class="container qual-nav" aria-label="Primary">
+      <a class="qual-brand" href="./">
+        <img src="assets/mark.svg" width="44" height="44" alt="">
+        <span class="qual-wordmark"><span class="qual-product">Fresh CoA <span class="qual-lims">LIMS</span></span><span class="qual-parent">An OpenBGA project</span></span>
+      </a>
+      <div class="qual-nav-links">
+        <a href="./#workflow">Workflow</a>
+        <a href="roadmap.html" aria-current="page">Roadmap</a>
+        <a href="https://github.com/openbga/fresh-coa-lims/tree/main/docs">Documentation</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="qual-intro" aria-labelledby="intro-heading">
+      <div class="container">
+        <div class="row g-5 align-items-start">
+          <div class="col-lg-7">
+            <h1 id="intro-heading">Roadmap</h1>
+            <p class="qual-lead">What OpenBGA Fresh CoA LIMS does today, what we are building next and what is planned for later.</p>
+            <p>The roadmap has no dates. It groups the work into capability areas and says which come first. Priorities can change as laboratories use the software and report what they need.</p>
+            <p>The areas come from three sources: the work a manufacturing QC laboratory does between receiving a lot and issuing its certificate, the regulations and standards those laboratories follow (see the <a href="https://github.com/openbga/fresh-coa-lims/blob/main/docs/regulations.md">regulatory matrix</a>), and the limits recorded in the <a href="https://github.com/openbga/fresh-coa-lims/blob/main/docs/product.md">product documentation</a>.</p>
+            <ul class="qual-jump" aria-label="Sections of the roadmap">
+              <li><a href="#done">Done</a></li>
+              <li><a href="#next">Next</a></li>
+              <li><a href="#later">Later</a></li>
+              <li><a href="#outside">Outside the current plan</a></li>
+            </ul>
+            <p class="qual-demo-note">Last updated <time datetime="2026-11-12">12 November 2026</time>. To propose a change, <a href="https://github.com/openbga/fresh-coa-lims/issues">open an issue on GitHub</a>.</p>
+          </div>
+          <div class="col-lg-5">
+            <aside class="qual-record" aria-labelledby="reading-heading">
+              <h2 id="reading-heading">How to read it</h2>
+              <dl class="qual-evidence">
+                <div><dt>Done</dt><dd>Implemented and covered by automated tests. It is not a claim of regulatory compliance: whoever deploys the software validates it for its intended use.</dd></div>
+                <div><dt>Next</dt><dd>The gaps we plan to close first, in the order listed.</dd></div>
+                <div><dt>Later</dt><dd>Planned, in no fixed order. Each area is scoped before work starts.</dd></div>
+                <div><dt>Outside the current plan</dt><dd>What the project does not intend to build for now.</dd></div>
+              </dl>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container qual-section" id="done" aria-labelledby="done-heading">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <p class="qual-stage"><span class="vr-status" data-tone="success">Done</span></p>
+          <h2 id="done-heading">Available today</h2>
+          <p>A lot whose tests are all numeric can go from receipt to a signed certificate of analysis. These areas are in the current source and are tested on PostgreSQL and in browser journeys.</p>
+        </div>
+        <div class="col-lg-8">
+          <ul class="qual-areas">
+            <li id="configuration"><h3>Approved configuration</h3><p>Rule sets, specifications, methods and sampling plans are versioned and effective-dated. Someone other than the author signs each approval. Every lot keeps a snapshot of the revisions it was tested against.</p></li>
+            <li id="receipt-sampling"><h3>Lot receipt and sampling</h3><p>Lots are received into quarantine and assigned their specifications and sampling plan. Sampling records show which containers were sampled, where, when and by whom, with deviations assessed.</p></li>
+            <li id="testing"><h3>Testing</h3><p>Numeric results with units, replicates, declared rounding and batch QC checks. A correction adds an entry and keeps the original. Recording a result requires a current analyst qualification for the method.</p></li>
+            <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
+            <li id="review-disposition"><h3>Review and QC disposition</h3><p>A reviewer who did not record the results signs the review. Quality signs the disposition, which is blocked while tests are missing or failing or while investigations or holds are open.</p></li>
+            <li id="issued-certificates"><h3>Certificates of analysis</h3><p>A signed, versioned PDF built from the reviewed evidence. The issued file is stored with its checksum and returned unchanged on every download. An amendment states its reason and links to the original.</p></li>
+            <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, analyst qualifications by method, and a recorded authorization for each use.</p></li>
+            <li id="stability-retention"><h3>Stability and retention</h3><p>Stability protocols with conditions, time points and scheduled pulls. Reserve samples, retention obligations calculated from their anchor dates, and holds that block disposal.</p></li>
+            <li id="signatures-audit"><h3>Signatures, audit trail and accounts</h3><p>Username and PIN are re-entered for every signature, which is bound to the exact revision signed. The audit trail records who changed what, when and why, and can be reviewed and exported. Accounts are named, roles are explicit and account changes are signed.</p></li>
+            <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="qual-scope" id="next" aria-labelledby="next-heading">
+      <div class="container qual-section">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <p class="qual-stage"><span class="vr-status" data-tone="progress">Next</span></p>
+            <h2 id="next-heading">Completing the journey from lot to certificate</h2>
+            <p>These areas close the gaps between what is implemented and what a laboratory needs for its routine lots. They are listed in the order we expect to take them on.</p>
+            <p>Each area names the <a href="https://github.com/openbga/fresh-coa-lims/blob/main/docs/product.md#requirements-and-traceability">product requirements</a> it completes.</p>
+          </div>
+          <div class="col-lg-8">
+            <ol class="qual-workflow">
+              <li id="result-types">
+                <h3>More result types</h3>
+                <p>Most release specifications include tests that are not a number within a range, such as appearance, identity and microbial limits. Today the system puts those requirements on hold.</p>
+                <ul>
+                  <li>Qualitative results: conforms or does not conform, present or absent.</li>
+                  <li>Counts, and results reported as less than a limit, kept as recorded and never turned into zero.</li>
+                  <li>Limits that exclude their boundary (less than, more than) beside the inclusive limits.</li>
+                </ul>
+                <p class="qual-ref">Requirement OQ-007</p>
+              </li>
+              <li id="calculations">
+                <h3>Calculations and raw data</h3>
+                <p>A reviewer needs to see how a reported value was reached from the raw measurements.</p>
+                <ul>
+                  <li>Results calculated from raw measurements such as weights, dilutions and standard purity, with units.</li>
+                  <li>Formulas approved and versioned with the method. Each result records the formula version and the inputs used.</li>
+                  <li>Raw-data files attached to results and stored with a checksum.</li>
+                </ul>
+                <p class="qual-ref">Requirement OQ-007</p>
+              </li>
+              <li id="bench-checks">
+                <h3>Equipment and reagent checks at result entry</h3>
+                <p>Equipment and reagent records exist, but recording a result does not check them yet.</p>
+                <ul>
+                  <li>Select the instrument and the reagent or standard lots when recording a result or batch QC.</li>
+                  <li>Refuse equipment that is out of calibration or out of service, and reagents that are expired or not released.</li>
+                  <li>Apply the analyst qualification check to batch QC as well.</li>
+                  <li>After a failed calibration, list the results that used that equipment.</li>
+                </ul>
+                <p class="qual-ref">Requirements OQ-004, OQ-011</p>
+              </li>
+              <li id="external-results">
+                <h3>Supplier and contract-laboratory results</h3>
+                <p>Many laboratories take part of a lot's evidence from a supplier's certificate or from an outside laboratory. That reliance has conditions, and the record has to show they were met.</p>
+                <ul>
+                  <li>Supplier, manufacturer lot, shipment and container details on each received lot.</li>
+                  <li>Results taken from a supplier's certificate, recorded against the specification and kept apart from the laboratory's own tests.</li>
+                  <li>A supplier qualification status that controls reduced testing. Identity testing stays required where the rules say so.</li>
+                  <li>Results from contract laboratories, with the evidence that the laboratory is approved for the test.</li>
+                </ul>
+                <p class="qual-ref">Requirement OQ-006</p>
+              </li>
+              <li id="applicability">
+                <h3>Requirements by product, market and customer</h3>
+                <p>A lot can fall under more than one set of rules, for example those of a destination market and of a customer agreement.</p>
+                <ul>
+                  <li>Apply several approved rule sets to one lot, selected by material, activity, site, market and customer.</li>
+                  <li>Hold the lot for a quality decision when requirements conflict or are incomplete.</li>
+                  <li>Replace a lot's requirements in a controlled way when a specification or method is revised during testing.</li>
+                  <li>Retire superseded revisions automatically.</li>
+                </ul>
+                <p class="qual-ref">Requirements OQ-001, OQ-009, OQ-015</p>
+              </li>
+              <li id="stability-testing">
+                <h3>Stability testing in the system</h3>
+                <p>A stability pull on a released lot currently points to results kept elsewhere, because the record of a released lot cannot change.</p>
+                <ul>
+                  <li>Test a stability pull with the same recording, review and signature steps as release testing.</li>
+                  <li>Leave the released lot's record unchanged.</li>
+                  <li>Compare results by condition and time point with the acceptance criteria of the protocol.</li>
+                </ul>
+                <p class="qual-ref">Requirement OQ-012</p>
+              </li>
+              <li id="validation-support">
+                <h3>Support for validation and inspection</h3>
+                <p>Each laboratory validates the system for its own use. The project can supply evidence that shortens that work.</p>
+                <ul>
+                  <li>Multi-factor sign-in and single sign-on. The PIN is still re-entered for every signature.</li>
+                  <li>A validation pack with each release: the requirements, the tests that cover them, the test results and release notes.</li>
+                  <li>One export of a lot's complete record with its reviews, signatures, investigations and audit trail.</li>
+                  <li>Backup and restore checks that an operator can run and keep as evidence.</li>
+                </ul>
+                <p class="qual-ref">Requirements OQ-002, OQ-016</p>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="container qual-section" id="later" aria-labelledby="later-heading">
+      <div class="row g-4">
+        <div class="col-lg-4">
+          <p class="qual-stage"><span class="vr-status">Later</span></p>
+          <h2 id="later-heading">Broader laboratory capability</h2>
+          <p>These areas build on the completed journey. The order is not fixed. Each one gets its own scope and a review of which rules apply before work starts.</p>
+        </div>
+        <div class="col-lg-8">
+          <ul class="qual-areas">
+            <li id="instrument-data">
+              <h3>Instrument data</h3>
+              <ul>
+                <li>Import results from instrument export files through an approved, versioned mapping.</li>
+                <li>Capture readings from balances and meters.</li>
+                <li>Keep the source file with the result and show imported values for checking before review.</li>
+              </ul>
+            </li>
+            <li id="trending">
+              <h3>Trending and statistics</h3>
+              <ul>
+                <li>Control charts and trend rules for release, stability and monitoring results.</li>
+                <li>Out-of-trend alerts with configurable limits, leading to an investigation.</li>
+                <li>Shelf-life evaluation from stability data.</li>
+                <li>Data export for periodic product reviews.</li>
+              </ul>
+            </li>
+            <li id="monitoring">
+              <h3>Environmental and utility monitoring</h3>
+              <ul>
+                <li>Sampling points, routes and schedules for rooms, surfaces, water and other utilities.</li>
+                <li>Alert and action limits for each point.</li>
+                <li>An excursion opens an investigation and can place a hold on the lots affected.</li>
+              </ul>
+            </li>
+            <li id="specialized-testing">
+              <h3>Specialized testing</h3>
+              <ul>
+                <li>Microbiology records such as plate counts, incubation readings and media checks.</li>
+                <li>Tests with stages and acceptance tables, such as dissolution.</li>
+                <li>Attribute sampling with accept and reject numbers for inspection.</li>
+                <li>Measurement uncertainty and decision rules for accredited laboratories.</li>
+              </ul>
+            </li>
+            <li id="worksheets">
+              <h3>Worksheets and guided methods</h3>
+              <ul>
+                <li>Electronic worksheets that follow the steps of the approved method.</li>
+                <li>Required checks, such as system suitability, completed before results are accepted.</li>
+                <li>The same signatures and audit trail as the rest of the record.</li>
+              </ul>
+            </li>
+            <li id="samples-stock">
+              <h3>Samples, stock and storage</h3>
+              <ul>
+                <li>Storage locations and custody history for samples and reserve samples.</li>
+                <li>Stock of reagents, standards and consumables with consumption and expiry.</li>
+                <li>Barcode labels and scanning.</li>
+                <li>Signed disposal once every retention obligation and hold has cleared.</li>
+              </ul>
+            </li>
+            <li id="method-lifecycle">
+              <h3>Method lifecycle and training</h3>
+              <ul>
+                <li>Validation, verification and transfer evidence linked to each method revision.</li>
+                <li>Training records that feed analyst qualifications.</li>
+                <li>Reminders before a qualification expires.</li>
+              </ul>
+            </li>
+            <li id="quality-events">
+              <h3>Quality events</h3>
+              <ul>
+                <li>Deviations, corrective and preventive actions, change records and complaints linked to lots and results.</li>
+                <li>Stable links to the quality system where one already holds these records.</li>
+              </ul>
+            </li>
+            <li id="integration">
+              <h3>Integration with business systems</h3>
+              <ul>
+                <li>An interface for ERP, manufacturing and quality systems.</li>
+                <li>Create lots from goods receipts and production orders, and return the QC disposition.</li>
+                <li>Link material lots, manufacturing batches and shipments so that a lot can be traced in both directions.</li>
+              </ul>
+            </li>
+            <li id="customer-certificates">
+              <h3>Certificates for customers</h3>
+              <ul>
+                <li>Certificates for each customer from the same lot, with the customer's limits and selected tests.</li>
+                <li>Certificate data in a machine-readable form beside the PDF.</li>
+                <li>A way for the recipient to confirm that a certificate is genuine and is the current version.</li>
+                <li>Archival and accessible PDF output.</li>
+              </ul>
+            </li>
+            <li id="planning">
+              <h3>Planning and workload</h3>
+              <ul>
+                <li>Work lists by due date, analyst and instrument.</li>
+                <li>Reminders for calibrations, stability pulls and expiring reagents.</li>
+                <li>Turnaround and right-first-time figures.</li>
+              </ul>
+            </li>
+            <li id="sites-languages">
+              <h3>Sites and languages</h3>
+              <ul>
+                <li>More than one site in a deployment.</li>
+                <li>A translated interface with local number and date formats.</li>
+                <li>Site time zones shown on records and signatures.</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="qual-scope" id="outside" aria-labelledby="outside-heading">
+      <div class="container qual-section">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <h2 id="outside-heading">Outside the current plan</h2>
+            <p>Saying what is not planned keeps the scope clear. These can be reconsidered when there is a concrete need.</p>
+          </div>
+          <div class="col-lg-8">
+            <ul class="qual-areas">
+              <li><h3>Batch release</h3><p>The system records the laboratory's QC disposition. Releasing a batch to the market, including certification by a Qualified Person in the EU, stays a separate decision in the manufacturer's quality system.</p></li>
+              <li><h3>Replacing ERP, manufacturing or document systems</h3><p>The system links to them and does not take their place.</p></li>
+              <li><h3>Shared hosting and a customer portal</h3><p>Each deployment serves one organization, and access is for laboratory staff.</p></li>
+              <li><h3>Clinical and nonclinical safety testing</h3><p>These follow different rules and would need their own research before they entered scope.</p></li>
+              <li><h3>Decisions made by AI</h3><p>People record, review and sign results and dispositions. Any AI function would need its own assessment before it entered scope.</p></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container qual-footer">
+    <div><strong>OpenBGA Fresh CoA LIMS</strong><p>Part of <a href="https://github.com/openbga">OpenBGA</a>. Source: <a href="https://github.com/openbga/fresh-coa-lims">openbga/fresh-coa-lims</a>.</p></div>
+    <p>Are you looking for support? Contact <a href="https://bgasoft.com">bgasoft.com</a>.</p>
+  </footer>
+</body>
+</html>

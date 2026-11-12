@@ -72,6 +72,8 @@ Every staff page offers documentation from an icon at the top-right of the top b
 | Remaining MVP integration/policy | Full applicable supplier/receipt evidence, equipment/reagent gating through analytical execution, destination/customer applicability, supported assay coverage and operational validation | Complete accepted/failed/corrected/amended journeys and traceability to every applicable requirement |
 | Later capability | Advanced SPC/OOT, automated instrument interfaces, broader inventory/ELN/CAPA, specialized assays and environmental monitoring | Separate scoped acceptance and applicability review |
 
+The public [roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) groups the remaining and later work into capability areas, without dates. Its source is `website/roadmap.html`.
+
 The native analytical contract supports numeric results and inclusive bounds. A declared reporting precision rounds the replicate mean half-up before comparison; `reporting_decimals=null` means exact comparison without rounding. Submission rejects a nonterminating mean or an exact mean requiring more than eight decimal places rather than silently rounding it. Individual replicate limits are checked when configured. Qualitative results and exclusive bounds may be represented upstream but remain held by native testing. No preset may silently bypass that boundary.
 
 Once native tests exist, the lot requirements cannot be reassigned; controlled test/requirement supersession is not implemented. New QC batches offer only currently effective approved method revisions. Tests frozen to an older revision cannot use a newer-method batch, and creating a new batch for their old revision is intentionally unavailable.
