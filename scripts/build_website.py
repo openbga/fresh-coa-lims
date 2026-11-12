@@ -10,7 +10,7 @@ def main():
     destination = ROOT / "build" / "website"
     assets = destination / "assets"
     assets.mkdir(parents=True, exist_ok=True)
-    for name in ("index.html", "style.css"):
+    for name in ("index.html", "roadmap.html", "style.css"):
         shutil.copyfile(ROOT / "website" / name, destination / name)
     for source, name in (
         ("static/vendor/bootstrap-5.3.8/css/bootstrap.min.css", "bootstrap.min.css"),

@@ -23,3 +23,5 @@ Project decisions: the product is **OpenBGA Fresh CoA LIMS**, an open-source pro
 11. Report changed paths, verification, assumptions and remaining work. Reuse passing checks unless new changes/failures justify repetition. Source completion does not imply deployment or operational validation.
 
 12. Every staff page has documentation in `docs/pages/`, shown in the shared in-app panel. Any page or named-URL change (including actions, tabs, fields, permissions, filters, defaults, validations, transitions, signatures and audit effects) updates its page documentation in the same change using the [page-documentation skill](.agents/skills/page-documentation/SKILL.md), and sets `reviewed`. The author checks prose against source; `pagedocs/tests` coverage and reference checks are part of the combined gate. Respect the current page-documentation owner when work is parallel.
+
+13. The public roadmap is `website/roadmap.html`, published with the presentation website. It lists capability areas as done, next or later, without dates. A change that completes or re-scopes an area updates the roadmap and the status tables in `docs/product.md` in the same change.

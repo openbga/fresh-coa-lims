@@ -16,6 +16,7 @@ h1, h2, h3 { color: var(--vr-ink); text-wrap: balance; }
 .qual-parent { font-size: 0.75rem; line-height: 1.25; font-weight: 500; color: var(--vr-text-muted); }
 .qual-nav-links { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 .qual-nav-links a { color: var(--vr-ink); font-weight: 600; }
+.qual-nav-links a[aria-current="page"] { color: var(--vr-pen); text-decoration-thickness: 2px; }
 .qual-intro { padding-block: clamp(3rem, 7vw, 6.5rem); border-bottom: 1px solid var(--vr-border); }
 .qual-intro h1 { margin-bottom: 1.5rem; font-size: clamp(2.6rem, 5vw, 4.5rem); line-height: 1.08; letter-spacing: -0.03em; font-weight: 700; }
 .qual-lead { font-size: 1.25rem; line-height: 1.65; }
@@ -32,12 +33,24 @@ h1, h2, h3 { color: var(--vr-ink); text-wrap: balance; }
 .qual-section { padding-block: clamp(3rem, 6vw, 5rem); }
 .qual-section h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); line-height: 1.15; margin-bottom: 1.25rem; letter-spacing: -0.02em; }
 .qual-workflow { margin: 0; padding-left: 2rem; }
-.qual-workflow li { padding-left: 0.75rem; }
-.qual-workflow li::marker { color: var(--vr-pen); font-weight: 600; font-variant-numeric: tabular-nums; }
-.qual-workflow li + li { border-top: 1px solid var(--vr-border); margin-top: 1.5rem; padding-top: 1.5rem; }
+.qual-workflow > li { padding-left: 0.75rem; }
+.qual-workflow > li::marker { color: var(--vr-pen); font-weight: 600; font-variant-numeric: tabular-nums; }
+.qual-workflow > li + li { border-top: 1px solid var(--vr-border); margin-top: 1.5rem; padding-top: 1.5rem; }
 .qual-workflow h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
 .qual-workflow p { margin: 0; }
 .qual-scope { background: var(--vr-band); border-block: 1px solid var(--vr-border); }
+/* Roadmap page */
+.qual-jump { display: flex; flex-wrap: wrap; gap: 0.5rem 1.75rem; margin: 2rem 0 0; padding: 0; list-style: none; font-weight: 600; }
+.qual-stage { margin-bottom: 0.75rem; }
+.qual-demo-note time { font: inherit; }
+.qual-areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); column-gap: 2.5rem; margin: 0; padding: 0; list-style: none; }
+.qual-areas > li { border-top: 1px solid var(--vr-border); padding-block: 1.25rem; }
+.qual-scope .qual-areas > li, .qual-scope .qual-workflow > li + li { border-top-color: var(--vr-border-strong); }
+.qual-areas h3 { font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+.qual-areas p { margin: 0; }
+.qual-areas ul, .qual-workflow ul { max-width: 70ch; margin: 0.5rem 0 0; padding-left: 1.25rem; }
+.qual-areas ul li + li, .qual-workflow ul li + li { margin-top: 0.25rem; }
+.qual-workflow .qual-ref { margin-top: 0.75rem; color: var(--vr-text-muted); font-size: 0.875rem; }
 .qual-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem 3rem; padding-block: 2.5rem; font-size: 0.9375rem; }
 .qual-footer p { margin: 0.5rem 0 0; }
 @media (max-width: 575.98px) {
