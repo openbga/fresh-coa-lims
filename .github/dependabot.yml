@@ -46,6 +46,12 @@ updates:
     cooldown:
       default-days: 3
     open-pull-requests-limit: 3
+    # `requires-python` in pyproject.toml fixes the interpreter's minor version, so an image
+    # with a newer one cannot build. Move to a new Python minor version in one deliberate
+    # change with pyproject.toml and the lockfile.
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-minor"]
     groups:
       images-minor-and-patch:
         applies-to: version-updates
