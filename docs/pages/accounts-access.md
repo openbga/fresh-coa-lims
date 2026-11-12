@@ -4,7 +4,7 @@ urls: accounts:access
 views: accounts.views.access
 templates: accounts/access.html
 models: accounts.User
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -18,6 +18,8 @@ Any signed-in user, including an account with no laboratory role. A required pas
 ## Layout
 
 The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. The page shows your username, assigned roles or access-request guidance, and **Change password**. Administrators also see **Account and role management**, applicable management links and command guidance.
+
+The shared menu shows destinations your assigned roles can open. All five roles can read the laboratory areas under **Work**, **Configuration** and **Records**. **Audit trail** appears only for admin, quality or auditor; **Users and roles** appears only for admin. Without a recognized role, only the **Account** section remains, with **Signature PIN** and **Account access**. No empty laboratory sections are shown.
 
 ## Actions
 
@@ -42,6 +44,8 @@ The heading is **No laboratory role assigned** when none is present, otherwise *
 ## Rules and hidden logic
 
 Opening this GET-only page changes no roles or scientific records. Workspace entry without a recognized role redirects here; denied deep links still return 403 with access guidance.
+
+Menu access combines all your assigned roles and is checked on each page load. Staff or superuser status alone adds no laboratory menu links. Menu visibility reflects read access; creating, changing and signing records still require the designated role and applicable record conditions.
 
 Web account changes require the **admin** role, a reason, and fresh signing username/PIN. Administrators cannot grant themselves additional roles or remove/deactivate the last active admin. Scientific approval still requires its designated role and independence; admin does not grant Django staff access.
 

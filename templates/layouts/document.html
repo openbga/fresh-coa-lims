@@ -47,6 +47,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body">
+        {% if can_view_workspace %}
         <div class="vr-nav-section">
           <p class="vr-nav-heading" id="vr-nav-work">Work</p>
           <ul class="vr-nav-list" aria-labelledby="vr-nav-work">
@@ -68,9 +69,11 @@
           <p class="vr-nav-heading" id="vr-nav-records">Records</p>
           <ul class="vr-nav-list" aria-labelledby="vr-nav-records">
             <li><a class="vr-navlink" href="/reports/"{% if request.resolver_match.namespace == 'reporting' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="patch-check" %}<span data-label="Certificates">Certificates</span></a></li>
-            <li><a class="vr-navlink" href="/audit/"{% if '/audit/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span data-label="Audit trail">Audit trail</span></a></li>
+            {% if can_view_audit %}<li><a class="vr-navlink" href="/audit/"{% if '/audit/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span data-label="Audit trail">Audit trail</span></a></li>{% endif %}
           </ul>
         </div>
+        {% endif %}
+        {% if user.is_authenticated %}
         <div class="vr-nav-section">
           <p class="vr-nav-heading" id="vr-nav-account">Account</p>
           <ul class="vr-nav-list" aria-labelledby="vr-nav-account">
@@ -79,6 +82,7 @@
             {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="people" %}<span data-label="Users and roles">Users and roles</span></a></li>{% endif %}
           </ul>
         </div>
+        {% endif %}
       </div>
     </nav>
     {% endblock sidenav %}

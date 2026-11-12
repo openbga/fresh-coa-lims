@@ -19,6 +19,8 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 
 One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA Fresh CoA LIMS name and mark throughout, with manufacturing QC imagery and terms.
 
+Show menu destinations according to the signed-in user's explicit roles and the destination's read permissions. Combine multiple roles, retain read-only destinations and hide empty sections. Accounts without a recognized role keep account guidance and credential access. Menu visibility never replaces server authorization for a page or action.
+
 Sibling list and overview pages put section navigation above the page header, in one consistent
 position independent of title length, descriptions, datelines, messages or available actions.
 Keep those links on one horizontally scrollable row when space is limited, including beside

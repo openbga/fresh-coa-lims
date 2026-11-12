@@ -12,6 +12,8 @@ from django.views.decorators.debug import sensitive_variables
 from .audit import record_event, snapshot
 from .models import AuditEvent, AuditReview, ElectronicSignature, PINCredential, RuleSet
 
+AUDIT_READ_ROLES = frozenset({"admin", "quality", "auditor"})
+
 
 def require_role(actor, *roles):
     if not actor.pk or not get_user_model().objects.filter(pk=actor.pk, is_active=True).exists():

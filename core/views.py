@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from .forms import PINForm, RuleForm, SignForm
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
+    AUDIT_READ_ROLES,
     approve_rule,
     check_rule_approval,
     require_role,
@@ -107,7 +108,7 @@ def audit(request):
 
     from .models import AuditReview
 
-    require_role(request.user, "admin", "quality", "auditor")
+    require_role(request.user, *AUDIT_READ_ROLES)
     can_review = request.user.groups.filter(name__in=["quality", "auditor"]).exists()
     if request.method == "POST":
         require_role(request.user, "quality", "auditor")
