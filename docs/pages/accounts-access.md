@@ -19,7 +19,7 @@ Any signed-in user, including an account with no laboratory role. A required pas
 
 The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. The page shows your username, assigned roles or access-request guidance, and **Change password**. Administrators also see **Account and role management**, applicable management links and command guidance.
 
-The shared menu shows destinations your assigned roles can open. All five roles can read the laboratory areas under **Work**, **Configuration** and **Records**. **Audit trail** appears only for admin, quality or auditor; **Users and roles** appears only for admin. Without a recognized role, only the **Account** section remains, with **Signature PIN** and **Account access**. No empty laboratory sections are shown.
+The shared menu shows destinations your assigned roles can open. All five roles can read the laboratory areas under **Work**, **Configuration** and **Records**. **Audit trail** appears only for admin, quality or auditor; **Users and roles** and **Sign-in announcement** appear only for admin. Without a recognized role, only the **Account** section remains, with **Signature PIN** and **Account access**. No empty laboratory sections are shown.
 
 ## Actions
 

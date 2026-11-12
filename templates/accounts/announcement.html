@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block page_intro %}<p>One notice shown on the sign-in page to anyone who opens it, before they sign in. Changing it requires a reason and your signature PIN.</p>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="announcement-current">
+  <div class="card-header"><h2 class="card-title" id="announcement-current">Current announcement</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      <div><dt>Status</dt><dd>{% if announcement.published %}{% include "includes/status.html" with label="Published" tone="success" %}{% else %}{% include "includes/status.html" with label="Not published" tone="neutral" %}{% endif %}</dd></div>
+      <div><dt>Sign-in page</dt><dd>{% if announcement.published %}Shows the notice below{% else %}Shows no notice{% endif %}</dd></div>
+      <div><dt>Revision</dt><dd>{{ announcement.revision }}</dd></div>
+    </dl>
+    {% if announcement.body %}
+    <div class="vr-announcement-preview">{% include "accounts/includes/announcement.html" %}</div>
+    {% else %}
+    <p class="vr-announcement-preview mb-0">No announcement text has been saved.</p>
+    {% endif %}
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="announcement-change">
+  <div class="card-header"><h2 class="card-title" id="announcement-change">Change announcement</h2></div>
+  <div class="card-body">
+    <p>Signer: <strong>{{ user.get_full_name|default:user.username }}</strong>. Your signature means <strong>{{ meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
+    <p>The text is public and stays in the audit trail after it is changed. Do not enter personal data, or the password or PIN of any account that is not a synthetic demonstration account.</p>
+    <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+    {% if unavailable %}<p class="alert alert-info mb-0">{{ unavailable }}</p>{% else %}
+    <form class="vr-form" method="post" autocomplete="off" novalidate>
+      {% csrf_token %}{% include "includes/form_errors.html" with form=form %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="vr-form-actions"><a class="btn btn-link" href="{% url 'accounts:announcement' %}">Cancel</a><button class="btn btn-primary" type="submit">Sign and save announcement</button></div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+<section class="card" aria-labelledby="announcement-history">
+  <div class="card-header"><h2 class="card-title" id="announcement-history">Announcement history</h2></div>
+  <div class="card-body">
+    <ol class="vr-timeline">{% for event in history %}{% include "includes/history_item.html" with title=event.summary at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/announcement_evidence.html" %}{% empty %}<li>No announcement changes recorded.</li>{% endfor %}</ol>
+    <nav aria-label="Announcement history pages">Page {{ history.number }} of {{ history.paginator.num_pages }} {% if history.has_previous %}<a href="?page={{ history.previous_page_number }}">Previous</a>{% endif %} {% if history.has_next %}<a href="?page={{ history.next_page_number }}">Next</a>{% endif %}</nav>
+  </div>
+</section>
+{% endblock %}

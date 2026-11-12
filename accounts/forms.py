@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from core.forms import SignForm, StyledForm
 
+from .models import LoginAnnouncement
 from .services import ROLES
 
 ROLE_CHOICES = [(r, r.title()) for r in sorted(ROLES)]
@@ -128,4 +129,38 @@ class OwnPasswordForm(StyledForm):
         values = super().clean()
         if values.get("password") != values.get("password_confirmation"):
             self.add_error("password_confirmation", "Passwords do not match.")
+        return values
+
+
+class AnnouncementForm(SignForm):
+    title = forms.CharField(
+        max_length=120, required=False, help_text="Optional heading shown above the text."
+    )
+    body = forms.CharField(
+        label="Announcement text",
+        max_length=LoginAnnouncement.BODY_LIMIT,
+        required=False,
+        widget=forms.Textarea(attrs={"class": "form-control vr-announcement-input"}),
+        help_text="Plain text. Blank lines separate paragraphs. Also supported: lists starting "
+        "with - or 1., tables with | between columns, **bold**, *italic*, `code` and "
+        "[link text](https://example.invalid/). HTML is shown as typed, not interpreted.",
+    )
+    published = forms.BooleanField(
+        label="Show on the sign-in page",
+        required=False,
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        help_text="When unchecked, the text is kept here and the sign-in page shows no notice.",
+    )
+    reason = forms.CharField(max_length=2000, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order_fields(
+            ["title", "body", "published", "revision", "reason", "signature_username", "pin"]
+        )
+
+    def clean(self):
+        values = super().clean()
+        if values.get("published") and not values.get("body"):
+            self.add_error("body", "Enter the announcement text before publishing it.")
         return values

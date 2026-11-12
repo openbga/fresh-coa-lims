@@ -2,13 +2,22 @@ name: checks
 
 # Pull requests, including those from forks, run with a read-only token and no secrets.
 # Keep the `pull_request` trigger (never `pull_request_target`) so untrusted code never
-# receives write access or secrets. Pushes are checked only on the two long-lived branches
-# (develop for integration, main for released state), so a pull-request branch is not
-# tested twice for the same commit.
+# receives write access or secrets.
+#
+# Each commit is tested once and then promoted:
+# - A pull request into develop runs every job on its merge result.
+# - A push to develop runs every job on the integrated branch.
+# - A release pull request (develop into main) starts no run. Its head is the develop commit
+#   the push run already tests, and that run's results are what the main ruleset requires.
+#   Keep this a trigger filter: a job skipped with `if:` reports success and would satisfy
+#   the required checks without testing anything.
+# - A push to main is a merge of develop with the same tree, so only the container smoke
+#   job runs there.
 on:
   push:
     branches: [main, develop]
   pull_request:
+    branches-ignore: [main]
 
 permissions:
   contents: read
@@ -27,6 +36,8 @@ defaults:
 # GitHub's rollouts, which changes preinstalled libraries and package names.
 jobs:
   application:
+    # Not on main: the same tree passed on develop before the release merge.
+    if: github.ref != 'refs/heads/main'
     # Integrated PostgreSQL suites retain real password/PIN hashers.
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -89,9 +100,12 @@ jobs:
       - run: uv run python manage.py migrate --noinput
       - name: Collect static assets for template-serving tests
         run: uv run python manage.py collectstatic --noinput
-      - run: uv run pytest
+      # One worker per runner core, each with its own test database.
+      - run: uv run pytest -n auto
 
   browser:
+    # Not on main: the same tree passed on develop before the release merge.
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:

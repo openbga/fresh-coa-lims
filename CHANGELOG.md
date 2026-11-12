@@ -8,8 +8,11 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 - Adopted the OpenBGA Fresh CoA LIMS name and certificate-and-leaf mark across the application, presentation and newly issued certificates.
 - Moved the source repository and presentation to the `fresh-coa-lims` slug, with the hosted demo at `fresh-coa-lims.onrender.com`.
+- The Render Blueprint and hosted demo now deploy `develop` automatically once CI checks pass; controlled deployments keep automatic deployment off.
 
 ### Added
+
+- Sign-in announcement: one notice on the sign-in page that administrators write, publish and withdraw with a signed, audited change. The development seed can publish its non-administrator demo accounts there (`seed_demo --publish-accounts`).
 
 Initial public source release (project version 0.1.0), licensed AGPL-3.0-only. Implemented areas:
 

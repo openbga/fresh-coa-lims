@@ -3,6 +3,7 @@
 import shlex
 
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import LoginView
 from django.shortcuts import render
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET
@@ -33,6 +34,20 @@ def access_context(user):
             ]
         ),
     }
+
+
+class SignIn(LoginView):
+    """The standard sign-in view plus the published sign-in announcement, if any."""
+
+    def get_context_data(self, **kwargs):
+        from .announcements import announcement_html, published_announcement
+
+        context = super().get_context_data(**kwargs)
+        notice = published_announcement()
+        if notice is not None:
+            context["announcement"] = notice
+            context["announcement_html"] = announcement_html(notice)
+        return context
 
 
 @login_required
@@ -328,6 +343,84 @@ def password_change(request):
             "required_change": request.user.password_change_required,
             "cancel_url": reverse("accounts:access"),
             "submit_label": "Change password",
+        },
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+def _announcement_summary(event):
+    was, now = event.before.get("published"), event.after.get("published")
+    if now and not was:
+        return "Announcement published"
+    if was and not now:
+        return "Announcement withdrawn"
+    return "Published announcement changed" if now else "Unpublished text changed"
+
+
+@login_required
+@sensitive_post_parameters("pin")
+def announcement(request):
+    from django.contrib import messages
+    from django.core.exceptions import ValidationError
+    from django.core.paginator import Paginator
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+
+    from core.models import AuditEvent, PINCredential
+    from core.services import require_role
+
+    from .announcements import MEANING, announcement_html, change_announcement, current_announcement
+    from .forms import AnnouncementForm
+
+    require_role(request.user, "admin")
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    current = current_announcement()
+    form = AnnouncementForm(
+        request.POST or None,
+        initial={
+            "title": current.title,
+            "body": current.body,
+            "published": current.published,
+            "revision": current.revision,
+        },
+    )
+    if request.method == "POST" and form.is_valid():
+        data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
+        try:
+            saved = change_announcement(
+                actor=request.user, expected_revision=data.pop("revision"), **data
+            )
+            messages.success(
+                request,
+                "Announcement saved. It is shown on the sign-in page."
+                if saved.published
+                else "Announcement saved. The sign-in page shows no notice.",
+            )
+            return redirect("accounts:announcement")
+        except ValidationError as exc:
+            form.add_error(None, exc)
+    history = Paginator(
+        AuditEvent.objects.filter(object_type=current._meta.label_lower, object_id=str(current.pk))
+        .select_related("actor", "electronicsignature")
+        .order_by("-occurred_at", "-id"),
+        20,
+    ).get_page(request.GET.get("page"))
+    for event in history:
+        event.summary = _announcement_summary(event)
+    return render(
+        request,
+        "accounts/announcement.html",
+        {
+            "page_title": "Sign-in announcement",
+            "form": form,
+            "announcement": current,
+            "announcement_html": announcement_html(current),
+            "meaning": MEANING,
+            "history": history,
+            "unavailable": ""
+            if PINCredential.objects.filter(user=request.user).exists()
+            else "Enroll your signature PIN before changing the announcement.",
         },
         status=422 if request.method == "POST" else 200,
     )
