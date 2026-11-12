@@ -51,7 +51,7 @@ Reviewers enforce these. Read [AGENTS.md](AGENTS.md), [docs/architecture.md](doc
 
 ## Pull requests
 
-- Open pull requests against the `develop` branch. `develop` is where changes are integrated; `main` holds the released state and maintainers update it from `develop`.
+- Branch from `develop` and open pull requests against `develop`, where changes are integrated. `main` holds the released state: maintainers update it only by a pull request from `develop`, and a `release-source` check rejects pull requests into `main` from any other branch. Both branches are protected: no direct pushes, force pushes or deletion, and the `checks` jobs must pass.
 - Keep each pull request small and focused on one change. Separate unrelated fixes.
 - Include tests that fail without your change, and say how you ran them.
 - Do not edit existing migrations. Add a new migration when the schema must change, and keep schema changes rare.
