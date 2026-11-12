@@ -59,11 +59,11 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 | Item | Contract |
 |---|---|
 | Local database | Compose PostgreSQL 17 on loopback port 55433 |
-| Render web | `freshcoa`, Docker, 1c-2g, Virginia, automatic deployment off |
-| Render database | `freshcoa-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
+| Render web | `fresh-coa-lims`, Docker, 1c-2g, Virginia, automatic deployment off |
+| Render database | `fresh-coa-lims-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |
 | Health | `/health/` process health; `/ready/` checks database availability |
-| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/freshcoa>) for AGPL-3.0 section 13 |
+| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/fresh-coa-lims>) for AGPL-3.0 section 13 |
 | Static | Vendored local assets; `collectstatic` during build and before template tests |
 | Security | Production secret/hosts/origins from environment, HTTPS, one-year HSTS by default, secure cookies, CSRF and a same-origin Content-Security-Policy |
 | Time | UTC default; retain unambiguous timestamp/zone context; never reinterpret signed records |

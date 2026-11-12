@@ -6,7 +6,7 @@ OpenBGA Fresh CoA LIMS is pre-1.0 (see `version` in `pyproject.toml`). Only the 
 
 ## Reporting a vulnerability
 
-Report vulnerabilities privately through GitHub private vulnerability reporting: open the repository **Security** tab, choose **Report a vulnerability**, or go to <https://github.com/openbga/freshcoa/security/advisories/new>.
+Report vulnerabilities privately through GitHub private vulnerability reporting: open the repository **Security** tab, choose **Report a vulnerability**, or go to <https://github.com/openbga/fresh-coa-lims/security/advisories/new>.
 
 Do not open a public issue, pull request or discussion for a vulnerability, and do not post details elsewhere before a fix is available.
 

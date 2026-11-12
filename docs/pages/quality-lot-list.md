@@ -24,6 +24,7 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 - **Search**: the labelled **Find lot** box (placeholder "Lot number"), **Search**, and **Clear filters** when a search is set.
 - **Lots table**: columns Lot, Status, Material, Rule set. Lot numbers link to the lot record; status has a text label and indicator.
 - **Empty states**: "No material lots yet" with "Receive a lot to start the quality journey." Analysts also see **New material lot**. A search with no matches shows "No material lots match these filters", search guidance and **Clear filters**.
+- **Source code**: the shared application footer links to the source repository configured for this deployment, [openbga/fresh-coa-lims](https://github.com/openbga/fresh-coa-lims) by default.
 - **Footer**: "Showing X–Y of N material lots", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear; unavailable directions are disabled.
 
 ## Actions
@@ -31,6 +32,7 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New material lot** | Analyst role | Analyst | Opens the New material lot form |
+| **Source code** | Always | Any viewer | Opens the configured source repository |
 | **Search** | Always | Any viewer | Reloads the list filtered by the search text, from page 1 |
 | **Clear filters** | A search is set | Any viewer | Removes the search and returns to the first page |
 | Lot number link | One per row | Any viewer | Opens the lot record |

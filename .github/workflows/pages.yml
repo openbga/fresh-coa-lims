@@ -1,7 +1,7 @@
 name: Publish presentation
 
 # Builds the static presentation in website/ and publishes it to GitHub Pages at
-# https://openbga.github.io/freshcoa/. It is published from main only, the released state;
+# https://openbga.github.io/fresh-coa-lims/. It is published from main only, the released state;
 # the github-pages environment refuses deployments from any other branch.
 on:
   push:
