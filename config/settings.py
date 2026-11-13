@@ -46,6 +46,8 @@ MIDDLEWARE = [
     "config.security.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Ahead of the CSRF check, which is the first code to read a submitted form.
+    "core.uploads.UploadSizeMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -160,7 +162,8 @@ DEFAULT_EXCEPTION_REPORTER = "config.security.CredentialExceptionReporter"
 DEFAULT_EXCEPTION_REPORTER_FILTER = "config.security.CredentialExceptionReporterFilter"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
-# The first handler stops an upload that exceeds RAW_DATA_MAX_BYTES while it is received.
+# core.uploads.UploadSizeMiddleware refuses an upload that declares too large a body before it
+# is read; the first handler stops a file that exceeds RAW_DATA_MAX_BYTES while it is received.
 FILE_UPLOAD_HANDLERS = [
     "core.uploads.BoundedUploadHandler",
     "django.core.files.uploadhandler.MemoryFileUploadHandler",

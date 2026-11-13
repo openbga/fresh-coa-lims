@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% comment %}Rendered by core.uploads.UploadSizeMiddleware for an upload that declares too large a body. Context: limit.{% endcomment %}
+{% block title %}Upload too large · OpenBGA Fresh CoA LIMS{% endblock %}
+{% block page_header %}<div class="vr-page-header"><div class="vr-page-header-row"><div><h1 class="vr-page-title">Upload too large</h1></div></div></div>{% endblock %}
+{% block content %}
+<p>The upload was larger than this system accepts. It was refused before it was received, and nothing was stored.</p>
+<p>A file can be up to {{ limit }}. <a href="{{ request.path }}">Return to the form</a> and choose a smaller file.</p>
+{% endblock %}

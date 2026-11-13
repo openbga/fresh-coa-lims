@@ -23,6 +23,7 @@ from django.views.decorators.http import require_http_methods
 from core.audit import record_event
 from core.forms import StyledForm
 from core.services import require_role
+from core.uploads import size_text
 
 from .models import AnalyticalTest, RawDataFile
 from .services import ANALYST, _bump, _lock_lots, _touch
@@ -47,14 +48,6 @@ def clean_filename(name):
     if len(name) > FILENAME_LENGTH:
         raise ValidationError(f"The file name is longer than {FILENAME_LENGTH} characters.")
     return name
-
-
-def size_text(size):
-    if size < 1024:
-        return f"{size} B"
-    if size < 1024 * 1024:
-        return f"{size / 1024:.1f} KiB"
-    return f"{size / (1024 * 1024):.1f} MiB"
 
 
 def attach_raw_file(*, actor, test, upload, description):
@@ -144,6 +137,13 @@ class RawFileForm(StyledForm):
         help_text="For example: instrument export for replicate 1, or notebook page 12.",
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # static/js/app.js refuses a larger file in the browser, so it is never sent.
+        self.fields["file"].widget.attrs.update(
+            {"data-vr-max-bytes": max_bytes(), "data-vr-max-label": size_text(max_bytes())}
+        )
+
 
 def _crumbs(test):
     return [
@@ -163,8 +163,9 @@ def raw_file_new(request, pk):
     if test.state != AnalyticalTest.State.OPEN or test.lot.state != "quarantine":
         messages.warning(request, "This test is not accepting raw data.")
         return redirect(back)
-    # Reading request.FILES receives the upload; core.uploads.BoundedUploadHandler stops a file
-    # above the size limit while it arrives and marks the request.
+    # A request far above the size limit never reaches this view (core.uploads refuses it
+    # unread). Reading request.FILES receives the upload; BoundedUploadHandler stops a file
+    # that is over the limit while it arrives and marks the request.
     if (
         request.method == "POST"
         and request.FILES is not None
