@@ -4,7 +4,7 @@ urls: quality:lot_list
 views: quality.views.lot_list
 templates: quality/lot_list.html
 models: quality.Lot, core.RuleSet
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 
 ## Layout
 
-- **Shared top bar**: the Fresh CoA certificate-and-leaf mark and **OpenBGA Fresh CoA LIMS** name link to Material lots. Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. The brand text may shorten visually on a narrow screen.
+- **Shared top bar**: the certificate-and-leaf mark and **Fresh COA** label link to Material lots. Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. The brand text may shorten visually on a narrow screen.
 - **Header**: title "Material lots" and the **New material lot** button for analysts, with a short description below.
 - **Search**: the labelled **Find lot** box (placeholder "Lot number"), **Search**, and **Clear filters** when a search is set.
 - **Lots table**: columns Lot, Status, Material, Rule set. Lot numbers link to the lot record; status has a text label and indicator.
