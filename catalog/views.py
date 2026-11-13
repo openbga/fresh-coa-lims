@@ -10,6 +10,8 @@ from core.services import require_role
 
 from . import services
 from .forms import (
+    CalculationForm,
+    CalculationInputForm,
     MaterialForm,
     MethodForm,
     MethodRevisionForm,
@@ -22,6 +24,7 @@ from .forms import (
 from .models import (
     Material,
     Method,
+    MethodCalculationInput,
     MethodQCCheck,
     MethodRevision,
     RevisionStatus,
@@ -426,7 +429,11 @@ def method_new(request):
 def method_detail(request, pk):
     read_access(request)
     method = get_object_or_404(Method, pk=pk)
-    revisions = list(method.revisions.select_related("author").prefetch_related("qc_checks"))
+    revisions = list(
+        method.revisions.select_related("author").prefetch_related(
+            "qc_checks", "calculation_inputs"
+        )
+    )
     sigs = list(signatures(*revisions))
     can_edit = can(request.user, services.AUTHOR_ROLE)
     for revision in revisions:
@@ -457,7 +464,16 @@ def method_detail(request, pk):
 def method_version_new(request, pk):
     require_role(request.user, services.AUTHOR_ROLE)
     method = get_object_or_404(Method, pk=pk)
-    form = MethodRevisionForm(request.POST or None)
+    latest = method.revisions.order_by("-version").first()
+    initial = (
+        {
+            "requires_equipment": latest.requires_equipment,
+            "requires_reagent": latest.requires_reagent,
+        }
+        if latest
+        else {}
+    )
+    form = MethodRevisionForm(request.POST or None, initial=initial)
     if request.method == "POST" and form.is_valid():
         revision = run(
             form,
@@ -478,6 +494,8 @@ def method_version_new(request, pk):
         ),
         cancel_url=detail,
         submit_label="Create draft version",
+        intro="The new draft copies the QC checks (when it runs in a QC batch), the calculation "
+        "and its inputs of the latest version. The resource options start as in that version.",
     )
 
 
@@ -581,6 +599,167 @@ def qc_check_remove(request, pk, check_pk):
         submit_label="Remove QC check",
         intro="Removal from a draft is recorded in its history with your reason.",
         facts=[("QC check", str(check)), ("Unit", check.unit)],
+    )
+
+
+def _draft_method(request, pk, action, *, only):
+    """Look up a method version for a draft-only page: (revision, detail url, crumbs, error)."""
+    revision = get_object_or_404(MethodRevision.objects.select_related("method"), pk=pk)
+    detail, crumbs = _method_crumbs(revision, action)
+    if revision.status != RevisionStatus.DRAFT:
+        messages.error(request, f"{only} can only be changed on a draft version.")
+        return revision, detail, crumbs, redirect(detail)
+    return revision, detail, crumbs, None
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def calculation_set(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "Calculation", only="The calculation"
+    )
+    if refused:
+        return refused
+    initial = (
+        {
+            "formula": revision.calculation_formula,
+            "unit": revision.calculation_unit,
+            "decimals": revision.calculation_decimals,
+        }
+        if revision.calculation_formula
+        else {}
+    )
+    form = CalculationForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        if run(
+            form,
+            lambda: services.set_calculation(
+                actor=request.user,
+                revision=revision,
+                reason=form.cleaned_data["reason"],
+                formula=form.cleaned_data["formula"],
+                unit=form.cleaned_data["unit"],
+                decimals=form.cleaned_data["decimals"],
+            ),
+        ):
+            messages.success(request, f"Calculation set on {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Calculation · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Save calculation",
+        intro="Analysts enter the inputs and the system calculates the result with this formula. "
+        "Add one input for each name the formula uses; approval checks that they match.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def calculation_clear(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "Clear calculation", only="The calculation"
+    )
+    if refused:
+        return refused
+    form = ReasonForm(request.POST or None, initial={"expected_revision": revision.revision})
+    if request.method == "POST" and form.is_valid():
+        if form.cleaned_data["expected_revision"] != revision.revision:
+            form.add_error(None, "Record changed. Reload before clearing the calculation.")
+        elif run(
+            form,
+            lambda: services.clear_calculation(
+                actor=request.user, revision=revision, reason=form.cleaned_data["reason"]
+            ),
+        ):
+            messages.success(request, f"Calculation cleared from draft {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Clear calculation · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Clear calculation",
+        intro="Clearing removes the formula, the result unit, the decimals and every input. "
+        "It is recorded in the history with your reason.",
+        facts=[("Formula", revision.calculation_formula or "None")],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def calculation_input_new(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "Add calculation input", only="Calculation inputs"
+    )
+    if refused:
+        return refused
+    form = CalculationInputForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        item = run(
+            form,
+            lambda: services.add_calculation_input(
+                actor=request.user, revision=revision, **form.cleaned_data
+            ),
+        )
+        if item:
+            messages.success(request, f"Calculation input {item.code} added to {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Add calculation input · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Add input",
+        intro="A calculation has 1 to 12 inputs. The analyst enters one value for each, in the "
+        "order added.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def calculation_input_remove(request, pk, input_pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    item = get_object_or_404(
+        MethodCalculationInput.objects.select_related("method_revision__method"),
+        pk=input_pk,
+        method_revision_id=pk,
+    )
+    revision = item.method_revision
+    detail, crumbs = _method_crumbs(revision, f"Remove {item.code}")
+    if revision.status != RevisionStatus.DRAFT:
+        messages.error(request, "Calculation inputs can only be removed from a draft version.")
+        return redirect(detail)
+    form = ReasonForm(request.POST or None, initial={"expected_revision": revision.revision})
+    if request.method == "POST" and form.is_valid():
+        if form.cleaned_data["expected_revision"] != revision.revision:
+            form.add_error(None, "Record changed. Reload before removing this input.")
+        elif run(
+            form,
+            lambda: services.remove_calculation_input(
+                actor=request.user, item=item, reason=form.cleaned_data["reason"]
+            ),
+        ):
+            messages.success(
+                request, f"Calculation input {item.code} removed from draft {revision}."
+            )
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Remove calculation input {item.code} · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Remove input",
+        intro="Removal from a draft is recorded in its history with your reason.",
+        facts=[("Input", str(item)), ("Unit", item.unit)],
     )
 
 

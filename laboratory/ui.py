@@ -100,12 +100,22 @@ def wrap(value):
 CANONICAL_ID = re.compile(r"[1-9][0-9]{0,17}")
 
 
+def _result_text(test):
+    try:
+        return test.reportable_with_unit
+    except Exception:  # an unreadable frozen requirement must not break a laboratory page
+        return test.reportable_display
+
+
 def work_labels(pairs):
     """Readable labels for recorded work contexts, keyed by (context_type, context_id).
 
-    Known contexts resolve to the sample reference (or test label with its sample reference);
-    anything unknown or no longer resolvable keeps its raw identifier as the fallback."""
+    Known contexts resolve to the sample reference, the test label with its lot number and sample
+    reference, or the QC batch number; anything unknown or no longer resolvable keeps its raw
+    identifier as the fallback. Returns (labels, links, details): `details` holds, per resolved
+    test or QC batch, the facts the impact lists show."""
     from django.apps import apps
+    from django.db.models import Count
 
     # Only these recognized context types are resolved, each against one fixed model; any other
     # type keeps its raw identifier. There is no dynamic lookup of arbitrary models.
@@ -114,28 +124,45 @@ def work_labels(pairs):
     for kind, ident in set(pairs):
         wanted.setdefault(kind, set()).add(ident)
     labels = {(kind, ident): f"{kind} {ident}" for kind, ident in set(pairs)}
-    links = {}
-    sample_ids = {int(i) for i in wanted.get("quality.sample", ()) if CANONICAL_ID.fullmatch(i)}
-    test_ids = {
-        int(i) for i in wanted.get("analytical.analyticaltest", ()) if CANONICAL_ID.fullmatch(i)
-    }
+    links, details = {}, {}
+
+    def canonical(kind):
+        return {int(i) for i in wanted.get(kind, ()) if CANONICAL_ID.fullmatch(i)}
+
+    sample_ids = canonical("quality.sample")
+    test_ids = canonical("analytical.analyticaltest")
+    batch_ids = canonical("analytical.qcbatch")
     if test_ids and apps.is_installed("analytical"):
         tests = apps.get_model("analytical", "AnalyticalTest").objects.filter(pk__in=test_ids)
-        for test in tests.select_related("sample"):
-            labels[("analytical.analyticaltest", str(test.pk))] = (
-                f"{test.label} · sample {test.sample.reference}"
-            )
+        for test in tests.select_related("sample", "lot"):
+            key = ("analytical.analyticaltest", str(test.pk))
+            labels[key] = f"{test.label} · lot {test.lot.number} · sample {test.sample.reference}"
+            links[key] = reverse("analytical:test_detail", args=[test.pk])
+            details[key] = {
+                "kind": "test",
+                "lot": test.lot.number,
+                "test_code": test.test_code,
+                "state": test.get_state_display(),
+                "result": _result_text(test),
+            }
+    if batch_ids and apps.is_installed("analytical"):
+        batches = apps.get_model("analytical", "QCBatch").objects.filter(pk__in=batch_ids)
+        for batch in batches.annotate(test_count=Count("tests")):
+            key = ("analytical.qcbatch", str(batch.pk))
+            labels[key] = f"QC batch {batch.number}"
+            links[key] = reverse("analytical:batch_detail", args=[batch.pk])
+            details[key] = {"kind": "batch", "tests": batch.test_count}
     if sample_ids:
         sample_model = apps.get_model("quality", "Sample")
         for sample in sample_model.objects.filter(pk__in=sample_ids):
             key = ("quality.sample", str(sample.pk))
             labels[key] = sample.reference
             links[key] = reverse("quality:lot_detail", args=[sample.lot_id])
-    return labels, links
+    return labels, links, details
 
 
 def work_cell(use, resolved):
-    labels, links = resolved
+    labels, links = resolved[:2]
     key = (use.context_type, str(use.context_id))
     return cell(labels.get(key, f"{use.context_type} {use.context_id}"), links.get(key))
 
@@ -389,3 +416,48 @@ def sign_page(
     return render(
         request, "ops/sign.html", context, status=422 if request.method == "POST" else 200
     )
+
+
+def impact_columns():
+    return [
+        ("Used", False),
+        ("Work", False),
+        ("Lot", False),
+        ("Test", False),
+        ("State", False),
+        ("Reportable result", False),
+        ("Tests in batch", True),
+        ("By", False),
+    ]
+
+
+def impact_row(use, resolved):
+    """One affected use: the work with its lot, test code, state and result, or batch size."""
+    detail = resolved[2].get((use.context_type, str(use.context_id)), {})
+    batch = detail.get("kind") == "batch"
+    return [
+        when(use.used_at),
+        work_cell(use, resolved),
+        detail.get("lot", ""),
+        use.test_code if batch else detail.get("test_code", use.test_code),
+        detail.get("state", ""),
+        detail.get("result", ""),
+        cell(str(detail["tests"]), numeric=True) if batch else "",
+        str(use.used_by),
+    ]
+
+
+def impact_summary(use, resolved):
+    """The same facts as one line of text with the work's link, for the signing page."""
+    key = (use.context_type, str(use.context_id))
+    detail = resolved[2].get(key, {})
+    parts = [resolved[0].get(key, f"{use.context_type} {use.context_id}")]
+    if detail.get("kind") == "test":
+        parts += [detail["test_code"], detail["state"]]
+        if detail["result"]:
+            parts.append(f"result {detail['result']}")
+    elif detail.get("kind") == "batch":
+        parts.append(f"{detail['tests']} test(s)")
+    elif use.test_code:
+        parts.append(use.test_code)
+    return cell(" · ".join(parts), resolved[1].get(key))

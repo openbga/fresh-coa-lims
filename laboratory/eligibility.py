@@ -235,6 +235,18 @@ def equipment_status(equipment, today=None):
     return "Ready", "success", "ready"
 
 
+def reagent_status(lot, today):
+    if lot.state == "rejected":
+        return "Rejected", "danger"
+    if lot.state == "received":
+        return "Awaiting release", "progress"
+    if lot.expiry_date < today:
+        return "Expired", "danger"
+    if (lot.expiry_date - today).days <= DUE_SOON_DAYS:
+        return "Expiring soon", "warning"
+    return "Released", "success"
+
+
 def equipment_filter(queryset, key, today=None):
     """SQL equivalent of equipment_status keys, for server-side filtering."""
     from datetime import timedelta

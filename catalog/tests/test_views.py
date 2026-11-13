@@ -230,6 +230,7 @@ def test_concurrent_duplicate_allowlist_covers_every_racing_unique_constraint():
     serialized = {
         "method_version_unique",
         "method_qc_unique",
+        "method_calculation_input_unique",
         "specification_version_unique",
         "specification_test_unique",
         "sampling_plan_version_unique",

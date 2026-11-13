@@ -7,6 +7,7 @@ Published contract for other apps (stable names):
 - ``conforms(test, value)`` -> True/False against one payload test line; exact Decimal comparison.
 """
 
+import copy
 import hashlib
 import json
 from decimal import Decimal, InvalidOperation
@@ -15,6 +16,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from core import formulas
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import require_role, sign_transition, validate_rules
@@ -23,6 +25,7 @@ from .models import (
     ExpectedResult,
     Material,
     Method,
+    MethodCalculationInput,
     MethodQCCheck,
     MethodRevision,
     RevisionStatus,
@@ -30,7 +33,7 @@ from .models import (
     SpecificationRevision,
     SpecificationTest,
 )
-from .units import plain, rounded
+from .units import INPUT_UNITS, RESULT_UNITS, plain, rounded
 
 AUTHOR_ROLE = "quality"
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
@@ -129,13 +132,22 @@ def new_method_revision(
     reason,
     summary="",
     requires_batch=False,
+    requires_equipment=None,
+    requires_reagent=None,
 ):
-    """New draft version; QC checks are copied from the latest prior version as a start."""
+    """New draft version; QC checks and the calculation are copied from the latest prior version.
+
+    The two resource flags are taken from the prior version when not given.
+    """
     require_role(actor, AUTHOR_ROLE)
     _require_reason(reason)
     _check_interval(effective_from, effective_until)
     Method.objects.select_for_update().get(pk=method.pk)
     previous = MethodRevision.objects.filter(method=method).order_by("-version").first()
+    if requires_equipment is None:
+        requires_equipment = previous.requires_equipment if previous else False
+    if requires_reagent is None:
+        requires_reagent = previous.requires_reagent if previous else False
     revision = MethodRevision(
         method=method,
         version=_next_version(MethodRevision, "method", method),
@@ -145,6 +157,11 @@ def new_method_revision(
         suitability_ref=suitability_ref,
         summary=summary,
         requires_batch=requires_batch,
+        requires_equipment=requires_equipment,
+        requires_reagent=requires_reagent,
+        calculation_formula=previous.calculation_formula if previous else "",
+        calculation_unit=previous.calculation_unit if previous else "",
+        calculation_decimals=previous.calculation_decimals if previous else None,
         effective_from=effective_from,
         effective_until=effective_until,
         change_reason=reason,
@@ -158,6 +175,12 @@ def new_method_revision(
             check.method_revision = revision
             check.created_by = actor
             check.save()
+    if previous:
+        for item in previous.calculation_inputs.all():
+            item.pk = None
+            item.method_revision = revision
+            item.created_by = actor
+            item.save()
     record_event(
         actor=actor,
         action="method_revision.created",
@@ -217,6 +240,152 @@ def remove_qc_check(*, actor, check, reason):
     record_event(
         actor=actor,
         action="method_revision.qc_check_removed",
+        obj=locked,
+        before=before,
+        reason=reason,
+    )
+    return locked
+
+
+MAX_CALCULATION_INPUTS = 12
+MAX_NAME_LENGTH = 160
+
+
+def _bump(locked):
+    locked.revision += 1
+    locked.save(update_fields=["revision"])
+
+
+@transaction.atomic
+def add_calculation_input(*, actor, revision, reason, code, name, unit):
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    code = (code or "").strip()
+    if not formulas.is_name(code):
+        raise ValidationError(
+            {
+                "code": "Use a lower-case letter followed by lower-case letters, digits or "
+                "underscores (40 at most)."
+            }
+        )
+    if locked.calculation_inputs.filter(code=code).exists():
+        raise ValidationError({"code": "This input code is already on the version."})
+    if locked.calculation_inputs.count() >= MAX_CALCULATION_INPUTS:
+        raise ValidationError(f"A calculation has at most {MAX_CALCULATION_INPUTS} inputs.")
+    if unit not in dict(INPUT_UNITS):
+        raise ValidationError({"unit": "Choose a unit from the list."})
+    item = MethodCalculationInput(
+        method_revision=locked, code=code, name=(name or "").strip(), unit=unit, created_by=actor
+    )
+    item.full_clean()
+    item.save()
+    _bump(locked)
+    record_event(
+        actor=actor,
+        action="method_revision.calculation_input_added",
+        obj=locked,
+        after=item.content(),
+        reason=reason,
+    )
+    return item
+
+
+@transaction.atomic
+def remove_calculation_input(*, actor, item, reason):
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(item.method_revision)
+    item = MethodCalculationInput.objects.select_for_update().get(
+        pk=item.pk, method_revision=locked
+    )
+    before = item.content()
+    item.delete()
+    _bump(locked)
+    record_event(
+        actor=actor,
+        action="method_revision.calculation_input_removed",
+        obj=locked,
+        before=before,
+        reason=reason,
+    )
+    return locked
+
+
+@transaction.atomic
+def set_calculation(*, actor, revision, reason, formula, unit, decimals):
+    """Set or replace the formula, result unit and decimals on a draft.
+
+    Only the formula's syntax is checked here, so inputs can be added in any order; names against
+    inputs and completeness are checked when the version is approved.
+    """
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    errors = {}
+    try:
+        parsed = formulas.parse(formula)
+    except formulas.FormulaError as exc:
+        errors["formula"] = str(exc)
+    if unit not in dict(RESULT_UNITS):
+        errors["unit"] = "Choose a unit from the list."
+    if (
+        not isinstance(decimals, int)
+        or isinstance(decimals, bool)
+        or not 0 <= decimals <= formulas.MAX_DECIMALS
+    ):
+        errors["decimals"] = f"Use a whole number from 0 to {formulas.MAX_DECIMALS}."
+    if errors:
+        raise ValidationError(errors)
+    before = locked.calculation()
+    locked.calculation_formula = parsed.expression
+    locked.calculation_unit = unit
+    locked.calculation_decimals = decimals
+    locked.revision += 1
+    locked.save(
+        update_fields=[
+            "calculation_formula",
+            "calculation_unit",
+            "calculation_decimals",
+            "revision",
+        ]
+    )
+    record_event(
+        actor=actor,
+        action="method_revision.calculation_set",
+        obj=locked,
+        before=before or {},
+        after=locked.calculation(),
+        reason=reason,
+    )
+    return locked
+
+
+@transaction.atomic
+def clear_calculation(*, actor, revision, reason):
+    """Remove the formula, unit, decimals and every input from a draft."""
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    before = locked.calculation()
+    if before is None:
+        raise ValidationError("This version has no calculation.")
+    locked.calculation_inputs.all().delete()
+    locked.calculation_formula = ""
+    locked.calculation_unit = ""
+    locked.calculation_decimals = None
+    locked.revision += 1
+    locked.save(
+        update_fields=[
+            "calculation_formula",
+            "calculation_unit",
+            "calculation_decimals",
+            "revision",
+        ]
+    )
+    record_event(
+        actor=actor,
+        action="method_revision.calculation_cleared",
         obj=locked,
         before=before,
         reason=reason,
@@ -404,11 +573,42 @@ def ensure_independent(actor, revision):
         raise PermissionDenied("You edited this draft; another quality approver must sign.")
 
 
+def calculation_problems(revision):
+    """What to fix before a version's calculation can be approved; empty when absent or valid."""
+    if not revision.has_calculation:
+        return []
+    problems = []
+    inputs = list(revision.calculation_inputs.all())
+    codes = {item.code for item in inputs}
+    formula = revision.calculation_formula.strip()
+    if not formula:
+        problems.append("Set the formula, or clear the calculation to remove its inputs.")
+    else:
+        try:
+            used = formulas.parse(formula).names
+        except formulas.FormulaError as exc:
+            problems.append(f"The formula is not valid: {exc}")
+        else:
+            if missing := sorted(used - codes):
+                problems.append("The formula uses names that are not inputs: " + ", ".join(missing))
+            if unused := sorted(codes - used):
+                problems.append("These inputs are not used by the formula: " + ", ".join(unused))
+    if not 1 <= len(inputs) <= MAX_CALCULATION_INPUTS:
+        problems.append(f"A calculation needs 1 to {MAX_CALCULATION_INPUTS} inputs.")
+    if not revision.calculation_unit:
+        problems.append("Set the unit of the calculated result.")
+    if revision.calculation_decimals is None:
+        problems.append("Set the number of decimals of the calculated result.")
+    return problems
+
+
 def _check_method_revision(revision):
     if not revision.document_ref.strip() or not revision.suitability_ref.strip():
         raise ValidationError("Link the controlled procedure and suitability evidence.")
     if revision.requires_batch and not revision.qc_checks.exists():
         raise ValidationError("A method that runs in a QC batch needs at least one QC check.")
+    if problems := calculation_problems(revision):
+        raise ValidationError(["Calculation: " + problem for problem in problems])
 
 
 def _check_specification_revision(revision):
@@ -427,8 +627,17 @@ def _check_specification_revision(revision):
             validate_test_line(line)
         except ValidationError as exc:
             raise ValidationError([f"Test {line.code}: {m}" for m in exc.messages]) from exc
-        if effective_revision(MethodRevision, line.method, revision.effective_from) is None:
+        method_revision = effective_revision(MethodRevision, line.method, revision.effective_from)
+        if method_revision is None:
             missing.append(line.method.code)
+            continue
+        calculation = method_revision.approved_content.get("calculation")
+        if calculation and (line.result_type != "numeric" or line.unit != calculation["unit"]):
+            raise ValidationError(
+                f"Test {line.code}: method {line.method.code} version {method_revision.version} "
+                f"calculates its result in {calculation['unit']}, so the test must be numeric "
+                f"with the unit {calculation['unit']}."
+            )
     if missing:
         raise ValidationError(
             "No approved method revision is effective at the specification start: "
@@ -545,6 +754,9 @@ def _method_payload(revision):
         "suitability_ref": revision.suitability_ref,
         "requires_batch": revision.approved_content.get("requires_batch", False),
         "qc_checks": revision.approved_content.get("qc_checks", []),
+        "requires_equipment": revision.approved_content.get("requires_equipment", False),
+        "requires_reagent": revision.approved_content.get("requires_reagent", False),
+        "calculation": revision.approved_content.get("calculation"),
         "approved_hash": revision.approved_hash,
     }
 
@@ -636,16 +848,33 @@ def resolve_requirements(*, material, stage, scope="general", rules=None, at=Non
 
 TEST_REQUIREMENT_SCHEMA = "oq.test-requirement/1"
 TEST_REQUIREMENT_SCHEMA_V2 = "oq.test-requirement/2"
+TEST_REQUIREMENT_SCHEMA_V3 = "oq.test-requirement/3"
 
 
 def method_requirement(method):
-    """Analytical method shape from a catalog method payload; QC check limits are inclusive."""
-    return {
+    """Analytical method shape from a catalog method payload; QC check limits are inclusive.
+
+    A method without a calculation and without resource flags keeps exactly the four keys that
+    tests in progress froze. Any other method adds ``requires_equipment``, ``requires_reagent``
+    and ``calculation``; payloads frozen earlier lack those keys and read as absent.
+    """
+    shape = {
         "code": method["code"],
         "revision": method["version"],
         "requires_batch": method["requires_batch"],
         "qc_checks": [dict(check) for check in method["qc_checks"]],
     }
+    equipment = bool(method.get("requires_equipment", False))
+    reagent = bool(method.get("requires_reagent", False))
+    calculation = method.get("calculation")
+    if calculation is None and not equipment and not reagent:
+        return shape
+    shape.update(
+        requires_equipment=equipment,
+        requires_reagent=reagent,
+        calculation=copy.deepcopy(calculation),
+    )
+    return shape
 
 
 def test_requirement(test, source):
@@ -653,12 +882,20 @@ def test_requirement(test, source):
 
     A numeric line with both bounds inclusive is emitted as ``oq.test-requirement/1``, byte for
     byte as before, because tests in progress froze that payload and its hash. Every other shape
-    is ``oq.test-requirement/2``. Values pass through as frozen, so shapes the analytical parser
+    is ``oq.test-requirement/2``, or ``/3`` (the same keys) when the method adds the resource flags
+    or a calculation. Values pass through as frozen, so shapes the analytical parser
     cannot execute (for example a qualitative line approved without an expected outcome, which
     yields ``expected_result: None``) are held there, never repaired here.
     ``reporting_decimals: None`` passes through as exact comparison without rounding.
     """
-    if test["result_type"] == "numeric" and test["lower_inclusive"] and test["upper_inclusive"]:
+    method = method_requirement(test["method"])
+    extended = "calculation" in method
+    if (
+        test["result_type"] == "numeric"
+        and test["lower_inclusive"]
+        and test["upper_inclusive"]
+        and not extended
+    ):
         return {
             "schema": TEST_REQUIREMENT_SCHEMA,
             "source": source,
@@ -673,10 +910,10 @@ def test_requirement(test, source):
             "reporting_decimals": test["reporting_decimals"],
             "replicate_limits": test["replicate_limits"],
             "max_retests": test["max_retests"],
-            "method": method_requirement(test["method"]),
+            "method": method,
         }
     return {
-        "schema": TEST_REQUIREMENT_SCHEMA_V2,
+        "schema": TEST_REQUIREMENT_SCHEMA_V3 if extended else TEST_REQUIREMENT_SCHEMA_V2,
         "source": source,
         "test_code": test["code"],
         "name": test["name"],
@@ -692,7 +929,7 @@ def test_requirement(test, source):
         "reporting_decimals": test["reporting_decimals"],
         "replicate_limits": test["replicate_limits"],
         "max_retests": test["max_retests"],
-        "method": method_requirement(test["method"]),
+        "method": method,
     }
 
 

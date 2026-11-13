@@ -10,7 +10,7 @@ does; then records, with reagent lineages newest first, as releasing a lot does.
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Q, prefetch_related_objects
 from django.utils import timezone
 
@@ -20,10 +20,13 @@ from core.services import require_role, sign_transition
 from .eligibility import (
     affected_uses,
     check_use,
+    equipment_queryset,
+    equipment_status,
     latest_calibration,
     qualification_valid,
     reagent_eligibility,
     reagent_lineage,
+    reagent_status,
     unassessed_failures,
 )
 from .models import Calibration, Equipment, Qualification, ReagentLot, ResourceUse
@@ -59,8 +62,8 @@ def _lock(model, obj):
 def _lock_lineage(reagents):
     """Lock the reagents' whole source chains, newest first, so a rejection of any ancestor
     serializes with use and release. Releasing a lot locks it and then its sources (always
-    older), so every lineage lock follows that order."""
-    ids, frontier = set(), {r.pk for r in reagents}
+    older), so every lineage lock follows that order. Accepts lots or plain ids."""
+    ids, frontier = set(), {getattr(r, "pk", r) for r in reagents}
     while frontier:
         ids |= frontier
         frontier = (
@@ -416,6 +419,111 @@ def reject_reagent(*, actor, reagent, reason):
 # --- Use authorization -----------------------------------------------------------------------
 
 
+def _lock_and_check(*, actor, activity, equipment_ids, reagent_ids):
+    """Lock, then check. Returns (locked equipment, locked reagents, findings).
+
+    Lock order is fixed so concurrent state changes cannot interleave with the check: account,
+    equipment, reagent lineage, qualifications. Approval and revocation lock the qualification row
+    they sign, so locking the analyst's and the equipment's rows serializes this check with them.
+    Evidence is read only after the locks are held.
+    """
+    lock_account(actor)
+    locked_equipment = list(
+        Equipment.objects.select_for_update().filter(pk__in=equipment_ids).order_by("pk")
+    )
+    _lock_lineage(reagent_ids)
+    locked_reagents = list(
+        ReagentLot.objects.select_for_update(of=("self",))
+        .filter(pk__in=reagent_ids)
+        .order_by("pk")
+        .select_related("parent")
+    )
+    missing = (set(equipment_ids) - {e.pk for e in locked_equipment}) | (
+        set(reagent_ids) - {r.pk for r in locked_reagents}
+    )
+    if missing:
+        raise ValidationError("A selected equipment item or reagent lot does not exist.")
+    list(
+        Qualification.objects.select_for_update()
+        .filter(
+            Q(user=actor, activity__iexact=activity.strip()) | Q(equipment__in=locked_equipment)
+        )
+        .order_by("pk")
+    )
+    prefetch_related_objects(locked_equipment, "calibrations", "qualifications")
+    findings = check_use(
+        analyst=actor, activity=activity, equipment=locked_equipment, reagents=locked_reagents
+    )
+    return locked_equipment, locked_reagents, findings
+
+
+def _record_uses(
+    *,
+    actor,
+    context_type,
+    context_id,
+    activity,
+    test_code,
+    profile_ref,
+    equipment,
+    reagents,
+    findings,
+    reason,
+):
+    """Write one ResourceUse per resource with its evidence, and the audit event (if any)."""
+    analyst_evidence = findings[0].evidence
+    uses = []
+    for item, finding in zip([*equipment, *reagents], findings[1:], strict=True):
+        uses.append(
+            ResourceUse.objects.create(
+                equipment=item if isinstance(item, Equipment) else None,
+                reagent_lot=item if isinstance(item, ReagentLot) else None,
+                context_type=context_type,
+                context_id=str(context_id),
+                activity=activity.strip(),
+                test_code=test_code,
+                profile_ref=profile_ref,
+                used_by=actor,
+                eligibility={**finding.evidence, "analyst": analyst_evidence},
+            )
+        )
+    if uses:
+        record_event(
+            actor=actor,
+            action="resource.used",
+            obj=uses[0],
+            after={
+                "context": f"{context_type}:{context_id}",
+                "activity": activity.strip(),
+                "uses": [u.pk for u in uses],
+            },
+            reason=reason,
+        )
+    return uses
+
+
+def _refusals(findings):
+    return [{"subject": f.subject, "reasons": list(f.reasons)} for f in findings if not f.ok]
+
+
+def record_blocked_use(*, actor, activity, context_type, context_id, refusals, reason):
+    """Audit a refused use in its own transaction, so it survives the caller's rollback."""
+    with transaction.atomic():
+        record_event(
+            actor=actor,
+            action="resource.use_blocked",
+            obj=actor,
+            after={
+                "context": f"{context_type}:{context_id}",
+                "activity": (activity or "").strip(),
+                "refusals": [
+                    {"subject": r["subject"], "reasons": list(r["reasons"])} for r in refusals
+                ],
+            },
+            reason=reason,
+        )
+
+
 def authorize_use(
     *,
     actor,
@@ -442,88 +550,134 @@ def authorize_use(
     blocked = None
     try:
         with transaction.atomic():
-            # Lock in a fixed order so concurrent state changes cannot interleave with the check:
-            # account, equipment, reagent lineage, qualifications.
-            lock_account(actor)
-            locked_equipment = list(
-                Equipment.objects.select_for_update()
-                .filter(pk__in=[e.pk for e in equipment])
-                .order_by("pk")
-            )
-            _lock_lineage(reagents)
-            locked_reagents = list(
-                ReagentLot.objects.select_for_update(of=("self",))
-                .filter(pk__in=[r.pk for r in reagents])
-                .order_by("pk")
-                .select_related("parent")
-            )
-            # Approval and revocation lock the qualification row they sign, so locking the
-            # analyst's and the equipment's rows serializes this check with them. Evidence is
-            # read only after the locks are held.
-            list(
-                Qualification.objects.select_for_update()
-                .filter(
-                    Q(user=actor, activity__iexact=activity.strip())
-                    | Q(equipment__in=locked_equipment)
-                )
-                .order_by("pk")
-            )
-            prefetch_related_objects(locked_equipment, "calibrations", "qualifications")
-            findings = check_use(
-                analyst=actor,
+            locked_equipment, locked_reagents, findings = _lock_and_check(
+                actor=actor,
                 activity=activity,
-                equipment=locked_equipment,
-                reagents=locked_reagents,
+                equipment_ids=[e.pk for e in equipment],
+                reagent_ids=[r.pk for r in reagents],
             )
             if not all(f.ok for f in findings):
                 blocked = UseBlocked(findings)
                 raise blocked
-            analyst_evidence = findings[0].evidence
-            uses = []
-            for item, finding in zip(
-                [*locked_equipment, *locked_reagents], findings[1:], strict=True
-            ):
-                uses.append(
-                    ResourceUse.objects.create(
-                        equipment=item if isinstance(item, Equipment) else None,
-                        reagent_lot=item if isinstance(item, ReagentLot) else None,
-                        context_type=context_type,
-                        context_id=str(context_id),
-                        activity=activity.strip(),
-                        test_code=test_code,
-                        profile_ref=profile_ref,
-                        used_by=actor,
-                        eligibility={**finding.evidence, "analyst": analyst_evidence},
-                    )
-                )
-            record_event(
+            return _record_uses(
                 actor=actor,
-                action="resource.used",
-                obj=uses[0],
-                after={
-                    "context": f"{context_type}:{context_id}",
-                    "activity": activity.strip(),
-                    "uses": [u.pk for u in uses],
-                },
+                context_type=context_type,
+                context_id=context_id,
+                activity=activity,
+                test_code=test_code,
+                profile_ref=profile_ref,
+                equipment=locked_equipment,
+                reagents=locked_reagents,
+                findings=findings,
                 reason=reason,
             )
-            return uses
     except UseBlocked:
         pass
-    with transaction.atomic():
-        record_event(
-            actor=actor,
-            action="resource.use_blocked",
-            obj=actor,
-            after={
-                "context": f"{context_type}:{context_id}",
-                "activity": activity.strip(),
-                "refusals": [
-                    {"subject": f.subject, "reasons": list(f.reasons)}
-                    for f in blocked.findings
-                    if not f.ok
-                ],
-            },
-            reason=reason,
-        )
+    record_blocked_use(
+        actor=actor,
+        activity=activity,
+        context_type=context_type,
+        context_id=context_id,
+        refusals=_refusals(blocked.findings),
+        reason=reason,
+    )
     raise blocked
+
+
+def _ids(values, noun):
+    try:
+        return sorted({int(v) for v in values})
+    except TypeError, ValueError:
+        raise ValidationError(f"A selected {noun} is not valid.") from None
+
+
+def use_in_work(
+    *,
+    actor,
+    activity,
+    context_type,
+    context_id,
+    test_code="",
+    equipment_ids=(),
+    reagent_ids=(),
+    reason,
+):
+    """Check the analyst and the selected resources for work being recorded by the caller, and
+    record their use, inside the caller's transaction.
+
+    The caller owns authorization of the actor's role and the lock on its own records. Nothing is
+    written when a check fails (UseBlocked); the caller rolls back and then calls
+    `record_blocked_use` outside its transaction. Returns the evidence relied on.
+    """
+    if not connection.in_atomic_block:
+        raise RuntimeError("Resource use must be recorded in the caller's transaction.")
+    equipment_ids = _ids(equipment_ids, "equipment item")
+    reagent_ids = _ids(reagent_ids, "reagent lot")
+    locked_equipment, locked_reagents, findings = _lock_and_check(
+        actor=actor, activity=activity, equipment_ids=equipment_ids, reagent_ids=reagent_ids
+    )
+    if not all(f.ok for f in findings):
+        raise UseBlocked(findings)
+    uses = _record_uses(
+        actor=actor,
+        context_type=context_type,
+        context_id=context_id,
+        activity=activity,
+        test_code=test_code,
+        profile_ref="",
+        equipment=locked_equipment,
+        reagents=locked_reagents,
+        findings=findings,
+        reason=reason,
+    )
+    by_resource = {(u.equipment_id, u.reagent_lot_id): u for u in uses}
+    return {
+        "user": actor.pk,
+        "activity": activity.strip(),
+        "qualification": findings[0].evidence.get("qualification"),
+        "equipment": [
+            {
+                **finding.evidence,
+                "id": item.pk,
+                "asset_id": item.asset_id,
+                "use": by_resource[(item.pk, None)].pk,
+            }
+            for item, finding in zip(locked_equipment, findings[1:], strict=False)
+        ],
+        "reagents": [
+            {
+                **finding.evidence,
+                "id": item.pk,
+                "identifier": item.identifier,
+                "use": by_resource[(None, item.pk)].pk,
+            }
+            for item, finding in zip(
+                locked_reagents, findings[1 + len(locked_equipment) :], strict=True
+            )
+        ],
+    }
+
+
+# --- Choices for work entry -------------------------------------------------------------------
+
+
+def bench_choices():
+    """Equipment and reagent lots offered when recording work: (pk, label) pairs, two queries.
+
+    Labels name the item and its current status in words. Rejected lots are not offered."""
+    today = timezone.localdate()
+    equipment = [
+        (item.pk, f"{item.asset_id} · {item.description} · {equipment_status(item, today)[0]}")
+        for item in equipment_queryset(today).order_by("asset_id", "pk")
+    ]
+    reagents = [
+        (
+            lot.pk,
+            f"{lot.identifier} · {lot.name} ({lot.get_kind_display()}) · "
+            + ("Ready" if (word := reagent_status(lot, today)[0]) == "Released" else word),
+        )
+        for lot in ReagentLot.objects.exclude(state=ReagentLot.State.REJECTED).order_by(
+            "identifier", "pk"
+        )
+    ]
+    return {"equipment": equipment, "reagents": reagents}

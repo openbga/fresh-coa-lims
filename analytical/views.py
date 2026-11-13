@@ -13,7 +13,7 @@ from core.services import require_role
 from quality.models import Lot, Sample
 
 from . import gates, services
-from .contracts import batch_methods, plain
+from .contracts import WorkRefused, batch_methods, bench, plain
 from .forms import (
     BatchAssignForm,
     BatchForm,
@@ -52,9 +52,43 @@ def roles(user):
 def perform(form, action):
     try:
         return action()
-    except ValidationError as exc:
-        form.add_error(None, " ".join(exc.messages))
+    except WorkRefused as exc:
+        # Each refusal names its subject; show it on the checkbox that selected it when there is
+        # one (a refused instrument or lot), otherwise above the form (the analyst).
+        for refusal in exc.refusals:
+            field = form.bench_field(refusal["subject"]) if hasattr(form, "bench_field") else None
+            for reason in refusal["reasons"]:
+                form.add_error(field, f"Refused: {refusal['subject']}: {reason}")
         return None
+    except ValidationError as exc:
+        if hasattr(exc, "error_dict") and set(exc.error_dict) <= set(form.fields):
+            form.add_error(None, exc)
+        else:
+            form.add_error(None, " ".join(exc.messages))
+        return None
+
+
+def bench_choices():
+    """The bench's equipment and lot choices, or (None, hold message) without a bench."""
+    try:
+        return bench().choices(), None
+    except ValidationError as exc:
+        return None, " ".join(exc.messages)
+
+
+def calculation_summary(spec):
+    calculation = spec.calculation
+    if calculation is None:
+        return []
+    places = calculation.decimals
+    return [
+        (
+            "Calculation",
+            f"{calculation.formula} · result in {calculation.unit}, rounded half-up to "
+            f"{places} decimal place{'s' if places != 1 else ''} · method {spec.method.code} "
+            f"revision {spec.method.revision}",
+        )
+    ]
 
 
 def history(*objects):
@@ -327,6 +361,15 @@ def readings_text(test):
     return f"{readings} {test.spec.unit}" if readings and test.spec.unit else readings
 
 
+def inputs_text(observation):
+    """Calculation inputs as entered, e.g. "Sample absorbance 0.512 AU; ..."."""
+    return "; ".join(
+        f"{i.get('name', i.get('code', ''))} {i.get('value', '')} {i.get('unit', '')}".strip()
+        for i in observation.inputs
+        if isinstance(i, dict)
+    )
+
+
 def limits_text(spec):
     """Inclusive QC check limits (batch QC checks stay numeric and inclusive)."""
     if spec.lower is not None and spec.upper is not None:
@@ -413,7 +456,10 @@ def observation_new(request, pk):
         return unavailable(request, "Add this test to a QC batch before recording results.", back)
     if test.current_observations().count() >= test.spec.replicates:
         return unavailable(request, "All replicates are recorded. Correct a value instead.", back)
-    form = ReadingForm(request.POST or None, spec=test.spec)
+    choices, hold = bench_choices()
+    if hold:
+        return unavailable(request, hold, back)
+    form = ReadingForm(request.POST or None, spec=test.spec, choices=choices)
     if request.method == "POST" and form.is_valid():
         if perform(
             form,
@@ -429,7 +475,11 @@ def observation_new(request, pk):
         submit="Record observation",
         crumbs=test_crumbs(test, "Record observation"),
         cancel_url=reverse("analytical:test_detail", args=[test.pk]),
-        summary=[*test_summary(test), *([("Unit", test.spec.unit)] if test.spec.unit else [])],
+        summary=[
+            *test_summary(test),
+            *([("Unit", test.spec.unit)] if test.spec.unit else []),
+            *calculation_summary(test.spec),
+        ],
     )
 
 
@@ -445,8 +495,14 @@ def observation_correct(request, pk):
             "Only current observations of open tests can be corrected.",
             reverse("analytical:test_detail", args=[test.pk]),
         )
+    choices, hold = bench_choices()
+    if hold:
+        return unavailable(request, hold, reverse("analytical:test_detail", args=[test.pk]))
     form = ReadingCorrectionForm(
-        request.POST or None, spec=test.spec, initial={"raw_reference": observation.raw_reference}
+        request.POST or None,
+        spec=test.spec,
+        choices=choices,
+        initial={"raw_reference": observation.raw_reference},
     )
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -475,7 +531,9 @@ def observation_correct(request, pk):
                 if observation.observed_text
                 else []
             ),
+            *([("Inputs being corrected", inputs_text(observation))] if observation.inputs else []),
             ("Original record", observation.raw_reference),
+            *calculation_summary(test.spec),
         ],
     )
 
@@ -702,7 +760,10 @@ def qc_record(request, pk, code):
             "QC entries for this batch are closed.",
             reverse("analytical:batch_detail", args=[batch.pk]),
         )
-    form = ObservationForm(request.POST or None)
+    choices, hold = bench_choices()
+    if hold:
+        return unavailable(request, hold, reverse("analytical:batch_detail", args=[batch.pk]))
+    form = ObservationForm(request.POST or None, choices=choices, method=batch.method_spec)
     if request.method == "POST" and form.is_valid():
         if perform(
             form,
@@ -752,7 +813,15 @@ def qc_correct(request, pk):
             "This QC result can no longer be corrected.",
             reverse("analytical:batch_detail", args=[batch.pk]),
         )
-    form = CorrectionForm(request.POST or None, initial={"raw_reference": result.raw_reference})
+    choices, hold = bench_choices()
+    if hold:
+        return unavailable(request, hold, reverse("analytical:batch_detail", args=[batch.pk]))
+    form = CorrectionForm(
+        request.POST or None,
+        choices=choices,
+        method=batch.method_spec,
+        initial={"raw_reference": result.raw_reference},
+    )
     if request.method == "POST" and form.is_valid():
         if perform(
             form,

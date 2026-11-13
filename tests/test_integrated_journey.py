@@ -466,7 +466,7 @@ def test_native_results_cannot_replace_sampling_provenance(integrated):
 
 def test_revoked_method_qualification_blocks_native_observation(integrated, settings):
     data, people = integrated, integrated["people"]
-    assert settings.ANALYTICAL_ELIGIBILITY_CHECK == "config.integrations.require_qualified_analyst"
+    assert settings.ANALYTICAL_BENCH == "config.integrations.LaboratoryBench"
     sample = assign_and_sample(data)
     tests, holds = analytical.assign_tests(
         actor=people["analyst"],

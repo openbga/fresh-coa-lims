@@ -3,8 +3,8 @@ title: New version of a method
 urls: catalog:method_version_new
 views: catalog.views.method_version_new
 templates: catalog/form.html
-models: catalog.MethodRevision, catalog.MethodQCCheck
-reviewed: 2026-11-10
+models: catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -19,7 +19,8 @@ Creates the next draft version of a method.
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code, New version. Title: "New version of" and the code.
-- **Form sections**: Procedure, Suitability, Effective period, Change control.
+- **Intro**: "The new draft copies the QC checks (when it runs in a QC batch), the calculation and its inputs of the latest version. The resource options start as in that version."
+- **Form sections**: Procedure, "Resources recorded with results", Suitability, Effective period, Change control.
 - **Buttons**: **Cancel** (back to the method) and **Create draft version**.
 
 ## Actions
@@ -37,6 +38,8 @@ Creates the next draft version of a method.
 | Summary | `MethodRevision.summary` | Text | No | Free description; shown on the method record (when entered) and on the approval page. |
 | Controlled procedure | `MethodRevision.document_ref` | Text, max 160 | Yes | Help: "Document ID and revision of the approved procedure." |
 | Runs in a QC batch | `MethodRevision.requires_batch` | Checkbox | No | Help: "If set, add the batch QC checks to the draft before approval." |
+| Records an instrument | `MethodRevision.requires_equipment` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one instrument." Fixed at creation; starts as in the latest version. |
+| Records a reagent or standard | `MethodRevision.requires_reagent` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one reagent or standard lot." Fixed at creation; starts as in the latest version. |
 | Suitability basis | `MethodRevision.suitability_kind` | Method validation, Compendial method verification, Method transfer, Documented fitness for intended use | Yes | Kind of evidence of suitability for intended use. |
 | Suitability evidence | `MethodRevision.suitability_ref` | Text, max 200 | Yes | Help: "Stable ID or location of the approved validation or verification report." |
 | Effective from (time zone) | `MethodRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
@@ -46,8 +49,9 @@ Creates the next draft version of a method.
 
 ## Rules and hidden logic
 
-- **Numbering**: highest existing version number plus one. The form is not prefilled from earlier versions.
+- **Numbering**: highest existing version number plus one. The form is not prefilled from earlier versions, except the two resource options, which start as in the latest version.
 - **QC checks**: if "Runs in a QC batch" is ticked and an earlier version exists, its QC checks (from the highest-numbered version) are copied into the draft. Otherwise none are copied.
+- **Calculation**: the latest version's formula, result unit, decimals and inputs are copied into the draft whatever its status, so a copy of an incomplete draft stays incomplete until fixed. Change them with the calculation pages on the method record.
 - **Interval**: "The effective end must be after the start." Overlap with approved versions is checked only at approval.
 - **Audit**: `method_revision.created` with your reason.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.

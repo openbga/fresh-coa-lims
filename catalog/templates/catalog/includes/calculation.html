@@ -1,0 +1,20 @@
+{% comment %}Resources and calculation of a method version. Parameters: revision; actions show on a draft when can_edit is set.{% endcomment %}
+<h3 class="h6 mt-3">Calculation</h3>
+{% if revision.has_calculation %}
+<dl class="vr-facts">
+  <div><dt>Formula</dt><dd>{% if revision.calculation_formula %}<code>{{ revision.calculation_formula }}</code>{% else %}Not set{% endif %}</dd></div>
+  <div><dt>Result</dt><dd>{% if revision.calculation_unit %}{{ revision.calculation_unit }}{% else %}Unit not set{% endif %}{% if revision.calculation_decimals is not None %}, {{ revision.calculation_decimals }} decimal{{ revision.calculation_decimals|pluralize }}{% else %}, decimals not set{% endif %}</dd></div>
+</dl>
+{% if revision.calculation_inputs.all %}
+<div class="vr-table-wrap"><table class="table vr-table">
+  <caption class="visually-hidden">Calculation inputs of {{ revision }}</caption>
+  <thead><tr><th scope="col">Input</th><th scope="col">Unit</th>{% if revision.is_draft and can_edit %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
+  <tbody>{% for item in revision.calculation_inputs.all %}<tr><th scope="row"><span class="vr-id">{{ item.code }}</span> {{ item.name }}</th><td>{{ item.unit }}</td>{% if revision.is_draft and can_edit %}<td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:calculation_input_remove' revision.pk item.pk %}">Remove<span class="visually-hidden"> {{ item.code }}</span></a></td>{% endif %}</tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No inputs yet. Approval requires one input for each name in the formula.</p>{% endif %}
+{% else %}<p>No calculation. Results are entered directly.</p>{% endif %}
+{% if revision.is_draft and can_edit %}<p class="d-flex flex-wrap gap-2">
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:calculation_set' revision.pk %}">{% if revision.calculation_formula %}Change formula{% else %}Set formula{% endif %}<span class="visually-hidden"> of version {{ revision.version }}</span></a>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:calculation_input_new' revision.pk %}">Add input<span class="visually-hidden"> to version {{ revision.version }}</span></a>
+  {% if revision.has_calculation %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:calculation_clear' revision.pk %}">Clear calculation<span class="visually-hidden"> of version {{ revision.version }}</span></a>{% endif %}
+</p>{% endif %}

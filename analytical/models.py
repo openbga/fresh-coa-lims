@@ -4,7 +4,14 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from .contracts import LESS_THAN, OUTCOMES, Reading, parse_method, parse_requirement
+from .contracts import (
+    LESS_THAN,
+    OUTCOMES,
+    Reading,
+    bench_resources,
+    parse_method,
+    parse_requirement,
+)
 
 DECIMAL = {"max_digits": 20, "decimal_places": 8}
 
@@ -64,11 +71,24 @@ class QCResult(models.Model):
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="correction"
     )
     reason = models.TextField(blank=True)
+    eligibility = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Analyst qualification and equipment and reagent evidence at acceptance",
+    )
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["check_code", "recorded_at", "pk"]
+
+    @property
+    def equipment_used(self):
+        return bench_resources(self.eligibility)[0]
+
+    @property
+    def reagents_used(self):
+        return bench_resources(self.eligibility)[1]
 
 
 class AnalyticalTest(models.Model):
@@ -169,6 +189,10 @@ class AnalyticalTest(models.Model):
     def current_observations(self):
         return self.observations.filter(correction__isnull=True).select_related("recorded_by")
 
+    def raw_file_list(self):
+        """Raw-data files for display, oldest first, without loading their stored bytes."""
+        return self.raw_files.defer("content").select_related("uploaded_by")
+
 
 class Observation(models.Model):
     """One replicate observation. Rows are append-only; a correction is a new linked row."""
@@ -209,12 +233,36 @@ class Observation(models.Model):
     eligibility = models.JSONField(
         default=dict, blank=True, help_text="Analyst qualification evidence at acceptance"
     )
+    inputs = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Calculation inputs as entered, in input order; empty for an entered result",
+    )
+    calculation = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Calculation applied (method, revision, formula, unit, decimals); empty for an "
+        "entered result",
+    )
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["replicate", "recorded_at", "pk"]
         constraints = [
+            # A calculated value always keeps its inputs and the calculation applied, and is a
+            # number as calculated (never reported as less than a value).
+            models.CheckConstraint(
+                condition=(Q(inputs=[]) & Q(calculation={}))
+                | (
+                    ~Q(inputs=[])
+                    & ~Q(calculation={})
+                    & Q(value__isnull=False)
+                    & Q(qualifier="")
+                    & Q(outcome="")
+                ),
+                name="analytical_observation_calculation",
+            ),
             models.CheckConstraint(
                 condition=(
                     ~Q(outcome="")
@@ -232,6 +280,18 @@ class Observation(models.Model):
         return Reading(
             value=self.value, qualifier=self.qualifier, outcome=self.outcome, text=self.value_text
         )
+
+    @property
+    def is_calculated(self):
+        return bool(self.calculation)
+
+    @property
+    def equipment_used(self):
+        return bench_resources(self.eligibility)[0]
+
+    @property
+    def reagents_used(self):
+        return bench_resources(self.eligibility)[1]
 
 
 class Investigation(models.Model):
@@ -301,3 +361,29 @@ class InvestigationEntry(models.Model):
     class Meta:
         ordering = ["created_at", "pk"]
         verbose_name_plural = "investigation entries"
+
+
+class RawDataFile(models.Model):
+    """A file of raw data attached to a test, kept exactly as received. Rows are append-only."""
+
+    test = models.ForeignKey(AnalyticalTest, on_delete=models.PROTECT, related_name="raw_files")
+    filename = models.CharField(max_length=200, help_text="Base name of the uploaded file")
+    content_type = models.CharField(
+        max_length=100, blank=True, help_text="Type declared by the browser; informational only"
+    )
+    size = models.PositiveBigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    content = models.BinaryField()
+    description = models.CharField(max_length=200, help_text="What the file is")
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["uploaded_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["test", "sha256"], name="analytical_rawfile_unique"),
+            models.CheckConstraint(condition=Q(size__gt=0), name="analytical_rawfile_not_empty"),
+        ]
+
+    def __str__(self):
+        return self.filename

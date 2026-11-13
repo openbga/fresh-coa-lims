@@ -3,7 +3,13 @@
 Lock order for every transition: QC batch, investigation, tests (by pk), then lots (by pk).
 Signed transitions go through core.services.sign_transition, which locks its record first.
 Every evidence change bumps the lot revision so a disposition opened earlier becomes stale.
+
+Observations and batch QC entries also pass the configured bench (contracts.bench): its
+``lock_actor`` runs first inside the transaction, ``authorize`` just before the row is created,
+and a refusal rolls the entry back before ``record_refusal`` audits it.
 """
+
+import json
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -14,7 +20,15 @@ from core.audit import record_event
 from core.services import require_role, sign_transition, validate_rules
 from quality.models import Lot, Sample
 
-from .contracts import LESS_THAN, Reading, batch_methods, canonical_hash, check_eligibility, resolve
+from .contracts import (
+    LESS_THAN,
+    Reading,
+    WorkRefused,
+    batch_methods,
+    bench,
+    canonical_hash,
+    resolve,
+)
 from .gates import data_author_ids, investigation_author_ids
 from .models import (
     AnalyticalTest,
@@ -135,6 +149,56 @@ def _reading(spec, value, qualifier, outcome, observed_text):
     return reading, f"{reading.qualifier}{value}"
 
 
+def _entry(spec, *, value, qualifier, outcome, observed_text, inputs):
+    """Observation fields for an entered or a calculated result, validated against the spec."""
+    calculation = spec.calculation
+    if calculation is None:
+        if inputs:
+            raise ValidationError("This method has no calculation; enter the observed value.")
+        reading, text = _reading(spec, value, qualifier, outcome, observed_text)
+        return {
+            "value": reading.value,
+            "qualifier": reading.qualifier,
+            "outcome": reading.outcome,
+            "value_text": text,
+            "observed_text": observed_text,
+            "inputs": [],
+            "calculation": {},
+        }
+    if value is not None or qualifier or outcome:
+        raise ValidationError(
+            "This result is calculated from its inputs; enter the inputs, not the value. "
+            "A calculated result cannot be reported as less than a value."
+        )
+    number, entered = calculation.compute(inputs)
+    spec.check_reading(Reading(value=number))
+    return {
+        "value": number,
+        "qualifier": "",
+        "outcome": "",
+        "value_text": format(number, "f"),
+        "observed_text": "",
+        "inputs": entered,
+        "calculation": calculation.record(spec.method),
+    }
+
+
+def _recheck_calculations(spec, observations, refusal):
+    """Recompute every calculated observation from its stored inputs with the frozen formula."""
+    calculation = spec.calculation
+    for observation in observations:
+        if calculation is None and not observation.is_calculated:
+            continue
+        try:
+            if calculation is None or observation.calculation != calculation.record(spec.method):
+                raise ValidationError("The calculation applied differs from the frozen method.")
+            number, _ = calculation.compute({i["code"]: i["value"] for i in observation.inputs})
+        except (ValidationError, KeyError, TypeError) as exc:
+            raise ValidationError(refusal) from exc
+        if number != observation.value or format(number, "f") != observation.value_text:
+            raise ValidationError(refusal)
+
+
 def _reading_record(observation):
     """The reading as recorded, for audit events."""
     return {
@@ -142,51 +206,146 @@ def _reading_record(observation):
         "qualifier": observation.qualifier,
         "outcome": observation.outcome,
         "observed": observation.observed_text,
+        "inputs": observation.inputs,
+        "calculation": observation.calculation,
     }
 
 
-def record_observation(
-    *, actor, test, raw_reference, value=None, qualifier="", outcome="", observed_text="", reason=""
+def _resource_ids(ids, label):
+    try:
+        return sorted({int(i) for i in ids or ()})
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(f"Unknown {label} selected.") from exc
+
+
+def _with_bench(actor, work):
+    """Run ``work(desk, attempt)`` in one transaction behind the configured bench.
+
+    ``lock_actor`` is the first statement. ``_authorize`` fills ``attempt`` before calling the
+    bench, so a WorkRefused rolls everything back and is then audited by ``record_refusal``.
+    """
+    desk = bench()
+    attempt = {}
+    try:
+        with transaction.atomic():
+            desk.lock_actor(actor)
+            return work(desk, attempt)
+    except WorkRefused as exc:
+        if attempt:
+            desk.record_refusal(actor=actor, refusals=exc.refusals, **attempt)
+        raise
+
+
+def _authorize(
+    desk, attempt, *, actor, method, test_code, context, equipment_ids, reagent_ids, reason
 ):
-    """Record the next replicate: a number (optionally reported as less than it) or an outcome."""
+    """Refuse missing required resources, then ask the bench; return the frozen evidence."""
+    errors = {}
+    if method.requires_equipment and not equipment_ids:
+        errors["equipment_ids"] = (
+            f"Method {method.code} requires at least one instrument; select the equipment used."
+        )
+    if method.requires_reagent and not reagent_ids:
+        errors["reagent_ids"] = (
+            f"Method {method.code} requires at least one reagent or standard lot; select the "
+            "lots used."
+        )
+    if errors:
+        raise ValidationError(errors)
+    context_type, context_id = context
+    attempt.update(
+        method_code=method.code,
+        test_code=test_code,
+        context_type=context_type,
+        context_id=context_id,
+        reason=reason,
+    )
+    evidence = desk.authorize(
+        actor=actor,
+        method_code=method.code,
+        test_code=test_code,
+        context_type=context_type,
+        context_id=context_id,
+        equipment_ids=equipment_ids,
+        reagent_ids=reagent_ids,
+        reason=reason,
+    )
+    if not isinstance(evidence, dict):
+        raise ValidationError("Bench evidence is missing.")
+    json.dumps(evidence)  # must be storable as frozen evidence
+    return evidence
+
+
+def record_observation(
+    *,
+    actor,
+    test,
+    raw_reference,
+    value=None,
+    qualifier="",
+    outcome="",
+    observed_text="",
+    inputs=None,
+    equipment_ids=(),
+    reagent_ids=(),
+    reason="",
+):
+    """Record the next replicate: a number (optionally reported as less than it), an outcome,
+    or, when the method has a calculation, the inputs the value is calculated from."""
     require_role(actor, ANALYST)
     if not raw_reference.strip():
         raise ValidationError("Record where the original observation is kept.")
-    with transaction.atomic():
-        test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
-        (lot,) = _lock_lots(test.lot_id)
-        if test.state != AnalyticalTest.State.OPEN:
+    equipment_ids = _resource_ids(equipment_ids, "equipment")
+    reagent_ids = _resource_ids(reagent_ids, "reagent or standard lot")
+
+    def work(desk, attempt):
+        locked = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
+        (lot,) = _lock_lots(locked.lot_id)
+        if locked.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting observations.")
-        spec = test.spec
-        if spec.method.requires_batch and test.batch_id is None:
+        spec = locked.spec
+        if spec.method.requires_batch and locked.batch_id is None:
             raise ValidationError("Assign this test to a QC batch before recording results.")
-        count = test.current_observations().count()
+        count = locked.current_observations().count()
         if count >= spec.replicates:
             raise ValidationError("All replicates are recorded. Correct a value instead.")
-        reading, text = _reading(spec, value, qualifier, outcome, observed_text)
-        eligibility = check_eligibility(actor=actor, test=test)
-        observation = Observation(
-            test=test,
-            replicate=count + 1,
-            value=reading.value,
-            qualifier=reading.qualifier,
-            outcome=reading.outcome,
-            value_text=text,
+        fields = _entry(
+            spec,
+            value=value,
+            qualifier=qualifier,
+            outcome=outcome,
             observed_text=observed_text,
+            inputs=inputs,
+        )
+        eligibility = _authorize(
+            desk,
+            attempt,
+            actor=actor,
+            method=spec.method,
+            test_code=locked.test_code,
+            context=("analytical.analyticaltest", locked.pk),
+            equipment_ids=equipment_ids,
+            reagent_ids=reagent_ids,
+            reason=reason or f"Replicate {count + 1} of {locked.label} {locked.test_code}",
+        )
+        observation = Observation(
+            test=locked,
+            replicate=count + 1,
             unit=spec.unit,
             raw_reference=raw_reference,
             reason=reason,
             eligibility=eligibility,
             recorded_by=actor,
+            **fields,
         )
         observation.full_clean()
         observation.save()
-        _touch(test)
+        _touch(locked)
         _bump(lot)
         record_event(
             actor=actor,
             action="observation.recorded",
-            obj=test,
+            obj=locked,
             after={
                 "observation": observation.pk,
                 "replicate": observation.replicate,
@@ -199,6 +358,8 @@ def record_observation(
         )
         return observation
 
+    return _with_bench(actor, work)
+
 
 def correct_observation(
     *,
@@ -210,11 +371,17 @@ def correct_observation(
     qualifier="",
     outcome="",
     observed_text="",
+    inputs=None,
+    equipment_ids=(),
+    reagent_ids=(),
 ):
-    """Add a linked correction; the original row is preserved and remains visible."""
+    """Add a linked correction; the original row (and its inputs) is preserved and visible."""
     require_role(actor, ANALYST)
     _require_reason(reason)
-    with transaction.atomic():
+    equipment_ids = _resource_ids(equipment_ids, "equipment")
+    reagent_ids = _resource_ids(reagent_ids, "reagent or standard lot")
+
+    def work(desk, attempt):
         test = AnalyticalTest.objects.select_for_update().get(pk=observation.test_id)
         (lot,) = _lock_lots(test.lot_id)
         if test.state != AnalyticalTest.State.OPEN:
@@ -224,22 +391,36 @@ def correct_observation(
         original = Observation.objects.get(pk=observation.pk)
         if Observation.objects.filter(supersedes=original).exists():
             raise ValidationError("This observation has already been corrected.")
-        reading, text = _reading(test.spec, value, qualifier, outcome, observed_text)
-        eligibility = check_eligibility(actor=actor, test=test)
+        spec = test.spec
+        fields = _entry(
+            spec,
+            value=value,
+            qualifier=qualifier,
+            outcome=outcome,
+            observed_text=observed_text,
+            inputs=inputs,
+        )
+        eligibility = _authorize(
+            desk,
+            attempt,
+            actor=actor,
+            method=spec.method,
+            test_code=test.test_code,
+            context=("analytical.analyticaltest", test.pk),
+            equipment_ids=equipment_ids,
+            reagent_ids=reagent_ids,
+            reason=reason,
+        )
         correction = Observation(
             test=test,
             replicate=original.replicate,
-            value=reading.value,
-            qualifier=reading.qualifier,
-            outcome=reading.outcome,
-            value_text=text,
-            observed_text=observed_text,
             unit=original.unit,
             raw_reference=raw_reference,
             supersedes=original,
             reason=reason,
             eligibility=eligibility,
             recorded_by=actor,
+            **fields,
         )
         correction.full_clean()
         correction.save()
@@ -263,6 +444,8 @@ def correct_observation(
             reason=reason,
         )
         return correction
+
+    return _with_bench(actor, work)
 
 
 TRIGGER_LENGTH = Investigation._meta.get_field("trigger").max_length
@@ -320,6 +503,9 @@ def submit_test(*, actor, test, expected_revision, reason):
             if status != "passed":
                 raise ValidationError(f"Batch QC is {status}; tests cannot be submitted.")
         current = list(test.current_observations())
+        _recheck_calculations(
+            spec, current, "Calculated result changed; correct the observation before submitting."
+        )
         readings = [o.reading for o in current]
         test.mean_value, test.reportable_value, test.reportable_text, test.conforms = spec.evaluate(
             readings
@@ -426,7 +612,11 @@ def review_test(*, actor, pin, test, expected_revision, reason):
         (lot,) = _lock_lots(locked.lot_id)
         _raise(review_refusal(actor, locked))
         validate_rules(lot.rules)
-        readings = [o.reading for o in locked.current_observations()]
+        current = list(locked.current_observations())
+        _recheck_calculations(
+            locked.spec, current, "Calculated result changed; return the test for resubmission."
+        )
+        readings = [o.reading for o in current]
         _, reportable, text, conforms = locked.spec.evaluate(readings)
         # Tests submitted before the reportable text was frozen carry none to compare.
         text_changed = bool(locked.reportable_text) and text != locked.reportable_text
@@ -531,33 +721,63 @@ def _qc_guard(batch):
         raise ValidationError("QC cannot change after test results in this batch are submitted.")
 
 
-def record_qc(*, actor, batch, check_code, value, raw_reference, reason=""):
+def _qc_reason(batch, check_code):
+    return f"QC check {check_code} of batch {batch.number}"
+
+
+def record_qc(
+    *,
+    actor,
+    batch,
+    check_code,
+    value,
+    raw_reference,
+    equipment_ids=(),
+    reagent_ids=(),
+    reason="",
+):
     require_role(actor, ANALYST)
     if not raw_reference.strip():
         raise ValidationError("Record where the original QC observation is kept.")
-    with transaction.atomic():
-        batch = QCBatch.objects.select_for_update().get(pk=batch.pk)
-        _qc_guard(batch)
-        check = batch.method_spec.check(check_code)
-        if batch.current_qc().filter(check_code=check_code).exists():
+    equipment_ids = _resource_ids(equipment_ids, "equipment")
+    reagent_ids = _resource_ids(reagent_ids, "reagent or standard lot")
+
+    def work(desk, attempt):
+        locked = QCBatch.objects.select_for_update().get(pk=batch.pk)
+        _qc_guard(locked)
+        method = locked.method_spec
+        check = method.check(check_code)
+        if locked.current_qc().filter(check_code=check_code).exists():
             raise ValidationError("This QC check is recorded. Correct it instead.")
+        eligibility = _authorize(
+            desk,
+            attempt,
+            actor=actor,
+            method=method,
+            test_code=check_code,
+            context=("analytical.qcbatch", locked.pk),
+            equipment_ids=equipment_ids,
+            reagent_ids=reagent_ids,
+            reason=reason or _qc_reason(locked, check_code),
+        )
         result = QCResult(
-            batch=batch,
+            batch=locked,
             check_code=check_code,
             value=value,
             value_text=str(value),
             unit=check.unit,
             raw_reference=raw_reference,
             reason=reason,
+            eligibility=eligibility,
             recorded_by=actor,
         )
         result.full_clean()
         result.save()
-        _touch(batch)
+        _touch(locked)
         record_event(
             actor=actor,
             action="qc.recorded",
-            obj=batch,
+            obj=locked,
             after={
                 "qc_result": result.pk,
                 "check": check_code,
@@ -565,21 +785,38 @@ def record_qc(*, actor, batch, check_code, value, raw_reference, reason=""):
                 "unit": check.unit,
                 "conforms": check.conforms(value),
                 "raw_reference": raw_reference,
+                "eligibility": eligibility,
             },
             reason=reason or "QC observation recorded.",
         )
         return result
 
+    return _with_bench(actor, work)
 
-def correct_qc(*, actor, qc_result, value, raw_reference, reason):
+
+def correct_qc(*, actor, qc_result, value, raw_reference, reason, equipment_ids=(), reagent_ids=()):
     require_role(actor, ANALYST)
     _require_reason(reason)
-    with transaction.atomic():
+    equipment_ids = _resource_ids(equipment_ids, "equipment")
+    reagent_ids = _resource_ids(reagent_ids, "reagent or standard lot")
+
+    def work(desk, attempt):
         batch = QCBatch.objects.select_for_update().get(pk=qc_result.batch_id)
         _qc_guard(batch)
         original = QCResult.objects.get(pk=qc_result.pk)
         if QCResult.objects.filter(supersedes=original).exists():
             raise ValidationError("This QC result has already been corrected.")
+        eligibility = _authorize(
+            desk,
+            attempt,
+            actor=actor,
+            method=batch.method_spec,
+            test_code=original.check_code,
+            context=("analytical.qcbatch", batch.pk),
+            equipment_ids=equipment_ids,
+            reagent_ids=reagent_ids,
+            reason=reason,
+        )
         correction = QCResult(
             batch=batch,
             check_code=original.check_code,
@@ -589,6 +826,7 @@ def correct_qc(*, actor, qc_result, value, raw_reference, reason):
             raw_reference=raw_reference,
             supersedes=original,
             reason=reason,
+            eligibility=eligibility,
             recorded_by=actor,
         )
         correction.full_clean()
@@ -599,10 +837,12 @@ def correct_qc(*, actor, qc_result, value, raw_reference, reason):
             action="qc.corrected",
             obj=batch,
             before={"qc_result": original.pk, "value": original.value_text},
-            after={"qc_result": correction.pk, "value": str(value)},
+            after={"qc_result": correction.pk, "value": str(value), "eligibility": eligibility},
             reason=reason,
         )
         return correction
+
+    return _with_bench(actor, work)
 
 
 def reject_batch(*, actor, pin, batch, expected_revision, reason):

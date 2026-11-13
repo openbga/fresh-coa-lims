@@ -8,9 +8,17 @@ Tests freeze the validated payload and its hash; later specification revisions n
 
 ``oq.test-requirement/1`` (numeric, inclusive limits) is accepted forever because tests froze it.
 ``oq.test-requirement/2`` adds counts, qualitative results from a controlled outcome pair and
-limits that exclude their boundary. Anything this contract cannot represent exactly (unknown or
-missing keys, unsupported result types, inconsistent limits or a qualitative line without an
-expected result) is a hold, never coerced. Batch QC checks stay numeric with inclusive limits.
+limits that exclude their boundary. ``oq.test-requirement/3`` has exactly the ``/2`` keys and rules
+with a seven-key method (resource requirements and an optional calculation); ``/1`` and ``/2``
+carry the four-key method they froze. Anything this contract cannot represent exactly (unknown or
+missing keys, unsupported result types, inconsistent limits, a qualitative line without an
+expected result, an invalid calculation or a calculated line that is not numeric in the
+calculation's unit) is a hold, never coerced. Batch QC checks stay numeric with inclusive limits;
+a calculation applies to test observations only.
+
+settings.ANALYTICAL_BENCH names the bench class (``choices``, ``lock_actor``, ``authorize``,
+``record_refusal``) that checks the analyst and the selected equipment and reagent lots for every
+observation and batch QC entry. There is no default: without it those entries are held.
 """
 
 import hashlib
@@ -22,8 +30,11 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.utils.module_loading import import_string
 
+from core import formulas
+
 SCHEMA = "oq.test-requirement/1"
 SCHEMA_V2 = "oq.test-requirement/2"
+SCHEMA_V3 = "oq.test-requirement/3"
 REQUIREMENT_KEYS = {
     "schema",
     "source",
@@ -47,6 +58,10 @@ REQUIREMENT_KEYS_V2 = (REQUIREMENT_KEYS - {"bounds"}) | {
     "criterion",
 }
 METHOD_KEYS = {"code", "revision", "requires_batch", "qc_checks"}
+METHOD_KEYS_V3 = METHOD_KEYS | {"requires_equipment", "requires_reagent", "calculation"}
+CALCULATION_KEYS = {"formula", "inputs", "unit", "decimals"}
+INPUT_KEYS = {"code", "name", "unit"}
+MAX_INPUTS = 12
 QC_KEYS = {"code", "name", "unit", "lower_limit", "upper_limit"}
 
 NUMERIC, COUNT, QUALITATIVE = "numeric", "count", "qualitative"
@@ -96,6 +111,39 @@ def _decimal(value, label, required=False):
     if -number.as_tuple().exponent > DECIMAL_PLACES or len(number.as_tuple().digits) > MAX_DIGITS:
         raise ValidationError(f"{label} exceeds the supported precision.")
     return number
+
+
+def _fits(number):
+    """Whether a value fits the stored decimal columns (20 digits, 8 decimal places)."""
+    _, digits, exponent = number.as_tuple()
+    places = max(-exponent, 0)
+    whole = max(len(digits) + exponent, 0)
+    return places <= DECIMAL_PLACES and whole <= MAX_DIGITS - DECIMAL_PLACES
+
+
+def _input_value(value, label):
+    """One calculation input as entered: (Decimal, text). Refuse anything not exact and finite."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        raise ValidationError(f"Enter {label}.")
+    if isinstance(value, Decimal):
+        number = value
+        text = format(value, "f")
+    elif isinstance(value, str):
+        text = value.strip()
+        try:
+            number = Decimal(text)
+        except InvalidOperation as exc:
+            raise ValidationError(f"{label} is not a decimal number.") from exc
+    else:
+        raise ValidationError(f"{label} must be a decimal number.")
+    if not number.is_finite():
+        raise ValidationError(f"{label} must be a finite number.")
+    _, digits, exponent = number.as_tuple()
+    if -exponent > DECIMAL_PLACES:
+        raise ValidationError(f"{label} has more than {DECIMAL_PLACES} decimal places.")
+    if len(digits) > MAX_DIGITS or not _fits(number):
+        raise ValidationError(f"{label} has more than {MAX_DIGITS} digits.")
+    return number, text
 
 
 def _text(data, key, label, max_length=160):
@@ -170,11 +218,69 @@ class QCCheck:
 
 
 @dataclass(frozen=True)
+class CalculationInput:
+    code: str
+    name: str
+    unit: str
+
+    @property
+    def label(self):
+        return f"{self.name} ({self.unit})"
+
+
+@dataclass(frozen=True)
+class Calculation:
+    """An approved calculation: the formula, its inputs in entry order, the unit and decimals."""
+
+    formula: str
+    inputs: tuple
+    unit: str
+    decimals: int
+
+    def compute(self, values):
+        """Validate the entered inputs and calculate the value; nothing is guessed.
+
+        ``values`` maps each input code to its value (Decimal or text). Returns ``(value, entered)``
+        where ``value`` is rounded half-up to the approved decimals and ``entered`` lists the
+        inputs as entered, in input order, ready to store on the observation.
+        """
+        values = dict(values or {})
+        unknown = sorted(set(values) - {i.code for i in self.inputs})
+        if unknown:
+            raise ValidationError(f"The calculation has no input {', '.join(unknown)}.")
+        numbers, entered = {}, []
+        for item in self.inputs:
+            number, text = _input_value(values.get(item.code), item.label)
+            numbers[item.code] = number
+            entered.append({"code": item.code, "name": item.name, "unit": item.unit, "value": text})
+        try:
+            value = formulas.calculate(self.formula, numbers, self.decimals)
+        except formulas.FormulaError as exc:
+            raise ValidationError(f"The value cannot be calculated: {exc}") from exc
+        if not _fits(value):
+            raise ValidationError("The calculated result is too large to record.")
+        return value, entered
+
+    def record(self, method):
+        """The calculation as applied, frozen on the observation and in its audit event."""
+        return {
+            "method": method.code,
+            "revision": method.revision,
+            "formula": self.formula,
+            "unit": self.unit,
+            "decimals": self.decimals,
+        }
+
+
+@dataclass(frozen=True)
 class Method:
     code: str
     revision: int
     requires_batch: bool
     qc_checks: tuple
+    requires_equipment: bool = False
+    requires_reagent: bool = False
+    calculation: Calculation | None = None
 
     def check(self, code):
         for check in self.qc_checks:
@@ -205,6 +311,11 @@ class Requirement:
     @property
     def is_qualitative(self):
         return self.result_type == QUALITATIVE
+
+    @property
+    def calculation(self):
+        """The method's approved calculation, or None when the value is entered directly."""
+        return self.method.calculation
 
     @property
     def outcomes(self):
@@ -330,10 +441,56 @@ def _exact_keys(data, keys, label):
         raise ValidationError(f"{label} keys differ (unknown {unknown}, missing {missing}).")
 
 
+def _calculation(data):
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        raise ValidationError("Method calculation is invalid.")
+    _exact_keys(data, CALCULATION_KEYS, "Calculation")
+    formula = data["formula"]
+    if not isinstance(formula, str) or not 1 <= len(formula) <= formulas.MAX_LENGTH:
+        raise ValidationError("Calculation formula is required.")
+    try:
+        parsed = formulas.parse(formula)
+    except formulas.FormulaError as exc:
+        raise ValidationError(f"Calculation formula is invalid: {exc}") from exc
+    items = data["inputs"]
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_INPUTS:
+        raise ValidationError(f"A calculation has 1 to {MAX_INPUTS} inputs.")
+    inputs = []
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValidationError("Calculation input definition is invalid.")
+        _exact_keys(item, INPUT_KEYS, "Calculation input")
+        if not formulas.is_name(item["code"]):
+            raise ValidationError("Calculation input code is invalid.")
+        inputs.append(
+            CalculationInput(
+                item["code"],
+                _text(item, "name", "Calculation input name", 160),
+                _text(item, "unit", "Calculation input unit", 24),
+            )
+        )
+    codes = [i.code for i in inputs]
+    if len(set(codes)) != len(codes):
+        raise ValidationError("Calculation input codes must be unique.")
+    if parsed.names != set(codes):
+        raise ValidationError("The calculation formula must use exactly its input codes.")
+    decimals = data["decimals"]
+    if not isinstance(decimals, int) or isinstance(decimals, bool) or not 0 <= decimals <= 8:
+        raise ValidationError("Calculation decimals must be an integer from 0 to 8.")
+    return Calculation(
+        formula, tuple(inputs), _text(data, "unit", "Calculation unit", 40), decimals
+    )
+
+
 def parse_method(data):
+    """Parse a four-key method (as frozen before resource checks) or a seven-key method."""
     if not isinstance(data, dict):
         raise ValidationError("Method snapshot is missing.")
-    _exact_keys(data, METHOD_KEYS, "Method")
+    extended = set(data) == METHOD_KEYS_V3
+    if not extended:
+        _exact_keys(data, METHOD_KEYS, "Method")
     revision = data.get("revision")
     if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
         raise ValidationError("Method revision must be a positive integer.")
@@ -360,8 +517,19 @@ def parse_method(data):
         raise ValidationError("QC check codes must be unique.")
     if data["requires_batch"] and not parsed:
         raise ValidationError("A batch method needs at least one QC check.")
+    extra = {}
+    if extended:
+        extra = {
+            "requires_equipment": _bool(data, "requires_equipment"),
+            "requires_reagent": _bool(data, "requires_reagent"),
+            "calculation": _calculation(data["calculation"]),
+        }
     return Method(
-        _text(data, "code", "Method code", 80), revision, data["requires_batch"], tuple(parsed)
+        _text(data, "code", "Method code", 80),
+        revision,
+        data["requires_batch"],
+        tuple(parsed),
+        **extra,
     )
 
 
@@ -432,10 +600,13 @@ def parse_requirement(data):
     schema = data.get("schema") if isinstance(data, dict) else None
     if schema == SCHEMA:
         shape = _shape_v1(data)
-    elif schema == SCHEMA_V2:
+    elif schema in (SCHEMA_V2, SCHEMA_V3):
         shape = _shape_v2(data)
     else:
         raise ValidationError("Unsupported test-requirement payload.")
+    method_keys = METHOD_KEYS_V3 if schema == SCHEMA_V3 else METHOD_KEYS
+    if isinstance(data.get("method"), dict):
+        _exact_keys(data["method"], method_keys, f"Method of {schema}")
     integers = {}
     for key, low, high in [
         ("replicates", 1, 10),
@@ -451,13 +622,19 @@ def parse_requirement(data):
         integers[key] = value
     replicate_limits = _bool(data, "replicate_limits")
     unit = "" if shape["result_type"] == QUALITATIVE else _text(data, "unit", "Unit", 40)
+    method = parse_method(data.get("method"))
+    calculation = method.calculation
+    if calculation is not None and (shape["result_type"] != NUMERIC or unit != calculation.unit):
+        raise ValidationError(
+            f"A calculated result must be numeric in the calculation's unit ({calculation.unit})."
+        )
     return Requirement(
         source=_text(data, "source", "Specification source", 160),
         test_code=_text(data, "test_code", "Test code", 80),
         name=_text(data, "name", "Test name"),
         unit=unit,
         replicate_limits=replicate_limits,
-        method=parse_method(data.get("method")),
+        method=method,
         **shape,
         **integers,
     )
@@ -512,17 +689,42 @@ def batch_methods():
     return accepted
 
 
-def check_eligibility(*, actor, test):
-    """Return JSON evidence that the actor may record observations for the test's method.
+class WorkRefused(ValidationError):
+    """The bench refused the analyst or a selected resource.
 
-    settings.ANALYTICAL_ELIGIBILITY_CHECK names a callable(*, actor, test) that returns evidence or
-    raises ValidationError. There is no default: without a configured check, observations hold.
+    ``refusals`` is ``[{"subject": str, "reasons": [str, ...]}, ...]``; the messages are
+    ``"<subject>: <reason>"``.
     """
-    path = getattr(settings, "ANALYTICAL_ELIGIBILITY_CHECK", "")
+
+    def __init__(self, refusals):
+        self.refusals = [
+            {"subject": str(item["subject"]), "reasons": [str(r) for r in item["reasons"]]}
+            for item in refusals
+        ]
+        messages = [f"{r['subject']}: {reason}" for r in self.refusals for reason in r["reasons"]]
+        super().__init__(messages or ["The bench refused this work."])
+
+
+def bench():
+    """The configured bench (settings.ANALYTICAL_BENCH); without one, entries are held."""
+    path = getattr(settings, "ANALYTICAL_BENCH", "")
     if not path:
-        raise ValidationError("No analyst eligibility check is configured; observations are held.")
-    evidence = import_string(path)(actor=actor, test=test)
-    if not isinstance(evidence, dict):
-        raise ValidationError("Analyst eligibility evidence is missing.")
-    json.dumps(evidence)  # must be storable as frozen evidence
-    return evidence
+        raise ValidationError("No bench check is configured; results are held.")
+    return import_string(path)()
+
+
+def bench_resources(evidence):
+    """(equipment, reagents) labels recorded in frozen bench evidence; tolerant of older rows."""
+    evidence = evidence if isinstance(evidence, dict) else {}
+
+    def labels(key, name):
+        items = evidence.get(key)
+        if not isinstance(items, list):
+            return []
+        found = []
+        for item in items:
+            if isinstance(item, dict):
+                found.append(str(item.get(name) or f"#{item.get('id', '?')}"))
+        return found
+
+    return labels("equipment", "asset_id"), labels("reagents", "identifier")

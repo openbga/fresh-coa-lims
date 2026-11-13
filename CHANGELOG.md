@@ -6,12 +6,16 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Changed
 
+- `ANALYTICAL_BENCH` replaces `ANALYTICAL_ELIGIBILITY_CHECK`. A deployment that overrides the old setting must name a bench class instead; without one, results are held.
 - Adopted the OpenBGA Fresh CoA LIMS name and certificate-and-leaf mark across the application, presentation and newly issued certificates.
 - Moved the source repository and presentation to the `fresh-coa-lims` slug, with the hosted demo at `fresh-coa-lims.onrender.com`.
 - The Render Blueprint and hosted demo now deploy `develop` automatically once CI checks pass; controlled deployments keep automatic deployment off.
 
 ### Added
 
+- Calculated results: a method version can define one formula over named inputs with units, approved and frozen with the version. The analyst enters the inputs, the system calculates the value, and the result keeps the inputs, the formula and the method version. Submission and review calculate again.
+- Equipment and reagent checks at result entry: recording or correcting a result or a batch QC check names the instruments and the reagent or standard lots used. An entry is refused when an instrument is out of service or out of calibration, a lot is not released or expired, or the analyst has no current qualification for the method, which now applies to batch QC as well. A method version can require an instrument, a lot or both. After a failed calibration the equipment page lists the tests and QC batches that used the equipment.
+- Raw-data files: a file can be attached to a test, is stored with its SHA-256 checksum, never changes and is returned unchanged on download. `RAW_DATA_MAX_BYTES` sets the largest accepted file and `RAW_DATA_TOTAL_MAX_BYTES` an optional ceiling for all files together.
 - More result types in native testing: counts, qualitative results (conforms or does not conform, absent or present) recorded with what was observed, results reported as less than a value kept as recorded, and specification limits that exclude their boundary. Certificates show the acceptance text and the result as recorded. A qualitative specification line now needs an expected outcome; lines approved without one are held until a new version states it.
 - Sign-in announcement: one notice on the sign-in page that administrators write, publish and withdraw with a signed, audited change. The development seed can publish its non-administrator demo accounts there (`seed_demo --publish-accounts`).
 
@@ -32,7 +36,7 @@ Initial public source release (project version 0.1.0), licensed AGPL-3.0-only. I
 
 ### Limits
 
-- Greater-than results, calculations from raw data and batch QC checks other than numeric with inclusive limits are not supported.
+- Greater-than results and batch QC checks other than directly entered numeric values with inclusive limits are not supported. A method states that an instrument or a lot is required, not which one.
 - Stability testing of released lots uses external evidence, because released lot records are immutable.
 - Manufacturer batch release is a separate decision and is not performed by the software.
 - Multi-factor authentication, identity proofing, PIN recovery policy, backup and restore acceptance, retention and intended-use validation remain the responsibility of each deployment.

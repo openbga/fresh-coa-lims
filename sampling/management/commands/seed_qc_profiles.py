@@ -27,6 +27,34 @@ BATCH_QC = {
     "gc-purity": [("control", "Reference standard purity", "%", "99.0", "101.0")],
 }
 
+# Methods whose result is calculated from raw measurements, and whether each result must record
+# an instrument and a reagent or standard lot. The formulas are synthetic examples.
+CALCULATIONS = {
+    "kf-water": {
+        "inputs": [
+            ("titrant_volume", "Titrant volume", "mL"),
+            ("titer", "Titrant water equivalent", "mg/mL"),
+            ("sample_mass", "Sample mass", "mg"),
+        ],
+        "formula": "titrant_volume * titer / sample_mass * 100",
+        "unit": "% w/w",
+        "decimals": 2,
+        "requires_equipment": True,
+        "requires_reagent": True,
+    },
+    "loss-on-drying": {
+        "inputs": [
+            ("mass_before", "Sample mass before drying", "g"),
+            ("mass_after", "Sample mass after drying", "g"),
+        ],
+        "formula": "(mass_before - mass_after) / mass_before * 100",
+        "unit": "%",
+        "decimals": 2,
+        "requires_equipment": True,
+        "requires_reagent": False,
+    },
+}
+
 REASON = "Synthetic segment profile; quality-owner applicability review required."
 
 METHODS = {
@@ -231,6 +259,7 @@ class Command(BaseCommand):
         methods = {}
         for code, (title, technique) in METHODS.items():
             method = Method.objects.filter(code=code).first()
+            calculation = CALCULATIONS.get(code)
             if method is None:
                 method, _ = catalog.create_method(
                     actor=actor,
@@ -242,10 +271,30 @@ class Command(BaseCommand):
                     suitability_ref=f"VAL-SYN-{code.upper()}",
                     summary="Synthetic placeholder procedure.",
                     requires_batch=code in BATCH_QC,
+                    requires_equipment=bool(calculation and calculation["requires_equipment"]),
+                    requires_reagent=bool(calculation and calculation["requires_reagent"]),
                     reason=REASON,
                     **window,
                 )
                 revision = method.revisions.get()
+                if calculation:
+                    for name, label, unit in calculation["inputs"]:
+                        catalog.add_calculation_input(
+                            actor=actor,
+                            revision=revision,
+                            reason=REASON,
+                            code=name,
+                            name=label,
+                            unit=unit,
+                        )
+                    catalog.set_calculation(
+                        actor=actor,
+                        revision=revision,
+                        reason=REASON,
+                        formula=calculation["formula"],
+                        unit=calculation["unit"],
+                        decimals=calculation["decimals"],
+                    )
                 for check, name, unit, low, high in BATCH_QC.get(code, []):
                     catalog.add_qc_check(
                         actor=actor,

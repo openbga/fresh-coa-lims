@@ -69,17 +69,17 @@
         <div class="col-lg-4">
           <p class="qual-stage"><span class="vr-status" data-tone="success">Done</span></p>
           <h2 id="done-heading">Available today</h2>
-          <p>A lot can go from receipt to a signed certificate of analysis with numeric, count and qualitative tests. These areas are in the current source and are tested on PostgreSQL and in browser journeys.</p>
+          <p>A lot can go from receipt to a signed certificate of analysis with numeric, count and qualitative tests, including results calculated from raw measurements. These areas are in the current source and are tested on PostgreSQL and in browser journeys.</p>
         </div>
         <div class="col-lg-8">
           <ul class="qual-areas">
             <li id="configuration"><h3>Approved configuration</h3><p>Rule sets, specifications, methods and sampling plans are versioned and effective-dated. Someone other than the author signs each approval. Every lot keeps a snapshot of the revisions it was tested against.</p></li>
             <li id="receipt-sampling"><h3>Lot receipt and sampling</h3><p>Lots are received into quarantine and assigned their specifications and sampling plan. Sampling records show which containers were sampled, where, when and by whom, with deviations assessed.</p></li>
-            <li id="testing"><h3>Testing</h3><p>Numeric results and counts with units, replicates, declared rounding and batch QC checks. Qualitative results (conforms or does not conform, present or absent) are recorded with what was observed. A result reported as less than a value is kept as recorded and never becomes zero. Limits can include or exclude their boundary. A correction adds an entry and keeps the original. Recording a result requires a current analyst qualification for the method.</p></li>
+            <li id="testing"><h3>Testing</h3><p>Numeric results and counts with units, replicates, declared rounding and batch QC checks. Qualitative results (conforms or does not conform, present or absent) are recorded with what was observed. A result reported as less than a value is kept as recorded and never becomes zero. Limits can include or exclude their boundary. A result can be calculated from raw measurements, such as weights, volumes and factors, with a formula approved with the method version; the record keeps the inputs and the formula used. Raw-data files are attached to a test and stored with a checksum. A correction adds an entry and keeps the original.</p></li>
             <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
             <li id="review-disposition"><h3>Review and QC disposition</h3><p>A reviewer who did not record the results signs the review. Quality signs the disposition, which is blocked while tests are missing or failing or while investigations or holds are open.</p></li>
             <li id="issued-certificates"><h3>Certificates of analysis</h3><p>A signed, versioned PDF built from the reviewed evidence. The issued file is stored with its checksum and returned unchanged on every download. An amendment states its reason and links to the original.</p></li>
-            <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, analyst qualifications by method, and a recorded authorization for each use.</p></li>
+            <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, and analyst qualifications by method. Recording a result or a batch QC check names the instruments and the reagent or standard lots used. The entry is refused when an instrument is out of calibration or out of service, a lot is expired or not released, or the analyst has no current qualification for the method. After a failed calibration the equipment page lists the results that used it.</p></li>
             <li id="stability-retention"><h3>Stability and retention</h3><p>Stability protocols with conditions, time points and scheduled pulls. Reserve samples, retention obligations calculated from their anchor dates, and holds that block disposal.</p></li>
             <li id="signatures-audit"><h3>Signatures, audit trail and accounts</h3><p>Username and PIN are re-entered for every signature, which is bound to the exact revision signed. The audit trail records who changed what, when and why, and can be reviewed and exported. Accounts are named, roles are explicit and account changes are signed.</p></li>
             <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
@@ -99,27 +99,6 @@
           </div>
           <div class="col-lg-8">
             <ol class="qual-workflow">
-              <li id="calculations">
-                <h3>Calculations and raw data</h3>
-                <p>A reviewer needs to see how a reported value was reached from the raw measurements.</p>
-                <ul>
-                  <li>Results calculated from raw measurements such as weights, dilutions and standard purity, with units.</li>
-                  <li>Formulas approved and versioned with the method. Each result records the formula version and the inputs used.</li>
-                  <li>Raw-data files attached to results and stored with a checksum.</li>
-                </ul>
-                <p class="qual-ref">Requirement OQ-007</p>
-              </li>
-              <li id="bench-checks">
-                <h3>Equipment and reagent checks at result entry</h3>
-                <p>Equipment and reagent records exist, but recording a result does not check them yet.</p>
-                <ul>
-                  <li>Select the instrument and the reagent or standard lots when recording a result or batch QC.</li>
-                  <li>Refuse equipment that is out of calibration or out of service, and reagents that are expired or not released.</li>
-                  <li>Apply the analyst qualification check to batch QC as well.</li>
-                  <li>After a failed calibration, list the results that used that equipment.</li>
-                </ul>
-                <p class="qual-ref">Requirements OQ-004, OQ-011</p>
-              </li>
               <li id="external-results">
                 <h3>Supplier and contract-laboratory results</h3>
                 <p>Many laboratories take part of a lot's evidence from a supplier's certificate or from an outside laboratory. That reliance has conditions, and the record has to show they were met.</p>

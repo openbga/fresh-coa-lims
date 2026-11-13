@@ -8,7 +8,14 @@ from core.models import ElectronicSignature
 from quality.models import Sample
 
 from .contracts import canonical_hash, resolve
-from .models import AnalyticalTest, Investigation, InvestigationEntry, Observation, QCResult
+from .models import (
+    AnalyticalTest,
+    Investigation,
+    InvestigationEntry,
+    Observation,
+    QCResult,
+    RawDataFile,
+)
 
 EVIDENCE_SCHEMA = "analytical.lot-evidence/1"
 STATE = AnalyticalTest.State
@@ -103,6 +110,7 @@ def _authors(tests):
     ids.update(
         QCResult.objects.filter(batch_id__in=batch_ids).values_list("recorded_by_id", flat=True)
     )
+    ids.update(RawDataFile.objects.filter(test__in=tests).values_list("uploaded_by_id", flat=True))
     return ids
 
 
