@@ -1,6 +1,7 @@
 from django import forms
 from django.conf import settings
 
+from core import formulas
 from core.forms import SignatureIdentityForm
 
 from .models import (
@@ -13,7 +14,7 @@ from .models import (
     Stage,
     SuitabilityKind,
 )
-from .units import RESULT_UNITS
+from .units import INPUT_UNITS, RESULT_UNITS
 
 TZ = settings.TIME_ZONE
 
@@ -91,6 +92,17 @@ class MethodRevisionForm(GroupedForm):
         required=False,
         help_text="If set, add the batch QC checks to the draft before approval.",
     )
+    requires_equipment = forms.BooleanField(
+        label="Records an instrument",
+        required=False,
+        help_text="If set, every result and batch QC entry must record at least one instrument.",
+    )
+    requires_reagent = forms.BooleanField(
+        label="Records a reagent or standard",
+        required=False,
+        help_text="If set, every result and batch QC entry must record at least one reagent "
+        "or standard lot.",
+    )
     reason = reason_field()
 
     def __init__(self, *args, **kwargs):
@@ -99,6 +111,7 @@ class MethodRevisionForm(GroupedForm):
 
     groups = [
         ("Procedure", ["technique", "document_ref", "summary", "requires_batch"]),
+        ("Resources recorded with results", ["requires_equipment", "requires_reagent"]),
         ("Suitability", ["suitability_kind", "suitability_ref"]),
         ("Effective period", ["effective_from", "effective_until"]),
         ("Change control", ["reason"]),
@@ -292,6 +305,52 @@ class QCCheckForm(GroupedForm):
     groups = [
         ("QC check", ["code", "name"]),
         ("Acceptance limits (inclusive)", ["unit", "lower_limit", "upper_limit"]),
+        ("Change control", ["reason"]),
+    ]
+
+
+class CalculationInputForm(GroupedForm):
+    code = forms.CharField(
+        max_length=40,
+        help_text="The name the formula uses: a lower-case letter, then lower-case letters, "
+        "digits or underscores, e.g. peak_area.",
+    )
+    name = forms.CharField(max_length=160, help_text="What the analyst enters, e.g. Sample mass.")
+    unit = forms.ChoiceField(choices=INPUT_UNITS)
+    reason = reason_field()
+    groups = [
+        ("Input", ["code", "name", "unit"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        if not formulas.is_name(code):
+            raise forms.ValidationError(
+                "Use a lower-case letter followed by lower-case letters, digits or underscores "
+                "(40 at most)."
+            )
+        return code
+
+
+class CalculationForm(GroupedForm):
+    formula = forms.CharField(
+        max_length=formulas.MAX_LENGTH,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Arithmetic over the input codes: + - * / and brackets, e.g. "
+        "(peak_area * standard_mass) / (standard_area * sample_mass) * 100. "
+        "No functions or exponents.",
+    )
+    unit = forms.ChoiceField(label="Unit of the calculated result", choices=RESULT_UNITS)
+    decimals = forms.IntegerField(
+        label="Decimals of the calculated result",
+        min_value=0,
+        max_value=formulas.MAX_DECIMALS,
+        help_text="The result is rounded half up to this many decimals when it is recorded.",
+    )
+    reason = reason_field()
+    groups = [
+        ("Calculation", ["formula", "unit", "decimals"]),
         ("Change control", ["reason"]),
     ]
 

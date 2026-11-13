@@ -4,7 +4,7 @@ urls: catalog:method_new
 views: catalog.views.method_new
 templates: catalog/form.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -21,7 +21,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 
 - **Breadcrumbs**: Specifications and methods, Methods, New method.
 - **Intro**: "Link the controlled procedure and the evidence that the method is suitable for its intended use. Another quality approver signs the version before tests can rely on it."
-- **Form sections**: Method, Procedure, Suitability, Effective period, Change control.
+- **Form sections**: Method, Procedure, "Resources recorded with results", Suitability, Effective period, Change control.
 - **Buttons**: **Cancel** (to the Methods list) and **Create draft**.
 
 ## Actions
@@ -41,6 +41,8 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 | Summary | `MethodRevision.summary` | Text | No | Free description; shown on the method record (when entered) and on the approval page. |
 | Controlled procedure | `MethodRevision.document_ref` | Text, max 160 | Yes | Help: "Document ID and revision of the approved procedure." |
 | Runs in a QC batch | `MethodRevision.requires_batch` | Checkbox | No | Help: "If set, add the batch QC checks to the draft before approval." |
+| Records an instrument | `MethodRevision.requires_equipment` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one instrument." Fixed at creation. |
+| Records a reagent or standard | `MethodRevision.requires_reagent` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one reagent or standard lot." Fixed at creation. |
 | Suitability basis | `MethodRevision.suitability_kind` | Method validation, Compendial method verification, Method transfer, Documented fitness for intended use | Yes | Kind of evidence of suitability for intended use. |
 | Suitability evidence | `MethodRevision.suitability_ref` | Text, max 200 | Yes | Help: "Stable ID or location of the approved validation or verification report." |
 | Effective from (time zone) | `MethodRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
@@ -53,6 +55,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 - **Code**: "This method code already exists." If another request saves the same code at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Interval**: "The effective end must be after the start." (form) and "The effective end must be after the effective start." (server).
 - **QC checks**: creating a batch method does not add checks. Add at least one on the method record before approval ("A method that runs in a QC batch needs at least one QC check.").
+- **Resources and calculation**: the two resource options are frozen with the version and published to the testing module, which refuses a result or batch QC entry that records none of that kind. A calculation is added on the method record after creation (formula, inputs, result unit, decimals); a method with a calculation must be reported as a numeric test in the same unit.
 - **Audit**: `method.created` and `method_revision.created` with your reason. No signature yet.
 - **Draft content** is fixed at creation; change it by creating a new version.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.

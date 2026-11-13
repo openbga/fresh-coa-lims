@@ -63,6 +63,10 @@ MUTATIONS = {
     "catalog:method_approve": (("method_draft",), "approver"),
     "catalog:qc_check_new": (("method_draft",), "approver"),
     "catalog:qc_check_remove": (("method_draft", "qc_check"), "approver"),
+    "catalog:calculation_set": (("method_draft",), "approver"),
+    "catalog:calculation_clear": (("method_draft",), "approver"),
+    "catalog:calculation_input_new": (("method_draft",), "approver"),
+    "catalog:calculation_input_remove": (("method_draft", "calc_input"), "approver"),
     "catalog:method_withdraw": (("method_draft",), "approver"),
     "catalog:material_new": ((), "approver"),
     "sampling:assign": (("lot",), "analyst"),
@@ -123,6 +127,14 @@ def world(people, ready):  # noqa: F811
         unit="%",
         upper_limit=Decimal("0.05"),
     )
+    calc_input = catalog.add_calculation_input(
+        actor=author,
+        revision=method_draft,
+        reason="Input",
+        code="peak_area",
+        name="Peak area",
+        unit="peak area",
+    )
     plan_draft = plan_revision(author, material(author, code="syn-api-002"))
     assign(people, ready)
     record = short(people, ready)
@@ -135,6 +147,7 @@ def world(people, ready):  # noqa: F811
         "method_approved": ready["spec"].tests.first().method_id,
         "method_draft": method_draft.pk,
         "qc_check": qc_check.pk,
+        "calc_input": calc_input.pk,
         "plan": plan_draft.plan_id,
         "plan_approved": ready["plan"].plan_id,
         "plan_draft": plan_draft.pk,

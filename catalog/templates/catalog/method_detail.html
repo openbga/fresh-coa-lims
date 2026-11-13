@@ -20,10 +20,13 @@
       <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
       {% if revision.summary %}<div><dt>Summary</dt><dd>{{ revision.summary|linebreaksbr }}</dd></div>{% endif %}
       <div><dt>QC batch</dt><dd>{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}</dd></div>
+      <div><dt>Instrument</dt><dd>{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
+      <div><dt>Reagent or standard</dt><dd>{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
       <div><dt>Record revision</dt><dd>{{ revision.revision }}</dd></div>
       <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
     </dl>
     {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all editable=revision.is_draft %}{% endif %}
+    {% include "catalog/includes/calculation.html" %}
     {% include "catalog/includes/signatures.html" with signatures=revision.signature_list %}
   </div>
 </section>

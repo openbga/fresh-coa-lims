@@ -59,7 +59,7 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 
 - **Draft only changes**: tests can be added or removed only while the version is Draft. Approved and withdrawn versions and their tests are immutable at the database level.
 - **Revision**: each test added or removed increases the record revision by 1.
-- **Approval prerequisites** (checked at signing, not on this page): at least one test; every test passes the Add test shape rules, and every qualitative test has an expected outcome (remove and re-add a copied line that has none); every test's method has an approved method version effective at the specification's start; no overlap with another approved version of this specification.
+- **Approval prerequisites** (checked at signing, not on this page): at least one test; a test whose method has a calculation at the specification's start is numeric with the calculation's unit; every test passes the Add test shape rules, and every qualitative test has an expected outcome (remove and re-add a copied line that has none); every test's method has an approved method version effective at the specification's start; no overlap with another approved version of this specification.
 - **Independence**: the author, or anyone who made another change to the draft (any audit event on it other than a signature), cannot approve it. Quality users in that position see the "Independent approval" alert instead of the approve button.
 - **Approval**: signature meaning "approved", binds the record revision, stores a content hash (see the Approve page).
 - **Withdrawn** versions show Withdrawn and no action buttons.

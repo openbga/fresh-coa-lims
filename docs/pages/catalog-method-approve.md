@@ -3,8 +3,8 @@ title: Approve method version
 urls: catalog:method_approve
 views: catalog.views.method_approve
 templates: catalog/approve.html
-models: catalog.MethodRevision, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+models: catalog.MethodRevision, catalog.MethodCalculationInput, core.ElectronicSignature, core.PINCredential
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -23,7 +23,7 @@ Independent review and electronic signature that approves a draft method version
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code, "Version N · Approve".
 - **Header line**: the version, "record revision N" and its status.
-- **Content being approved**: Method, Technique, Controlled procedure, Suitability, Effective, QC batch, Summary (when entered), Author, and the batch QC checks table when the method runs in a batch.
+- **Content being approved**: Method, Technique, Controlled procedure, Suitability, Effective, QC batch, Instrument, Reagent or standard, Summary (when entered), Author, the batch QC checks table when the method runs in a batch, and the Calculation (formula, result unit and decimals, inputs; "No calculation. Results are entered directly." when there is none).
 - **Sign approval**: the statement of what your signature means ("approved", the record revision, the resulting revision and a content hash), "Signer:" with your name and username, and a link "Enroll or change your signature PIN".
 - **Form**: Approval comment, Signing username, Signature PIN. Buttons **Cancel** and **Sign and approve**.
 - **Blocked state**: an alert "Not permitted" with the reason, and a button "Back to <version>" instead of the form.
@@ -50,9 +50,9 @@ Independent review and electronic signature that approves a draft method version
 - **Draft only**: "Only draft revisions can be approved." (shown on the page as "Not permitted", and by the server).
 - **Independence**: "You authored this revision; another quality approver must sign." or "You edited this draft; another quality approver must sign." The server rechecks at signing.
 - **Stale record**: "Record changed. Reload and review before signing." if the record revision differs from the one shown.
-- **Content checks at approval**: "Link the controlled procedure and suitability evidence." (both references must be non-blank) and, for batch methods, "A method that runs in a QC batch needs at least one QC check."
+- **Content checks at approval**: "Link the controlled procedure and suitability evidence." (both references must be non-blank), for batch methods, "A method that runs in a QC batch needs at least one QC check.", and for a calculation, refusals that start with "Calculation:" and say what to fix. A version with no formula and no inputs has no calculation. Otherwise it needs a formula that parses, 1 to 12 inputs, a result unit and decimals, and the names the formula uses must be exactly the input codes ("The formula uses names that are not inputs: ..." and "These inputs are not used by the formula: ...").
 - **No overlap**: "Effective dates overlap an approved version." Effective intervals are half-open (start inclusive, end exclusive); an approved version of the same record that overlaps blocks approval. Approvals are serialised by a database lock so two approvals cannot race.
-- **Signature and audit**: signature meaning is "approved". The version becomes Approved, its content snapshot and SHA-256 hash are stored, the record revision increases by 1 and the signature binds to the new revision. Audit event `signed.approved` with your comment is written in the same transaction. Approved versions are immutable at the database level.
+- **Signature and audit**: signature meaning is "approved". The version becomes Approved, its content snapshot and SHA-256 hash are stored, the record revision increases by 1 and the signature binds to the new revision. Audit event `signed.approved` with your comment is written in the same transaction. Approved versions, including the resource options, calculation and inputs, are immutable at the database level.
 - **PIN and session**: "Enroll a signature PIN first." without a PIN; "Signature PIN was not accepted." for a wrong PIN (5 consecutive failures lock the PIN for 15 minutes: "Signature PIN is temporarily locked."); "Enter your own signing username and PIN." for a different username; "Session expired. Sign in again before signing." and "Sign in again before signing." for session problems. Failed PIN attempts and identity mismatches are audited even though the approval is refused.
 - **Failed submission** returns status 422 with the form and an error summary; entries other than the PIN are kept.
 

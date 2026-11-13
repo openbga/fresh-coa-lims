@@ -2,7 +2,9 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
-from .units import RESULT_UNITS, plain
+from core import formulas
+
+from .units import INPUT_UNITS, RESULT_UNITS, plain
 
 
 class Stage(models.TextChoices):
@@ -142,10 +144,32 @@ class MethodRevision(ControlledRevision):
         default=False,
         help_text="Results must be produced in an analytical batch whose QC checks pass.",
     )
+    requires_equipment = models.BooleanField(
+        "Records an instrument",
+        default=False,
+        help_text="Every result and batch QC entry must record at least one instrument.",
+    )
+    requires_reagent = models.BooleanField(
+        "Records a reagent or standard",
+        default=False,
+        help_text="Every result and batch QC entry must record at least one reagent or "
+        "standard lot.",
+    )
+    # One optional calculation. Formula, unit and decimals are changed on a draft by services
+    # (the database allows only these three columns to change on a draft); its inputs are
+    # MethodCalculationInput rows. A version without a formula and without inputs has none.
+    calculation_formula = models.CharField(max_length=formulas.MAX_LENGTH, blank=True)
+    calculation_unit = models.CharField(max_length=40, blank=True, choices=RESULT_UNITS)
+    calculation_decimals = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta(ControlledRevision.Meta):
         constraints = ControlledRevision.Meta.constraints + [
-            models.UniqueConstraint(fields=["method", "version"], name="method_version_unique")
+            models.UniqueConstraint(fields=["method", "version"], name="method_version_unique"),
+            models.CheckConstraint(
+                condition=Q(calculation_decimals__isnull=True)
+                | Q(calculation_decimals__lte=formulas.MAX_DECIMALS),
+                name="method_calculation_decimals",
+            ),
         ]
 
     def __str__(self):
@@ -162,10 +186,66 @@ class MethodRevision(ControlledRevision):
             "suitability_ref": self.suitability_ref,
             "summary": self.summary,
             "requires_batch": self.requires_batch,
+            "requires_equipment": self.requires_equipment,
+            "requires_reagent": self.requires_reagent,
             "qc_checks": [check.content() for check in self.qc_checks.all()],
+            "calculation": self.calculation(),
             "effective_from": self.effective_from.isoformat(),
             "effective_until": self.effective_until.isoformat(),
         }
+
+    @property
+    def has_calculation(self):
+        return bool(
+            self.calculation_formula.strip()
+            or self.calculation_unit
+            or self.calculation_decimals is not None
+            or (self.pk and self.calculation_inputs.exists())
+        )
+
+    def calculation(self):
+        """The calculation as frozen in the approved content, or None when there is none."""
+        if not self.has_calculation:
+            return None
+        return {
+            "formula": self.calculation_formula.strip(),
+            "inputs": [item.content() for item in self.calculation_inputs.all()],
+            "unit": self.calculation_unit,
+            "decimals": self.calculation_decimals,
+        }
+
+
+class MethodCalculationInput(models.Model):
+    """Named raw input of a method calculation. Editable only while the version is a draft.
+
+    Entry order is the order of creation (``id``).
+    """
+
+    method_revision = models.ForeignKey(
+        MethodRevision, on_delete=models.PROTECT, related_name="calculation_inputs"
+    )
+    code = models.CharField(
+        max_length=40, help_text="Name used in the formula, e.g. peak_area or sample_mass."
+    )
+    name = models.CharField(max_length=160)
+    unit = models.CharField(max_length=24, choices=INPUT_UNITS)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["method_revision", "code"], name="method_calculation_input_unique"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
+    def content(self):
+        return {"code": self.code, "name": self.name, "unit": self.unit}
 
 
 class MethodQCCheck(models.Model):
