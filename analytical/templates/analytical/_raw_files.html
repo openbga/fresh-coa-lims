@@ -1,0 +1,30 @@
+{% comment %}Raw-data files of a test. Parameters: test, can_correct (analyst, open test, lot in quarantine).{% endcomment %}
+{% with files=test.raw_files.all %}
+<section class="card vr-table-card mb-3" aria-labelledby="raw-heading">
+  <div class="card-header"><h2 class="card-title" id="raw-heading">Raw data files</h2><span class="vr-count">{{ files|length }}</span></div>
+  <div class="card-body">
+    {% if files %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">File</th><th scope="col" class="text-end">Size</th><th scope="col">SHA-256</th><th scope="col">Description</th><th scope="col">Attached</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {% for f in files %}
+          <tr>
+            <th scope="row">{{ f.filename }}</th>
+            <td class="text-end vr-nowrap">{{ f.size|filesizeformat }}</td>
+            <td><span class="vr-id" title="{{ f.sha256 }}">{{ f.sha256|truncatechars:17 }}</span></td>
+            <td>{{ f.description }}</td>
+            <td class="vr-nowrap">{{ f.uploaded_by.get_full_name|default:f.uploaded_by.get_username }}<div class="small vr-muted"><time datetime="{{ f.uploaded_at|date:'c' }}">{{ f.uploaded_at|date:"Y-m-d H:i T" }}</time></div></td>
+            <td><a href="{% url 'analytical:raw_file_download' f.pk %}">Download<span class="visually-hidden"> {{ f.filename }}</span></a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "analytical/_empty.html" with title="No raw data attached" body="Attach an instrument export, chromatogram or notebook page so a reviewer can check the original." %}
+    {% endif %}
+    {% if can_correct %}<div class="mt-3"><a class="btn btn-outline-primary" href="{% url 'analytical:raw_file_new' test.pk %}">Attach raw data</a></div>{% endif %}
+  </div>
+</section>
+{% endwith %}

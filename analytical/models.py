@@ -301,3 +301,29 @@ class InvestigationEntry(models.Model):
     class Meta:
         ordering = ["created_at", "pk"]
         verbose_name_plural = "investigation entries"
+
+
+class RawDataFile(models.Model):
+    """A file of raw data attached to a test, kept exactly as received. Rows are append-only."""
+
+    test = models.ForeignKey(AnalyticalTest, on_delete=models.PROTECT, related_name="raw_files")
+    filename = models.CharField(max_length=200, help_text="Base name of the uploaded file")
+    content_type = models.CharField(
+        max_length=100, blank=True, help_text="Type declared by the browser; informational only"
+    )
+    size = models.PositiveBigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    content = models.BinaryField()
+    description = models.CharField(max_length=200, help_text="What the file is")
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["uploaded_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["test", "sha256"], name="analytical_rawfile_unique"),
+            models.CheckConstraint(condition=Q(size__gt=0), name="analytical_rawfile_not_empty"),
+        ]
+
+    def __str__(self):
+        return self.filename

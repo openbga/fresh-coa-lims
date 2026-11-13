@@ -517,7 +517,7 @@ def test_existing_rows_migrate_without_loss_and_legacy_tests_still_review(people
     executor.migrate([("analytical", "0003_observation_eligibility")])
     executor = MigrationExecutor(connection)
     executor.loader.build_graph()
-    executor.migrate([("analytical", "0004_result_types")])
+    executor.migrate(executor.loader.graph.leaf_nodes("analytical"))  # forward to the latest
     observation = Observation.objects.get(test=test)
     assert (observation.value, observation.value_text, observation.unit) == (
         Decimal("1.01000000"),
