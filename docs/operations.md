@@ -242,7 +242,7 @@ A calculation is approved with the method version: the formula, its named inputs
 
 ## Raw-data files
 
-Raw-data files attached to tests are stored in the PostgreSQL database, so they are included in database backups and count toward database size. `RAW_DATA_MAX_BYTES` sets the largest accepted file (default 10 MiB, at most 50 MiB); a test holds at most 20 files. Files are kept exactly as received and are never opened by the software, which also means they are not scanned for malware: handle downloaded files under the organization's own controls. A file cannot be removed once attached. On a public demonstration, set a small limit.
+Raw-data files attached to tests are stored in the PostgreSQL database, so they are included in database backups and count toward database size. `RAW_DATA_MAX_BYTES` sets the largest accepted file (default 10 MiB, at most 50 MiB); a test holds at most 20 files. Files are kept exactly as received and are never opened by the software, which also means they are not scanned for malware: handle downloaded files under the organization's own controls. A file cannot be removed once attached. `RAW_DATA_TOTAL_MAX_BYTES` sets an optional ceiling on all raw-data files together (0, the default, sets none); once it is reached further files are refused. On a public demonstration set a small file limit and a ceiling, as the demonstration blueprint does. An upload above the file limit is refused while it arrives, but the server still reads the rest of the request before it answers.
 
 ## Accounts, sessions and signing
 

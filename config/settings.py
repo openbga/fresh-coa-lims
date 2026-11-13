@@ -197,3 +197,7 @@ ANALYTICAL_BENCH = "config.integrations.LaboratoryBench"
 RAW_DATA_MAX_BYTES = int(os.environ.get("RAW_DATA_MAX_BYTES", str(10 * 1024 * 1024)))
 if not 1 <= RAW_DATA_MAX_BYTES <= 50 * 1024 * 1024:
     raise RuntimeError("RAW_DATA_MAX_BYTES must be from 1 to 52428800 (50 MiB).")
+# Optional ceiling on all raw-data files of the deployment together, in bytes; 0 sets none.
+RAW_DATA_TOTAL_MAX_BYTES = int(os.environ.get("RAW_DATA_TOTAL_MAX_BYTES", "0"))
+if RAW_DATA_TOTAL_MAX_BYTES < 0:
+    raise RuntimeError("RAW_DATA_TOTAL_MAX_BYTES must be 0 (no ceiling) or a positive size.")

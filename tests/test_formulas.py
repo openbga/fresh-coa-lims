@@ -42,6 +42,13 @@ def test_calculate_rounds_half_up_to_the_approved_decimals():
     assert str(calculate("x", {"x": D("5")}, 2)) == "5.00"  # scale is the approved precision
 
 
+def test_a_result_that_rounds_to_zero_has_no_sign():
+    values = {"a": D("0.001"), "b": D("0.002")}
+    assert str(calculate("a - b", values, 2)) == "0.00"
+    assert str(calculate("a - b", values, 0)) == "0"
+    assert str(calculate("a - b", values, 3)) == "-0.001"  # a real negative keeps its sign
+
+
 def test_a_worked_assay_calculation():
     # (10.05 - 0.05) mL * 12.21 mg/mL / 250.4 mg * 100 = 48.76198...
     values = {
@@ -84,6 +91,9 @@ def test_a_worked_assay_calculation():
         "'a'",
         "a\nb",
         "µ",
+        "١٢ * a",  # digits of another script are not numbers here
+        "a * 1٠",
+        "a２",
         "x" * 41,
         "a + " * 200 + "a",
         "(" * 30 + "a" + ")" * 30,

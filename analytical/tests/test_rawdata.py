@@ -104,6 +104,21 @@ def test_empty_oversize_twenty_first_and_duplicate_refused(people, assigned, set
     attach(people, assigned[2]["identity"], content=b"x" * 100)
 
 
+def test_deployment_ceiling_for_all_files_together(people, assigned, settings):
+    lot, _, tests = assigned
+    settings.RAW_DATA_TOTAL_MAX_BYTES = 150
+    attach(people, tests["assay"], content=b"a" * 100)
+    revision = fresh(tests["identity"]).revision
+    # The ceiling counts every test's files, not only this test's.
+    with pytest.raises(ValidationError, match="reached its storage limit"):
+        attach(people, tests["identity"], content=b"b" * 51)
+    assert stored_count() == 1 and fresh(tests["identity"]).revision == revision
+    attach(people, tests["identity"], content=b"b" * 50)  # exactly at the ceiling
+    settings.RAW_DATA_TOTAL_MAX_BYTES = 0  # no ceiling
+    attach(people, tests["identity"], content=b"c" * 500)
+    assert stored_count() == 3
+
+
 def test_description_is_required(people, assigned):
     with pytest.raises(ValidationError, match="Describe"):
         attach(people, assigned[2]["assay"], description="   ")

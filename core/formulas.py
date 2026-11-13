@@ -27,7 +27,10 @@ MAX_DEPTH = 20
 MAX_DECIMALS = 8
 PRECISION = 50
 NAME = re.compile(r"[a-z][a-z0-9_]{0,39}")
-_TOKEN = re.compile(r"\s*(?:(?P<number>\d+(?:\.\d+)?)|(?P<name>[A-Za-z_][A-Za-z0-9_]*)|(?P<op>.))")
+# ASCII digits only: a digit from another script could be misread in an approved formula.
+_TOKEN = re.compile(
+    r"\s*(?:(?P<number>[0-9]+(?:\.[0-9]+)?)|(?P<name>[A-Za-z_][A-Za-z0-9_]*)|(?P<op>.))"
+)
 _OPERATORS = {"+", "-", "*", "/"}
 
 
@@ -194,6 +197,8 @@ def calculate(expression, values, decimals):
         raise FormulaError("The number of decimals must be a whole number from 0 to 8.")
     result = parse(expression).evaluate(values)
     try:
-        return result.quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP)
+        rounded = result.quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP)
     except InvalidOperation as exc:
         raise FormulaError("The calculated result is too large to record.") from exc
+    # A small negative result rounds to "-0.00"; record zero without a sign.
+    return rounded.copy_abs() if rounded.is_zero() else rounded

@@ -14,6 +14,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -85,6 +86,14 @@ def attach_raw_file(*, actor, test, upload, description):
             raise ValidationError(f"A test holds at most {MAX_FILES} raw-data files.")
         if existing.filter(sha256=digest).exists():
             raise ValidationError("This file content is already attached to this test.")
+        ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
+        if ceiling:
+            used = RawDataFile.objects.aggregate(total=Sum("size"))["total"] or 0
+            if used + len(content) > ceiling:
+                raise ValidationError(
+                    "This deployment has reached its storage limit for raw-data files. "
+                    "The file was not stored."
+                )
         stored = RawDataFile.objects.create(
             test=test,
             filename=filename,
