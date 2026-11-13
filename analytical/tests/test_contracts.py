@@ -64,7 +64,8 @@ def test_v1_payload_parses_unchanged():
         ({"result_type": "qualitative"}, "Only numeric"),
         ({"result_type": "count"}, "Only numeric"),
         ({"lower_inclusive": True}, "keys differ"),
-        ({"schema": "oq.test-requirement/3"}, "Unsupported"),
+        ({"schema": "oq.test-requirement/3"}, "keys differ"),
+        ({"schema": "oq.test-requirement/4"}, "Unsupported"),
     ],
 )
 def test_v1_unsupported_shapes_still_hold(change, message):

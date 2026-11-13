@@ -33,7 +33,75 @@ class RevisionReasonForm(ReasonForm):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput)
 
 
-class ObservationForm(StyledForm):
+def bench_fields(choices, method):
+    """Equipment and reagent or standard lot checkboxes from the bench's choices.
+
+    A kind is required when the method requires it; a kind with no choices that the method does
+    not require is left out. ``cleaned_data`` keys are the service's ``equipment_ids`` and
+    ``reagent_ids``.
+    """
+    fields = {}
+    for key, choice_key, label, required, noun in [
+        ("equipment_ids", "equipment", "Equipment used", method.requires_equipment, "instrument"),
+        (
+            "reagent_ids",
+            "reagents",
+            "Reagent and standard lots used",
+            method.requires_reagent,
+            "reagent or standard lot",
+        ),
+    ]:
+        options = list(choices.get(choice_key, []))
+        if not options and not required:
+            continue
+        if required:
+            help_text = f"This method requires at least one {noun}."
+            if not options:
+                help_text += f" No {noun} is available to select."
+        else:
+            help_text = f"Select every {noun} used, if any."
+        fields[key] = forms.TypedMultipleChoiceField(
+            label=label,
+            choices=[(str(pk), text) for pk, text in options],
+            coerce=int,
+            required=required,
+            widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+            help_text=help_text,
+            error_messages={"required": f"Select the {noun} used; this method requires one."},
+        )
+    return fields
+
+
+class BenchForm(StyledForm):
+    """A form recording work at the bench: adds the equipment and lot checkboxes before the
+    original record. Pass ``choices`` (from the bench) and the frozen ``method``."""
+
+    def __init__(self, *args, choices, method, **kwargs):
+        super().__init__(*args, **kwargs)
+        extra = bench_fields(choices, method)
+        if extra:
+            fields = dict(self.fields)
+            ordered = {}
+            for name, field in fields.items():
+                if name == "raw_reference":
+                    ordered.update(extra)
+                ordered[name] = field
+            self.fields = ordered
+
+    def bench_field(self, subject):
+        """The checkbox field whose selected choice names ``subject``, or None."""
+        for name in ("equipment_ids", "reagent_ids"):
+            field = self.fields.get(name)
+            selected = {str(v) for v in self.cleaned_data.get(name, [])} if field else set()
+            for value, text in field.choices if field else ():
+                if value in selected and subject in str(text).split():
+                    return name
+        return None
+
+
+class ObservationForm(BenchForm):
+    """Batch QC result (batch QC checks stay numeric and directly entered)."""
+
     value = forms.DecimalField(
         label="Observed value",
         help_text="Exact value as read; at most 8 decimal places. Never enter a nondetect as zero.",
@@ -48,21 +116,32 @@ class CorrectionForm(ObservationForm):
     reason = _reason("Reason for correction", "The original value stays visible in the record.")
 
 
-class ReadingForm(StyledForm):
+class ReadingForm(BenchForm):
     """A test observation shaped by its frozen requirement.
 
     Numeric and count: a value with an optional "reported as less than" choice. Qualitative: one
-    outcome from the requirement's controlled pair plus what was observed. ``cleaned_data`` holds
-    exactly the service's reading arguments (value, qualifier, outcome, observed_text).
+    outcome from the requirement's controlled pair plus what was observed. Calculated (the
+    method has a calculation): one value per approved input; the server calculates the result.
+    ``cleaned_data`` holds exactly the service's arguments (value, qualifier, outcome,
+    observed_text, inputs, equipment_ids, reagent_ids).
     """
 
     raw_reference = _raw_reference()
 
-    def __init__(self, *args, spec, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, spec, choices, **kwargs):
+        super().__init__(*args, choices=choices, method=spec.method, **kwargs)
         self.spec = spec
         fields = {}
-        if spec.is_qualitative:
+        calculation = spec.calculation
+        if calculation is not None:
+            for item in calculation.inputs:
+                fields[f"input_{item.code}"] = forms.DecimalField(
+                    label=item.label,
+                    help_text=f"Exact value as read, in {escape(item.unit)}; "
+                    "at most 8 decimal places.",
+                    **VALUE,
+                )
+        elif spec.is_qualitative:
             fields["outcome"] = forms.ChoiceField(
                 label="Observed result",
                 choices=spec.outcomes,
@@ -104,7 +183,12 @@ class ReadingForm(StyledForm):
 
     def clean(self):
         data = super().clean()
-        if self.spec.is_qualitative:
+        calculation = self.spec.calculation
+        if calculation is not None:
+            data["inputs"] = {i.code: data.pop(f"input_{i.code}", None) for i in calculation.inputs}
+            data["value"], data["qualifier"] = None, ""
+            data["outcome"], data["observed_text"] = "", ""
+        elif self.spec.is_qualitative:
             data["value"], data["qualifier"] = None, ""
         else:
             data["qualifier"] = "<" if data.pop("less_than", False) else ""

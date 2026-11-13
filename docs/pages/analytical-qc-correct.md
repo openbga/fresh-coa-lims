@@ -4,7 +4,7 @@ urls: analytical:qc_correct
 views: analytical.views.qc_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.QCResult, analytical.QCBatch
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Correct a recorded QC result by adding a linked correction; the original stays v
 ## Layout
 
 - Heading "Correct CHECK · BATCH". Summary: QC check, Acceptance, "Value being corrected".
-- Form: **Observed value**, **Original record** (prefilled), **Reason for correction**, **Cancel**, **Correct QC result**.
+- Form: **Observed value**, **Equipment used**, **Reagent and standard lots used**, **Original record** (prefilled), **Reason for correction**, **Cancel**, **Correct QC result**.
 
 ## Actions
 
@@ -33,14 +33,17 @@ Correct a recorded QC result by adding a linked correction; the original stays v
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Observed value | `QCResult.value` | Decimal, 8 decimals | Yes | Corrected value |
+| Equipment used | `QCResult.eligibility` (equipment) | Checkboxes from the bench | When the method requires equipment | Hidden when the bench offers none and the method does not require one |
+| Reagent and standard lots used | `QCResult.eligibility` (reagents) | Checkboxes from the bench | When the method requires a lot | As for equipment |
 | Original record | `QCResult.raw_reference` | Text, max 200 | Yes | Source of the corrected value |
 | Reason for correction | `QCResult.reason` | Text, max 2000 | Yes | "The original value stays visible in the record." |
 
 ## Rules and hidden logic
 
 - **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the batch record with the warning "This QC result can no longer be corrected." (batch closed, QC frozen, or the result already corrected).
+- **Bench checks**: without a configured bench the page redirects to the batch record with "No bench check is configured; results are held." The bench checks your current qualification for the batch method and every instrument and lot selected; a refusal shows "Refused: <subject>: <reason>" on the refused checkbox list or above the form, nothing is saved and the bench audits the attempt. A method that requires equipment or a reagent or standard lot refuses an entry with none selected. The evidence is frozen on the correction (`QCResult.eligibility`) and in its audit event. The bench checks the correcting analyst.
 - **Preconditions**: batch Open and no test in it submitted (same messages as recording); "This QC result has already been corrected."
-- **Effect**: a new row supersedes the old; batch revision rises by 1; `qc.corrected` is audited with before and after values. The batch QC status is recalculated from the current values.
+- **Effect**: a new row supersedes the old; batch revision rises by 1; `qc.corrected` is audited with before and after values and the bench evidence. The batch QC status is recalculated from the current values.
 - The link is offered on the batch record to every analyst, including for results recorded by others.
 
 ## Related pages

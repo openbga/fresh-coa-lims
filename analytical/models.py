@@ -4,7 +4,14 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from .contracts import LESS_THAN, OUTCOMES, Reading, parse_method, parse_requirement
+from .contracts import (
+    LESS_THAN,
+    OUTCOMES,
+    Reading,
+    bench_resources,
+    parse_method,
+    parse_requirement,
+)
 
 DECIMAL = {"max_digits": 20, "decimal_places": 8}
 
@@ -64,11 +71,24 @@ class QCResult(models.Model):
         "self", null=True, blank=True, on_delete=models.PROTECT, related_name="correction"
     )
     reason = models.TextField(blank=True)
+    eligibility = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Analyst qualification and equipment and reagent evidence at acceptance",
+    )
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["check_code", "recorded_at", "pk"]
+
+    @property
+    def equipment_used(self):
+        return bench_resources(self.eligibility)[0]
+
+    @property
+    def reagents_used(self):
+        return bench_resources(self.eligibility)[1]
 
 
 class AnalyticalTest(models.Model):
@@ -209,12 +229,36 @@ class Observation(models.Model):
     eligibility = models.JSONField(
         default=dict, blank=True, help_text="Analyst qualification evidence at acceptance"
     )
+    inputs = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Calculation inputs as entered, in input order; empty for an entered result",
+    )
+    calculation = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Calculation applied (method, revision, formula, unit, decimals); empty for an "
+        "entered result",
+    )
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["replicate", "recorded_at", "pk"]
         constraints = [
+            # A calculated value always keeps its inputs and the calculation applied, and is a
+            # number as calculated (never reported as less than a value).
+            models.CheckConstraint(
+                condition=(Q(inputs=[]) & Q(calculation={}))
+                | (
+                    ~Q(inputs=[])
+                    & ~Q(calculation={})
+                    & Q(value__isnull=False)
+                    & Q(qualifier="")
+                    & Q(outcome="")
+                ),
+                name="analytical_observation_calculation",
+            ),
             models.CheckConstraint(
                 condition=(
                     ~Q(outcome="")
@@ -232,6 +276,18 @@ class Observation(models.Model):
         return Reading(
             value=self.value, qualifier=self.qualifier, outcome=self.outcome, text=self.value_text
         )
+
+    @property
+    def is_calculated(self):
+        return bool(self.calculation)
+
+    @property
+    def equipment_used(self):
+        return bench_resources(self.eligibility)[0]
+
+    @property
+    def reagents_used(self):
+        return bench_resources(self.eligibility)[1]
 
 
 class Investigation(models.Model):
