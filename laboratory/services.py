@@ -674,7 +674,7 @@ def bench_choices():
         (
             lot.pk,
             f"{lot.identifier} · {lot.name} ({lot.get_kind_display()}) · "
-            + ("ready" if (word := reagent_status(lot, today)[0]) == "Released" else word.lower()),
+            + ("Ready" if (word := reagent_status(lot, today)[0]) == "Released" else word),
         )
         for lot in ReagentLot.objects.exclude(state=ReagentLot.State.REJECTED).order_by(
             "identifier", "pk"

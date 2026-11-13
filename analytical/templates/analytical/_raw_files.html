@@ -12,8 +12,8 @@
           <tr>
             <th scope="row">{{ f.filename }}</th>
             <td class="text-end vr-nowrap">{{ f.size|filesizeformat }}</td>
-            <td><span class="vr-id" title="{{ f.sha256 }}">{{ f.sha256|truncatechars:17 }}</span></td>
-            <td>{{ f.description }}</td>
+            <td><span class="vr-id" title="{{ f.sha256 }}">{{ f.sha256|truncatechars:13 }}</span></td>
+            <td class="vr-wrap">{{ f.description }}</td>
             <td class="vr-nowrap">{{ f.uploaded_by.get_full_name|default:f.uploaded_by.get_username }}<div class="small vr-muted"><time datetime="{{ f.uploaded_at|date:'c' }}">{{ f.uploaded_at|date:"Y-m-d H:i T" }}</time></div></td>
             <td><a href="{% url 'analytical:raw_file_download' f.pk %}">Download<span class="visually-hidden"> {{ f.filename }}</span></a></td>
           </tr>

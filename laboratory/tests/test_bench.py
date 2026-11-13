@@ -254,8 +254,8 @@ def test_choices_label_items_with_their_status_and_skip_rejected_lots(people):
     assert equipment[overdue.pk].endswith("Calibration overdue")
     reagents = dict(choices["reagents"])
     assert bad.pk not in reagents
-    assert reagents[good.pk] == "RG-OK · Synthetic buffer (Reagent) · ready"
-    assert reagents[waiting.pk].endswith("awaiting release")
+    assert reagents[good.pk] == "RG-OK · Synthetic buffer (Reagent) · Ready"
+    assert reagents[waiting.pk].endswith("Awaiting release")
     assert ReagentLot.objects.count() == 3
 
 
