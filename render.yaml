@@ -31,6 +31,11 @@ services:
         value: UTC
       - key: EMAIL_BACKEND
         value: django.core.mail.backends.dummy.EmailBackend
+      # Anyone can sign in to the published demonstration accounts, and raw-data files are
+      # stored in the database: keep each file small here. Remove for your own deployment to
+      # use the 10 MiB default.
+      - key: RAW_DATA_MAX_BYTES
+        value: "1048576"
 
 databases:
   - name: fresh-coa-lims-db

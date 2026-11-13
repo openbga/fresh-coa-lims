@@ -224,13 +224,25 @@ Render supports automatic deployment after CI checks, manual deployment of a sel
 
 For an exceptional operator-run migration, stop competing deployment attempts first, confirm the shell contains the intended application revision and database, and run `python manage.py showmigrations --plan`, then the reviewed `python manage.py migrate --noinput`, followed by `python manage.py migrate --check` and `python manage.py check`. Never run `makemigrations` on a deployed instance or edit historical migrations to resolve a failure. Do not run seed/reset commands during routine deployment.
 
-## Analyst qualification at observation entry
+## Bench checks at result entry
 
-Before native observation recording or correction, provide the analyst with independently approved qualification evidence whose activity matches the test's method code (case-insensitive). The validity dates must cover the current deployment-local date, approval must already have occurred, and revocation must not have taken effect. A role assignment alone does not satisfy this check. Preserve the referenced training/suitability evidence under the organization's controlled procedure.
+Before a native observation or batch QC result is recorded or corrected, the analyst needs independently approved qualification evidence whose activity matches the method code (case-insensitive). The validity dates must cover the current deployment-local date, approval must already have occurred, and revocation must not have taken effect. A role assignment alone does not satisfy this check. Preserve the referenced training/suitability evidence under the organization's controlled procedure.
 
-The configured `ANALYTICAL_ELIGIBILITY_CHECK` calls `config.integrations.require_qualified_analyst`; removing the hook holds observations. Successful recording/correction freezes the user, activity and selected qualification ID on the observation and its audit event. Correction rechecks the correcting actor's current qualification rather than inheriting the original author's eligibility. Existing historical evidence is preserved after a later qualification expiry or revocation.
+The entry also names the instruments and the reagent or standard lots used. Each selected instrument must be in service with an independently accepted calibration that has not expired and, where the equipment requires it, current qualification evidence. Each selected lot and its source lots must be released and unexpired. A method version can require at least one instrument, at least one lot, or both; set this when the version is created, because it cannot be changed on an existing draft. Register equipment, record and accept calibrations and release lots before testing starts, or entries for such methods are refused.
 
-This hook does not select equipment or reagent lots or prove their fitness at analytical use. Continue the explicit laboratory resource-use authorization procedure; automatic integration of that evidence with each analytical observation remains outstanding. Batch QC record/correction currently does not call the observation qualification hook. Validate these boundaries and failure cases when approving the deployed workflow; do not claim universal equipment, reagent or personnel gating from the observation check alone.
+The configured `ANALYTICAL_BENCH` is `config.integrations.LaboratoryBench`; removing the setting holds every observation and batch QC entry. A successful entry freezes the user, activity, qualification, instruments and lots on the result and its audit event, and adds one resource-use row per instrument or lot. A refused entry stores nothing; the refusal is recorded as the audit event `resource.use_blocked`. Correction rechecks the correcting analyst and the resources selected for the correction. Existing evidence is preserved after a later expiry, revocation or failed calibration.
+
+After a failed calibration the equipment is out of service, and its page lists the tests and QC batches that used it since the last accepted passing calibration. The signed return to service records that this list was assessed; deciding what to do about each affected result remains a quality decision outside the software.
+
+The software checks what the analyst selects. It does not know which instrument or lot a method needs, and results recorded before this check existed carry no instrument or lot. Validate these boundaries and failure cases when approving the deployed workflow.
+
+## Calculated results
+
+A calculation is approved with the method version: the formula, its named inputs with units, the unit of the result and its decimals. The quality owner who approves the version is approving the formula; verify it against the controlled procedure with worked examples before approval, and again in intended-use validation. The software evaluates the formula exactly as written, carries 50 significant digits and rounds the result half-up to the approved decimals. It does not convert units, apply significant-figure rules or round intermediate values. Changing a formula means a new method version; tests already assigned keep the formula they froze.
+
+## Raw-data files
+
+Raw-data files attached to tests are stored in the PostgreSQL database, so they are included in database backups and count toward database size. `RAW_DATA_MAX_BYTES` sets the largest accepted file (default 10 MiB, at most 50 MiB); a test holds at most 20 files. Files are kept exactly as received and are never opened by the software, which also means they are not scanned for malware: handle downloaded files under the organization's own controls. A file cannot be removed once attached. On a public demonstration, set a small limit.
 
 ## Accounts, sessions and signing
 

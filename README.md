@@ -10,12 +10,12 @@ OpenBGA Fresh CoA LIMS is an open-source laboratory information management syste
 
 ## What is implemented
 
-The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric, count and qualitative observations, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented.
+The implemented workflow covers approved methods/specifications and sampling assignments → lot/sample → numeric, count, qualitative and calculated observations with the instruments and reagent lots used, replicates and batch QC → OOS/retest where needed → independent signed review → QC disposition → immutable PDF CoA and amendments. Laboratory resource records, qualification authorization, stability protocols/pulls, reserves, retention obligations and holds are also implemented.
 
 | Implemented boundary | Current limit |
 |---|---|
-| Native analytical testing | Numeric, count and qualitative results; limits that include or exclude their boundary; results reported as less than a value kept as recorded. Approved precision rounds half-up, null precision compares the exact mean. Nonterminating or more-than-eight-decimal exact means fail submission. Greater-than results, calculations from raw data and non-numeric batch QC checks are not supported |
-| Laboratory operations | Method-specific analyst qualification gates native observations/corrections; equipment/reagent selection and use remain a separate explicit authorization workflow |
+| Native analytical testing | Numeric, count and qualitative results; limits that include or exclude their boundary; results reported as less than a value kept as recorded. Approved precision rounds half-up, null precision compares the exact mean. Nonterminating or more-than-eight-decimal exact means fail submission. A method version can define one calculation from named inputs; the result keeps the inputs and the formula. Raw-data files are stored with a checksum. Greater-than results and non-numeric batch QC checks are not supported |
+| Laboratory operations | Recording a result or a batch QC check requires a current analyst qualification for the method and checks the instruments and reagent or standard lots selected; a method states that an instrument or a lot is required, not which one |
 | Stability | Protocols, scheduled pulls, acceptance and controlled evidence links; testing of released lots uses external evidence because released lot records remain immutable |
 | Reporting | Signed issuance/amendments with stored PDF bytes, snapshots and checksums; manufacturer batch release remains a separate decision |
 
