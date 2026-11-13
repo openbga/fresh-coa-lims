@@ -42,25 +42,79 @@ class CatalogRequirementProvider:
         return result
 
 
-def require_qualified_analyst(*, actor, test):
-    """Native observations require current method-specific authorization evidence."""
-    from django.db import connection
+class LaboratoryBench:
+    """Bench checks for result entry, evaluated by the laboratory module.
 
-    from laboratory.eligibility import analyst_eligibility
-    from laboratory.models import Qualification
+    Testing calls this inside the transaction that records an observation or a batch QC result:
+    the analyst needs a current approved qualification for the method, and every instrument and
+    reagent or standard lot selected must be fit for use. Success records the resource uses and
+    returns the evidence relied on; a refusal is audited after the entry has rolled back.
+    """
 
-    if not connection.in_atomic_block:
-        raise RuntimeError("Eligibility must be evaluated inside the observation transaction.")
-    # Revoke/approve serializes on the same qualification rows; preserve authorization at use.
-    list(
-        Qualification.objects.select_for_update()
-        .filter(user=actor, activity__iexact=test.spec.method.code)
-        .order_by("pk")
-    )
-    finding = analyst_eligibility(actor, test.spec.method.code)
-    if not finding.ok:
-        raise ValidationError(list(finding.reasons))
-    return finding.evidence
+    def choices(self):
+        from laboratory.services import bench_choices
+
+        return bench_choices()
+
+    def lock_actor(self, actor):
+        from django.db import connection
+
+        from laboratory.services import lock_account
+
+        if not connection.in_atomic_block:
+            raise RuntimeError("Bench checks must run inside the result-entry transaction.")
+        # The same first lock as signing and every laboratory write, so one person's result
+        # entry and signature serialize before either holds a record.
+        lock_account(actor)
+
+    def authorize(
+        self,
+        *,
+        actor,
+        method_code,
+        test_code,
+        context_type,
+        context_id,
+        equipment_ids,
+        reagent_ids,
+        reason,
+    ):
+        from analytical.contracts import WorkRefused
+        from laboratory.services import UseBlocked, use_in_work
+
+        try:
+            return use_in_work(
+                actor=actor,
+                activity=method_code,
+                context_type=context_type,
+                context_id=context_id,
+                test_code=test_code,
+                equipment_ids=equipment_ids,
+                reagent_ids=reagent_ids,
+                reason=reason,
+            )
+        except UseBlocked as exc:
+            raise WorkRefused(
+                [
+                    {"subject": finding.subject, "reasons": list(finding.reasons)}
+                    for finding in exc.findings
+                    if not finding.ok
+                ]
+            ) from exc
+
+    def record_refusal(
+        self, *, actor, method_code, test_code, context_type, context_id, refusals, reason
+    ):
+        from laboratory.services import record_blocked_use
+
+        record_blocked_use(
+            actor=actor,
+            activity=method_code,
+            context_type=context_type,
+            context_id=context_id,
+            refusals=refusals,
+            reason=reason,
+        )
 
 
 def report_holds(lot):

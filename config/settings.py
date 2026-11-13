@@ -160,6 +160,12 @@ DEFAULT_EXCEPTION_REPORTER = "config.security.CredentialExceptionReporter"
 DEFAULT_EXCEPTION_REPORTER_FILTER = "config.security.CredentialExceptionReporterFilter"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+# The first handler stops an upload that exceeds RAW_DATA_MAX_BYTES while it is received.
+FILE_UPLOAD_HANDLERS = [
+    "core.uploads.BoundedUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
@@ -182,4 +188,12 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 FORMS_URLFIELD_ASSUME_HTTPS = True
 
 ANALYTICAL_REQUIREMENT_PROVIDER = "config.integrations.CatalogRequirementProvider"
-ANALYTICAL_ELIGIBILITY_CHECK = "config.integrations.require_qualified_analyst"
+# Result entry asks the laboratory module whether the analyst is qualified for the method and
+# whether each selected instrument and reagent or standard lot is fit for use. Without this
+# setting results are held.
+ANALYTICAL_BENCH = "config.integrations.LaboratoryBench"
+# Raw-data files are stored in PostgreSQL with their test. This is the largest file accepted,
+# in bytes; each upload is held in memory while its checksum is calculated.
+RAW_DATA_MAX_BYTES = int(os.environ.get("RAW_DATA_MAX_BYTES", str(10 * 1024 * 1024)))
+if not 1 <= RAW_DATA_MAX_BYTES <= 50 * 1024 * 1024:
+    raise RuntimeError("RAW_DATA_MAX_BYTES must be from 1 to 52428800 (50 MiB).")

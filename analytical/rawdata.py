@@ -154,6 +154,18 @@ def raw_file_new(request, pk):
     if test.state != AnalyticalTest.State.OPEN or test.lot.state != "quarantine":
         messages.warning(request, "This test is not accepting raw data.")
         return redirect(back)
+    # Reading request.FILES receives the upload; core.uploads.BoundedUploadHandler stops a file
+    # above the size limit while it arrives and marks the request.
+    if (
+        request.method == "POST"
+        and request.FILES is not None
+        and getattr(request, "upload_too_large", False)
+    ):
+        messages.error(
+            request,
+            f"The file is larger than the limit of {size_text(max_bytes())}. Nothing was stored.",
+        )
+        return redirect("analytical:raw_file_new", pk=test.pk)
     form = RawFileForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:

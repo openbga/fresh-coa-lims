@@ -12,7 +12,7 @@ REVERSE = "DROP TRIGGER analytical_append_only ON analytical_rawdatafile;"
 class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("analytical", "0004_result_types"),
+        ("analytical", "0005_calculations_bench"),
     ]
 
     operations = [

@@ -189,6 +189,10 @@ class AnalyticalTest(models.Model):
     def current_observations(self):
         return self.observations.filter(correction__isnull=True).select_related("recorded_by")
 
+    def raw_file_list(self):
+        """Raw-data files for display, oldest first, without loading their stored bytes."""
+        return self.raw_files.defer("content").select_related("uploaded_by")
+
 
 class Observation(models.Model):
     """One replicate observation. Rows are append-only; a correction is a new linked row."""

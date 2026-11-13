@@ -517,7 +517,8 @@ def test_existing_rows_migrate_without_loss_and_legacy_tests_still_review(people
     executor.migrate([("analytical", "0003_observation_eligibility")])
     executor = MigrationExecutor(connection)
     executor.loader.build_graph()
-    # Forward through 0004 and every later analytical migration (calculations, bench checks, raw-data files).
+    # Forward through 0004 and every later analytical migration (calculations, bench checks,
+    # raw-data files).
     executor.migrate(executor.loader.graph.leaf_nodes("analytical"))
     observation = Observation.objects.get(test=test)
     assert (observation.inputs, observation.calculation) == ([], {})

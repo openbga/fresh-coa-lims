@@ -272,11 +272,17 @@ def test_upload_page_refuses_closed_test_and_shows_errors(client, people, assign
     lot, _, tests = assigned
     login(client, people["analyst"])
     settings.RAW_DATA_MAX_BYTES = 10
+    # The upload handler stops an oversized file while it arrives; the page says why.
     response = client.post(
         reverse("analytical:raw_file_new", args=[tests["assay"].pk]),
         {"file": upload(b"x" * 11), "description": "Too big"},
+        follow=True,
     )
-    assert response.status_code == 422 and "larger than the limit" in response.content.decode()
+    assert response.redirect_chain == [
+        (reverse("analytical:raw_file_new", args=[tests["assay"].pk]), 302)
+    ]
+    assert "larger than the limit of 10 B. Nothing was stored." in response.content.decode()
+    settings.RAW_DATA_MAX_BYTES = 10 * 1024 * 1024
     response = client.post(
         reverse("analytical:raw_file_new", args=[tests["assay"].pk]),
         {"file": upload(b""), "description": "Nothing"},
