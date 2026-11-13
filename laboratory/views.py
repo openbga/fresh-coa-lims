@@ -20,6 +20,7 @@ from .eligibility import (
     equipment_filter,
     equipment_queryset,
     equipment_status,
+    reagent_status,
 )
 from .forms import (
     CalibrationForm,
@@ -40,6 +41,9 @@ from .ui import (
     day,
     external_link,
     form_page,
+    impact_columns,
+    impact_row,
+    impact_summary,
     list_page,
     make_filter,
     paginate,
@@ -56,6 +60,7 @@ from .ui import (
 )
 
 HOME = "Laboratory"
+IMPACT_SHOWN = 50
 
 
 def crumbs(*pairs):
@@ -343,21 +348,13 @@ def equipment_detail(request, pk):
         ),
     ]
     if out_of_service:
-        impacted = list(affected_uses(item).select_related("used_by")[:50])
+        impacted = list(affected_uses(item).select_related("used_by")[:IMPACT_SHOWN])
         impacted_work = work_labels([(u.context_type, u.context_id) for u in impacted])
         sections.append(
             section(
                 "Uses to assess after failure",
-                [("Used", False), ("Work", False), ("Test", False), ("By", False)],
-                [
-                    [
-                        when(u.used_at),
-                        work_cell(u, impacted_work),
-                        u.test_code,
-                        str(u.used_by),
-                    ]
-                    for u in impacted
-                ],
+                impact_columns(),
+                [impact_row(u, impacted_work) for u in impacted],
                 "No recorded uses since the last accepted passing calibration.",
                 note="Uses since the last independently accepted passing calibration before "
                 "the failure. The return-to-service signature records this assessment.",
@@ -485,6 +482,14 @@ def equipment_return(request, pk):
     elif item.state != Equipment.State.OUT_OF_SERVICE:
         denial = "Equipment is already in service."
     uses, failures = scope = services.impact_scope(item)
+    shown = list(ResourceUse.objects.filter(pk__in=uses[:IMPACT_SHOWN]).order_by("used_at", "pk"))
+    resolved = work_labels([(u.context_type, u.context_id) for u in shown])
+    affected = [
+        (f"Affected use {number}", impact_summary(u, resolved))
+        for number, u in enumerate(shown, start=1)
+    ]
+    if len(uses) > len(shown):
+        affected.append(("More uses", f"{len(uses) - len(shown)} more, listed on the record"))
     form = ImpactSigningForm(
         request.POST or None,
         initial={
@@ -508,6 +513,7 @@ def equipment_return(request, pk):
                 "Impact scope",
                 f"{len(failures)} failed calibration(s) and {len(uses)} use(s) to assess",
             ),
+            *affected,
         ],
         revision=item.revision,
         cancel_url=reverse("laboratory:equipment_detail", args=[item.pk]),
@@ -907,18 +913,6 @@ REAGENT_STATUS = [
 ]
 
 
-def reagent_status(lot, today):
-    if lot.state == "rejected":
-        return "Rejected", "danger"
-    if lot.state == "received":
-        return "Awaiting release", "progress"
-    if lot.expiry_date < today:
-        return "Expired", "danger"
-    if (lot.expiry_date - today).days <= DUE_SOON_DAYS:
-        return "Expiring soon", "warning"
-    return "Released", "success"
-
-
 @login_required
 def reagent_list(request):
     access(request.user)
@@ -1210,12 +1204,19 @@ def use_list(request):
         )
         if apps.is_installed("analytical"):
             tests = apps.get_model("analytical", "AnalyticalTest").objects
-            by_test = tests.filter(sample__reference__icontains=q).annotate(
-                key=Cast("pk", CharField())
-            )
+            by_test = tests.filter(
+                Q(sample__reference__icontains=q) | Q(lot__number__icontains=q)
+            ).annotate(key=Cast("pk", CharField()))
             match |= Q(
                 context_type="analytical.analyticaltest", context_id__in=by_test.values("key")
             )
+            batches = apps.get_model("analytical", "QCBatch").objects
+            by_batch = batches.filter(number__icontains=q).annotate(key=Cast("pk", CharField()))
+            match |= Q(context_type="analytical.qcbatch", context_id__in=by_batch.values("key"))
+        by_lot = Sample.objects.filter(lot__number__icontains=q).annotate(
+            key=Cast("pk", CharField())
+        )
+        match |= Q(context_type="quality.sample", context_id__in=by_lot.values("key"))
         queryset = queryset.filter(match)
     page, sort, descending = paginate(request, queryset, {"used": ["used_at"]}, "-used")
     work = work_labels([(u.context_type, u.context_id) for u in page])
