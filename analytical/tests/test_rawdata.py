@@ -283,7 +283,9 @@ def test_page_roles(client, people, assigned, django_user_model):
     assert stored_count() == 1
 
 
-def test_upload_page_refuses_closed_test_and_shows_errors(client, people, assigned, settings):
+def test_upload_page_refuses_closed_test_and_shows_errors(
+    client, people, assigned, settings, monkeypatch
+):
     lot, _, tests = assigned
     login(client, people["analyst"])
     settings.RAW_DATA_MAX_BYTES = 10
@@ -297,6 +299,21 @@ def test_upload_page_refuses_closed_test_and_shows_errors(client, people, assign
         (reverse("analytical:raw_file_new", args=[tests["assay"].pk]), 302)
     ]
     assert "larger than the limit of 10 B. Nothing was stored." in response.content.decode()
+    # An upload beyond the room left for the form is refused before it is read (status 413).
+    monkeypatch.setattr("core.uploads.FORM_ALLOWANCE", 2048)
+    response = client.post(
+        reverse("analytical:raw_file_new", args=[tests["assay"].pk]),
+        {"file": upload(b"x" * 4096), "description": "Far too big"},
+    )
+    assert response.status_code == 413
+    page = response.content.decode()
+    assert "Upload too large" in page and "A file can be up to 10 B." in page
+    assert f'href="{reverse("analytical:raw_file_new", args=[tests["assay"].pk])}"' in page
+    assert stored_count() == 0
+    # The form tells the browser the limit, so a larger file is refused before it is sent.
+    form = client.get(reverse("analytical:raw_file_new", args=[tests["assay"].pk]))
+    assert 'data-vr-max-bytes="10"' in form.content.decode()
+    assert 'data-vr-max-label="10 B"' in form.content.decode()
     settings.RAW_DATA_MAX_BYTES = 10 * 1024 * 1024
     response = client.post(
         reverse("analytical:raw_file_new", args=[tests["assay"].pk]),

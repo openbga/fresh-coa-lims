@@ -10,6 +10,7 @@ from django.urls import reverse
 from playwright.sync_api import expect, sync_playwright
 
 from analytical.models import RawDataFile
+from core.uploads import FORM_ALLOWANCE
 from tests.test_calculation_bench_journey import (
     FORMULA,
     REPLICATES,
@@ -40,8 +41,9 @@ INPUT_LABELS = {
 
 @pytest.mark.django_db(transaction=True)
 def test_calculated_result_with_bench_checks_and_raw_data_through_the_forms(
-    live_server, world, artifacts
+    live_server, world, artifacts, settings
 ):
+    settings.RAW_DATA_MAX_BYTES = 2048
     people = world["people"]
     test = assign_water(world)
     errors = []
@@ -121,15 +123,60 @@ def test_calculated_result_with_bench_checks_and_raw_data_through_the_forms(
             record_button().click()
             expect(page.get_by_text("0.26", exact=True).first).to_be_visible()
 
-            # Raw-data file.
+            # Raw-data file. One above the size limit is refused in the browser and never sent.
             goto("analytical:test_detail", test.pk)
             page.get_by_role("link", name="Attach raw data", exact=True).click()
-            page.get_by_label(re.compile(r"^File\b")).set_input_files(
+            file_input = page.get_by_label(re.compile(r"^File\b"))
+            attach_button = page.get_by_role("button", name="Attach file", exact=True)
+            too_large = page.get_by_text("larger than the limit of 2.0 KiB and was not sent")
+            posts = []
+            page.on(
+                "request",
+                lambda request: posts.append(request.url) if request.method == "POST" else None,
+            )
+            file_input.set_input_files(
+                {
+                    "name": "titration-all-runs.bin",
+                    "mimeType": "application/octet-stream",
+                    "buffer": b"x" * 2049,
+                }
+            )
+            expect(too_large).to_be_visible()
+            expect(file_input).to_have_attribute("aria-invalid", "true")
+            page.get_by_label(re.compile(r"^What the file is\b")).fill("Synthetic titration export")
+            attach_button.click()
+            expect(file_input).to_be_focused()
+            expect(attach_button).to_be_enabled()
+            assert posts == []
+            file_input.set_input_files(
+                {"name": "titration-run-1.csv", "mimeType": "text/csv", "buffer": PAYLOAD}
+            )
+            expect(too_large).to_have_count(0)
+            expect(file_input).not_to_have_attribute("aria-invalid", "true")
+
+            # Without the browser check, the server refuses a far larger upload with status 413.
+            file_input.evaluate("input => input.removeAttribute('data-vr-max-bytes')")
+            file_input.set_input_files(
+                {
+                    "name": "titration-all-runs.bin",
+                    "mimeType": "application/octet-stream",
+                    "buffer": b"x" * (FORM_ALLOWANCE + 4096),
+                }
+            )
+            with page.expect_response(re.compile(r"/raw-files/new/$")) as refused:
+                attach_button.click()
+            assert refused.value.status == 413
+            expect(page.get_by_role("heading", name="Upload too large")).to_be_visible()
+            expect(page.get_by_text("A file can be up to 2.0 KiB.")).to_be_visible()
+            page.get_by_role("link", name="Return to the form", exact=True).click()
+
+            file_input.set_input_files(
                 {"name": "titration-run-1.csv", "mimeType": "text/csv", "buffer": PAYLOAD}
             )
             page.get_by_label(re.compile(r"^What the file is\b")).fill("Synthetic titration export")
-            page.get_by_role("button", name="Attach file", exact=True).click()
+            attach_button.click()
             expect(page.get_by_role("cell", name="titration-run-1.csv")).to_be_visible()
+            assert len(posts) == 2
 
             # Submit, then review as the independent reviewer.
             page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic original records complete")
