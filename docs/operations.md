@@ -242,6 +242,8 @@ A lot is received with its receipt details, so a lot from a supplier needs that 
 
 Receipt details are corrected only while the lot is in quarantine, by a new record that keeps the one it replaces. A discrepancy recorded on receipt does not hold the lot; place a hold when the lot must not be dispositioned until it is resolved. Lots received before this release have no receipt details. An analyst can record them from the delivery documents while the lot is in quarantine; a lot released earlier stays without them.
 
+For a lot received from a supplier, an analyst can record what the supplier's certificate of analysis states once the lot has approved requirements, from **Record supplier certificate** on the lot record. Each stated result is compared with the lot's specification and kept apart from the laboratory's own tests: it answers no requirement, and the tests the lot needs do not change. A result that does not meet the specification is shown on the lot record and on the disposition page and does not hold the lot; place a hold when it must be resolved first. A record made in error is withdrawn, not deleted. The certificate itself is not uploaded: the record names where it is kept. Whoever records, corrects or withdraws a supplier certificate cannot sign that lot's disposition, so have someone other than the quality signer transcribe it.
+
 The demonstration seed adds two synthetic suppliers. On a demonstration with a scheduled reset they appear at the next reset after this release is deployed; until then a quality account adds one.
 
 ## Calculated results

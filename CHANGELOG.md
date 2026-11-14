@@ -6,6 +6,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Changed
 
+- Whoever recorded, corrected or withdrew a supplier certificate of a lot cannot sign that lot's QC disposition. The refusal now reads "You cannot disposition a lot containing your own receipt, supplier certificate, sampling or test data."
 - Whoever recorded or corrected a lot's receipt details can no longer sign that lot's QC disposition. The **Number** field of the new-lot form is now **Lot number**.
 - `ANALYTICAL_BENCH` replaces `ANALYTICAL_ELIGIBILITY_CHECK`. A deployment that overrides the old setting must name a bench class instead; without one, results are held.
 - Adopted the OpenBGA Fresh CoA LIMS name and certificate-and-leaf mark across the application, presentation and newly issued certificates.
@@ -14,6 +15,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Added
 
+- Supplier certificates: for a quarantined lot received from a supplier, an analyst records what the supplier's certificate of analysis states (its number, issuer, date and printed lot number, where it is kept, and for each of the lot's approved requirements the result, method and limits as stated). Each result is compared with the lot's requirement and shown as meeting it or not. These are the supplier's results: they answer no requirement, are not part of the disposition evidence and are not printed on the certificate of analysis. A result that does not meet the specification is shown on the lot record and on the disposition page and does not hold the lot. A correction adds a linked record; a record made in error is withdrawn and kept.
 - Receipt details and a supplier register: a lot is received together with where it came from (a supplier from the register, or made on site), the supplier's and manufacturer's lot numbers, the delivery document, the date, the quantity, the containers and what the examination on receipt found. Details are never edited; a correction adds a linked record with its reason while the lot is in quarantine. Quality keeps the register, which records identity only and does not qualify a supplier. The lot list shows the supplier and searches supplier and manufacturer lot numbers. Lots received earlier have no receipt details until an analyst records them.
 - Calculated results: a method version can define one formula over named inputs with units, approved and frozen with the version. The analyst enters the inputs, the system calculates the value, and the result keeps the inputs, the formula and the method version. Submission and review calculate again.
 - Equipment and reagent checks at result entry: recording or correcting a result or a batch QC check names the instruments and the reagent or standard lots used. An entry is refused when an instrument is out of service or out of calibration, a lot is not released or expired, or the analyst has no current qualification for the method, which now applies to batch QC as well. A method version can require an instrument, a lot or both. After a failed calibration the equipment page lists the tests and QC batches that used the equipment.
