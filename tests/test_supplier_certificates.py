@@ -364,6 +364,9 @@ REFUSED_RESULTS = {
     "less than zero": ([stated("tamc", "0", less=True)], "greater than zero"),
     "qualifier": ([stated("assay", "99") | {"qualifier": ">"}], "Unsupported result qualifier"),
     "nine decimals": ([stated("assay", "99.123456789")], "8 decimal places"),
+    "exponent": ([stated("assay", "1E+2")], "plain digits"),
+    "signed zero": ([stated("tamc", "-0")], "plain digits"),
+    "signed zero with decimals": ([stated("impurity", "-0.00")], "plain digits"),
     "too large": ([stated("assay", "1234567890123.5")], "no more than 12 digits"),
     "wording on a number": ([stated("assay", "99", wording="OK")], "Only a qualitative result"),
     "outcome on a number": ([stated("assay", "99", outcome="conforms")], "observed value"),
@@ -585,6 +588,13 @@ def test_refused_corrections_change_nothing(world):
     with pytest.raises(ValidationError, match="at least one result"):
         correct(world, original, [])
     assert counts() == before
+    # A correction prepared before the lot's requirements changed is refused like a new record.
+    opened = basis(original.lot)
+    assign(world)
+    with pytest.raises(ValidationError) as refusal:
+        correct(world, original, [stated("assay", "99")], basis=opened)
+    assert refusal.value.messages == [certificates.REQUIREMENTS_STALE]
+    assert counts() == before
     # The value as stated is part of the record: another precision is a change.
     results = conforming()
     results[4] = stated("assay", "99.6", method="Supplier HPLC-07", limits="98.0 - 102.0 %")
@@ -616,6 +626,89 @@ def test_simultaneous_corrections_of_one_record_cannot_both_apply(world, monkeyp
     lot.refresh_from_db()
     assert SupplierCertificate.objects.filter(lot=lot).count() == 2
     assert certificates.lot_chains(lot)[0][-1].results.get().value_text == "99"
+
+
+def before_commit():
+    """Where a direct write pauses, holding its locks, while another transaction starts."""
+
+
+@pytest.mark.parametrize("first", ["correction", "withdrawal"])
+def test_database_makes_a_correction_and_a_withdrawal_wait_for_each_other(
+    world, monkeypatch, first
+):
+    """Written directly, without the lot lock the services take: the row lock in the insert
+    guards decides, so whichever commits first the other is refused."""
+    import sys
+
+    from laboratory.tests.helpers import run_interleaved
+
+    certificate = certify(world, [stated("assay", "99.6")])
+    line = certificate.results.get()
+    analyst = world["people"]["analyst"]
+
+    def correction():
+        with transaction.atomic():
+            record = copy_of(certificate, corrects=certificate, result_count=1)
+            record.save()
+            line_of(record, line).save()
+            before_commit()
+        return record
+
+    def withdrawal():
+        with transaction.atomic():
+            made = SupplierCertificateWithdrawal.objects.create(
+                certificate=certificate, reason="Direct write", withdrawn_by=analyst
+            )
+            before_commit()
+        return made
+
+    writes = [correction, withdrawal] if first == "correction" else [withdrawal, correction]
+    outcome = run_interleaved(monkeypatch, sys.modules[__name__], "before_commit", *writes)
+    assert not isinstance(outcome["first"], Exception), outcome["first"]
+    assert isinstance(outcome["second"], DatabaseError)
+    refusal = (
+        "Only the current record of a supplier certificate can be withdrawn"
+        if first == "correction"
+        else "A withdrawn supplier certificate cannot be corrected"
+    )
+    assert refusal in str(outcome["second"])
+    assert (
+        SupplierCertificate.objects.filter(corrects=certificate).count()
+        + SupplierCertificateWithdrawal.objects.filter(certificate=certificate).count()
+    ) == 1
+
+
+def test_sampling_and_a_certificate_by_one_analyst_do_not_deadlock(world, monkeypatch):
+    """Both lock the account and then the lot, so one waits for the other and both apply."""
+    from laboratory.tests.helpers import run_interleaved
+    from sampling.models import SamplingRecord
+
+    lot, analyst = world["lot"], world["people"]["analyst2"]
+    revision = lot.revision
+
+    def sample():
+        return sampling.record_sampling(
+            actor=analyst,
+            lot=lot,
+            reference="SYN-SC-S900",
+            sampled_at=timezone.now(),
+            containers_total=1,
+            containers_sampled=1,
+            container_ids="SYN-C001",
+            quantity=Decimal("10"),
+            quantity_unit="g",
+            location="Synthetic sampling booth",
+            reason="Synthetic controlled sampling",
+        )
+
+    # The sampling transaction holds the lot when it checks whether sampling may be recorded.
+    outcome = run_interleaved(
+        monkeypatch, sampling, "sampling_blocker", sample, lambda: certify(world)
+    )
+    assert isinstance(outcome["first"], SamplingRecord), outcome["first"]
+    assert isinstance(outcome["second"], SupplierCertificate), outcome["second"]
+    lot.refresh_from_db()
+    assert lot.revision == revision + 2
 
 
 # Withdrawal -------------------------------------------------------------------------------------

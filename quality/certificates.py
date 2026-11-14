@@ -46,8 +46,12 @@ NO_REQUIREMENTS = (
     "Assign approved requirements to the lot first: supplier results are recorded against them."
 )
 REQUIREMENTS_STALE = (
-    "The lot's requirements changed after this page was opened. Reload and review the results "
-    "against the current requirements."
+    "The lot's requirements changed after this page was opened. Review every result against "
+    "the requirements now shown, then submit again."
+)
+NOT_PLAIN = (
+    "Enter the number as printed, in plain digits with a decimal point where needed, for "
+    "example 99.60 or 0.5."
 )
 CERTIFICATE_STALE = "The certificate record changed. Reload and review it before changing it."
 WITHDRAWN = "A withdrawn certificate record cannot be changed."
@@ -196,6 +200,9 @@ def stated_result(spec, *, value, qualifier, outcome, stated_text):
         return reading, dict(spec.outcomes)[reading.outcome]
     if stated:
         raise ValidationError("Only a qualitative result records the certificate's wording.")
+    # The text kept is the number as printed: no exponent and no signed zero to reformat.
+    if value.as_tuple().exponent > 0 or (value.is_zero() and value.is_signed()):
+        raise ValidationError(NOT_PLAIN)
     return reading, f"{reading.qualifier}{format(value, 'f')}"
 
 

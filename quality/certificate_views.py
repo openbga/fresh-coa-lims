@@ -194,6 +194,7 @@ def certificate_new(request, pk):
         if certificate:
             messages.success(request, "Supplier certificate recorded.")
             return redirect(certificate_url(certificate))
+    form.show_current_requirements()
     title = "Record supplier certificate"
     return action_page(
         request,
@@ -239,6 +240,7 @@ def certificate_correct(request, pk):
         if corrected:
             messages.success(request, "Supplier certificate corrected; the original is kept.")
             return redirect(certificate_url(corrected))
+    form.show_current_requirements()
     title = "Correct supplier certificate"
     return action_page(
         request,

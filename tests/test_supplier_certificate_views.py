@@ -187,6 +187,40 @@ def test_a_form_submitted_twice_records_one_certificate(client, world):
     assert SupplierCertificate.objects.count() == 1
 
 
+@pytest.mark.parametrize(
+    "typed", ["1e2", "1E+2", "+99.6", "100.", ".5", "099.60", "1_0_0", "１００", "99,6", "-0"]
+)
+def test_a_number_is_entered_as_printed_or_refused(client, world, typed):
+    """Nothing is reformatted: the text kept is the text entered, so other notations are
+    refused instead of becoming a different text."""
+    lot = world["lot"]
+    sign_in(client, world)
+    response = client.post(url("certificate_new", lot), posted(lot, assay__value=typed))
+    assert response.status_code == 422
+    assert response.context["form"].errors["assay__value"] == [certificates.NOT_PLAIN]
+    assert not SupplierCertificate.objects.exists()
+
+
+@pytest.mark.parametrize("typed", ["99.60", "100", "0.5", "-1.50", "0", " 99.6 "])
+def test_a_printed_number_is_kept_as_entered(client, world, typed):
+    lot = world["lot"]
+    sign_in(client, world)
+    response = client.post(url("certificate_new", lot), posted(lot, assay__value=typed))
+    assert response.status_code == 302
+    line = SupplierCertificate.objects.get().results.get(test_code="assay")
+    assert line.value_text == typed.strip()
+
+
+def test_a_wording_that_is_too_long_has_one_error(client, world):
+    lot = world["lot"]
+    sign_in(client, world)
+    response = client.post(url("certificate_new", lot), posted(lot, identity__stated="w" * 201))
+    assert response.status_code == 422
+    assert response.context["form"].errors["identity__stated"] == [
+        "Ensure this value has at most 200 characters (it has 201)."
+    ]
+
+
 def test_a_certificate_needs_a_result(client, world):
     lot = world["lot"]
     sign_in(client, world)
@@ -210,11 +244,19 @@ def test_requirements_changed_after_the_page_opened_are_refused(client, world):
     sign_in(client, world)
     data = posted(lot)
     assign(world)
-    response = client.post(url("certificate_new", lot), data)
+    # The refusal is reported at once, beside any field error, with the entries kept.
+    response = client.post(url("certificate_new", lot), data | {"number": ""})
+    form = response.context["form"]
     assert response.status_code == 422
-    assert response.context["form"].non_field_errors() == [certificates.REQUIREMENTS_STALE]
-    assert response.context["form"]["assay__value"].value() == "99.60"
+    assert form.non_field_errors() == [certificates.REQUIREMENTS_STALE]
+    assert form.errors["number"] == ["This field is required."]
+    assert form["assay__value"].value() == "99.60"
     assert not SupplierCertificate.objects.exists()
+    # The form shown again shows the current requirements and carries their token, so after
+    # the review it is submitted again without retyping.
+    assert form["basis"].value() == basis(lot) != data["basis"]
+    response = client.post(url("certificate_new", lot), data | {"basis": form["basis"].value()})
+    assert response.status_code == 302 and SupplierCertificate.objects.count() == 1
 
 
 @pytest.mark.parametrize("role", OTHER_ROLES)
@@ -338,6 +380,15 @@ def test_a_record_replaced_after_the_page_opened_is_refused(client, world):
     assert response.status_code == 422
     assert response.context["form"].non_field_errors() == [certificates.CERTIFICATE_STALE]
     assert response.context["form"]["assay__value"].value() == "97.90"
+    assert SupplierCertificate.objects.count() == 2
+    # A correction prepared before the requirements changed is refused with the entries kept.
+    current = SupplierCertificate.objects.get(corrects=original)
+    stale = posted(lot, assay__value="97.90", reason="Assay misread")
+    assign(world)
+    response = client.post(url("certificate_correct", current), stale)
+    assert response.status_code == 422
+    assert response.context["form"].non_field_errors() == [certificates.REQUIREMENTS_STALE]
+    assert response.context["form"]["basis"].value() == basis(lot)
     assert SupplierCertificate.objects.count() == 2
     # Opening the page for the replaced record leads to the current one with the reason.
     response = client.get(url("certificate_correct", original), follow=True)

@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.utils import timezone
 from django.utils.html import escape
@@ -144,6 +146,23 @@ class LotForm(ReceiptForm):
         return number
 
 
+PLAIN_NUMBER = re.compile(r"-?(0|[1-9][0-9]*)(\.[0-9]+)?")
+
+
+class StatedNumberField(forms.DecimalField):
+    """A number as a certificate prints it: plain ASCII digits, so the text kept is the text
+    entered. An exponent, a plus sign, digit separators or other scripts are refused, never
+    reformatted."""
+
+    def to_python(self, value):
+        text = value.strip() if isinstance(value, str) else value
+        if text in self.empty_values:
+            return None
+        if not isinstance(text, str) or not PLAIN_NUMBER.fullmatch(text):
+            raise forms.ValidationError(certificates.NOT_PLAIN, code="invalid")
+        return super().to_python(text)
+
+
 CERTIFICATE_HEADER = ["number", "issued_by", "issued_on", "stated_lot", "document_ref", "notes"]
 LINE_INCOMPLETE = "Enter the result, or clear this test if the certificate does not state it."
 
@@ -216,7 +235,7 @@ class CertificateForm(GroupedForm):
             )
         else:
             count = spec.result_type == "count"
-            fields[f"{code}__value"] = forms.DecimalField(
+            fields[f"{code}__value"] = StatedNumberField(
                 label=f"{name} result ({spec.unit})",
                 max_digits=20,
                 decimal_places=8,
@@ -248,6 +267,8 @@ class CertificateForm(GroupedForm):
 
     def clean(self):
         data = super().clean()
+        if data.get("basis") != certificates.requirements_basis(self.required):
+            self.add_error(None, certificates.REQUIREMENTS_STALE)
         results = []
         for code, (_, spec) in self.required.items():
             method = data.get(f"{code}__method", "")
@@ -262,6 +283,8 @@ class CertificateForm(GroupedForm):
                 }
                 given = entry["outcome"]
                 other = entry["stated_text"] or method or limits
+                if f"{code}__stated" in self.errors:
+                    continue  # The wording has its own error; do not add a second one.
                 if given and not entry["stated_text"].strip():
                     self.add_error(
                         f"{code}__stated", "Enter the wording of the result on the certificate."
@@ -294,6 +317,14 @@ class CertificateForm(GroupedForm):
             self.add_error(None, certificates.NO_RESULTS)
         self.stated_results = results
         return data
+
+    def show_current_requirements(self):
+        """A form shown again shows the lot's current requirements, so it carries their token:
+        after reviewing them the user submits again without retyping."""
+        if self.is_bound:
+            data = self.data.copy()
+            data["basis"] = certificates.requirements_basis(self.required)
+            self.data = data
 
     def header_values(self):
         return {name: self.cleaned_data[name] for name in certificates.HEADER_FIELDS}
