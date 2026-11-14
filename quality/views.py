@@ -12,9 +12,9 @@ from catalog.web import form_status, run
 from core.models import ElectronicSignature
 from core.services import require_role
 
-from . import services
+from . import certificates, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
-from .models import Lot, LotReceipt, Result, Sample
+from .models import Lot, LotReceipt, ReceiptSource, Result, Sample
 
 LOTS = "Material lots"
 # Labels of the receipt details, in the order the lot record and its history show them.
@@ -82,14 +82,19 @@ def lot_detail(request, pk):
     assignment = current_assignment(lot)
     receipts = list(lot.receipts.select_related("supplier", "recorded_by"))
     corrected = {receipt.corrects_id for receipt in receipts}
+    receipt = next((r for r in receipts if r.pk not in corrected), None)
+    can_record = request.user.groups.filter(name="analyst").exists()
     return render(
         request,
         "quality/lot_detail.html",
         {
             "lot": lot,
-            "receipt": next((r for r in receipts if r.pk not in corrected), None),
+            "receipt": receipt,
             "receipt_history": receipt_history(receipts),
-            "can_record": request.user.groups.filter(name="analyst").exists(),
+            "certificates": certificates.lot_summary(lot),
+            "supplied": receipt is not None and receipt.source == ReceiptSource.SUPPLIER,
+            "certificate_blocker": certificates.recording_requirements(lot)[1],
+            "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
@@ -165,7 +170,9 @@ def perform(form, action):
         return None
 
 
-def receipt_page(request, form, *, title, crumbs, cancel_url, submit, intro, facts=None):
+def action_page(
+    request, form, *, title, crumbs, cancel_url, submit, intro, facts=None, tone="primary"
+):
     return render(
         request,
         "catalog/form.html",
@@ -175,6 +182,7 @@ def receipt_page(request, form, *, title, crumbs, cancel_url, submit, intro, fac
             "crumbs": crumbs,
             "cancel_url": cancel_url,
             "submit_label": submit,
+            "submit_tone": tone,
             "intro": intro,
             "facts": facts or [],
         },
@@ -215,7 +223,7 @@ def lot_new(request):
         if lot:
             messages.success(request, "Lot received in quarantine.")
             return redirect("quality:lot_detail", pk=lot.pk)
-    return receipt_page(
+    return action_page(
         request,
         form,
         title="New material lot",
@@ -256,7 +264,7 @@ def receipt_new(request, pk):
         if receipt:
             messages.success(request, "Receipt details recorded.")
             return redirect(lot_url)
-    return receipt_page(
+    return action_page(
         request,
         form,
         title="Record receipt details",
@@ -303,7 +311,7 @@ def receipt_correct(request, pk):
             if corrected:
                 messages.success(request, "Receipt details corrected; the original is kept.")
                 return redirect(lot_url)
-    return receipt_page(
+    return action_page(
         request,
         form,
         title="Correct receipt details",
@@ -376,6 +384,7 @@ def sign(request, pk, action):
             "is_review": is_review,
             "meaning": "reviewed" if is_review else "approved",
             "denial": denial,
+            "notices": [] if is_review or denial else certificates.disposition_notices(obj),
         },
         status=403 if denial else 422 if request.method == "POST" else 200,
     )

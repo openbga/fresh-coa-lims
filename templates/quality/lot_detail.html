@@ -35,6 +35,42 @@
     {% endif %}
   </div>
 </section>
+<section class="card mb-4" aria-labelledby="certificates-heading">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h2 class="card-title mb-0" id="certificates-heading">Supplier certificates</h2>
+    {% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}
+  </div>
+  <div class="card-body">
+    {% if certificates %}
+    <p>Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests and do not count towards QC disposition.</p>
+    <div class="table-responsive">
+      <table class="table mb-0" aria-labelledby="certificates-heading">
+        <thead><tr><th scope="col">Certificate</th><th scope="col">Issued by</th><th scope="col">Date</th><th scope="col">Lot number on the certificate</th><th scope="col">Results stated</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          {% for item in certificates %}
+          <tr>
+            <th scope="row"><a href="{% url 'quality:certificate_detail' item.certificate.pk %}">{{ item.certificate.number }}</a></th>
+            <td>{{ item.certificate.issued_by }}</td>
+            <td><time datetime="{{ item.certificate.issued_on|date:'Y-m-d' }}">{{ item.certificate.issued_on|date:"Y-m-d" }}</time></td>
+            <td>{{ item.certificate.stated_lot }}{% if item.lot_check == "differs" %} {% include "includes/status.html" with label="Differs from the receipt" tone="warning" plain=True %}{% endif %}</td>
+            <td>{{ item.rows|length }} stated{% if not item.withdrawn %}<div>{% if item.failing %}{% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %} {% for row in item.failing %}{{ row.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% include "includes/status.html" with label="All meet the specification" tone="success" plain=True %}{% endif %}</div>{% if item.replaced %}<div>{% include "includes/status.html" with label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}{% endif %}</td>
+            <td>{% if item.withdrawn %}{% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% else %}{% include "includes/status.html" with label="Current" tone="info" plain=True %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif not receipt %}
+    <p class="mb-0">No supplier certificate is recorded. Receipt details come first.</p>
+    {% elif not supplied %}
+    <p class="mb-0">This lot was made on site, so it has no supplier certificate.</p>
+    {% else %}
+    <p class="mb-0">No supplier certificate is recorded.</p>
+    {% endif %}
+    {% if can_record and supplied and lot.state == 'quarantine' and certificate_blocker %}<p class="mt-3 mb-0">{{ certificate_blocker }}</p>{% endif %}
+    {% if certificates and receipt and not supplied and lot.state == 'quarantine' %}<p class="mt-3 mb-0">The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies.</p>{% endif %}
+  </div>
+</section>
 <h2>Samples and results</h2>
 {% for sample in samples %}<section class="card mb-3"><div class="card-body"><h3>{{ sample.reference }}</h3><p>Collected {{ sample.collected_at }} UTC</p>{% if can_record and lot.state == 'quarantine' %}<a href="{% url 'quality:result_new' sample.pk %}">Record result</a>{% endif %}
 <div class="table-responsive"><table class="table"><thead><tr><th>Test</th><th>Result</th><th>Limits</th><th>Analyst</th><th>Review</th></tr></thead><tbody>{% for result in sample.results.all %}<tr><td>{{ result.test_code }}</td><td>{{ result.value }} {{ result.unit }}{% if not result.conforms %} <strong>Out of specification</strong>{% endif %}</td><td>{{ result.lower_limit }}–{{ result.upper_limit }} {{ result.unit }}</td><td>{{ result.analyst }}</td><td>{% if can_review and result.state == 'recorded' and result.analyst_id != request.user.pk %}<a href="{% url 'quality:review' result.pk %}">Review result</a>{% else %}{{ result.state|capfirst }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No results recorded.</td></tr>{% endfor %}</tbody></table></div></div></section>{% empty %}<p>No samples recorded.</p>{% endfor %}

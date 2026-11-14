@@ -127,7 +127,7 @@ def _receipt_values(values):
     return data
 
 
-def _lock_quarantined(actor, lot, refusal):
+def lock_quarantined(actor, lot, refusal):
     # Signing locks the actor before the lot; serialize here before taking any record lock.
     # NO KEY UPDATE stays compatible with deferred foreign-key checks on this account.
     get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
@@ -181,7 +181,7 @@ def receive_lot(*, actor, number, material, rules, reason, receipt):
 def record_receipt(*, actor, lot, reason, **values):
     """Add receipt details to a quarantined lot that has none (received before they were kept)."""
     require_role(actor, "analyst")
-    lot = _lock_quarantined(actor, lot, "Only quarantined lots accept receipt details.")
+    lot = lock_quarantined(actor, lot, "Only quarantined lots accept receipt details.")
     if LotReceipt.objects.filter(lot=lot).exists():
         raise ValidationError("Receipt details are already recorded; correct them instead.")
     receipt = _add_receipt(actor=actor, lot=lot, reason=reason, values=values)
@@ -194,7 +194,7 @@ def record_receipt(*, actor, lot, reason, **values):
 def correct_receipt(*, actor, receipt, reason, **values):
     """Replace the current receipt details with a linked record; the original is kept."""
     require_role(actor, "analyst")
-    lot = _lock_quarantined(actor, receipt.lot, "Only quarantined lots accept receipt corrections.")
+    lot = lock_quarantined(actor, receipt.lot, "Only quarantined lots accept receipt corrections.")
     current = current_receipt(lot)
     if current is None or current.pk != receipt.pk:
         raise ValidationError(RECEIPT_STALE)
@@ -281,7 +281,8 @@ def review_result(*, actor, pin, result, expected_revision, reason):
 
 
 SELF_DISPOSITION = (
-    "You cannot disposition a lot containing your own receipt, sampling or test data."
+    "You cannot disposition a lot containing your own receipt, supplier certificate, sampling "
+    "or test data."
 )
 
 
@@ -290,11 +291,20 @@ def receipt_author_ids(lot):
     return set(LotReceipt.objects.filter(lot=lot).values_list("recorded_by_id", flat=True))
 
 
-def disposition_authors(lot):
-    """Everyone who authored the lot's receipt, sampling or test data; none may sign its
-    disposition.
+def lot_record_author_ids(lot):
+    """Everyone who recorded the lot's receipt details or supplier certificates, including
+    corrected originals, corrections and withdrawals."""
+    from .certificates import certificate_author_ids
 
-    Recorders of receipt details including corrected originals, analytical authors
+    return receipt_author_ids(lot) | certificate_author_ids(lot)
+
+
+def disposition_authors(lot):
+    """Everyone who authored the lot's receipt, supplier certificate, sampling or test data;
+    none may sign its disposition.
+
+    Recorders of receipt details and supplier certificates including corrected originals and
+    withdrawals, analytical authors
     (observations including corrected originals, submitters, batch QC, investigations),
     samplers and recorders of every sampling record including corrected originals and
     intermediate corrections, and foundation result analysts. Holding several roles never
@@ -304,7 +314,7 @@ def disposition_authors(lot):
     from sampling.services import lot_author_ids as sampling_author_ids
 
     return (
-        receipt_author_ids(lot)
+        lot_record_author_ids(lot)
         | analytical_author_ids(lot)
         | sampling_author_ids(lot)
         | set(Result.objects.filter(sample__lot=lot).values_list("analyst_id", flat=True))
@@ -356,7 +366,7 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
         samples = list(locked.samples.all())
         if not samples:
             raise ValidationError("The lot requires a sample and reviewed results.")
-        if actor.pk in receipt_author_ids(locked):
+        if actor.pk in lot_record_author_ids(locked):
             raise ValidationError(SELF_DISPOSITION)
         for sample in samples:
             results = list(sample.results.all())

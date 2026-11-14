@@ -649,9 +649,9 @@ def test_receipt_author_cannot_sign_the_disposition(people, rules, settings, cli
     client.force_login(receiver)
     page = client.get(reverse("quality:disposition", args=[lot.pk]))
     assert page.status_code == 403
-    assert b"own receipt, sampling or test data" in page.content
+    assert b"own receipt, supplier certificate, sampling" in page.content
     assert b'name="pin"' not in page.content  # Explained before any PIN is requested.
-    with pytest.raises(ValidationError, match="own receipt, sampling or test data"):
+    with pytest.raises(ValidationError, match="own receipt, supplier certificate, sampling"):
         dispose_lot(
             actor=receiver, pin=PIN, lot=lot, expected_revision=lot.revision, reason="Own lot"
         )

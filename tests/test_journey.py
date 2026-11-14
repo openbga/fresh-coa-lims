@@ -115,7 +115,7 @@ def test_self_review_and_self_disposition_forbidden(journey):
         actor=people["reviewer"], pin=PIN, result=result, expected_revision=1, reason="Checked"
     )
     lot.refresh_from_db()
-    with pytest.raises(ValidationError, match="own receipt, sampling or test data"):
+    with pytest.raises(ValidationError, match="own receipt, supplier certificate, sampling"):
         dispose_lot(actor=actor, pin=PIN, lot=lot, expected_revision=lot.revision, reason="Check")
     assert ElectronicSignature.objects.filter(object_type="quality.lot").count() == 0
 

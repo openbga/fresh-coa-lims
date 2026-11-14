@@ -16,6 +16,7 @@ from decimal import ROUND_CEILING, Decimal
 from math import isqrt
 
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import F
@@ -459,6 +460,9 @@ def record_sampling(
     """
     require_role(actor, "analyst")
     _require_reason(reason)
+    # The account, then the lot: the order of signing and of every other lot writer. Creating
+    # the sample below locks the account, which must not be the second lock taken here.
+    get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
     assignment = current_assignment(locked)
     if locked.state == "quarantine" and (
