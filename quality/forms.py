@@ -1,11 +1,13 @@
 from django import forms
 from django.utils import timezone
+from django.utils.html import escape
 
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
 from core.models import RuleSet
 from suppliers.models import Supplier
 
+from . import certificates
 from .models import Lot, ReceiptCondition, ReceiptSource, Sample
 from .services import RECEIPT_FIELDS
 
@@ -140,6 +142,195 @@ class LotForm(ReceiptForm):
         if Lot.objects.filter(number=number).exists():
             raise forms.ValidationError("This lot number already exists.")
         return number
+
+
+CERTIFICATE_HEADER = ["number", "issued_by", "issued_on", "stated_lot", "document_ref", "notes"]
+LINE_INCOMPLETE = "Enter the result, or clear this test if the certificate does not state it."
+
+
+class CertificateForm(GroupedForm):
+    """What a supplier's certificate states, with one group of fields per approved requirement.
+
+    ``required`` is ``{test_code: (payload, requirement)}`` in specification order. A test whose
+    fields are all blank is not stated on the certificate. The service repeats every rule under
+    the lot lock and refuses a page opened before the requirements changed (``basis``).
+    """
+
+    number = forms.CharField(
+        label="Certificate number", max_length=80, help_text="As printed on the certificate."
+    )
+    issued_by = forms.CharField(
+        max_length=160, help_text="The company the certificate names as its issuer."
+    )
+    issued_on = forms.DateField(
+        label="Date of the certificate",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+    )
+    stated_lot = forms.CharField(
+        label="Lot number on the certificate",
+        max_length=80,
+        help_text="As printed. It is shown beside the lot numbers of the receipt details.",
+    )
+    document_ref = forms.CharField(
+        label="Where the certificate is kept",
+        max_length=200,
+        help_text="Document number or location in your controlled records.",
+    )
+    notes = forms.CharField(
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Anything else the certificate states, for example a test that is not in "
+        "the specification or a result in another unit.",
+    )
+    basis = forms.CharField(widget=forms.HiddenInput)
+    reason = reason_field("Reason")
+
+    def __init__(self, *args, required, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.required = required
+        reason = self.fields.pop("reason")
+        groups = [("Certificate", CERTIFICATE_HEADER)]
+        for code, (_, spec) in required.items():
+            fields = self._line_fields(code, spec)
+            self.fields.update(fields)
+            groups.append((f"{spec.name}: specification {spec.acceptance}", list(fields)))
+        self.fields["reason"] = reason
+        self.groups = [*groups, ("Change control", ["reason"])]
+
+    @staticmethod
+    def _line_fields(code, spec):
+        name = spec.name
+        fields = {}
+        if spec.is_qualitative:
+            fields[f"{code}__outcome"] = forms.ChoiceField(
+                label=f"{name} result",
+                choices=[("", "Not stated on the certificate"), *spec.outcomes],
+                required=False,
+            )
+            fields[f"{code}__stated"] = forms.CharField(
+                label=f"{name} wording on the certificate",
+                max_length=200,
+                required=False,
+                help_text="The result in the certificate's own words, e.g. Complies.",
+            )
+        else:
+            count = spec.result_type == "count"
+            fields[f"{code}__value"] = forms.DecimalField(
+                label=f"{name} result ({spec.unit})",
+                max_digits=20,
+                decimal_places=8,
+                required=False,
+                help_text=("Whole number of zero or more, as stated" if count else "As stated")
+                + f" on the certificate, in {escape(spec.unit)}. Do not convert a result stated "
+                "in another unit: leave it blank and describe it in the notes.",
+            )
+            fields[f"{code}__less_than"] = forms.BooleanField(
+                label=f"{name} stated as less than this value",
+                required=False,
+                widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+                help_text="For a result printed as &lt;10. It is kept as stated and never "
+                "becomes zero or the number.",
+            )
+        fields[f"{code}__method"] = forms.CharField(
+            label=f"{name} method on the certificate",
+            max_length=200,
+            required=False,
+            help_text="The test method the certificate states. Leave blank if it states none.",
+        )
+        fields[f"{code}__limits"] = forms.CharField(
+            label=f"{name} limits on the certificate",
+            max_length=200,
+            required=False,
+            help_text="The supplier's own limits, as printed. Leave blank if it states none.",
+        )
+        return fields
+
+    def clean(self):
+        data = super().clean()
+        results = []
+        for code, (_, spec) in self.required.items():
+            method = data.get(f"{code}__method", "")
+            limits = data.get(f"{code}__limits", "")
+            if spec.is_qualitative:
+                key = f"{code}__outcome"
+                entry = {
+                    "value": None,
+                    "qualifier": "",
+                    "outcome": data.get(key, ""),
+                    "stated_text": data.get(f"{code}__stated", ""),
+                }
+                given = entry["outcome"]
+                other = entry["stated_text"] or method or limits
+                if given and not entry["stated_text"].strip():
+                    self.add_error(
+                        f"{code}__stated", "Enter the wording of the result on the certificate."
+                    )
+                    continue
+            else:
+                key = f"{code}__value"
+                less_than = data.get(f"{code}__less_than", False)
+                entry = {
+                    "value": data.get(key),
+                    "qualifier": "<" if less_than else "",
+                    "outcome": "",
+                    "stated_text": "",
+                }
+                given = entry["value"] is not None
+                other = less_than or method or limits
+            if key in self.errors:
+                continue
+            if not given:
+                if other:
+                    self.add_error(key, LINE_INCOMPLETE)
+                continue
+            try:
+                certificates.stated_result(spec, **entry)
+            except forms.ValidationError as exc:
+                self.add_error(key, exc.messages)
+                continue
+            results.append({"test_code": code, **entry, "method": method, "limits": limits})
+        if not results and not self.errors:
+            self.add_error(None, certificates.NO_RESULTS)
+        self.stated_results = results
+        return data
+
+    def header_values(self):
+        return {name: self.cleaned_data[name] for name in certificates.HEADER_FIELDS}
+
+    def results(self):
+        return self.stated_results
+
+    @staticmethod
+    def initial_from(certificate, required):
+        """The current record as the starting values of a correction.
+
+        A result is carried over only where the lot still has the requirement and it takes the
+        same kind of result; anything else starts blank.
+        """
+        initial = {name: getattr(certificate, name) for name in certificates.HEADER_FIELDS}
+        for line in certificate.results.all():
+            if line.test_code not in required:
+                continue
+            code, spec = line.test_code, required[line.test_code][1]
+            initial[f"{code}__method"] = line.method
+            initial[f"{code}__limits"] = line.limits
+            if spec.is_qualitative and line.outcome in dict(spec.outcomes):
+                initial[f"{code}__outcome"] = line.outcome
+                initial[f"{code}__stated"] = line.stated_text
+            elif not spec.is_qualitative and not line.outcome:
+                initial[f"{code}__value"] = line.value_text.removeprefix("<")
+                initial[f"{code}__less_than"] = line.qualifier == "<"
+        return initial
+
+
+class CertificateCorrectionForm(CertificateForm):
+    reason = reason_field("Reason for correction")
+
+
+class CertificateWithdrawalForm(GroupedForm):
+    reason = reason_field("Reason for withdrawal")
+    groups = [("Change control", ["reason"])]
 
 
 class SampleForm(StyledForm):

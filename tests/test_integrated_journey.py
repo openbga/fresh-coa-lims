@@ -534,9 +534,9 @@ def assert_self_disposition_refused(client, data, person):
     client.force_login(person)
     page = client.get(reverse("quality:disposition", args=[data["lot"].pk]))
     assert page.status_code == 403
-    assert b"own receipt, sampling or test data" in page.content
+    assert b"own receipt, supplier certificate, sampling" in page.content
     assert b'name="pin"' not in page.content  # Explained before any PIN is requested.
-    with pytest.raises(ValidationError, match="own receipt, sampling or test data"):
+    with pytest.raises(ValidationError, match="own receipt, supplier certificate, sampling"):
         dispose(data, person)
     data["lot"].refresh_from_db()
     assert data["lot"].state == "quarantine"

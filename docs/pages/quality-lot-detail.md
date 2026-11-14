@@ -3,19 +3,20 @@ title: Lot record
 urls: quality:lot_detail
 views: quality.views.lot_detail
 templates: quality/lot_detail.html
-models: quality.Lot, quality.LotReceipt, quality.Sample, quality.Result, suppliers.Supplier, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
+models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.Sample, quality.Result, suppliers.Supplier, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
 reviewed: 2026-11-14
 ---
 
 ## Purpose
 
-The hub for one material lot: its facts, receipt details and samples, links to its requirements, sampling and native testing, the signed QC disposition that releases it, and its certificates of analysis.
+The hub for one material lot: its facts, receipt details, supplier certificates and samples, links to its requirements, sampling and native testing, the signed QC disposition that releases it, and its certificates of analysis.
 
 ## Who can use it
 
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **Add sample** and **Record result**: analysts only.
 - **Record receipt details** and **Correct receipt details**: analysts only, while the lot is Quarantine. Other roles do not see them and receive 403 if they open those pages directly.
+- **Record supplier certificate**: analysts only, while the lot is Quarantine, was received from a supplier and has approved requirements. Other roles do not see it and receive 403 if they open that page directly. Every viewer can open a supplier certificate record from its number.
 - **Review result**: reviewers only, and never the analyst who recorded that result.
 - **Review disposition** and **Issue certificate of analysis**: quality role only.
 - Scientific action links require their corresponding role as well as the state condition. Admin-only viewers see records and navigation links, without laboratory mutation controls. The server independently checks roles, independence and state.
@@ -31,6 +32,11 @@ The hub for one material lot: its facts, receipt details and samples, links to i
 - **Receipt** card, discrepancy note: when a discrepancy was found, "A discrepancy does not hold the lot by itself. Place a hold from Holds if the lot must not be dispositioned until it is resolved.", with a link to Holds.
 - **Receipt history** (inside the card): every receipt record of the lot, oldest first. Each entry shows "Receipt recorded" or "Receipt details corrected", the time, the reason and "Recorded by" with the user. A correction also lists each changed detail as old value → new value; an empty value reads "blank".
 - **Receipt** card without details: "Receipt details are not recorded: this lot was received before they were kept." On a Quarantine lot it adds "An analyst can record them while the lot is in quarantine."
+- **Supplier certificates** card, header: **Record supplier certificate** for analysts, when the lot is Quarantine, its current receipt details say "Received from a supplier" and it has approved requirements.
+- **Supplier certificates** card, table: when the lot has certificates, the text "Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests and do not count towards QC disposition.", then one row per certificate, oldest first: Certificate (number, a link to its record), Issued by, Date, Lot number on the certificate, Results stated and Status.
+- **Supplier certificates** card without certificates: "No supplier certificate is recorded. Receipt details come first." when the lot has no receipt details; "This lot was made on site, so it has no supplier certificate." when its receipt details say Made on site; otherwise "No supplier certificate is recorded."
+- **Supplier certificates** card, requirements note: on a Quarantine lot received from a supplier that has no approved requirements, an analyst sees no button and, at the end of the card, "Assign approved requirements to the lot first: supplier results are recorded against them.", followed by why they are missing or held (for example "No specification or sampling requirements are assigned."). Other roles do not see this note.
+- **Supplier certificates** card, made-on-site note: when a Quarantine lot holds certificates and its receipt details were corrected to Made on site, every viewer sees "The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies." Such a certificate cannot be corrected, only withdrawn.
 - **Samples and results**: one card per sample with its collection time, a **Record result** link (Quarantine lots only) and the foundation results table: Test, Result, Limits, Analyst, Review. This table shows only manual foundation results; native observations, reviews and investigations are on Testing and investigations. "No results recorded." here does not mean no native testing exists. "No samples recorded." when the lot has no samples.
 - **Certificates of analysis** (Released lots only): **Issue certificate of analysis** for quality users, then links to issued reports, or "No certificate issued yet."
 - **Electronic signatures**: foundation result review signatures, then lot disposition signatures, or "No lot disposition signature yet." Native test review signatures are not listed here.
@@ -44,6 +50,8 @@ The hub for one material lot: its facts, receipt details and samples, links to i
 | **Record receipt details** | Analyst role, lot is Quarantine and has no receipt details | Analyst | Opens Record receipt details for this lot |
 | **Correct receipt details** | Analyst role, lot is Quarantine and has receipt details | Analyst | Opens Correct receipt details, prefilled with the current details |
 | Supplier code link | Receipt details name a supplier | Any viewer | Opens the supplier record |
+| **Record supplier certificate** | Analyst role, lot is Quarantine, current receipt details say "Received from a supplier" and the lot has approved requirements | Analyst | Opens Record supplier certificate for this lot |
+| Certificate number link | One per supplier certificate | Any viewer | Opens the supplier certificate record |
 | **Holds** | Receipt details record a discrepancy | Viewers of that page | Opens the Holds list |
 | **Requirements and sampling** | Always | Viewers of that page | Opens the lot's requirement assignment and sampling records |
 | **Testing and investigations** | Always | Viewers of that page | Opens native tests, observations, reviews and investigations |
@@ -61,7 +69,7 @@ The hub for one material lot: its facts, receipt details and samples, links to i
 | Material | `Lot.material` | Text | — | Material received |
 | Status | `Lot.state` | Quarantine, Released | — | Released only by signed disposition |
 | Rule set | `Lot.rules` | "code vN" | — | Foundation rule revision chosen at receipt |
-| Record revision | `Lot.revision` | Integer | — | Rises with each change to the lot, its samples, tests or holds, and when receipt details are recorded later or corrected; disposition signatures bind to it |
+| Record revision | `Lot.revision` | Integer | — | Rises with each change to the lot, its samples, tests or holds, when receipt details are recorded later or corrected, and when a supplier certificate is recorded, corrected or withdrawn; disposition signatures bind to it |
 | Assignment status | `LotAssignment.status` (latest) | Requirements assigned, Applicability hold, or "Not assigned" | — | Whether approved specification and sampling requirements are attached |
 | Source | `LotReceipt.source` | Received from a supplier, Made on site | — | Where the lot came from |
 | Supplier | `LotReceipt.supplier` → `Supplier.code`, `name`, `location` | Link and text | — | Shown when the receipt names a supplier; the code opens the supplier record |
@@ -74,6 +82,12 @@ The hub for one material lot: its facts, receipt details and samples, links to i
 | Containers | `LotReceipt.containers`, `container_description` | Integer and text | — | Number of containers, then their type and size |
 | Examination on receipt | `LotReceipt.condition`, `condition_notes` | Label and text | — | No discrepancy found or Discrepancy found, with the notes |
 | Receipt history entry | `LotReceipt.recorded_at`, `recorded_by`, `reason`, `corrects` | Date and time, user, text | — | One entry per receipt record; a correction is linked to the record it replaces |
+| Certificate | `SupplierCertificate.number` | Link | — | Certificate number as printed; shows the current record of each certificate and opens its record |
+| Issued by | `SupplierCertificate.issued_by` | Text | — | The company the certificate names as its issuer |
+| Date | `SupplierCertificate.issued_on` | Date | — | Date of the certificate |
+| Lot number on the certificate | `SupplierCertificate.stated_lot` | Text and label | — | "Differs from the receipt" when it equals neither the supplier lot number nor the manufacturer lot number of the current receipt details, ignoring case and surrounding spaces. No label when it matches or the receipt details state neither number |
+| Results stated | `SupplierCertificate.results` → `SupplierCertificateResult.conforms`, `requirement_hash` | Count and labels | — | Number of results on the current record (for example "2 stated"), then "All meet the specification", or "Does not meet the specification" with the names of those tests. "Requirement no longer current" is added when a result was compared with a requirement that is not the lot's current one. A withdrawn certificate shows the number only |
+| Status (supplier certificate) | `SupplierCertificateWithdrawal` | Current, Withdrawn | — | Withdrawn when the certificate record was withdrawn; it stays listed |
 | Sample heading | `Sample.reference` | Text, unique | — | Sample identifier |
 | Collected | `Sample.collected_at` | Date and time | — | Labelled UTC; shown in the deployment time zone (default UTC) |
 | Test, Result, Limits, Analyst, Review | `Result.test_code`, `value`, `unit`, `lower_limit`, `upper_limit`, `analyst`, `state` | Text, decimal with unit | — | Foundation manual results only; "Out of specification" when outside the inclusive limits |
@@ -82,25 +96,32 @@ The hub for one material lot: its facts, receipt details and samples, links to i
 
 ## Rules and hidden logic
 
-- **Quarantine only**: samples, foundation results, receipt details and receipt corrections are accepted only while the lot is Quarantine ("Only quarantined lots accept new samples."; "Only quarantined lots accept receipt details."; "Only quarantined lots accept receipt corrections.").
+- **Quarantine only**: samples, foundation results, receipt details, receipt corrections and supplier certificate records are accepted only while the lot is Quarantine ("Only quarantined lots accept new samples."; "Only quarantined lots accept receipt details."; "Only quarantined lots accept receipt corrections."; "Only quarantined lots accept supplier certificate records.").
 - **Current receipt details**: the card shows the receipt record that no correction has replaced. Receipt records are append-only: none can be edited or deleted, and a correction adds a linked record. A lot has one original record and a single chain of corrections.
 - **Lots without receipt details**: a lot received through New material lot always has them. Only a lot received before receipt details were kept has none; an analyst can add them while it is Quarantine, and a released lot stays without them.
 - **Receipt history changes**: a correction compares Source, Supplier, Supplier lot number, Manufacturer, Manufacturer location, Manufacturer lot number, Delivery or batch document, Date received, Quantity received (with its unit), Number of containers, Containers, Examination on receipt and Examination notes, and lists only those that differ.
 - **Discrepancy**: "Discrepancy found" is information only. It does not place a hold and does not block disposition; only an active hold does.
-- **Not enforced by this page**: the supplier named on the receipt is not checked for qualification or approval, and the receipt details do not change which tests the lot requires.
+- **Not enforced by this page**: the supplier named on the receipt is not checked for qualification or approval, and neither the receipt details nor a supplier certificate change which tests the lot requires. A supplier certificate does not qualify the supplier.
+- **Supplier certificates listed**: one row per certificate, showing its current record: the one that no correction has replaced. Rows are ordered by when each certificate was first recorded, oldest first. A lot may hold several certificates. A withdrawn certificate stays listed with the status "Withdrawn"; replaced records are in the History of the supplier certificate record.
+- **When Record supplier certificate shows**: the lot is Quarantine, its current receipt details exist and say "Received from a supplier", it has approved requirements, and you hold the analyst role. Approved requirements are the required tests of the lot's current requirement assignment; a lot that is Not assigned or on Applicability hold has none. A released lot keeps its certificates and has no button.
+- **Supplier results are separate from the laboratory's tests**: they are compared with the lot's approved requirements when recorded, and each comparison stands as recorded. They do not answer a requirement, do not count towards QC disposition and do not block it, and are not printed on the certificate of analysis. The laboratory's own tests on Testing and investigations stay required.
+- **Supplier result outside the specification**: "Does not meet the specification" is information only. It does not place a hold; only an active hold blocks disposition. The disposition signing page shows a warning for it while the certificate is not withdrawn.
+- **Lot number on the certificate**: compared with the current receipt details each time the page is shown. A differing number is flagged and not refused.
+- **Supplier certificate records are append-only**: none can be edited or deleted. A correction adds a linked record and a withdrawal adds a withdrawal record, each through its own page from the supplier certificate record.
 - **Record result link vs. permission**: the link stays visible to analysts on Quarantine samples, but saving is refused with "Record observations through approved native testing requirements." unless the server runs in DEBUG and the lot has no requirement assignment. Record native results through Testing and investigations.
 - **Release paths**: with assigned requirements or native tests (and always outside DEBUG), release depends on the assignment, sampling records, native analytical evidence and holds. The manual foundation path (required rule-set tests, reviewed and conforming results) applies only in DEBUG on lots with neither. See Sign lot disposition for every condition and message.
-- **Revision and stale pages**: signing pages bind to the revision shown when opened (the result's for review, the lot's for disposition); if it changed, signing fails with "Record changed. Reload and review before signing." Recording receipt details on an earlier lot, or correcting them, raises the lot revision by 1.
-- **Independence**: no user dispositions a lot containing their own receipt, sampling or test data, even when holding the quality role. Receipt data covers everyone who recorded or corrected the lot's receipt details, including the recorder of a record that was later corrected. **Review disposition** still shows for them; the disposition page explains the refusal before any PIN is requested.
+- **Revision and stale pages**: signing pages bind to the revision shown when opened (the result's for review, the lot's for disposition); if it changed, signing fails with "Record changed. Reload and review before signing." Recording receipt details on an earlier lot, or correcting them, raises the lot revision by 1. So does recording, correcting or withdrawing a supplier certificate.
+- **Independence**: no user dispositions a lot containing their own receipt, supplier certificate, sampling or test data, even when holding the quality role. Receipt data covers everyone who recorded or corrected the lot's receipt details, including the recorder of a record that was later corrected. Supplier certificate data covers everyone who recorded, corrected or withdrew a supplier certificate of the lot, including the recorder of a record that was later corrected or withdrawn. **Review disposition** still shows for them; the disposition page explains the refusal before any PIN is requested.
 - **No reject path**: this version only releases; a lot that cannot be released stays in Quarantine.
 - **Review link after release**: a Recorded foundation result still shows **Review result** to independent reviewers on a released lot, but signing is refused ("This result is not awaiting review.").
-- **Certificates**: the section appears only after release; issuing is a separate signed step on the certificate pages.
+- **Certificates of analysis**: the section appears only after release; issuing is a separate signed step on the certificate pages. It is unrelated to the Supplier certificates card.
 
 ## Related pages
 
 - [Material lots](/)
 - Lot requirements and sampling; Lot testing (Testing and investigations).
 - Record receipt details, Correct receipt details; Supplier record.
+- Record supplier certificate; Supplier certificate record.
 - Add sample, Record result, Sign result review, Sign lot disposition.
 - Review certificate; Certificate record.
 - [Suppliers](/suppliers/)

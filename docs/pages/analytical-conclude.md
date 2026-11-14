@@ -14,7 +14,7 @@ Quality signs the conclusion that closes an investigation: the original result i
 ## Who can use it
 
 - Sign-in required. **Quality** only; others receive 403.
-- Never the user who opened the investigation, who generated data for the original or any linked test (observation recorders including superseded ones, submitters, batch QC recorders), or who authored an assessment, hypothesis, evidence or impact entry. Escalation and authorized-retest entries are not counted. These people are also barred from signing the lot's QC disposition, which additionally excludes whoever recorded or corrected the lot's receipt details and whoever sampled or recorded its sampling records.
+- Never the user who opened the investigation, who generated data for the original or any linked test (observation recorders including superseded ones, submitters, batch QC recorders), or who authored an assessment, hypothesis, evidence or impact entry. Escalation and authorized-retest entries are not counted. These people are also barred from signing the lot's QC disposition, which additionally excludes whoever recorded or corrected the lot's receipt details, whoever recorded, corrected or withdrew a supplier certificate of the lot, and whoever sampled or recorded its sampling records.
 - Requires an enrolled signature PIN.
 - **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 

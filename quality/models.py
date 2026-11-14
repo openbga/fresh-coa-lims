@@ -119,6 +119,137 @@ class LotReceipt(models.Model):
         return self.condition == ReceiptCondition.DISCREPANCY
 
 
+class SupplierCertificate(models.Model):
+    """What a supplier's certificate of analysis states for a lot. Append-only.
+
+    These are the supplier's results, never the laboratory's own tests. A correction adds a
+    linked record and a withdrawal adds a withdrawal record; the record that nothing corrects is
+    the current one of its chain. A lot may hold several certificates.
+    """
+
+    lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="supplier_certificates")
+    number = models.CharField("Certificate number", max_length=80)
+    issued_by = models.CharField(max_length=160)
+    issued_on = models.DateField("Date of the certificate")
+    stated_lot = models.CharField("Lot number on the certificate", max_length=80)
+    document_ref = models.CharField("Where the certificate is kept", max_length=200)
+    notes = models.TextField(blank=True)
+    result_count = models.PositiveSmallIntegerField(
+        help_text="Number of results the record holds; the database accepts no more."
+    )
+    reason = models.TextField()
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    corrects = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="corrected_by"
+    )
+
+    class Meta:
+        ordering = ["recorded_at", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(result_count__gte=1), name="supplier_certificate_has_results"
+            ),
+            models.CheckConstraint(
+                condition=~Q(number="")
+                & ~Q(issued_by="")
+                & ~Q(stated_lot="")
+                & ~Q(document_ref="")
+                & ~Q(reason=""),
+                name="supplier_certificate_stated",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Supplier certificate {self.number} for {self.lot}"
+
+
+class SupplierCertificateResult(models.Model):
+    """One result stated on a supplier's certificate, against one requirement of the lot.
+
+    ``requirement`` is the lot's approved requirement the result was compared with, frozen with
+    its hash; ``conforms`` is that comparison and is never recalculated.
+    """
+
+    certificate = models.ForeignKey(
+        SupplierCertificate, on_delete=models.PROTECT, related_name="results"
+    )
+    position = models.PositiveSmallIntegerField()
+    test_code = models.CharField(max_length=80)
+    value = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
+    qualifier = models.CharField(max_length=1, blank=True)
+    outcome = models.CharField(max_length=20, blank=True)
+    value_text = models.CharField(max_length=40, help_text="Result exactly as recorded")
+    stated_text = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Wording of a qualitative result on the certificate",
+    )
+    method = models.CharField(max_length=200, blank=True)
+    limits = models.CharField(max_length=200, blank=True)
+    requirement = models.JSONField()
+    requirement_hash = models.CharField(max_length=64)
+    conforms = models.BooleanField()
+
+    class Meta:
+        ordering = ["position", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["certificate", "test_code"], name="supplier_result_one_per_test"
+            ),
+            models.CheckConstraint(
+                condition=(
+                    ~Q(outcome="")
+                    & Q(value__isnull=True)
+                    & Q(qualifier="")
+                    & ~Q(stated_text__regex=r"^\s*$")
+                )
+                | (
+                    Q(outcome="")
+                    & Q(value__isnull=False)
+                    & Q(qualifier__in=["", "<"])
+                    & Q(stated_text="")
+                ),
+                name="supplier_result_shape",
+            ),
+            models.CheckConstraint(
+                condition=~Q(test_code="") & ~Q(value_text="") & ~Q(requirement_hash=""),
+                name="supplier_result_stated",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.test_code} on {self.certificate}"
+
+
+class SupplierCertificateWithdrawal(models.Model):
+    """States that a supplier certificate record is void, for example recorded on the wrong lot.
+
+    The certificate and its results are kept; a withdrawn certificate cannot be corrected.
+    """
+
+    certificate = models.OneToOneField(
+        SupplierCertificate, on_delete=models.PROTECT, related_name="withdrawal"
+    )
+    reason = models.TextField()
+    withdrawn_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    withdrawn_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(reason=""), name="supplier_certificate_withdrawal_reason"
+            ),
+        ]
+
+    def __str__(self):
+        return f"Withdrawal of {self.certificate}"
+
+
 class Sample(models.Model):
     lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="samples")
     reference = models.CharField(max_length=80, unique=True)
