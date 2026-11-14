@@ -13,6 +13,10 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 - Moved the source repository and presentation to the `fresh-coa-lims` slug, with the hosted demo at `fresh-coa-lims.onrender.com`.
 - The Render Blueprint and hosted demo now deploy `develop` automatically once CI checks pass; controlled deployments keep automatic deployment off.
 
+### Fixed
+
+- Recording sampling now locks the analyst's account before the lot, the order every other change to a lot uses. An analyst who recorded sampling and another record of the same lot at the same moment could meet a database deadlock and an error page; nothing wrong was saved.
+
 ### Added
 
 - Supplier certificates: for a quarantined lot received from a supplier, an analyst records what the supplier's certificate of analysis states (its number, issuer, date and printed lot number, where it is kept, and for each of the lot's approved requirements the result, method and limits as stated). Each result is compared with the lot's requirement and shown as meeting it or not. These are the supplier's results: they answer no requirement, are not part of the disposition evidence and are not printed on the certificate of analysis. A result that does not meet the specification is shown on the lot record and on the disposition page and does not hold the lot. A correction adds a linked record; a record made in error is withdrawn and kept.
