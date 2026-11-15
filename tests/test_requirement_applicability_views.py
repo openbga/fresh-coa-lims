@@ -112,6 +112,7 @@ def test_quality_decides_conflicting_requirements_on_the_page(client, world):  #
     assert "A lot has to meet every specification that binds it." in page
     assert "The statements differ in: limits." in page
     assert "Specifications in force" in page and "Requirements stated one way" in page
+    assert "<dt>Sampling plan</dt><dd>synthetic-rt-plan v1</dd>" in page
     assert "<strong>synthetic-rt-eu-market v1</strong> (eu-market) · Assay: 99 – 101 %" in page
     assert page.count('type="radio" name="choice-assay"') == 2
     assert 'value="eu-market"' in page and 'value="general"' in page and "checked" not in page
@@ -176,6 +177,10 @@ def test_a_refused_signature_leaves_a_page_that_can_be_signed(client, world):  #
     assert basis_of(refused) != basis_of(opened)
     assert basis_of(refused) == sampling.decision_preview(lot).basis
     assert sampling.current_assignment(lot).status == "hold"
+    # The statement that was chosen is the one that changed: nothing stays selected.
+    assert refused.count('type="radio" name="choice-assay"') == 2 and "checked" not in refused
+    response = client.post(decide_url, signing(approver, lot, refused))
+    assert response.status_code == 422 and "Choose which requirement applies" in text(response)
     # Reviewed as shown and signed again, with the PIN entered again.
     assert 'name="pin"' in refused and PIN not in refused
     response = client.post(
@@ -368,6 +373,39 @@ def test_a_conflict_that_arises_in_testing_is_chosen_on_the_replacement_page(cli
     )
     assert response.redirect_chain == [(lot_url, 302)]
     assert sampling.current_assignment(lot).payload["decisions"][0]["scope"] == "general"
+
+
+def test_a_stale_replacement_asks_for_the_choice_again(client, world):  # noqa: F811
+    people, lot = world["people"], world["lot"]
+    overlay(world, "eu-market", ASSAY)
+    assign(world, "general", "eu-market")
+    complete(world, sample_and_tests(world))
+    revise(world, "synthetic-rt-eu-market", TIGHT)
+    lot.refresh_from_db()
+    replace_url = reverse("sampling:replace", args=[lot.pk])
+    approver = people["approver"]
+    client.force_login(approver)
+    opened = text(client.get(replace_url, {"choice-assay": "eu-market"}))
+    assert "Sign replacement" in opened
+    # The statement that was chosen is revised before the signature arrives.
+    revise(world, "synthetic-rt-eu-market", {**TIGHT, "upper_limit": Decimal("100.5")})
+    response = client.post(
+        replace_url, signing(approver, lot, opened) | {"choice-assay": "eu-market"}
+    )
+    refused = text(response)
+    assert response.status_code == 422
+    assert "changed after this page was opened. Nothing was signed." in refused
+    assert "99 – 100.5 %" in refused and "checked" not in refused
+    assert 'name="pin"' not in refused and "Sign replacement" not in refused
+    assert sampling.current_assignment(lot).origin == "assigned"
+    # Chosen again on what applies now, reviewed and signed.
+    page = text(client.get(replace_url, {"choice-assay": "eu-market"}))
+    response = client.post(
+        replace_url, signing(approver, lot, page) | {"choice-assay": "eu-market"}, follow=True
+    )
+    assert response.redirect_chain == [(reverse("sampling:lot", args=[lot.pk]), 302)]
+    (item,) = sampling.current_assignment(lot).payload["decisions"]
+    assert item["text"].startswith("99 – 100.5 %")
 
 
 def test_rule_set_pages_say_where_an_additional_rule_set_applies(client, world):  # noqa: F811

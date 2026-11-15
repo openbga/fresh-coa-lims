@@ -13,6 +13,7 @@
       <div><dt>Scopes</dt><dd>{{ current.scope_list|join:", " }}</dd></div>
       <div><dt>Specifications in force</dt><dd>{% for spec in preview.specifications %}<a href="{% url 'catalog:specification_revision' spec.revision_id %}">{{ spec.code }} v{{ spec.version }}</a> ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
       {% if preview.additional_rules %}<div><dt>Additional rule sets in force</dt><dd>{% for rule in preview.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
+      {% if preview.plan %}<div><dt>Sampling plan</dt><dd>{{ preview.plan }}{% if preview.plan.pk == current.plan_revision_id %} · kept{% endif %}</dd></div>{% endif %}
       <div><dt>Rule set</dt><dd>{{ lot.rules }}{% if preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>, the version in force{% endif %}</dd></div>
       <div><dt>Hold recorded</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time></dd></div>
     </dl>

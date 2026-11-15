@@ -462,6 +462,39 @@ def test_any_difference_in_a_requirement_is_a_conflict_never_a_merge(world, chan
     assert conflict["differs"] and (differs is None or conflict["differs"] == differs)
 
 
+@pytest.mark.parametrize(
+    "line, change, tells",
+    [
+        # A replicate rule with a single replicate has no effect, and still differs.
+        (ASSAY, {"replicate_limits": False}, "each replicate must meet the limits: no"),
+        # So does the inclusion of a limit that is not set.
+        (WATER, {"lower_inclusive": False}, "lower limit included: no"),
+    ],
+)
+def test_statements_that_would_read_alike_state_what_differs(world, line, change, tells):
+    overlay(world, "general-b", line)
+    overlay(world, "eu-market", {**line, **change})
+    world["lot"].refresh_from_db()
+    held = assign(world, "general-b", "eu-market", "general")
+    assert held.status == "hold"
+    conflict = next(
+        c for c in sampling.decision_preview(lot_of(world)).conflicts if c["code"] == line["code"]
+    )
+    texts = [item["text"] for item in conflict["candidates"]]
+    assert len(set(texts)) == len(texts), texts
+    assert any(text.endswith(tells) for text in texts), texts
+    # The decision keeps the statements as they were shown.
+    choices = {c["code"]: "eu-market" for c in sampling.decision_preview(lot_of(world)).conflicts}
+    decided = decide(world, choices=choices)
+    item = next(
+        d
+        for d in sampling.current_assignment(decided).payload["decisions"]
+        if d["code"] == line["code"]
+    )
+    assert item["text"].endswith(tells)
+    assert all(alt["text"] != item["text"] for alt in item["alternatives"])
+
+
 def test_statements_show_what_the_usual_wording_leaves_out(world):
     line = {
         **ASSAY,
@@ -1286,15 +1319,16 @@ def test_a_replacement_carries_the_decision_while_its_scope_still_states_the_tes
     replaced = replace(world, who="author")
     current = sampling.current_assignment(replaced)
     assert current.origin == "replaced" and current.scopes == ["general", "eu-market"]
-    # The choice stands as it was made: the replacement keeps who decided it and why.
+    # The statement that applies is unchanged, but the one it was chosen over is not: the
+    # replacement's signer reviewed that and is the one who chose.
     (record,) = current.replacement["decisions"]
     assert {k: v for k, v in record.items() if k != "decided"} == current.payload["decisions"][0]
-    assert (record["decided"]["by"], record["decided"]["with"], record["decided"]["reason"]) == (
-        "Synthetic Approver",
-        "decision",
-        REASON,
+    assert (record["decided"]["by"], record["decided"]["with"]) == (
+        "Synthetic Author",
+        "replacement",
     )
-    assert record["decided"]["at"] != current.replacement["signed_at"]
+    assert record["decided"]["reason"] == "Change record CC-SYN-021"
+    assert record["decided"]["at"] == current.replacement["signed_at"]
     assert current.replacement["versions"] == [
         {
             "kind": "specification",
@@ -1306,17 +1340,84 @@ def test_a_replacement_carries_the_decision_while_its_scope_still_states_the_tes
     event = AuditEvent.objects.get(action="lot.requirements_replaced", object_id=current.pk)
     assert event.after["decisions"] == [{"code": "assay", "scope": "eu-market"}]
     (notice,) = sampling.decision_notices(replaced)
+    assert " by Synthetic Author: " in notice and "carried by the replacement" not in notice
+    released = dispose(world, world["people"]["approver"])
+    (decision,) = reporting.preview(released)[0]["native"]["decisions"]
+    assert (decision["decided"]["by"], decision["decided"]["with"]) == (
+        "Synthetic Author",
+        "replacement",
+    )
+    assert "carried" not in decision["decided"]
+
+
+def test_a_choice_that_is_unchanged_in_every_statement_keeps_its_decider(world):
+    """A replacement for another reason (here a rule set version) carries the choice as it
+    was made, with who made it, when and why."""
+    overlay(world, "eu-market", TIGHT)
+    extra_rules(world, "synthetic-eu-rules", {"scopes": ["eu-market"]}, ["assay"])
+    assert assign(world, "general", "eu-market").status == "hold"
+    decide(world)
+    complete(world, sample_and_tests(world))
+    extra_rules(world, "synthetic-eu-rules", {"scopes": ["eu-market"]}, ["assay", "tamc"])
+    preview = sampling.replacement_preview(lot_of(world))
+    assert preview.possible and preview.standing == {"assay": "eu-market"}
+    replaced = replace(world, who="author")
+    current = sampling.current_assignment(replaced)
+    (record,) = current.replacement["decisions"]
+    assert (record["decided"]["by"], record["decided"]["with"], record["decided"]["reason"]) == (
+        "Synthetic Approver",
+        "decision",
+        REASON,
+    )
+    assert record["decided"]["at"] != current.replacement["signed_at"]
+    (notice,) = sampling.decision_notices(replaced)
     assert "Decided on " in notice and " by Synthetic Approver: " in notice
     assert f"Reason: {REASON} The choice was carried by the replacement of " in notice
     assert notice.endswith(" by Synthetic Author.")
     # The certificate names who decided, and who signed the replacement that carried it.
     released = dispose(world, world["people"]["approver"])
-    (decision,) = reporting.preview(released)[0]["native"]["decisions"]
+    evidence, evidence_hash, blockers = reporting.preview(released)
+    assert blockers == [], blockers
+    (decision,) = evidence["native"]["decisions"]
     assert (decision["decided"]["by"], decision["decided"]["with"]) == (
         "Synthetic Approver",
         "decision",
     )
     assert decision["decided"]["carried"]["by"] == "Synthetic Author"
+    report = reporting.issue_report(
+        actor=world["people"]["approver"],
+        pin=PIN,
+        lot=released,
+        recipient="Synthetic quality recipient",
+        evidence_hash=evidence_hash,
+        reason="Independent synthetic certificate issue",
+    )
+    snapshot = report.versions.get(number=1).snapshot
+    flat = " ".join(render_to_string("reporting/_certificate.html", {"snapshot": snapshot}).split())
+    assert "Decided by Synthetic Approver on " in flat
+    assert "Carried unchanged by the replacement of the lot's requirements signed by" in flat
+    assert "Additional rule set" in flat and "synthetic-eu-rules version 2" in flat
+
+
+def test_a_choice_made_with_the_replacement_is_its_signers(world):
+    """Both statements are revised, so no choice stands; the one made with the replacement
+    is stamped with its signer, not with whoever decided before."""
+    conflicting(world)
+    decide(world)
+    complete(world, sample_and_tests(world))
+    revise(world, "synthetic-rt-eu-market", {**TIGHT, "upper_limit": Decimal("100.5")})
+    revise(world, "synthetic-rt-spec", {**ASSAY, "lower_limit": Decimal("99")})
+    assert sampling.replacement_preview(lot_of(world)).standing == {}
+    replaced = replace(world, who="author", choices={"assay": "general"})
+    (record,) = sampling.current_assignment(replaced).replacement["decisions"]
+    assert record["scope"] == "general" and record["text"].startswith("99 – 102 %")
+    assert (record["decided"]["by"], record["decided"]["with"]) == (
+        "Synthetic Author",
+        "replacement",
+    )
+    (notice,) = sampling.decision_notices(replaced)
+    assert " by Synthetic Author: " in notice and "Approver" not in notice
+    assert "carried by the replacement" not in notice
 
 
 def test_a_choice_whose_statement_was_revised_is_made_again(world):

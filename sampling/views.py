@@ -341,6 +341,13 @@ def decide(request, pk):
             messages.success(request, "Decision signed. The requirements are frozen for this lot.")
             return redirect(back)
     if request.method == "POST":
+        if services.DECISION_STALE in form.non_field_errors():
+            # What applies changed: the page shows it as it is now and asks for the choice
+            # again, because a statement chosen before may be the one that changed.
+            preview, choices = services.decision_preview(lot), {}
+            if preview.blocker:
+                messages.error(request, preview.blocker)
+                return redirect(back)
         _reissue(form, lot, preview.basis)
     for conflict in preview.conflicts:
         conflict["chosen"] = choices.get(conflict["code"], "")
@@ -414,6 +421,18 @@ def replace(request, pk):
                 else "Requirements replaced and signed. Every test carried over.",
             )
             return redirect(back)
+    stale = request.method == "POST" and services.REPLACEMENT_STALE in form.non_field_errors()
+    if stale:
+        # What applies changed: the page shows it as it is now. A choice that was submitted
+        # is not kept, because the statement chosen may be the one that changed; a choice of
+        # the lot's frozen requirements still stands while its statement is unchanged.
+        preview = services.replacement_preview(lot)
+        if preview.blocker and not (
+            preview.blocker == services.NOTHING_TO_REPLACE
+            and (preview.payload or {}).get("decisions")
+        ):
+            messages.error(request, preview.blocker)
+            return redirect(back)
     if request.method == "POST":
         _reissue(form, lot, preview.basis)
     # Tests the specifications in force state differently: the ones already chosen for, with
@@ -436,6 +455,7 @@ def replace(request, pk):
     carried = sorted((c, scope) for c, scope in preview.choices.items() if c not in listed)
     # A signature submitted while a test still waits for a choice signs nothing.
     unchosen = request.method == "POST" and not blocked and bool(preview.conflicts)
+    unchanged = preview.blocker == services.NOTHING_TO_REPLACE and bool(decided)
     return render(
         request,
         "sampling/replace.html",
@@ -450,7 +470,8 @@ def replace(request, pk):
             "differing": differing,
             "carried": carried,
             "decided": decided,
-            "choice_missing": unchosen,
+            "choice_missing": unchosen and not stale,
+            "stale": stale,
             "unchanged": unchanged,
             "frozen": services.payload_specifications(preview.current.payload),
             "several": "specifications" in preview.current.payload

@@ -58,8 +58,8 @@ from catalog.services import (
     effective_revision,
     normalize_scopes,
     register_check,
-    requirement_text,
     same_requirement,
+    statement_text,
     test_requirement,
 )
 from core.audit import record_event, snapshot
@@ -686,6 +686,7 @@ class Decision:
     agreed: list = field(default_factory=list)
     specifications: list = field(default_factory=list)
     additional_rules: list = field(default_factory=list)
+    plan: SamplingPlanRevision | None = None
     reasons: list = field(default_factory=list)
     rules: RuleSet | None = None
     resolution: Resolution | None = None
@@ -769,6 +770,7 @@ def decision_preview(lot, at=None):
         }
         for rule in read.extra
     ]
+    preview.plan = resolution.plan_revision
     preview.reasons = resolution.blocking
     preview.basis = digest(
         {
@@ -992,8 +994,8 @@ def _line_changes(old, new):
                 "code": code,
                 "name": (now or was)["name"],
                 "change": change,
-                "before": requirement_text(was) if was else "",
-                "after": requirement_text(now) if now else "",
+                "before": statement_text(was) if was else "",
+                "after": statement_text(now) if now else "",
                 "required": bool(now and now["required"]),
                 "was_required": bool(was and was["required"]),
             }
@@ -1404,13 +1406,15 @@ def replace_requirements(*, actor, pin, lot, expected_revision, reason, basis, c
         if payload.get("decisions"):
             # Each choice between differing statements with who made it: this signer, or
             # whoever decided it before when the statement that applies is unchanged.
-            records = {record["code"]: record for record in decision_records(previous)}
-            before = {line["code"]: line for line in previous.payload["tests"]}
-            after = {line["code"]: line for line in payload["tests"]}
+            # A choice stands as it was made only when everything about it is unchanged: the
+            # scope that was named, the statement that applies and every statement it was
+            # chosen over. Anything else was reviewed and chosen by this signer.
+            made = {item["code"]: item for item in payload["decisions"]}
             standing = {
-                code: record
-                for code, record in records.items()
-                if code in after and same_requirement(before[code], after[code])
+                record["code"]: record
+                for record in decision_records(previous)
+                if {key: value for key, value in record.items() if key != "decided"}
+                == made.get(record["code"])
             }
             evidence["decisions"] = _stamped(
                 payload["decisions"],

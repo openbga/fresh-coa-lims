@@ -929,6 +929,46 @@ def _differences(lines):
     return found
 
 
+# Keys of an approved specification line in plain words, for a difference that has no visible
+# effect on the wording of a statement.
+PLAIN_KEYS = {
+    "result_type": "result type",
+    "unit": "unit",
+    "lower_limit": "lower limit",
+    "lower_inclusive": "lower limit included",
+    "upper_limit": "upper limit",
+    "upper_inclusive": "upper limit included",
+    "reporting_decimals": "rounding decimals",
+    "expected_result": "expected outcome",
+    "expected_text": "criterion",
+    "replicates": "replicates",
+    "replicate_limits": "each replicate must meet the limits",
+    "max_retests": "retests allowed",
+}
+
+
+def _plain(value):
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return "not stated" if value in (None, "") else str(value)
+
+
+def _tell_apart(statements, lines):
+    """Statements of one test differ, yet two can read the same when the difference has no
+    visible effect (a replicate rule with one replicate, the inclusion of a limit that is
+    not set, a unit on a qualitative line). Each then states the differing values as
+    approved, so that no two statements a signer chooses between read alike."""
+    shown = [(item["name"], item["text"], item["required"]) for item in statements]
+    if len(set(shown)) == len(shown):
+        return
+    lines = [{**LINE_DEFAULTS, **line} for line in lines]
+    for key, words in PLAIN_KEYS.items():
+        values = [_plain(line.get(key)) for line in lines]
+        if len(set(values)) > 1:
+            for item, value in zip(statements, values, strict=True):
+                item["text"] += f" · {words}: {value}"
+
+
 def _statement(group):
     """One way a test is stated, with the scopes and specifications that state it so."""
     scope, spec, revision, line = group[0]
@@ -1049,6 +1089,7 @@ class Applicable:
             if len(groups) < 2:
                 continue
             statements = [_statement(group) for group in groups]
+            _tell_apart(statements, [group[0][3] for group in groups])
             found.append(
                 {
                     "code": code,
@@ -1126,11 +1167,15 @@ class Applicable:
             chosen = groups[0]
             if len(groups) > 1:
                 wanted = decisions.get(code)
-                chosen = next((g for g in groups if any(c[0] == wanted for c in g)), None)
-                if chosen is None:
+                index = next(
+                    (i for i, g in enumerate(groups) if any(c[0] == wanted for c in g)), None
+                )
+                if index is None:
                     conflicts.append(differing[code])
                     continue
-                stated = _statement(chosen)
+                chosen = groups[index]
+                # The statement as it reads among the others (see ``_tell_apart``).
+                stated = differing[code]["candidates"][index]
                 decided.append(
                     {
                         "code": code,
@@ -1139,7 +1184,7 @@ class Applicable:
                         "scope": wanted,
                         "differs": differing[code]["differs"],
                         "alternatives": [
-                            item for item in differing[code]["candidates"] if item != stated
+                            item for item in differing[code]["candidates"] if item is not stated
                         ],
                     }
                 )
