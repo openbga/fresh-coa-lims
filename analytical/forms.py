@@ -344,11 +344,29 @@ class BatchForm(StyledForm):
     method_code = forms.ChoiceField(label="Method revision")
     reason = _reason()
 
-    def __init__(self, *args, methods=(), **kwargs):
+    def __init__(self, *args, methods=(), earlier=(), **kwargs):
+        """``methods``: (code, payload) of the revisions in force. ``earlier``: (code, revision)
+        of earlier revisions that tests in progress are frozen to, offered as ``code@revision``
+        (a method code is a slug and holds no ``@``)."""
         super().__init__(*args, **kwargs)
         self.fields["method_code"].choices = [
             (code, f"{code} revision {payload['revision']}") for code, payload in methods
+        ] + [
+            (
+                f"{code}@{revision}",
+                f"{code} revision {revision} · earlier version, for tests in progress",
+            )
+            for code, revision in earlier
         ]
+
+    def batch_data(self):
+        """The form's values as ``create_batch`` takes them."""
+        data = dict(self.cleaned_data)
+        code, _, revision = data["method_code"].partition("@")
+        data["method_code"] = code
+        if revision:
+            data["revision"] = int(revision)
+        return data
 
 
 class BatchAssignForm(StyledForm):

@@ -50,7 +50,10 @@ class ControlledRevision(models.Model):
     """Version of a controlled document: draft until independently signed, then frozen.
 
     ``version`` numbers versions of one parent; ``revision`` is the record revision signed.
-    Approved intervals are finite, half-open [effective_from, effective_until) and never overlap.
+    Approved intervals are finite and half-open, [effective_from, effective_until). Approving a
+    later version whose period overlaps retires this one: ``superseded_from`` is the moment it
+    stops applying and ``superseded_by`` the version that took over. The approved content and
+    its signature are not touched, so the periods in which versions apply never overlap.
     """
 
     PARENT_FIELD = ""
@@ -67,6 +70,10 @@ class ControlledRevision(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_content = models.JSONField(null=True, blank=True)
     approved_hash = models.CharField(max_length=64, blank=True)
+    superseded_from = models.DateTimeField(null=True, blank=True)
+    superseded_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
 
     class Meta:
         abstract = True
@@ -80,6 +87,18 @@ class ControlledRevision(models.Model):
                 condition=~Q(status="approved") | Q(approved_content__isnull=False),
                 name="%(app_label)s_%(class)s_frozen",
             ),
+            # Only an approved version is superseded, by a named version, inside its own period.
+            models.CheckConstraint(
+                condition=Q(superseded_from__isnull=True, superseded_by__isnull=True)
+                | Q(
+                    status="approved",
+                    superseded_from__isnull=False,
+                    superseded_by__isnull=False,
+                    superseded_from__gte=F("effective_from"),
+                    superseded_from__lt=F("effective_until"),
+                ),
+                name="%(app_label)s_%(class)s_superseded",
+            ),
         ]
 
     @property
@@ -90,10 +109,20 @@ class ControlledRevision(models.Model):
     def is_draft(self):
         return self.status == RevisionStatus.DRAFT
 
+    @property
+    def applies_until(self):
+        """The moment this version stops applying: its own end, or an earlier supersession."""
+        return self.superseded_from or self.effective_until
+
+    @property
+    def never_applied(self):
+        """Superseded from its own start: a later version took over before it began."""
+        return self.superseded_from is not None and self.superseded_from <= self.effective_from
+
     def is_effective(self, at):
         return (
             self.status == RevisionStatus.APPROVED
-            and self.effective_from <= at < self.effective_until
+            and self.effective_from <= at < self.applies_until
         )
 
     def content(self):

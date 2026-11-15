@@ -165,6 +165,27 @@ class CorrectionForm(ObservationForm):
         self.fields["reason"].label = "Reason for correction"
 
 
+class ReplacementForm(SignatureIdentityForm):
+    """Signature on the replacement of a lot's requirements, as previewed (``basis``)."""
+
+    reason = forms.CharField(
+        label="Reason for the replacement",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Why this lot is tested against the versions now in force, for example the "
+        "change record that requires it.",
+    )
+    pin = forms.CharField(
+        label="Signature PIN",
+        widget=forms.PasswordInput(
+            attrs={"autocomplete": "off", "inputmode": "numeric"}, render_value=False
+        ),
+    )
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    basis = forms.CharField(max_length=64, widget=forms.HiddenInput)
+    field_order = ["reason", "signature_username", "pin", "expected_revision", "basis"]
+
+
 class DeviationForm(SignatureIdentityForm):
     decision = forms.ChoiceField(
         choices=[("accept", "Accept the deviation"), ("reject", "Reject the deviation")],

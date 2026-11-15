@@ -39,9 +39,32 @@ class RuleSet(models.Model):
     effective_from = models.DateTimeField()
     effective_until = models.DateTimeField(null=True, blank=True)
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    # Set when a later approved version of the same rule set takes over: the moment this version
+    # stops applying and the version that replaced it. The approved content is not touched.
+    superseded_from = models.DateTimeField(null=True, blank=True)
+    superseded_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["code", "version"], name="rule_version")]
+        constraints = [
+            models.UniqueConstraint(fields=["code", "version"], name="rule_version"),
+            models.CheckConstraint(
+                condition=models.Q(superseded_from__isnull=True, superseded_by__isnull=True)
+                | models.Q(
+                    status="approved",
+                    superseded_from__isnull=False,
+                    superseded_by__isnull=False,
+                    superseded_from__gte=models.F("effective_from"),
+                ),
+                name="rule_superseded",
+            ),
+        ]
+
+    @property
+    def applies_until(self):
+        """The moment this version stops applying: its own end, or an earlier supersession."""
+        return self.superseded_from or self.effective_until
 
     def __str__(self):
         return f"{self.code} v{self.version}"

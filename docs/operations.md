@@ -272,6 +272,37 @@ Revoking a qualification (any quality person, signed) stops further reliance at 
 
 A deployment that replaced the testing adapters: `ANALYTICAL_SUPPLIER_RESULTS` names the class the lot gate asks for accepted supplier results (`lot`, `standing`, `standing_by_lot`). Without the setting no supplier result answers a requirement.
 
+## Revising a specification, a method, a sampling plan or a rule set
+
+Create the new version from the document's page, have a different quality person approve it, and give it the period in which it is to apply. If that period overlaps an approved version, the approval retires the earlier one; the approval page lists what the signature retires and when.
+
+| The new version starts | The earlier approved version |
+|---|---|
+| In the future | Applies until the new version's start |
+| In the past or now | Applies until the moment the approval is signed; it is never retired retroactively |
+| Before an approved version that has not started yet | That later-starting version never applies |
+
+A draft cannot retire an approved version with a higher number: withdraw the draft and create a new version. A retired version stays readable with its approved content and signature; the version list shows which version replaced it and from when. There is no action that retires a version without approving a successor.
+
+Lots already received keep the versions frozen when their requirements were assigned, so a revised specification, method or sampling plan changes nothing for them by itself. For a method that runs in QC batches, a test joins only a batch of the method version it is frozen to. **New QC batch** therefore offers the version in force and, while open tests not yet in a batch are frozen to an earlier version, that earlier version too ("earlier version, for tests in progress"), so that work a lot has started can be finished and evaluated. The method approval page counts the tests in progress frozen to the version it retires. A lot that has been sampled keeps the sampling plan version its samples were taken under, also when its requirements are assigned again before testing. A revised **rule set** does: tests are assigned and the lot is dispositioned only while the lot's rule version is in force. Results already recorded can still be reviewed and an investigation concluded. Before approving a rule version that takes over at once, look at the count of lots in quarantine on the approval page; either start the new version later, so that lots in progress finish first, or move each of those lots afterwards: assign its requirements again if it has no test yet, replace them with a signature if it has.
+
+## Replacing a lot's requirements during testing
+
+Before a lot has a test, an analyst or quality assigns its requirements again from the lot's requirements page; no signature is needed. Once a test exists, quality opens **Sampling**, the lot, **Replace requirements**. The page shows the versions in force beside the frozen ones, every requirement that changes and what happens to each test, then asks for a reason and a signature.
+
+| Rule | Detail |
+|---|---|
+| Who signs | A quality person who recorded none of the lot's receipt, supplier certificate, sampling or test data and proposed no supplier result for it; reviewing a test is not authorship |
+| What is frozen | The versions in force for the same material, stage and scope, and the version in force of the lot's own rule set. The sampling plan is kept |
+| Tests that carry over | Those whose requirement is exactly the same: name, acceptance criterion, rounding, replicates and method version |
+| Tests that are superseded | Every other test. It is kept with everything recorded on it, takes no more work and never counts. **Assign required tests** on the lot's testing page then adds a linked repeat under the new requirement |
+| Refused when | An investigation is open on the lot; a test that would be superseded is open with results or raw-data files that were not submitted (complete and submit it first); nothing changed; no version is in force or the rule set requires a test the specification lacks |
+| Supplier results | One accepted or proposed against the replaced requirements stops standing: withdraw it, correct the supplier certificate record so that it is compared with the new requirement, and propose it again |
+
+A recorded result is not evaluated again against revised limits: a test whose requirement changed is repeated. A confirmed out-of-specification result keeps blocking the lot whatever requirements apply later. The software does not decide which lots must move to a new version and records no impact assessment; reference your change record in the reason. If a lot's sampling plan version has reached its own end, a resample for an investigation is refused; there is no path to change the plan of a lot in testing.
+
+A deployment that replaced the testing adapters: `REQUIREMENT_REPLACEMENT_TESTING` names the class that tells the replacement what happens to the lot's tests (`effects`, `lock`, `apply`). Without the setting requirements cannot be replaced once testing has started.
+
 ## Calculated results
 
 A calculation is approved with the method version: the formula, its named inputs with units, the unit of the result and its decimals. The quality owner who approves the version is approving the formula; verify it against the controlled procedure with worked examples before approval, and again in intended-use validation. The software evaluates the formula exactly as written, carries 50 significant digits and rounds the result half-up to the approved decimals. It does not convert units, apply significant-figure rules or round intermediate values. Changing a formula means a new method version; tests already assigned keep the formula they froze.

@@ -3,6 +3,7 @@
 {% block page_meta %}<p class="vr-page-meta">Lot status {{ lot.state|capfirst }} · record revision {{ lot.revision }} · <a href="{% url 'quality:lot_detail' lot.pk %}">Open lot record</a></p>{% endblock %}
 {% block page_actions %}
 {% if can_assign %}<a class="btn btn-outline-secondary" href="{% url 'sampling:assign' lot.pk %}">{% if current %}Change requirements{% else %}Assign requirements{% endif %}</a>{% endif %}
+{% if can_replace %}<a class="btn btn-outline-secondary" href="{% url 'sampling:replace' lot.pk %}">Replace requirements</a>{% endif %}
 {% if can_sample %}<a class="btn btn-primary" href="{% url 'sampling:sampling_new' lot.pk %}">Record sampling</a>{% endif %}
 {% endblock %}
 {% block content %}
@@ -20,7 +21,9 @@
 <section class="card mb-3" aria-labelledby="req-heading">
   <div class="card-header"><h2 class="card-title" id="req-heading">Current requirements</h2></div>
   <div class="card-body">
-    {% if testing_started and open %}<p class="small">{% include "includes/status.html" with label="Fixed" tone="info" plain=True %} Testing has started, so these requirements cannot be reassigned.</p>{% endif %}
+    {% if testing_started and open %}<p class="small">{% include "includes/status.html" with label="Fixed" tone="info" plain=True %} Testing has started, so these requirements cannot be assigned again. When a specification, a method or the rule set is revised, quality can replace them with a signature; tests whose requirement changes are then superseded and repeated.</p>{% endif %}
+    {% if newer %}<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Newer versions" tone="warning" plain=True %}<div class="text-break">{% if newer.reasons %}The versions frozen for this lot are no longer the ones in force, and the versions in force cannot be applied to it: {{ newer.reasons|join:" " }}{% else %}The versions in force now are not the ones frozen for this lot: {{ newer.items|join:", " }}.{% endif %} The lot keeps its frozen requirements until quality replaces them with a signature.{% if newer.rules %} Its rule set version is no longer in force, so no further test is assigned and the lot is not dispositioned until then.{% endif %}{% if can_replace %} <a href="{% url 'sampling:replace' lot.pk %}">Review the replacement</a>.{% endif %}</div></div>{% endif %}
+    {% if current.is_replacement %}{% include "sampling/includes/replacement.html" with assignment=current %}{% endif %}
     {% if not current %}
     {% include "catalog/includes/empty.html" with kind="error" title="Applicability hold: no requirements assigned" body="Assign the approved specification and sampling plan for this lot's material and stage before sampling or testing." %}
     {% elif current.status == "hold" %}
@@ -88,7 +91,7 @@
 <section class="card mb-3" aria-labelledby="assign-heading">
   <div class="card-header"><h2 class="card-title" id="assign-heading">Earlier requirement assignments</h2></div>
   <div class="card-body"><ol class="vr-timeline">
-    {% for a in assignments|slice:"1:" %}{% include "includes/history_item.html" with title=a.get_status_display at=a.assigned_at actor=a.assigned_by reason=a.reason detail="Superseded" %}{% endfor %}
+    {% for a in assignments|slice:"1:" %}{% if a.is_replacement %}{% include "includes/history_item.html" with title="Requirements replaced during testing" at=a.assigned_at actor=a.assigned_by by="Signed by" reason=a.reason detail="Superseded" %}{% else %}{% include "includes/history_item.html" with title=a.get_status_display at=a.assigned_at actor=a.assigned_by reason=a.reason detail="Superseded" %}{% endif %}{% endfor %}
   </ol></div>
 </section>
 {% endif %}

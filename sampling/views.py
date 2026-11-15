@@ -21,6 +21,7 @@ from catalog.web import (
     sorted_by,
     withdraw_page,
 )
+from core.models import ElectronicSignature
 from core.services import require_role
 from quality.models import Lot
 
@@ -31,6 +32,7 @@ from .forms import (
     DeviationForm,
     PlanForm,
     PlanRevisionForm,
+    ReplacementForm,
     SamplingForm,
 )
 from .models import (
@@ -157,6 +159,22 @@ def lot_detail(request, pk):
         )
     is_analyst = can(request.user, "analyst")
     testing = services.testing_started(lot)
+    # Each replacement names the lot revision its signature is bound to.
+    signed = {
+        s.revision: s
+        for s in ElectronicSignature.objects.filter(
+            object_type="quality.lot", object_id=str(lot.pk), meaning=services.REPLACED_MEANING
+        )
+    }
+    for assignment in assignments:
+        assignment.signature = (
+            signed.get(assignment.replacement.get("lot_revision"))
+            if assignment.is_replacement
+            else None
+        )
+    # Once testing has started, say when the versions in force are no longer the frozen ones:
+    # the lot keeps its own until quality replaces them.
+    newer = services.newer_versions(lot)
     return render(
         request,
         "sampling/lot_detail.html",
@@ -165,6 +183,8 @@ def lot_detail(request, pk):
             "lot": lot,
             "current": current,
             "assignments": assignments,
+            "newer": newer,
+            "can_replace": is_quality and newer is not None,
             "records": records,
             "history": history(*assignments, *records, *[r.review for r in records if r.review]),
             "blockers": services.lot_blockers(lot),
@@ -230,6 +250,61 @@ def assign(request, pk):
             ("Rule set", str(lot.rules)),
             ("Current requirements", current.get_status_display() if current else "None"),
         ],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def replace(request, pk):
+    """Signed replacement of a lot's requirements once testing has started."""
+    require_role(request.user, AUTHOR_ROLE)
+    lot = get_object_or_404(Lot.objects.select_related("rules"), pk=pk)
+    back = reverse("sampling:lot", args=[lot.pk])
+    preview = services.replacement_preview(lot)
+    if preview.blocker:
+        messages.error(request, preview.blocker)
+        return redirect(back)
+    blocked = services.replacement_denial(request.user, lot)
+    form = ReplacementForm(
+        request.POST or None,
+        initial={"expected_revision": lot.revision, "basis": preview.basis},
+    )
+    if request.method == "POST" and not blocked and preview.possible and form.is_valid():
+        data = form.cleaned_data
+        done = run(
+            form,
+            lambda: services.replace_requirements(
+                actor=request.user,
+                pin=data["pin"],
+                lot=lot,
+                expected_revision=data["expected_revision"],
+                reason=data["reason"],
+                basis=data["basis"],
+            ),
+        )
+        if done:
+            messages.success(
+                request,
+                "Requirements replaced and signed. Assign the required tests again for "
+                "the tests that were superseded."
+                if preview.superseded
+                else "Requirements replaced and signed. Every test carried over.",
+            )
+            return redirect(back)
+    return render(
+        request,
+        "sampling/replace.html",
+        {
+            "page_title": f"Replace requirements · {lot.number}",
+            "lot": lot,
+            "preview": preview,
+            "current": preview.current,
+            "form": form,
+            "blocked": blocked,
+            "cancel_url": back,
+            "crumbs": crumbs_for((lot.number, back), ("Replace requirements", None)),
+        },
+        status=403 if blocked else form_status(request, form),
     )
 
 

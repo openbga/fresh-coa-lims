@@ -109,8 +109,19 @@ class AssignmentStatus(models.TextChoices):
     HOLD = "hold", "Applicability hold"
 
 
+class AssignmentOrigin(models.TextChoices):
+    ASSIGNED = "assigned", "Assigned"
+    REPLACED = "replaced", "Replaced during testing"
+
+
 class LotAssignment(models.Model):
-    """Frozen requirements applied to a lot, or an explicit hold. Append-only; latest is current."""
+    """Frozen requirements applied to a lot, or an explicit hold. Append-only; latest is current.
+
+    Before testing starts an analyst or quality assigns requirements, and assigns them again
+    when needed. Once testing has started only a signed replacement adds an assignment
+    (``origin`` replaced): ``replacement`` keeps what it changed, which tests carried over and
+    which were superseded, and the lot revision its signature is bound to.
+    """
 
     lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="qc_assignments")
     material = models.ForeignKey("catalog.Material", on_delete=models.PROTECT, related_name="+")
@@ -133,6 +144,10 @@ class LotAssignment(models.Model):
     supersedes = models.OneToOneField(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="superseded_by"
     )
+    origin = models.CharField(
+        max_length=10, choices=AssignmentOrigin.choices, default=AssignmentOrigin.ASSIGNED
+    )
+    replacement = models.JSONField(null=True, blank=True)
     reason = models.TextField()
     assigned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
@@ -151,8 +166,24 @@ class LotAssignment(models.Model):
                 )
                 | (Q(status="hold") & Q(payload__isnull=True)),
                 name="lot_assignment_shape",
-            )
+            ),
+            # A replacement always yields complete requirements, replaces an assignment and
+            # keeps its evidence; an ordinary assignment carries none.
+            models.CheckConstraint(
+                condition=Q(origin="assigned", replacement__isnull=True)
+                | Q(
+                    origin="replaced",
+                    replacement__isnull=False,
+                    status="ready",
+                    supersedes__isnull=False,
+                ),
+                name="lot_assignment_replacement",
+            ),
         ]
+
+    @property
+    def is_replacement(self):
+        return self.origin == AssignmentOrigin.REPLACED
 
     def __str__(self):
         return f"{self.lot} requirements #{self.pk}"

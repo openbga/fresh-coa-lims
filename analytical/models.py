@@ -99,12 +99,17 @@ class AnalyticalTest(models.Model):
         RETEST = "retest", "Retest"
         RESAMPLE = "resample", "Resample"
         RERUN = "rerun", "Rerun after QC failure"
+        REVISED = "revised", "Repeat under replaced requirements"
 
     class State(models.TextChoices):
         OPEN = "open", "Open"
         SUBMITTED = "submitted", "Awaiting review"
         REVIEWED = "reviewed", "Reviewed"
         INVALIDATED = "invalidated", "Invalidated"
+        # The lot's requirements were replaced and this test's requirement is no longer one of
+        # them. The test and everything recorded on it are kept; it takes no more work and
+        # never answers a requirement.
+        SUPERSEDED = "superseded", "Superseded"
 
     lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="+")
     sample = models.ForeignKey("quality.Sample", on_delete=models.PROTECT, related_name="+")
@@ -153,7 +158,8 @@ class AnalyticalTest(models.Model):
                 name="analytical_test_lineage",
             ),
             models.CheckConstraint(
-                condition=Q(kind__in=["original", "rerun"]) | Q(investigation__isnull=False),
+                condition=Q(kind__in=["original", "rerun", "revised"])
+                | Q(investigation__isnull=False),
                 name="analytical_retest_has_investigation",
             ),
         ]

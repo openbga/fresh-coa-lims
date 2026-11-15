@@ -104,6 +104,13 @@ MAX_DIGITS = 20
 DECIMAL_PLACES = 8
 
 
+def content_hash(payload):
+    """Hash of what a requirement asks for, whatever document states it: the payload without
+    its ``source``. Two requirements with the same content hash are answered by the same test,
+    so a test carries over when the lot's requirements are replaced by identical ones."""
+    return canonical_hash({key: value for key, value in payload.items() if key != "source"})
+
+
 def canonical_hash(payload):
     data = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(data.encode()).hexdigest()

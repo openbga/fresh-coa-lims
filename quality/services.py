@@ -326,13 +326,20 @@ def disposition_authors(lot):
 def disposition_notices(lot):
     """What a disposition signer should see that does not block the signature: supplier results
     that do not meet the specification, supplier results accepted in place of a laboratory
-    test, and reported results whose contract laboratory approval has been revoked since."""
+    test, reported results whose contract laboratory approval has been revoked since, and
+    requirements replaced during testing with the tests that were superseded."""
     from analytical.gates import lot_notices
+    from sampling.services import replacement_notices
 
     from .certificates import disposition_notices as certificate_notices
     from .reliance import disposition_notices as reliance_notices
 
-    return [*certificate_notices(lot), *reliance_notices(lot), *lot_notices(lot)]
+    return [
+        *certificate_notices(lot),
+        *reliance_notices(lot),
+        *lot_notices(lot),
+        *replacement_notices(lot),
+    ]
 
 
 def disposition_denial(actor, lot):

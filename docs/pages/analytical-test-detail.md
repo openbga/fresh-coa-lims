@@ -22,6 +22,7 @@ One analytical test: its frozen specification, replicate observations (made here
 ## Layout
 
 - **Header**: "T-n" and test name; status, kind, lot and sample, Revision. Buttons: **Sign review**, **Return test**, **Add to QC batch**, **Record observation**, **Record contract laboratory result** or **Correct contract laboratory result**.
+- **Superseded** notice, on a test superseded when the lot's requirements were replaced: "The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the lot's requirements for the signed replacement", adding "; the test that repeats it under the current requirement is listed under Linked tests" once a repeat exists. "lot's requirements" links to Lot requirements and sampling.
 - **Alerts**: the test opened an investigation (cannot be corrected or returned); or it is an investigation test (retest or resample).
 - **Supplier result** banner, on an Open test when a supplier result is proposed or accepted in place of it and not withdrawn. Quarantine lot: "A result stated on the supplier's certificate is proposed or accepted in place of this test (SRA-n, on the lot record). This test takes no observation, reported result, raw-data file or QC batch while that stands. Withdraw it there to test the requirement in the laboratory." Released lot: "This test was not performed. The lot was dispositioned with its requirement answered by a result stated on the supplier's certificate (SRA-n, on the lot record)." The words "lot record" link to the lot record.
 - **Contract laboratory** banner, when the result was reported by a contract laboratory: "This result was reported by NAME (code, location) in report NUMBER dated DATE. It was not tested in this laboratory. The reviewer checks it against the report." Below it an **Approval revoked** warning when the approval the result relied on was revoked since: "The approval this result relied on (CLA-n) was revoked on DATE TIME. The result stands as recorded. The approval's record lists every result that relied on it, for quality to assess under the laboratory's procedure."
@@ -54,7 +55,7 @@ Submitting an out-of-specification result opens an investigation, redirects to i
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result" (Open, a supplier result proposed or accepted in place of the test and not withdrawn; also after the lot is released), Awaiting review, Reviewed · conforms, Out of specification · awaiting review or reviewed, Invalidated |
+| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result" (Open, a supplier result proposed or accepted in place of the test and not withdrawn; also after the lot is released), Awaiting review, Reviewed · conforms, Out of specification · awaiting review or reviewed, Invalidated, "Superseded · requirements replaced" |
 | Value / Result | `Observation.value_text`, `observed_text` | Text as recorded, e.g. "99.80", "<10" or "Absent" | — | Result as recorded; for qualitative tests what was observed is shown below it |
 | Within limits / As expected | `Observation.value`, `qualifier`, `outcome` | Yes, No or Cannot be shown | — | The reading on its own against the acceptance. A less-than reading "<X" is Yes only when there is no lower limit and X is within the upper limit; otherwise "Cannot be shown". A qualitative reading is Yes only when it shows the expected outcome |
 | How it was calculated | `Observation.inputs`, `Observation.calculation` | Inputs with units, formula, method revision, decimals | — | Shows how the value was reached; "Entered directly" for a row without a calculation |
@@ -82,14 +83,16 @@ Submitting an out-of-specification result opens an investigation, redirects to i
 - **Review blocked**: for a submitted test whose QC batch no longer passes, **Sign review** is hidden and the page says "Review is blocked: the test's QC batch no longer passes."
 - **Calculated results**: submission and review recalculate every current calculated observation from its stored inputs with the frozen formula. A difference refuses the action ("Calculated result changed; correct the observation before submitting." or "Calculated result changed; return the test for resubmission."). A value reported by a contract laboratory is entered as reported, has no stored inputs and is not recalculated; the page then says so under Calculation and heads the column "Value".
 - **Out of specification**: cannot be corrected or returned; the investigation decides.
+- **Superseded**: set only by a signed replacement of the lot's requirements, for a test that was Open without unsubmitted results, Awaiting review or Reviewed and whose requirement changed or is no longer required. Every action needs the test Open or Awaiting review, so a superseded test shows none of the analyst or reviewer actions (raw-data files can still be downloaded) and takes no observation, raw-data file, batch, submission or review. Its observations, files, signatures and history stay as recorded. Its repeat (kind "Repeat under replaced requirements") is created from Lot testing with **Assign required tests** and links back under Replaces.
 - **Revisions**: every evidence change (observation, correction, contract laboratory result, raw-data file, submit, return, batching, review) raises the test revision and the lot revision by 1.
 - **Immutability**: observations are never overwritten; a correction adds a linked row and the original stays visible. Raw-data files are never changed or deleted.
-- **Audit**: events such as `observation.recorded`, `contract_result.recorded`, `contract_result.corrected`, `test.submitted`, `test.returned`, `rawdata.attached`, `signed.reviewed` appear under History.
+- **Audit**: events such as `observation.recorded`, `contract_result.recorded`, `contract_result.corrected`, `test.submitted`, `test.returned`, `rawdata.attached`, `signed.reviewed`, `test.superseded` appear under History.
 
 ## Related pages
 
 - [Testing: tests](/testing/)
 - Lot testing page, QC batch record, Investigation record.
+- Lot requirements and sampling (the signed replacement that superseded a test).
 - Record observation, Correct observation, Record contract laboratory result, Attach raw data, Add to QC batch, Return test, Sign review.
 - Lot record and Supplier result acceptance record (when a supplier result stands in place of the test).
 - [Contract laboratories](/laboratory/contract-laboratories/) (register and approvals).

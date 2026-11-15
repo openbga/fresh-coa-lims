@@ -158,7 +158,9 @@ def specification_new(request):
 def specification_detail(request, pk):
     read_access(request)
     spec = get_object_or_404(Specification.objects.select_related("material"), pk=pk)
-    revisions = list(spec.revisions.select_related("author").annotate(test_count=Count("tests")))
+    revisions = list(
+        spec.revisions.select_related("author", "superseded_by").annotate(test_count=Count("tests"))
+    )
     sigs = list(signatures(*revisions))
     for revision in revisions:
         revision.signature_list = [s for s in sigs if s.object_id == str(revision.pk)]
@@ -200,8 +202,9 @@ def specification_version_new(request, pk):
         crumbs=crumbs_for((spec.code, detail), ("New version", None)),
         cancel_url=detail,
         submit_label="Create draft version",
-        intro="The new draft copies the tests of the latest version. Its effective period must "
-        "not overlap an approved version when it is approved.",
+        intro="The new draft copies the tests of the latest version. When it is approved, an "
+        "earlier approved version whose effective period it overlaps stops applying from this "
+        "version's start, or from the moment of approval if that is later.",
     )
 
 
@@ -430,7 +433,7 @@ def method_detail(request, pk):
     read_access(request)
     method = get_object_or_404(Method, pk=pk)
     revisions = list(
-        method.revisions.select_related("author").prefetch_related(
+        method.revisions.select_related("author", "superseded_by").prefetch_related(
             "qc_checks", "calculation_inputs"
         )
     )

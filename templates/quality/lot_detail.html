@@ -105,5 +105,6 @@
 <ul>{% for report in reports %}<li><a href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></li>{% empty %}<li>No certificate issued yet.</li>{% endfor %}</ul>{% endif %}
 <h2>Electronic signatures</h2>
 {% for signature in result_signatures %}<p>Result {{ signature.object_id }} revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% endfor %}
-{% for signature in signatures %}<p>Lot revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% empty %}<p>No lot disposition signature yet.</p>{% endfor %}
+{% for signature in signatures %}<p>Lot revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% endfor %}
+{% if not disposition_signed %}<p>No lot disposition signature yet.</p>{% endif %}
 {% endblock %}

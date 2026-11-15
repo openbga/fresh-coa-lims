@@ -1,6 +1,7 @@
 """Testing, QC and OOS transitions.
 
 Lock order for every transition: QC batch, investigation, tests (by pk), then lots (by pk).
+Assigning tests takes the lot's tests before the lot too, because a repeat links to a test.
 Signed transitions go through core.services.sign_transition, which locks its record first.
 Every evidence change bumps the lot revision so a disposition opened earlier becomes stale.
 
@@ -23,13 +24,19 @@ import datetime
 import json
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from psycopg.errors import UniqueViolation
 
 from core.audit import record_event
-from core.services import require_role, sign_transition, validate_rules
+from core.services import (
+    require_role,
+    sign_transition,
+    validate_approved_rules,
+    validate_rules,
+)
 from quality.models import Lot, Sample
 
 from .contracts import (
@@ -41,6 +48,7 @@ from .contracts import (
     bench,
     canonical_hash,
     contract_source,
+    parse_method,
     reported_source,
     resolve,
     supplier_standing,
@@ -124,32 +132,76 @@ def supplier_refusal(test):
 # Test assignment and observations ----------------------------------------------------------
 
 
+def _lineages(lot, sample):
+    """{test_code: tests, oldest first} of the lineages that start with an original test of
+    ``sample``: the original and every rerun, retest, resample or repeat that answers for it,
+    on whichever sample of the lot it was made."""
+    tests = list(AnalyticalTest.objects.filter(lot_id=lot.pk).order_by("pk"))
+    by_pk = {test.pk: test for test in tests}
+    lineages = {}
+    for test in tests:
+        root = test
+        while root.kind != AnalyticalTest.Kind.ORIGINAL:
+            root = by_pk[root.parent_id]
+        if root.sample_id == sample.pk:
+            lineages.setdefault(test.test_code, []).append(test)
+    return lineages
+
+
 def assign_tests(*, actor, sample, reason):
-    """Create original tests for supported required codes; return hold reasons for the rest."""
+    """Create the tests a sample still needs for the lot's required codes; return the tests
+    and the hold reasons for codes that cannot be tested.
+
+    A code the sample has no test for gets an original test. A code whose tests were all
+    superseded when the lot's requirements were replaced gets a linked repeat under the
+    current requirement (kind ``revised``), on the sample the superseded test was made on.
+    """
     require_role(actor, ANALYST)
     _require_reason(reason)
     with transaction.atomic():
-        (lot,) = _lock_lots(Sample.objects.get(pk=sample.pk).lot_id)
-        validate_rules(lot.rules)
-        existing = set(
-            AnalyticalTest.objects.filter(sample_id=sample.pk, kind="original").values_list(
-                "test_code", flat=True
-            )
+        # The account first, the order of signing and of every other lot writer: the new
+        # tests name it, and that reference must not be the last lock taken here.
+        get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+        lot_id = Sample.objects.get(pk=sample.pk).lot_id
+        # Tests before the lot, as everywhere in testing: a repeat is inserted with a link to
+        # the superseded test it follows, and that link locks the superseded row. Taking the
+        # lot's tests first keeps a replacement or a batch rejection that holds them from
+        # meeting this request the other way round.
+        list(
+            AnalyticalTest.objects.select_for_update(no_key=True)
+            .filter(lot_id=lot_id)
+            .order_by("pk")
+            .values_list("pk", flat=True)
         )
+        (lot,) = _lock_lots(lot_id)
+        validate_rules(lot.rules)
+        lineages = _lineages(lot, sample)
         accepted, holds = resolve(lot)
         # A requirement a supplier's result is proposed or accepted for gets no test; one is
         # assigned here later if that is withdrawn.
         relied = supplier_standing(lot)
         created = []
         for code, payload in accepted.items():
-            if code in existing or code in relied:
+            if code in relied:
                 continue
+            lineage = lineages.get(code, [])
+            superseded = [t for t in lineage if t.state == AnalyticalTest.State.SUPERSEDED]
+            if lineage and (
+                not superseded
+                or any(t.state in OPEN_STATES | {AnalyticalTest.State.REVIEWED} for t in lineage)
+            ):
+                # The lineage has a test in progress or reviewed, or was closed by an
+                # investigation or a rejected batch, which decide what follows.
+                continue
+            parent = superseded[-1] if superseded else None
             test = AnalyticalTest.objects.create(
                 lot=lot,
-                sample_id=sample.pk,
+                sample_id=parent.sample_id if parent else sample.pk,
                 test_code=code,
                 requirement=payload,
                 requirement_hash=canonical_hash(payload),
+                kind=AnalyticalTest.Kind.REVISED if parent else AnalyticalTest.Kind.ORIGINAL,
+                parent=parent,
                 created_by=actor,
             )
             created.append(test)
@@ -158,10 +210,11 @@ def assign_tests(*, actor, sample, reason):
                 action="test.assigned",
                 obj=test,
                 after={
-                    "sample": sample.pk,
+                    "sample": test.sample_id,
                     "test_code": code,
                     "requirement": payload["source"],
                     "requirement_hash": test.requirement_hash,
+                    **({"repeats": parent.pk} if parent else {}),
                 },
                 reason=reason,
             )
@@ -860,11 +913,22 @@ def review_refusal(actor, test):
     return None
 
 
+def results_submitted(batch):
+    """True once a test of the batch has been submitted: the batch's QC is then fixed and it
+    takes no more tests. A test superseded before it was ever submitted does not count; one
+    superseded after submission does, because its result relied on the QC as it stood."""
+    return (
+        batch.tests.exclude(state=AnalyticalTest.State.OPEN)
+        .exclude(state=AnalyticalTest.State.SUPERSEDED, evaluated_at__isnull=True)
+        .exists()
+    )
+
+
 def batch_join_refusal(batch):
     """Batch-side preconditions for adding a test: open and no results submitted yet."""
     if batch.state != QCBatch.State.OPEN:
         return "Only open tests can join an open batch."
-    if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
+    if results_submitted(batch):
         return "This batch already has submitted results; start a new batch."
     return None
 
@@ -905,7 +969,11 @@ def review_test(*, actor, pin, test, expected_revision, reason):
     def apply(locked):
         (lot,) = _lock_lots(locked.lot_id)
         _raise(review_refusal(actor, locked))
-        validate_rules(lot.rules)
+        # The review evaluates what was recorded against the requirement frozen on the test.
+        # It does not need the lot's rule version to be in force still: that is checked when
+        # tests are assigned and at disposition, so a version retired meanwhile strands
+        # neither a result awaiting review nor the investigation of a failing one.
+        validate_approved_rules(lot.rules)
         current = list(locked.current_observations())
         _recheck_calculations(
             locked.spec,
@@ -936,13 +1004,55 @@ def review_test(*, actor, pin, test, expected_revision, reason):
 # QC batches ---------------------------------------------------------------------------------
 
 
-def create_batch(*, actor, number, method_code, reason):
+NO_EARLIER_BATCH = (
+    "No test in progress is frozen to this method revision. A new QC batch uses the revision "
+    "in force."
+)
+
+
+def earlier_batch_methods():
+    """{(code, revision): method payload} of method revisions that are not the one in force
+    and that open tests of lots in quarantine, not yet in a batch, are frozen to.
+
+    A lot keeps the versions frozen for it, so such a test still gets a QC batch of its own
+    method revision: without one a test that cannot be superseded (a retest under an open
+    investigation, a test that holds raw data) would have no way forward. The payload is the
+    one frozen on the test; a revision nothing in progress needs gets no new batch.
+    """
+    in_force = {code: payload["revision"] for code, payload in batch_methods().items()}
+    found = {}
+    waiting = AnalyticalTest.objects.filter(
+        state=AnalyticalTest.State.OPEN,
+        batch__isnull=True,
+        lot__state="quarantine",
+        requirement__method__requires_batch=True,
+    )
+    for test in waiting.order_by("pk"):
+        method = test.requirement["method"]
+        key = (method.get("code"), method.get("revision"))
+        if key in found or in_force.get(key[0]) == key[1]:
+            continue
+        try:
+            parse_method(method)
+        except ValidationError:
+            continue
+        found[key] = method
+    return found
+
+
+def create_batch(*, actor, number, method_code, reason, revision=None):
+    """A QC batch of the method revision in force or, when ``revision`` names an earlier one,
+    of the revision that tests in progress are frozen to (``earlier_batch_methods``)."""
     require_role(actor, ANALYST)
     _require_reason(reason)
     methods = batch_methods()
-    if method_code not in methods:
+    payload = methods.get(method_code)
+    if revision is not None and (payload is None or payload["revision"] != revision):
+        payload = earlier_batch_methods().get((method_code, revision))
+        if payload is None:
+            raise ValidationError(NO_EARLIER_BATCH)
+    elif payload is None:
         raise ValidationError("No approved batch method with this code.")
-    payload = methods[method_code]
     try:
         with transaction.atomic():
             return _create_batch(actor, number, method_code, payload, reason)
@@ -1013,7 +1123,7 @@ def assign_to_batch(*, actor, test, batch, reason):
 def _qc_guard(batch):
     if batch.state != QCBatch.State.OPEN:
         raise ValidationError("This batch is closed to QC entries.")
-    if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
+    if results_submitted(batch):
         raise ValidationError("QC cannot change after test results in this batch are submitted.")
 
 
@@ -1149,12 +1259,15 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
             raise ValidationError("Only open batches can be rejected.")
         if locked.qc_status()[0] != "failed":
             raise ValidationError("Only a batch with failed QC can be rejected.")
-        tests = list(locked.tests.select_for_update().order_by("pk"))
+        members = list(locked.tests.select_for_update().order_by("pk"))
         recorders = set(locked.qc_results.values_list("recorded_by_id", flat=True))
-        for test in tests:
+        for test in members:
             recorders |= _test_authors(test)
         if actor.pk in recorders:
             raise ValidationError("You cannot reject a batch containing your own work.")
+        # A superseded test is closed and stays as it is: it is not invalidated or rerun,
+        # though whoever worked on it is still an author of the batch.
+        tests = [t for t in members if t.state != AnalyticalTest.State.SUPERSEDED]
         lots = _lock_lots(*[t.lot_id for t in tests])
         for test in tests:
             if test.state not in OPEN_STATES:
