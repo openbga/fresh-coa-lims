@@ -4,12 +4,12 @@ urls: quality:certificate_new
 views: quality.certificate_views.certificate_new
 templates: catalog/form.html
 models: quality.SupplierCertificate, quality.SupplierCertificateResult, quality.Lot, quality.LotReceipt
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
 
-Records what a supplier's certificate of analysis states for a quarantined lot: the certificate's own details and each stated result, entered against one approved requirement of the lot and compared with it. These are the supplier's results. They are kept apart from the laboratory's own tests and never replace them.
+Records what a supplier's certificate of analysis states for a quarantined lot: the certificate's own details and each stated result, entered against one approved requirement of the lot and compared with it. These are the supplier's results. They are kept apart from the laboratory's own tests. A recorded result stands in for a test only through an acceptance signed on the lot.
 
 ## Who can use it
 
@@ -21,7 +21,7 @@ Records what a supplier's certificate of analysis states for a quarantined lot: 
 ## Layout
 
 - **Breadcrumbs**: Material lots, lot number, Record supplier certificate.
-- **Intro**: "Record what the supplier's certificate states, against the lot's approved requirements. These are the supplier's results: they are kept apart from the laboratory's own tests and do not replace them."
+- **Intro**: "Record what the supplier's certificate states, against the lot's approved requirements. These are the supplier's results: they are kept apart from the laboratory's own tests. One stands in for a test only through an acceptance signed on the lot."
 - **Record card**: Lot, Material, Status, then from the current receipt details Supplier (code · name), Supplier lot number ("Not known" when blank) and Manufacturer lot number ("Not stated" when blank). Read the certificate beside them.
 - **Form sections**: Certificate; one section per approved requirement of the lot, in specification order, headed by the test name and its acceptance criterion (for example "Assay: specification 98 to 102 %"); Change control.
 - **Buttons**: **Cancel** (to the lot record) and **Record supplier certificate**.
@@ -49,8 +49,8 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 | Test stated as less than this value | `SupplierCertificateResult.qualifier` | Checkbox | No | Numeric and count requirements. Help: "For a result printed as <10. It is kept as stated and never becomes zero or the number." |
 | Test result | `SupplierCertificateResult.outcome` | Menu: "Not stated on the certificate", then the requirement's two outcomes (Conforms and Does not conform, or Absent and Present) | No | Qualitative requirements. |
 | Test wording on the certificate | `SupplierCertificateResult.stated_text` | Text, max 200 | With a result | Qualitative requirements. Help: "The result in the certificate's own words, e.g. Complies." |
-| Test method on the certificate | `SupplierCertificateResult.method` | Text, max 200 | No | Help: "The test method the certificate states. Leave blank if it states none." |
-| Test limits on the certificate | `SupplierCertificateResult.limits` | Text, max 200 | No | Help: "The supplier's own limits, as printed. Leave blank if it states none." They are recorded only; the comparison uses the lot's requirement. |
+| Test method on the certificate | `SupplierCertificateResult.method` | Text, max 200 | No | Help: "The test method the certificate states. Leave blank if it states none." A result without a stated method cannot later be proposed in place of a test. |
+| Test limits on the certificate | `SupplierCertificateResult.limits` | Text, max 200 | No | Help: "The supplier's own limits, as printed. Leave blank if it states none." They are recorded only; the comparison uses the lot's requirement. A result without stated limits cannot later be proposed in place of a test. |
 | Reason | `SupplierCertificate.reason` | Text, max 2000 | Yes | Why the certificate is recorded; stored on the record and in the audit event. |
 | Basis (hidden) | — | Hash | Yes | Identifies the requirements the page showed when it opened. See Stale requirements. |
 
@@ -73,11 +73,11 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 - **Effect**: one certificate record is added with you as recorder, holding its results in specification order. The lot's record revision increases by 1. Audit event `supplier_certificate.recorded` stores the certificate details, each result as stated, its comparison and the hash of its requirement, with your reason. A disposition signing page opened earlier then fails as stale.
 - **Several certificates, one record per number**: a lot may hold several certificates, each with its own number. A number that a current certificate of this lot already holds is refused beside Certificate number: "This lot already holds a certificate with this number. Correct that record, or withdraw it if it does not belong to this lot." Upper and lower case and surrounding spaces do not make a number different. A withdrawn certificate does not count, and another lot may hold the same number. This also stops a form submitted twice from recording the certificate twice.
 - **Not enforced by this page**: the lot number on the certificate is not required to match the receipt details. The record only shows whether it matches.
-- **Independence**: recording a supplier certificate makes you an author of the lot's supplier certificate data. You cannot sign this lot's disposition, even with the quality role.
+- **Independence**: recording a supplier certificate makes you an author of the lot's supplier certificate data. You cannot sign this lot's disposition, even with the quality role, and you cannot accept a result proposed from this record, even with the reviewer role.
 - **Append-only**: a certificate record and its results cannot be edited or deleted. The database also refuses a certificate record or result for a lot that is not in quarantine, a record saved without all of its results, and a result added to a record later. Later changes go through Correct supplier certificate or Withdraw supplier certificate.
-- **What this record does not do**: supplier results do not answer a requirement, so the laboratory's own tests stay required. They do not count towards QC disposition and do not block it. They are not printed on the certificate of analysis. A result that does not meet the specification does not place a hold; place one from Holds if the lot must not be dispositioned.
-- **Not enforced by this page**: the supplier and the certificate's issuer are not checked for qualification or approval, and recording a certificate does not qualify the supplier. The record does not change which tests the lot requires.
-- **Assumption**: keeping supplier results apart from the laboratory's tests, with no reduced testing on the strength of a supplier's certificate, is a design default of this product. It is not a statement of what any regulation requires or permits.
+- **What this record does not do by itself**: recording a result answers no requirement, so the laboratory's own tests stay required. A stated result answers a requirement only through an acceptance: an analyst proposes it from the supplier certificate record and a reviewer signs it, where the lot's rule set allows it and a signed qualification covers the supplier. A result that was never proposed does not count towards QC disposition, does not block it and is not printed on the certificate of analysis. A result that does not meet the specification does not place a hold; place one from Holds if the lot must not be dispositioned.
+- **Not enforced by this page**: recording a certificate does not need a qualified supplier and does not qualify the supplier; the qualification is checked only when a result is proposed and accepted. The certificate's issuer is not checked against the supplier. The record does not change which tests the lot requires.
+- **Assumption**: keeping supplier results apart from the laboratory's tests, with no reduced testing on the strength of a certificate record alone, is a design default of this product. It is not a statement of what any regulation requires or permits.
 - Unknown lot: 404.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept."). Refusals from the server appear beside the field they concern, or in the summary when they concern the whole form.
 
@@ -85,6 +85,7 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 
 - Lot record.
 - Supplier certificate record; Correct supplier certificate; Withdraw supplier certificate.
+- Propose supplier result in place of a test (from the supplier certificate record).
 - Lot requirements and sampling (where requirements are assigned).
 - [Holds](/stability/holds/)
 - [Suppliers](/suppliers/)

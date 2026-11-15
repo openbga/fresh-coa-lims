@@ -3,8 +3,8 @@ title: Testing: tests
 urls: analytical:test_list
 views: analytical.views.test_list
 templates: analytical/test_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_test_status.html
-models: analytical.AnalyticalTest
-reviewed: 2026-11-12
+models: analytical.AnalyticalTest, quality.SupplierResultAcceptance
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -41,7 +41,7 @@ List every analytical test, from assignment through independent review, so work 
 | Find | — | Text | No | Case-insensitive match on lot number, sample reference or test code |
 | Status | `AnalyticalTest.state`, `conforms` | Choice | No | All tests, Open, Awaiting review, Out of specification, Reviewed, Invalidated |
 | Test | — | "T-" and the record number | — | Link to the test |
-| Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated |
+| Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result", Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated |
 | Kind | `AnalyticalTest.kind` | Original, Retest, Resample, Rerun after QC failure | — | How the test arose |
 | Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | Frozen on submission: a number at the approved reporting precision, a less-than reading such as "<10", or a qualitative outcome; "—" before |
 | Batch | `AnalyticalTest.batch` | Batch number | — | QC batch, or "—" |
@@ -50,6 +50,7 @@ List every analytical test, from assignment through independent review, so work 
 ## Rules and hidden logic
 
 - **Order and paging**: newest first (creation time, then record number); 30 per page; filters are kept across pages.
+- **Not tested · supplier result**: shown instead of Open for an Open test when a supplier result is proposed or accepted in place of that test of the lot and not withdrawn. Such a test is not work waiting to be done: it takes no observation, contract laboratory result or QC batch until that record is withdrawn. The **Open** filter still lists it; there is no separate filter.
 - **Out of specification filter**: tests that did not conform and are not Invalidated.
 - **Unknown status value** in the address is treated as All tests.
 

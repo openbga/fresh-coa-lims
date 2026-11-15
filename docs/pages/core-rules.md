@@ -4,12 +4,12 @@ urls: core:rules
 views: core.views.rules
 templates: core/rules.html
 models: core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
 
-List rule set revisions (required tests and signature meanings) and create new draft revisions for independent approval.
+List rule set revisions (required tests, signature meanings and whether a supplier's results may stand in for tests) and create new draft revisions for independent approval.
 
 ## Who can use it
 
@@ -36,7 +36,7 @@ List rule set revisions (required tests and signature meanings) and create new d
 |---|---|---|---|---|
 | Code | `RuleSet.code` | Slug | Yes | Rule family; reuse a code to create its next version |
 | Segment | `RuleSet.segment` | Slug | Yes | Industry segment preset label; not a legal policy |
-| Policy | `RuleSet.policy` | JSON | Yes | Exactly `required_tests` (non-empty list), `review_meaning` = reviewed, `disposition_meaning` = approved |
+| Policy | `RuleSet.policy` | JSON | Yes | `required_tests` (non-empty list), `review_meaning` = reviewed, `disposition_meaning` = approved, and optionally `supplier_results` = `{"own_tests": [...]}`. No other key is accepted |
 | Effective from | `RuleSet.effective_from` | Date and time | Yes | Start of the effective interval |
 | Effective until | `RuleSet.effective_until` | Date and time | No to save, yes to approve | End of the interval; must be after the start |
 | Reason | `AuditEvent.reason` | Text | Yes | Why the revision is created |
@@ -46,7 +46,12 @@ List rule set revisions (required tests and signature meanings) and create new d
 
 ## Rules and hidden logic
 
-- **Policy validation**: "Unsupported or missing rule policy keys.", "At least one required test code is needed.", "This foundation supports reviewed and approved signature meanings."
+- **Policy validation**: "Unsupported or missing rule policy keys.", "At least one required test code is needed.", "This foundation supports reviewed and approved signature meanings.", "supplier_results must hold exactly own_tests: a list of the test codes the laboratory always performs itself, each listed once (the list may be empty)."
+- **Supplier results (optional key)**: a policy with `supplier_results` lets a result stated on a qualified supplier's certificate stand in for a test of a lot received under this rule revision. `own_tests` lists the test codes the laboratory always performs itself, for example `{"own_tests": ["identity"]}`; a supplier result is never accepted for them. An empty list keeps no test with the laboratory. `supplier_results` must be an object holding only `own_tests`; each code is text without surrounding spaces, listed once.
+- **Without the key**: a rule revision that has no `supplier_results` allows no reliance at all. Every required test is performed by the laboratory, whatever qualification a supplier holds.
+- **The key is not enough by itself**: a supplier result also needs a signed supplier qualification that covers the supplier, the material, the test and the date the lot was received, and an acceptance signed on the lot.
+- **Lots keep their revision**: a lot uses the rule revision chosen when it was received. Approving a later revision with `supplier_results` does not change lots already received.
+- **Not enforced by this page**: the codes in `own_tests` are not checked against `required_tests` or any specification, and they are compared exactly, upper and lower case included. A misspelt code keeps nothing with the laboratory.
 - **Interval**: "Provide a reason and a valid effective interval." when the end is not after the start.
 - **Effective interval**: start inclusive, end exclusive. Approved revisions and their intervals are immutable; create and approve a non-overlapping replacement before an approved revision expires.
 - **Versioning**: new revisions start as draft; approved revisions are never edited. Creation is serialized so two drafts cannot get the same version.
@@ -57,3 +62,4 @@ List rule set revisions (required tests and signature meanings) and create new d
 
 - Approve rule revision.
 - [Material lots](/): lots choose an approved rule revision.
+- [Suppliers](/suppliers/): supplier qualifications are recorded on each supplier record.

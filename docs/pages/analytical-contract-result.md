@@ -4,7 +4,7 @@ urls: analytical:contract_result
 views: analytical.views.contract_result
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.ContractLaboratory, laboratory.ContractApproval, laboratory.ContractUse
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -57,7 +57,8 @@ Records what an outside contract laboratory's report states for a test, as the t
 
 ## Rules and hidden logic
 
-- **Wrong state** (opening or submitting): you are redirected to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not accepting results." (test not Open); "This test is in a QC batch of this laboratory. It is tested here; a contract laboratory's result cannot be recorded on it."; "This test holds observations made in this laboratory. A test is tested here or reported by a contract laboratory, never both."; "No bench check is configured; results are held."; "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." (first entry only: a correction always offers the laboratory already recorded).
+- **Wrong state** (opening or submitting): you are redirected to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not accepting results." (test not Open); "This test is in a QC batch of this laboratory. It is tested here; a contract laboratory's result cannot be recorded on it."; "This test holds observations made in this laboratory. A test is tested here or reported by a contract laboratory, never both."; "A supplier's result is proposed or accepted in place of this test (SRA-1). Withdraw it on the lot record before testing the requirement in the laboratory."; "No bench check is configured; results are held."; "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." (first entry only: a correction always offers the laboratory already recorded).
+- **Supplier result in place of the test**: while a result stated on the supplier's certificate is proposed or accepted for this requirement of the lot and not withdrawn, the test takes no contract laboratory result. The page refuses on opening and the server refuses on submission. Withdraw that record from its acceptance record (reached from the lot record) first.
 - **Tested here or reported, never both**: a test holding a contract laboratory result takes no observation made here, no correction of a single replicate, and cannot join a QC batch.
 - **Approval**: a first entry, and a correction that names another laboratory or report, is accepted only when the laboratory holds an approval for the test's method code (upper and lower case ignored, any version of the method) that is signed, not revoked, and whose dates include the date of the report, both days inclusive. An approval that has since run out still covers a report dated within it. A revoked approval covers nothing. When several cover the date, the one recorded last is relied on.
 - **Refusal by the approval** is shown beside Contract laboratory as "Refused: cl-syn-001: reason". Reasons: "The laboratory is not approved for method “METHOD”."; "No approval for method “METHOD” covers a report dated 2026-01-05."; "The approval for method “METHOD” that covers 2026-01-05 is still awaiting its signature."; "The approval for method “METHOD” that covered 2026-01-05 was revoked; a revoked approval is relied on no further."

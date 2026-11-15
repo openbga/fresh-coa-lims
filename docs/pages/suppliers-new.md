@@ -4,7 +4,7 @@ urls: suppliers:new
 views: suppliers.views.supplier_new
 templates: catalog/form.html
 models: suppliers.Supplier
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Adds a supplier to the register so that the receipt details of a lot can name it
 ## Layout
 
 - **Breadcrumbs**: Suppliers, New supplier.
-- **Intro**: "A supplier's identity cannot be edited after creation; use synthetic names only. Adding a supplier does not qualify it."
+- **Intro**: "A supplier's identity cannot be edited after creation; use synthetic names only. Adding a supplier does not qualify it; a qualification is recorded on the supplier's page and signed by a second quality person."
 - **Form sections**: Supplier, Change control.
 - **Buttons**: **Cancel** (to Suppliers) and **Create supplier**.
 
@@ -44,12 +44,12 @@ Adds a supplier to the register so that the receipt details of a lot can name it
 - **Code**: "This supplier code already exists." If another request saves the same code at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Spaces**: spaces around the name and location are removed.
 - **Immutable**: after creation the code, name and location cannot be edited or deleted (database trigger).
-- **Audit**: `supplier.created` with the code, name, location and your reason. No signature or approval step applies to suppliers.
-- **Not enforced by this page**: adding a supplier records who it is. It does not record or check that the supplier is qualified or approved, and it does not change which tests a lot requires.
+- **Audit**: `supplier.created` with the code, name, location and your reason. No signature or approval step applies to adding a supplier.
+- **Not enforced by this page**: adding a supplier records who it is. It does not qualify the supplier and does not change which tests a lot requires. A qualification is a separate record, made from the supplier record by one quality user and signed by another.
 - Assumption: supplier names should be synthetic in this environment, as the intro states; the page does not check the content.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept.") plus refusals from the server as form-level errors.
 
 ## Related pages
 
 - [Suppliers](/suppliers/)
-- Supplier record (opened after saving).
+- Supplier record (opened after saving); Record supplier qualification (from the supplier record).

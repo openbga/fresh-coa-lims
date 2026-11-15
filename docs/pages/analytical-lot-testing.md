@@ -3,8 +3,8 @@ title: Lot testing
 urls: analytical:lot_testing
 views: analytical.views.lot_testing
 templates: analytical/lot_testing.html, analytical/_test_status.html, analytical/_investigation_status.html
-models: quality.Lot, quality.Sample, analytical.AnalyticalTest, analytical.Investigation
-reviewed: 2026-11-12
+models: quality.Lot, quality.Sample, quality.SupplierResultAcceptance, analytical.AnalyticalTest, analytical.Investigation
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -21,6 +21,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 
 - **Header**: "LOT testing", lot status (Quarantine or the lot's state), material, Rule set, Lot revision; **Lot record** button.
 - **Analytical evidence for QC disposition**: either **Blocked** with the list "QC disposition cannot be approved until these are resolved:" or **Complete**.
+- **Supplier results accepted in place of tests** (only when the lot has a signed acceptance that still stands), with their number: "These requirements are answered for the whole lot by a result stated on the supplier's certificate. They are not tested here; a test assigned for one stays open and takes no result while the acceptance stands.", then a table: Acceptance, Test, Supplier's result, Supplier certificate, Acceptance and specification, Accepted by.
 - **One card per sample** (collection order): sample reference, test count, **Assign required tests**, collection time, and a table: Test, Code, Kind, Status, Reportable, Acceptance and specification. Empty: "No tests assigned".
 - **No samples**: "No samples recorded" with a **Lot record** link.
 - **Investigations**: list with status and trigger, or "No investigations".
@@ -32,6 +33,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 | **Assign required tests** (per sample) | Lot is Quarantine and user is an analyst | Analyst | Posts to this page; creates the missing original tests for that sample; redirects back here |
 | **Lot record** | Always | Any viewer | Opens the quality lot record |
 | Test and investigation links | Rows present | Any viewer | Open the test or investigation |
+| Acceptance link (SRA-n) | A supplier result is accepted in place of a test | Any viewer | Opens the supplier result acceptance record |
 
 ## Fields
 
@@ -39,19 +41,24 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 |---|---|---|---|---|
 | Rule set | `Lot.rules` | "code vN" | — | Rule revision of the lot |
 | Lot revision | `Lot.revision` | Integer | — | Rises with every evidence change; a disposition opened earlier then becomes stale |
-| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, Awaiting review, Reviewed · conforms, Out of specification (awaiting review or reviewed), Invalidated |
+| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result" (an Open test whose requirement a supplier result is proposed or accepted for), Awaiting review, Reviewed · conforms, Out of specification (awaiting review or reviewed), Invalidated |
 | Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | As frozen at submission, e.g. "99.8", "<10" or "Absent"; "—" until submitted |
 | Acceptance and specification | `AnalyticalTest.requirement` | Text | — | Acceptance text (for example "less than 0.10 %" or "Absent in 25 g (expected: Absent)") above the source and revision of the frozen requirement |
+| Acceptance / Test / Supplier's result / Supplier certificate / Accepted by | `SupplierResultAcceptance` (SRA-n), `evidence`; acceptance signature | Link and text | — | The acceptance, the test name and code, the stated result with its unit, the supplier certificate number with the supplier's name, and the reviewer who signed the acceptance |
+| Acceptance and specification (supplier result) | `SupplierResultAcceptance.evidence` | Text | — | Acceptance text above the source of the requirement the supplier's result was compared with |
 | Reason (hidden) | `AuditEvent.reason` | Text | Yes | Fixed text: "Assign required tests from the lot's approved requirements" |
 | Sample (hidden) | `AnalyticalTest.sample` | Sample of this lot | Yes | The card's sample; a sample of another lot, or a value that is not a whole-number ID of at most 19 digits, returns 404 |
 
 ## Rules and hidden logic
 
 - **Requirements come from a configured provider** of approved specifications; tests freeze the requirement and its hash at assignment, so later revisions do not change them. Not enforced by this page: which specifications are approved, or that the provider's data is correct. With no provider every requirement is held.
-- **Assign**: needs an approved, effective rule set ("An approved, effective rule revision is required."); lot must be in quarantine ("Lot ... is no longer in quarantine."). Only supported requirements become tests; the others are listed as warnings "Held: ..." and appear as blockers. Existing original tests are not duplicated. Messages: "Assigned N test(s) to REF.", "Every required test is already assigned to this sample.". A failed reason shows "Enter a reason to assign tests.".
+- **Assign**: needs an approved, effective rule set ("An approved, effective rule revision is required."); lot must be in quarantine ("Lot ... is no longer in quarantine."). Only supported requirements become tests; the others are listed as warnings "Held: ..." and appear as blockers. Existing original tests are not duplicated. A requirement that a supplier result is proposed or accepted for gets no test; after that record is withdrawn, assign again to create the test. Messages: "Assigned N test(s) to REF.", "Every required test is already assigned to this sample." (also shown when the only requirement left without a test is one a supplier result stands for). A failed reason shows "Enter a reason to assign tests.".
 - **Revision**: creating at least one test raises the lot revision by 1 and writes a `test.assigned` audit event per test.
 - **Blockers** include open or confirmed investigations, tests that are incomplete, awaiting review or non-conforming, held requirements, and samples missing a required test or a reviewed conforming result. A result tested under a requirement that differs from the lot's current approved requirement never counts ("... was tested against a superseded requirement; ...").
-- **Complete** means every required test has a reviewed, conforming result and no investigation is open. This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.
+- **Supplier results in place of tests**: a signed acceptance that still stands answers its requirement for the whole lot. No sample then needs a test of it, and an Open test of it that holds no observation and is in no QC batch is not counted as incomplete. Such a test shows "Not tested · supplier result" and takes no observation, contract laboratory result or QC batch. The same status shows while a proposal awaits acceptance, but then the test still counts as incomplete.
+- **Supplier result blockers**: "SRA-1: the supplier's result for assay awaits acceptance by a reviewer."; "SRA-1: the accepted supplier result for assay no longer stands: REASONS. Withdraw it, then propose the supplier's result again or test the requirement in the laboratory."; "SRA-1: the accepted supplier result for assay does not match the lot's current requirement or is not signed."; "assay has both a laboratory result and an accepted supplier result (SRA-1); withdraw the acceptance." A proposal, and an acceptance that no longer stands, are not listed in the card of accepted results.
+- **Samples are still needed**: accepted supplier results answer requirements, not sampling. The lot's QC disposition still needs a sample with its sampling record. This is a design default of this product.
+- **Complete** means every required test has a reviewed, conforming result and no investigation is open; with accepted supplier results the page says "Every requirement has a reviewed, conforming result or an accepted supplier result, and no investigation is open." This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.
 - Resample or rerun-only samples answer for the sample they replace.
 
 ## Related pages
@@ -59,3 +66,4 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 - [Testing: tests](/testing/)
 - [Material lots](/)
 - Lot record, Test record, Investigation record.
+- Supplier result acceptance record.
