@@ -29,11 +29,13 @@ from . import services
 from .forms import (
     AssignForm,
     CorrectionForm,
+    DecisionForm,
     DeviationForm,
     PlanForm,
     PlanRevisionForm,
     ReplacementForm,
     SamplingForm,
+    chosen_scopes,
 )
 from .models import (
     AssignmentStatus,
@@ -159,19 +161,31 @@ def lot_detail(request, pk):
         )
     is_analyst = can(request.user, "analyst")
     testing = services.testing_started(lot)
-    # Each replacement names the lot revision its signature is bound to.
+    # Each replacement and each decided conflict names the lot revision its signature is
+    # bound to.
     signed = {
-        s.revision: s
+        (s.meaning, s.revision): s
         for s in ElectronicSignature.objects.filter(
-            object_type="quality.lot", object_id=str(lot.pk), meaning=services.REPLACED_MEANING
+            object_type="quality.lot",
+            object_id=str(lot.pk),
+            meaning__in=[services.REPLACED_MEANING, services.DECIDED_MEANING],
         )
     }
     for assignment in assignments:
-        assignment.signature = (
-            signed.get(assignment.replacement.get("lot_revision"))
-            if assignment.is_replacement
-            else None
-        )
+        assignment.signature = None
+        if assignment.is_replacement:
+            key = (services.REPLACED_MEANING, assignment.replacement.get("lot_revision"))
+            assignment.signature = signed.get(key)
+        elif assignment.is_decision:
+            key = (services.DECIDED_MEANING, assignment.decision.get("lot_revision"))
+            assignment.signature = signed.get(key)
+    # A hold may be one that quality settles with a signature: specifications that apply
+    # state a test differently.
+    decision = None
+    if current is not None and current.status == AssignmentStatus.HOLD:
+        decision = services.decision_preview(lot)
+        if decision.blocker:
+            decision = None
     # Once testing has started, say when the versions in force are no longer the frozen ones:
     # the lot keeps its own until quality replaces them.
     newer = services.newer_versions(lot)
@@ -185,6 +199,25 @@ def lot_detail(request, pk):
             "assignments": assignments,
             "newer": newer,
             "can_replace": is_quality and newer is not None,
+            "decision": decision,
+            # Offered to quality people who recorded none of the lot's data; the others read
+            # the conflict and who decides it.
+            "can_decide": is_quality
+            and decision is not None
+            and not decision.reasons
+            and not services.decision_denial(request.user, lot),
+            # In testing, a chosen requirement is changed only by a signed replacement, also
+            # when no version has changed since.
+            "can_revisit": is_quality
+            and newer is None
+            and testing
+            and lot.state == "quarantine"
+            and current is not None
+            and current.status == AssignmentStatus.READY
+            and bool(current.payload.get("decisions")),
+            "rule_problems": services.additional_rule_problems(lot)
+            if lot.state == "quarantine"
+            else [],
             "records": records,
             "history": history(*assignments, *records, *[r.review for r in records if r.review]),
             "blockers": services.lot_blockers(lot),
@@ -192,7 +225,8 @@ def lot_detail(request, pk):
             "open": lot.state == "quarantine",
             "testing_started": testing,
             "can_assign": services.assignment_blocker(lot) is None
-            and can(request.user, "analyst", "quality"),
+            and can(request.user, "analyst", "quality")
+            and not services.reassignment_denial(request.user, lot, current),
             "can_sample": is_analyst and services.sampling_blocker(lot) is None,
             "is_analyst": is_analyst,
         },
@@ -215,9 +249,14 @@ def assign(request, pk):
         messages.error(request, blocker)
         return redirect(back)
     current = services.current_assignment(lot)
-    initial = {"scope": "general"}
+    if denial := services.reassignment_denial(request.user, lot, current):
+        messages.error(request, denial)
+        return redirect(back)
+    initial = {"scopes": "general"}
     if current:
-        initial.update(material=current.material, stage=current.stage, scope=current.scope)
+        initial.update(
+            material=current.material, stage=current.stage, scopes=", ".join(current.scope_list)
+        )
     else:
         initial["material"] = _guess_material(lot)
     form = AssignForm(request.POST or None, initial=initial)
@@ -234,6 +273,7 @@ def assign(request, pk):
                     request, "Applicability hold recorded: " + " ".join(assignment.hold_reasons)
                 )
             return redirect(back)
+    configured = services.configured_scopes()
     return form_page(
         request,
         form,
@@ -241,15 +281,95 @@ def assign(request, pk):
         crumbs=crumbs_for((lot.number, back), ("Assign requirements", None)),
         cancel_url=back,
         submit_label="Assign requirements",
-        intro="The approved specification, its methods and the sampling plan effective now are "
-        "frozen for this lot. If anything is missing or not approved, the lot is placed on an "
-        "applicability hold with the reasons; nothing is guessed or merged.",
+        intro="The approved specification of every scope named, its methods and the sampling "
+        "plan effective now are frozen for this lot, with the rule sets in force that name "
+        "its material, stage or scopes. If anything is missing or not approved, or the "
+        "specifications state a test differently, the lot is placed on an applicability hold "
+        "with the reasons; nothing is guessed, merged or picked.",
         facts=[
             ("Lot", lot.number),
             ("Material as received", lot.material),
             ("Rule set", str(lot.rules)),
             ("Current requirements", current.get_status_display() if current else "None"),
+            ("Scopes in the configuration", ", ".join(configured) if configured else "None"),
         ],
+    )
+
+
+def _reissue(form, lot, basis):
+    """After a refused signature the page shows the record as it is now, so the form carries
+    the token and the revision of what is shown, not those of the page that was refused. The
+    signer reviews what is shown and enters the PIN again."""
+    form.data = form.data.copy()
+    form.data["basis"] = basis
+    form.data["expected_revision"] = str(lot.revision)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def decide(request, pk):
+    """Signed decision of which requirement applies where the specifications that apply to a
+    lot state a test differently, before testing has started."""
+    require_role(request.user, AUTHOR_ROLE)
+    lot = get_object_or_404(Lot.objects.select_related("rules"), pk=pk)
+    back = reverse("sampling:lot", args=[lot.pk])
+    preview = services.decision_preview(lot)
+    if preview.blocker:
+        messages.error(request, preview.blocker)
+        return redirect(back)
+    blocked = services.decision_denial(request.user, lot)
+    choices = chosen_scopes(request.POST)
+    form = DecisionForm(
+        request.POST or None,
+        initial={"expected_revision": lot.revision, "basis": preview.basis},
+    )
+    if request.method == "POST" and not blocked and preview.possible and form.is_valid():
+        data = form.cleaned_data
+        done = run(
+            form,
+            lambda: services.decide_conflicts(
+                actor=request.user,
+                pin=data["pin"],
+                lot=lot,
+                expected_revision=data["expected_revision"],
+                reason=data["reason"],
+                choices=choices,
+                basis=data["basis"],
+            ),
+        )
+        if done:
+            messages.success(request, "Decision signed. The requirements are frozen for this lot.")
+            return redirect(back)
+    if request.method == "POST":
+        if services.DECISION_STALE in form.non_field_errors():
+            # What applies changed: the page shows it as it is now and asks for the choice
+            # again, because a statement chosen before may be the one that changed.
+            preview, choices = services.decision_preview(lot), {}
+            if preview.blocker:
+                messages.error(request, preview.blocker)
+                return redirect(back)
+        _reissue(form, lot, preview.basis)
+    for conflict in preview.conflicts:
+        conflict["chosen"] = choices.get(conflict["code"], "")
+    return render(
+        request,
+        "sampling/decide.html",
+        {
+            "page_title": f"Decide conflicting requirements · {lot.number}",
+            "lot": lot,
+            "preview": preview,
+            "current": preview.current,
+            "form": form,
+            "blocked": blocked,
+            "cancel_url": back,
+            "crumbs": crumbs_for((lot.number, back), ("Decide conflicting requirements", None)),
+        },
+        # A signature submitted while something else holds the lot signs nothing.
+        status=403
+        if blocked
+        else 422
+        if request.method == "POST" and not preview.possible
+        else form_status(request, form),
     )
 
 
@@ -260,8 +380,17 @@ def replace(request, pk):
     require_role(request.user, AUTHOR_ROLE)
     lot = get_object_or_404(Lot.objects.select_related("rules"), pk=pk)
     back = reverse("sampling:lot", args=[lot.pk])
-    preview = services.replacement_preview(lot)
-    if preview.blocker:
+    # Where the specifications in force state a test differently, the page is reviewed again
+    # with the chosen statements (GET) before it is signed with them (POST).
+    choices = chosen_scopes(request.POST if request.method == "POST" else request.GET)
+    preview = services.replacement_preview(lot, choices=choices)
+    # Nothing differs from the frozen requirements, but a requirement was chosen where the
+    # specifications state a test differently: the page stays open so that another one can
+    # be chosen and the replacement reviewed with it. Nothing is signed from this state.
+    unchanged = preview.blocker == services.NOTHING_TO_REPLACE and bool(
+        (preview.payload or {}).get("decisions")
+    )
+    if preview.blocker and not unchanged:
         messages.error(request, preview.blocker)
         return redirect(back)
     blocked = services.replacement_denial(request.user, lot)
@@ -280,6 +409,7 @@ def replace(request, pk):
                 expected_revision=data["expected_revision"],
                 reason=data["reason"],
                 basis=data["basis"],
+                choices=choices,
             ),
         )
         if done:
@@ -291,6 +421,41 @@ def replace(request, pk):
                 else "Requirements replaced and signed. Every test carried over.",
             )
             return redirect(back)
+    stale = request.method == "POST" and services.REPLACEMENT_STALE in form.non_field_errors()
+    if stale:
+        # What applies changed: the page shows it as it is now. A choice that was submitted
+        # is not kept, because the statement chosen may be the one that changed; a choice of
+        # the lot's frozen requirements still stands while its statement is unchanged.
+        preview = services.replacement_preview(lot)
+        if preview.blocker and not (
+            preview.blocker == services.NOTHING_TO_REPLACE
+            and (preview.payload or {}).get("decisions")
+        ):
+            messages.error(request, preview.blocker)
+            return redirect(back)
+    if request.method == "POST":
+        _reissue(form, lot, preview.basis)
+    # Tests the specifications in force state differently: the ones already chosen for, with
+    # the choice, then the ones still to choose for. Choices that settle a test not listed
+    # here travel with the page.
+    decided = (preview.payload or {}).get("decisions") or []
+    statement = ("scope", "scopes", "specification", "name", "text", "required")
+    differing = [
+        {
+            "code": item["code"],
+            "name": item["name"],
+            "differs": item["differs"],
+            # The statement chosen, then the others.
+            "candidates": [{key: item[key] for key in statement}, *item["alternatives"]],
+            "chosen": item["scope"],
+        }
+        for item in decided
+    ] + [{**conflict, "chosen": ""} for conflict in preview.conflicts]
+    listed = {conflict["code"] for conflict in differing}
+    carried = sorted((c, scope) for c, scope in preview.choices.items() if c not in listed)
+    # A signature submitted while a test still waits for a choice signs nothing.
+    unchosen = request.method == "POST" and not blocked and bool(preview.conflicts)
+    unchanged = preview.blocker == services.NOTHING_TO_REPLACE and bool(decided)
     return render(
         request,
         "sampling/replace.html",
@@ -302,9 +467,22 @@ def replace(request, pk):
             "form": form,
             "blocked": blocked,
             "cancel_url": back,
+            "differing": differing,
+            "carried": carried,
+            "decided": decided,
+            "choice_missing": unchosen and not stale,
+            "stale": stale,
+            "unchanged": unchanged,
+            "frozen": services.payload_specifications(preview.current.payload),
+            "several": "specifications" in preview.current.payload
+            or "specifications" in (preview.payload or {}),
             "crumbs": crumbs_for((lot.number, back), ("Replace requirements", None)),
         },
-        status=403 if blocked else form_status(request, form),
+        status=403
+        if blocked
+        else 422
+        if unchosen or (unchanged and request.method == "POST")
+        else form_status(request, form),
     )
 
 

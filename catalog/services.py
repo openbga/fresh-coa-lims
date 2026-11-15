@@ -1,8 +1,9 @@
 """Controlled specification/method services and the published requirement contract.
 
 Published contract for other apps (stable names):
-- ``resolve_requirements(material=, stage=, scope=, rules=, at=)`` -> requirement payload dict, or
-  raises ``ApplicabilityHold`` listing every reason the material cannot be assessed.
+- ``resolve_requirements(material=, stage=, scopes=, rules=, at=, decisions=)`` -> requirement
+  payload dict, or raises ``ApplicabilityHold`` listing every reason the material cannot be
+  assessed and the conflicts between the specifications that apply.
 - ``approved_snapshot(revision)`` -> the frozen content and hash bound by the approval signature.
 - ``conforms(test, value)`` -> True/False against one payload test line; exact Decimal comparison.
 """
@@ -20,6 +21,8 @@ from core import formulas
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import (
+    APPLIES_TO,
+    additional_rules,
     applies_at,
     require_role,
     sign_transition,
@@ -46,13 +49,23 @@ AUTHOR_ROLE = "quality"
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 CONFIG_LOCK = 681250  # Serializes approvals so supersession of overlapped versions cannot race.
 REQUIREMENTS_SCHEMA = "oq.requirements/1"
+# Several scopes, an additional rule set or a decided conflict: the same keys and more.
+REQUIREMENTS_SCHEMA_V2 = "oq.requirements/2"
+GENERAL = "general"
 
 
 class ApplicabilityHold(ValidationError):
-    """Requirements cannot be determined; the lot must stay on hold until resolved."""
+    """Requirements cannot be determined; the lot must stay on hold until resolved.
 
-    def __init__(self, reasons):
-        self.reasons = list(reasons)
+    ``reasons`` is everything that holds the lot. ``conflicts`` is the part of it a quality
+    decision settles (specifications that apply state different requirements for one test)
+    and ``blocking`` the part it cannot (something is missing or not in force).
+    """
+
+    def __init__(self, reasons, conflicts=()):
+        self.blocking = list(reasons)
+        self.conflicts = list(conflicts)
+        self.reasons = self.blocking + [conflict["reason"] for conflict in self.conflicts]
         super().__init__(self.reasons)
 
 
@@ -796,75 +809,461 @@ def effective_batch_methods(at=None):
     return [_method_payload(revision) for revision in latest.values()]
 
 
-def resolve_requirements(*, material, stage, scope="general", rules=None, at=None):
-    """Resolve the approved, effective requirements for a material at a stage and scope.
+def normalize_scopes(scopes):
+    """The scopes named for a lot, each once: ``general`` first, then the overlays by name."""
+    names = sorted(set(scopes))
+    return [name for name in names if name == GENERAL] + [n for n in names if n != GENERAL]
 
-    Never merges or picks among obligations: a missing specification, method or rule coverage is a
-    hold for the quality owner. The payload is plain JSON to be frozen by the caller.
-    """
-    at = at or timezone.now()
-    reasons = []
-    rules_payload = None
-    if rules is not None:
-        try:
-            validate_rules(rules, at)
-            rules_payload = {
-                "id": rules.pk,
-                "code": rules.code,
-                "version": rules.version,
-                "segment": rules.segment,
-                "required_tests": list(rules.policy["required_tests"]),
-            }
-        except ValidationError:
-            reasons.append(f"Rule set {rules} is not approved and effective.")
-    spec = Specification.objects.filter(material=material, stage=stage, scope=scope).first()
-    revision = effective_revision(SpecificationRevision, spec, at) if spec else None
-    tests = []
-    if spec is None:
-        reasons.append(
-            f"No specification exists for {material.code} at stage {stage} and scope {scope}."
-        )
-    elif revision is None:
-        reasons.append(f"Specification {spec.code} has no approved version effective now.")
-    else:
-        for line in revision.approved_content["tests"]:
-            method = Method.objects.get(code=line["method"])
-            method_revision = effective_revision(MethodRevision, method, at)
-            if method_revision is None:
-                reasons.append(f"Method {method.code} has no approved version effective now.")
-                continue
-            tests.append({**line, "method": _method_payload(method_revision)})
-    if rules_payload and revision is not None:
-        required_codes = {t["code"] for t in revision.approved_content["tests"] if t["required"]}
-        uncovered = sorted(set(rules_payload["required_tests"]) - required_codes)
-        if uncovered:
-            reasons.append(
-                "Rule set requires tests missing from the specification: " + ", ".join(uncovered)
-            )
-    if reasons:
-        raise ApplicabilityHold(reasons)
+
+def _rules_payload(rules):
     return {
-        "schema": REQUIREMENTS_SCHEMA,
-        "resolved_at": at.isoformat(),
-        "material": {
-            "id": material.pk,
-            "code": material.code,
-            "name": material.name,
-            "kind": material.kind,
-        },
-        "stage": stage,
+        "id": rules.pk,
+        "code": rules.code,
+        "version": rules.version,
+        "segment": rules.segment,
+        "required_tests": list(rules.policy["required_tests"]),
+    }
+
+
+def _specification_payload(spec, revision):
+    return {
+        "revision_id": revision.pk,
+        "code": spec.code,
+        "version": revision.version,
+        "approved_hash": revision.approved_hash,
+        "effective_from": revision.effective_from.isoformat(),
+        "effective_until": revision.effective_until.isoformat(),
+    }
+
+
+def same_requirement(before, after):
+    """True when testing would freeze the same requirement for both lines (see
+    ``test_requirement``) and both are required alike; a line an earlier release froze
+    without today's keys counts as different."""
+    if before["required"] != after["required"]:
+        return False
+    try:
+        return test_requirement(before, "") == test_requirement(after, "")
+    except KeyError:
+        return False
+
+
+# Keys a line frozen by an earlier release may lack; they read as that release meant them.
+LINE_DEFAULTS = {
+    "lower_inclusive": True,
+    "upper_inclusive": True,
+    "expected_result": "",
+    "reporting_decimals": None,
+    "replicates": 1,
+}
+
+
+def requirement_text(line):
+    """One requirement line as text: acceptance, rounding, replicates and method version."""
+    line = {**LINE_DEFAULTS, **line}
+    parts = [describe_limits(line)]
+    if line["result_type"] != "qualitative" and line["reporting_decimals"] is not None:
+        parts.append(f"rounded to {line['reporting_decimals']} decimals")
+    if line["replicates"] != 1:
+        parts.append(f"{line['replicates']} replicates")
+    parts.append(f"method {line['method']['code']} v{line['method']['version']}")
+    return " · ".join(parts)
+
+
+def statement_text(line):
+    """A requirement line in full, for choosing between statements of one test:
+    ``requirement_text`` and what it leaves out, where that is not the default."""
+    line = {**LINE_DEFAULTS, **line}
+    parts = [requirement_text(line)]
+    if line["result_type"] == "count":
+        parts.append("whole-number count")
+    if line["replicates"] != 1 and not line.get("replicate_limits", True):
+        parts.append("replicates judged by their mean only")
+    if retests := line.get("max_retests", 0):
+        parts.append(f"up to {retests} retest{'' if retests == 1 else 's'}")
+    return " · ".join(parts)
+
+
+# What a difference between two statements of a test is called, by the key of the frozen
+# test requirement (``test_requirement``) that differs. The schema follows from the others.
+DIFFERENCES = {
+    "schema": "",
+    "name": "name",
+    "result_type": "result type",
+    "unit": "unit",
+    "bounds": "limits",
+    "lower_limit": "limits",
+    "upper_limit": "limits",
+    "lower_inclusive": "limits",
+    "upper_inclusive": "limits",
+    "expected_result": "expected outcome",
+    "criterion": "expected outcome",
+    "reporting_decimals": "rounding",
+    "replicates": "replicates",
+    "replicate_limits": "whether each replicate must meet the limits",
+    "max_retests": "retests allowed",
+    "method": "method version",
+    "required": "required or information only",
+}
+
+
+def _differences(lines):
+    """What several statements of one test differ in, in words: everything testing would
+    freeze differently, and whether the test is required."""
+    shapes = []
+    for line in lines:
+        try:
+            shapes.append({**test_requirement(line, ""), "required": line["required"]})
+        except KeyError:
+            return ["how the line was approved"]
+    found = []
+    for key in dict.fromkeys(key for shape in shapes for key in shape):
+        # An absent key and an empty text mean the same; 0 and False do not.
+        values = {
+            json.dumps(None if shape.get(key) == "" else shape.get(key), sort_keys=True)
+            for shape in shapes
+        }
+        label = DIFFERENCES.get(key, key)
+        if len(values) > 1 and label and label not in found:
+            found.append(label)
+    return found
+
+
+# Keys of an approved specification line in plain words, for a difference that has no visible
+# effect on the wording of a statement.
+PLAIN_KEYS = {
+    "result_type": "result type",
+    "unit": "unit",
+    "lower_limit": "lower limit",
+    "lower_inclusive": "lower limit included",
+    "upper_limit": "upper limit",
+    "upper_inclusive": "upper limit included",
+    "reporting_decimals": "rounding decimals",
+    "expected_result": "expected outcome",
+    "expected_text": "criterion",
+    "replicates": "replicates",
+    "replicate_limits": "each replicate must meet the limits",
+    "max_retests": "retests allowed",
+}
+
+
+def _plain(value):
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    return "not stated" if value in (None, "") else str(value)
+
+
+def _tell_apart(statements, lines):
+    """Statements of one test differ, yet two can read the same when the difference has no
+    visible effect (a replicate rule with one replicate, the inclusion of a limit that is
+    not set, a unit on a qualitative line). Each then states the differing values as
+    approved, so that no two statements a signer chooses between read alike."""
+    shown = [(item["name"], item["text"], item["required"]) for item in statements]
+    if len(set(shown)) == len(shown):
+        return
+    lines = [{**LINE_DEFAULTS, **line} for line in lines]
+    for key, words in PLAIN_KEYS.items():
+        values = [_plain(line.get(key)) for line in lines]
+        if len(set(values)) > 1:
+            for item, value in zip(statements, values, strict=True):
+                item["text"] += f" · {words}: {value}"
+
+
+def _statement(group):
+    """One way a test is stated, with the scopes and specifications that state it so."""
+    scope, spec, revision, line = group[0]
+    return {
         "scope": scope,
-        "rules": rules_payload,
+        "scopes": [candidate[0] for candidate in group],
         "specification": {
             "revision_id": revision.pk,
             "code": spec.code,
             "version": revision.version,
-            "approved_hash": revision.approved_hash,
-            "effective_from": revision.effective_from.isoformat(),
-            "effective_until": revision.effective_until.isoformat(),
         },
-        "tests": tests,
+        "name": line["name"],
+        "text": statement_text(line),
+        "required": line["required"],
     }
+
+
+class Applicable:
+    """Everything that applies to a material at a stage under one or more scopes, read once.
+
+    Every specification of a named scope applies in full, and so does every additional rule
+    set in force that names the material, stage or one of the scopes (``rules`` is the lot's
+    own rule set; additional ones are selected only when it is given). ``freeze`` turns what
+    was read into the requirement payload and reads nothing more, so a page, the token of
+    what it showed and the signature that follows a choice all rest on the same versions.
+    """
+
+    def __init__(self, *, material, stage, scopes, rules=None, at=None):
+        self.material, self.stage = material, stage
+        self.at = at or timezone.now()
+        self.scopes = normalize_scopes(scopes)
+        self.reasons = []  # what is missing or not in force, whatever is chosen
+        self.rules_payload = None
+        self.extra = []
+        at = self.at
+        if rules is not None:
+            try:
+                validate_rules(rules, at)
+                self.rules_payload = _rules_payload(rules)
+            except ValidationError:
+                self.reasons.append(f"Rule set {rules} is not approved and effective.")
+            self.extra = additional_rules(
+                material=material.code,
+                stage=stage,
+                scopes=self.scopes,
+                at=at,
+                exclude_code=rules.code,
+            )
+        self.combined = len(self.scopes) > 1 or bool(self.extra)
+        # A scope may select rule sets only; one that selects nothing at all is incomplete.
+        ruled = {name for rule in self.extra for name in rule.policy[APPLIES_TO].get("scopes", [])}
+        self.specifications = []  # [(scope, specification, revision in force)]
+        for name in self.scopes:
+            spec = Specification.objects.filter(material=material, stage=stage, scope=name).first()
+            revision = effective_revision(SpecificationRevision, spec, at) if spec else None
+            if spec is None:
+                if name not in ruled:
+                    self.reasons.append(
+                        f"No specification exists for {material.code} at stage {stage} and "
+                        f"scope {name}."
+                    )
+            elif revision is None:
+                self.reasons.append(
+                    f"Specification {spec.code} has no approved version effective now."
+                )
+            else:
+                self.specifications.append((name, spec, revision))
+        if not self.specifications and not self.reasons:
+            self.reasons.append(
+                f"No specification applies to {material.code} at stage {stage}: "
+                f"{', '.join(self.scopes)} select{'s' if len(self.scopes) == 1 else ''} rule "
+                "sets only."
+            )
+        self.methods = {}  # method code -> payload of the version in force, or None
+        stated = {}  # test code -> [(scope, specification, revision, line with its method)]
+        self.required_as_stated = {}  # test code -> required by a specification at all
+        for name, spec, revision in self.specifications:
+            for line in revision.approved_content["tests"]:
+                code = line["code"]
+                self.required_as_stated[code] = (
+                    self.required_as_stated.get(code, False) or line["required"]
+                )
+                if line["method"] not in self.methods:
+                    method = Method.objects.get(code=line["method"])
+                    method_revision = effective_revision(MethodRevision, method, at)
+                    self.methods[line["method"]] = (
+                        _method_payload(method_revision) if method_revision else None
+                    )
+                    if method_revision is None:
+                        self.reasons.append(
+                            f"Method {method.code} has no approved version effective now."
+                        )
+                if self.methods[line["method"]] is None:
+                    continue
+                stated.setdefault(code, []).append(
+                    (name, spec, revision, {**line, "method": self.methods[line["method"]]})
+                )
+        # test code -> the distinct ways the specifications state it, each a list of the
+        # (scope, specification, revision, line) that state it so.
+        self.statements = {}
+        for code, candidates in stated.items():
+            groups = []
+            for candidate in candidates:
+                for group in groups:
+                    if same_requirement(group[0][3], candidate[3]):
+                        group.append(candidate)
+                        break
+                else:
+                    groups.append([candidate])
+            self.statements[code] = groups
+
+    @property
+    def differing(self):
+        """The tests the specifications state differently, each with its statements, what
+        they differ in and the reason it holds a lot until one is chosen."""
+        found = []
+        for code, groups in self.statements.items():
+            if len(groups) < 2:
+                continue
+            statements = [_statement(group) for group in groups]
+            _tell_apart(statements, [group[0][3] for group in groups])
+            found.append(
+                {
+                    "code": code,
+                    "name": groups[0][0][3]["name"],
+                    "differs": _differences([group[0][3] for group in groups]),
+                    "candidates": statements,
+                    "reason": "Specifications "
+                    + " and ".join(
+                        f"{item['specification']['code']} v{item['specification']['version']}"
+                        f" ({', '.join(item['scopes'])})"
+                        for item in statements
+                    )
+                    + f" state different requirements for {code}. Quality decides which "
+                    "one applies to this lot.",
+                }
+            )
+        return found
+
+    @property
+    def agreed(self):
+        """The tests stated one way only, by one specification or by several alike."""
+        return [
+            {
+                "code": code,
+                "name": groups[0][0][3]["name"],
+                "text": statement_text(groups[0][0][3]),
+                "required": groups[0][0][3]["required"],
+                "sources": [candidate[0] for candidate in groups[0]],
+            }
+            for code, groups in self.statements.items()
+            if len(groups) == 1
+        ]
+
+    @property
+    def applied(self):
+        """The versions that were read, for the token of what a page showed: every
+        specification, additional rule set and method version in force."""
+        return {
+            "rules": self.rules_payload["id"] if self.rules_payload else None,
+            "additional_rules": [rule.pk for rule in self.extra],
+            "specifications": [
+                [name, revision.pk, revision.approved_hash]
+                for name, _, revision in self.specifications
+            ],
+            "methods": sorted(
+                [code, payload["revision_id"] if payload else None]
+                for code, payload in self.methods.items()
+            ),
+        }
+
+    def line(self, code, scope):
+        """The requirement line that ``scope`` states for the test, or None."""
+        for group in self.statements.get(code, []):
+            for name, _, _, line in group:
+                if name == scope:
+                    return line
+        return None
+
+    def freeze(self, decisions=None):
+        """The requirement payload, or ``ApplicabilityHold``.
+
+        A test that the specifications state alike is one requirement. A test they state
+        differently is a conflict: nothing is merged and neither the stricter nor the wider
+        statement is picked; it holds until ``decisions`` ({test code: scope whose statement
+        applies}) names a scope that states the test. A missing specification, method or
+        rule coverage is a hold for the quality owner. Reads nothing: the same object can be
+        frozen again with other decisions.
+        """
+        decisions = dict(decisions or {})
+        reasons = list(self.reasons)
+        differing = {conflict["code"]: conflict for conflict in self.differing}
+        tests, decided, conflicts = [], [], []
+        required_codes = {code for code, required in self.required_as_stated.items() if required}
+        for code, groups in self.statements.items():
+            chosen = groups[0]
+            if len(groups) > 1:
+                wanted = decisions.get(code)
+                index = next(
+                    (i for i, g in enumerate(groups) if any(c[0] == wanted for c in g)), None
+                )
+                if index is None:
+                    conflicts.append(differing[code])
+                    continue
+                chosen = groups[index]
+                # The statement as it reads among the others (see ``_tell_apart``).
+                stated = differing[code]["candidates"][index]
+                decided.append(
+                    {
+                        "code": code,
+                        **stated,
+                        # The scope that was named; ``scopes`` lists all that state it so.
+                        "scope": wanted,
+                        "differs": differing[code]["differs"],
+                        "alternatives": [
+                            item for item in differing[code]["candidates"] if item is not stated
+                        ],
+                    }
+                )
+            line = chosen[0][3]
+            if line["required"]:
+                required_codes.add(code)
+            else:
+                required_codes.discard(code)
+            tests.append({**line, "sources": [c[0] for c in chosen]} if self.combined else line)
+        if self.specifications:
+            for payload in [self.rules_payload, *(_rules_payload(rule) for rule in self.extra)]:
+                if payload is None:
+                    continue
+                uncovered = sorted(set(payload["required_tests"]) - required_codes)
+                if uncovered and not self.combined:
+                    reasons.append(
+                        "Rule set requires tests missing from the specification: "
+                        + ", ".join(uncovered)
+                    )
+                elif uncovered:
+                    reasons.append(
+                        f"Rule set {payload['code']} v{payload['version']} requires tests that "
+                        "no specification applying to the lot requires: " + ", ".join(uncovered)
+                    )
+        if reasons or conflicts:
+            raise ApplicabilityHold(reasons, conflicts)
+        name, spec, revision = self.specifications[0]
+        payload = {
+            "schema": REQUIREMENTS_SCHEMA_V2 if self.combined else REQUIREMENTS_SCHEMA,
+            "resolved_at": self.at.isoformat(),
+            "material": {
+                "id": self.material.pk,
+                "code": self.material.code,
+                "name": self.material.name,
+                "kind": self.material.kind,
+            },
+            "stage": self.stage,
+            "scope": name,
+            "rules": self.rules_payload,
+            "specification": _specification_payload(spec, revision),
+            "tests": tests,
+        }
+        if self.combined:
+            payload.update(
+                scopes=self.scopes,
+                additional_rules=[
+                    {**_rules_payload(rule), "applies_to": rule.policy[APPLIES_TO]}
+                    for rule in self.extra
+                ],
+                specifications=[
+                    {"scope": name, **_specification_payload(spec, revision)}
+                    for name, spec, revision in self.specifications
+                ],
+                decisions=decided,
+            )
+        return payload
+
+
+def resolve_requirements(
+    *, material, stage, scope=GENERAL, scopes=None, rules=None, at=None, decisions=None
+):
+    """Resolve the approved, effective requirements for a material at a stage under one or
+    more scopes (``general`` and named market or customer overlays), or raise
+    ``ApplicabilityHold`` (see ``Applicable``). The payload is plain JSON to be frozen by
+    the caller.
+
+    One scope without additional rule sets yields ``oq.requirements/1`` exactly as before;
+    anything more yields ``oq.requirements/2``, which keeps the same keys (``specification``
+    is the first one) and adds ``scopes``, ``specifications``, ``additional_rules``,
+    ``decisions`` and, on each test, the ``sources`` (scopes) that state it.
+    """
+    read = Applicable(
+        material=material,
+        stage=stage,
+        scopes=scopes if scopes is not None else [scope],
+        rules=rules,
+        at=at,
+    )
+    return read.freeze(decisions)
 
 
 # Analytical testing contract (oq.test-requirement/1 and /2) -------------------------------------
@@ -1029,5 +1428,9 @@ __all__ = [
     "batch_method_requirements",
     "test_requirement",
     "plain",
+    "requirement_text",
     "resolve_requirements",
+    "same_requirement",
+    "statement_text",
+    "Applicable",
 ]

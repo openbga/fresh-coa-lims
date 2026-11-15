@@ -1,20 +1,43 @@
 {% extends "base.html" %}
-{% comment %}Signed replacement of a lot's requirements during testing. Context: lot, preview, current, form, blocked, cancel_url, crumbs.{% endcomment %}
+{% comment %}Signed replacement of a lot's requirements during testing. Context: lot, preview, current, form, blocked, cancel_url, crumbs; differing (tests the specifications in force state differently, each with .chosen), carried ([(test code, scope)] choices for tests not listed), decided (payload decisions the signature confirms).{% endcomment %}
 {% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
 {% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ lot.number }}</span> · lot record revision {{ lot.revision }} · {% include "includes/status.html" with label="Quarantine" tone="hold" %}</p>{% endblock %}
 {% block content %}
 <section class="card mb-3" aria-labelledby="versions-heading">
   <div class="card-header"><h2 class="card-title" id="versions-heading">Versions in force now</h2></div>
   <div class="card-body">
-    <p>The lot is tested against the versions frozen when its requirements were assigned. A replacement freezes the versions in force now for the same material, stage and scope. The sampling plan is kept, because the lot's samples were taken under it.</p>
+    <p>The lot is tested against the versions frozen when its requirements were assigned. A replacement freezes the versions in force now for the same material, stage and scopes, with the rule sets in force that name them. The sampling plan is kept, because the lot's samples were taken under it.</p>
     <dl class="vr-facts mb-0">
-      <div><dt>Material, stage and scope</dt><dd>{{ current.payload.material.code }} · {{ current.get_stage_display }} · {{ current.scope }}</dd></div>
+      <div><dt>Material, stage and scope{{ current.scope_list|length|pluralize }}</dt><dd>{{ current.payload.material.code }} · {{ current.get_stage_display }} · {{ current.scope_list|join:", " }}</dd></div>
       <div><dt>Rule set</dt><dd>{{ lot.rules }}{% if preview.rules and preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>{% elif preview.rules %} · unchanged{% endif %}</dd></div>
+      {% if several %}
+      <div><dt>Specifications frozen for the lot</dt><dd>{% for spec in frozen %}{{ spec.code }} v{{ spec.version }} ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% endfor %}</dd></div>
+      {% for change in preview.versions %}<div><dt>{{ change.kind|capfirst }} {{ change.code }}</dt><dd>{% if change.before and change.after %}{{ change.before }} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ change.after }}</strong>{% elif change.after %}<strong>{{ change.after }}</strong> · applies now{% else %}{{ change.before }} · no longer applies{% endif %}</dd></div>{% empty %}{% if preview.payload %}<div><dt>Specifications and additional rule sets</dt><dd>Unchanged</dd></div>{% endif %}{% endfor %}
+      {% else %}
       <div><dt>Specification</dt><dd>{{ current.payload.specification.code }} v{{ current.payload.specification.version }}{% if preview.payload %}{% if preview.payload.specification.revision_id != current.payload.specification.revision_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong><a href="{% url 'catalog:specification_revision' preview.payload.specification.revision_id %}">{{ preview.payload.specification.code }} v{{ preview.payload.specification.version }}</a></strong>{% else %} · unchanged{% endif %}{% endif %}</dd></div>
+      {% endif %}
       <div><dt>Sampling plan</dt><dd>{{ current.payload.sampling_plan.code }} v{{ current.payload.sampling_plan.version }} · kept</dd></div>
     </dl>
   </div>
 </section>
+{% if differing %}
+<section class="card mb-3" aria-labelledby="conflicts-heading">
+  <div class="card-header"><h2 class="card-title" id="conflicts-heading">Requirements stated differently</h2><span class="vr-count">{{ differing|length }}</span></div>
+  <div class="card-body">
+    <p>The specifications in force state {{ differing|length|pluralize:"this test,these tests" }} differently. Nothing is merged and neither statement is picked for you. A lot has to meet every specification that binds it: choose the statement under which a passing result also meets the others, or give in your reason why another specification does not bind this lot.</p>
+    {% if stale %}<div class="alert alert-danger" role="alert">{% include "includes/status.html" with label="Not signed" tone="danger" plain=True %}<div>The versions in force or the lot's tests changed after this page was opened. Nothing was signed. The page shows them as they are now{% if preview.conflicts %}; choose again for the tests still listed without a choice{% endif %}.</div></div>{% endif %}
+    {% if choice_missing %}<div class="alert alert-danger" role="alert">{% include "includes/status.html" with label="Not signed" tone="danger" plain=True %}<div>Choose which requirement applies for each test the specifications state differently. Nothing was signed.</div></div>{% endif %}
+    <p>{% if preview.conflicts %}Choose a requirement for each test, then review what the replacement would change.{% elif unchanged %}The requirement selected for each test is the one frozen for the lot, and the versions in force are the frozen ones: there is nothing to replace. To apply another requirement, choose it and review the replacement; the test made under the requirement it replaces is then superseded and repeated.{% else %}The requirement selected for each test is the one the replacement applies; the others stay in the record. Your signature confirms the choice for the versions now in force.{% endif %}</p>
+    {% if blocked %}{% include "sampling/includes/conflicts.html" with conflicts=differing %}{% else %}
+    <form method="get">
+      {% for code, scope in carried %}<input type="hidden" name="choice-{{ code }}" value="{{ scope }}">{% endfor %}
+      {% include "sampling/includes/conflicts.html" with conflicts=differing choose=True %}
+      <button class="btn btn-outline-secondary" type="submit">Review the replacement with these requirements</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 {% if preview.reasons %}
 <section class="card mb-3" aria-labelledby="refused-heading">
   <div class="card-header"><h2 class="card-title" id="refused-heading">The requirements cannot be replaced now</h2></div>
@@ -91,6 +114,7 @@
       {% include "includes/form_errors.html" with form=form %}
       {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
       {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      {% for item in decided %}<input type="hidden" name="choice-{{ item.code }}" value="{{ item.scope }}">{% endfor %}
       <div class="vr-form-actions">
         <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
         <button class="btn btn-primary" type="submit">Sign and replace requirements</button>

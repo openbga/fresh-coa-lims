@@ -666,6 +666,18 @@ def provider():
     return import_string(path)()
 
 
+def require_additional_rules(lot):
+    """Raise unless every rule set version that applies to the lot in addition to its own is
+    still in force. The requirement provider knows them (``require_additional_rules(lot)``);
+    a provider without that door applies none."""
+    try:
+        check = getattr(provider(), "require_additional_rules", None)
+    except ImproperlyConfigured:
+        return
+    if check is not None:
+        check(lot)
+
+
 def resolve(lot):
     """Return ({test_code: payload}, hold reasons). Missing or unsupported requirements hold."""
     try:

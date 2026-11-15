@@ -718,7 +718,7 @@ def test_database_refuses_a_replacement_without_its_evidence(world):
         {"origin": "replaced", "replacement": {"schema": "x"}},  # replaces nothing
         {"origin": "assigned", "supersedes": current, "replacement": {"schema": "x"}},
     ):
-        with pytest.raises(DatabaseError, match="lot_assignment_replacement"):
+        with pytest.raises(DatabaseError, match="lot_assignment_origin"):
             with transaction.atomic():
                 LotAssignment.objects.create(**fields, **bad)
     with pytest.raises(DatabaseError, match="Historical evidence"):

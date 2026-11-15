@@ -50,6 +50,7 @@ from .contracts import (
     contract_source,
     parse_method,
     reported_source,
+    require_additional_rules,
     resolve,
     supplier_standing,
 )
@@ -174,7 +175,10 @@ def assign_tests(*, actor, sample, reason):
             .values_list("pk", flat=True)
         )
         (lot,) = _lock_lots(lot_id)
+        # Every rule set version the lot is under must be in force: its own, and the ones
+        # that apply in addition to it.
         validate_rules(lot.rules)
+        require_additional_rules(lot)
         lineages = _lineages(lot, sample)
         accepted, holds = resolve(lot)
         # A requirement a supplier's result is proposed or accepted for gets no test; one is

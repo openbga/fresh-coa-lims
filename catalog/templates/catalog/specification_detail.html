@@ -8,7 +8,7 @@
   <div class="card-body"><dl class="vr-facts mb-0">
     <div><dt>Material</dt><dd>{{ spec.material }}</dd></div>
     <div><dt>Stage</dt><dd>{{ spec.get_stage_display }}</dd></div>
-    <div><dt>Scope</dt><dd>{{ spec.scope }}{% if spec.scope != "general" %} (overlay; never merged with other scopes){% endif %}</dd></div>
+    <div><dt>Scope</dt><dd>{{ spec.scope }}{% if spec.scope != "general" %} (overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them){% endif %}</dd></div>
   </dl></div>
 </section>
 <section class="card vr-table-card" aria-labelledby="versions-heading">

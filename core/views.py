@@ -73,11 +73,18 @@ def rules(request):
 
 
 def _quarantined_lots(rule):
-    """How many lots in quarantine were received under this rule version. Read through the app
-    registry: rule sets do not depend on the lot module."""
+    """How many lots in quarantine are under this rule version: received under it, or with
+    current requirements it applies to in addition to their own rule set. Read through the
+    app registry: rule sets do not depend on the lot modules."""
     if not apps.is_installed("quality"):
         return 0
-    return apps.get_model("quality", "Lot").objects.filter(rules=rule, state="quarantine").count()
+    own = apps.get_model("quality", "Lot").objects.filter(rules=rule, state="quarantine").count()
+    if not apps.is_installed("sampling"):
+        return own
+    current = apps.get_model("sampling", "LotAssignment").objects.filter(
+        superseded_by__isnull=True, status="ready", lot__state="quarantine"
+    )
+    return own + current.filter(payload__additional_rules__contains=[{"id": rule.pk}]).count()
 
 
 @login_required

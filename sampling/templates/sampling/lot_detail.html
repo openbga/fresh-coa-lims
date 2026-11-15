@@ -4,6 +4,7 @@
 {% block page_actions %}
 {% if can_assign %}<a class="btn btn-outline-secondary" href="{% url 'sampling:assign' lot.pk %}">{% if current %}Change requirements{% else %}Assign requirements{% endif %}</a>{% endif %}
 {% if can_replace %}<a class="btn btn-outline-secondary" href="{% url 'sampling:replace' lot.pk %}">Replace requirements</a>{% endif %}
+{% if can_decide %}<a class="btn btn-primary" href="{% url 'sampling:decide' lot.pk %}">Decide conflicting requirements</a>{% endif %}
 {% if can_sample %}<a class="btn btn-primary" href="{% url 'sampling:sampling_new' lot.pk %}">Record sampling</a>{% endif %}
 {% endblock %}
 {% block content %}
@@ -22,27 +23,41 @@
   <div class="card-header"><h2 class="card-title" id="req-heading">Current requirements</h2></div>
   <div class="card-body">
     {% if testing_started and open %}<p class="small">{% include "includes/status.html" with label="Fixed" tone="info" plain=True %} Testing has started, so these requirements cannot be assigned again. When a specification, a method or the rule set is revised, quality can replace them with a signature; tests whose requirement changes are then superseded and repeated.</p>{% endif %}
-    {% if newer %}<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Newer versions" tone="warning" plain=True %}<div class="text-break">{% if newer.reasons %}The versions frozen for this lot are no longer the ones in force, and the versions in force cannot be applied to it: {{ newer.reasons|join:" " }}{% else %}The versions in force now are not the ones frozen for this lot: {{ newer.items|join:", " }}.{% endif %} The lot keeps its frozen requirements until quality replaces them with a signature.{% if newer.rules %} Its rule set version is no longer in force, so no further test is assigned and the lot is not dispositioned until then.{% endif %}{% if can_replace %} <a href="{% url 'sampling:replace' lot.pk %}">Review the replacement</a>.{% endif %}</div></div>{% endif %}
+    {% if newer %}<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Newer versions" tone="warning" plain=True %}<div class="text-break">{% if newer.reasons %}The versions frozen for this lot are no longer the ones in force, and the versions in force cannot be applied to it: {{ newer.reasons|join:" " }}{% else %}The versions in force now are not the ones frozen for this lot: {{ newer.items|join:", " }}.{% endif %} The lot keeps its frozen requirements until quality replaces them with a signature.{% if newer.rules %} {% if newer.own_rules %}Its rule set version{% else %}A rule set version that applies to it in addition to its own{% endif %} is no longer in force, so no further test is assigned and the lot is not dispositioned until then.{% endif %}{% if can_replace %} <a href="{% url 'sampling:replace' lot.pk %}">Review the replacement</a>.{% endif %}</div></div>{% endif %}
+    {% if rule_problems and not newer.rules %}<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Rule set retired" tone="warning" plain=True %}<div class="text-break">{{ rule_problems|join:" " }} No further test is assigned and the lot is not dispositioned until then.</div></div>{% endif %}
     {% if current.is_replacement %}{% include "sampling/includes/replacement.html" with assignment=current %}{% endif %}
+    {% if current.is_decision %}{% include "sampling/includes/decision.html" with assignment=current %}{% endif %}
+    {% if can_revisit %}<p class="small">The specifications that apply state {{ current.payload.decisions|length|pluralize:"a test,tests" }} differently and a requirement was chosen for each. To apply another one, <a href="{% url 'sampling:replace' lot.pk %}">review a replacement of the lot's requirements</a>: it is signed like any other and repeats the test.</p>{% endif %}
     {% if not current %}
     {% include "catalog/includes/empty.html" with kind="error" title="Applicability hold: no requirements assigned" body="Assign the approved specification and sampling plan for this lot's material and stage before sampling or testing." %}
     {% elif current.status == "hold" %}
-    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Applicability hold" tone="hold" plain=True %}<div><p class="mb-1">This lot cannot be sampled, tested against limits or dispositioned until quality resolves:</p><ul class="mb-0">{% for reason in current.hold_reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
-    <dl class="vr-facts mb-0"><div><dt>Requested</dt><dd>{{ current.material }} · {{ current.get_stage_display }} · {{ current.scope }}</dd></div><div><dt>Recorded</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time></dd></div></dl>
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Applicability hold" tone="hold" plain=True %}<div class="text-break"><p class="mb-1">This lot cannot be sampled, tested against limits or dispositioned until quality resolves:</p><ul class="mb-0">{% for reason in current.hold_reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+    {% if decision %}
+    <h3 class="h6">Requirements the specifications state differently</h3>
+    <p>Nothing is merged and neither statement is picked. A quality person who recorded none of this lot's data decides which requirement applies and signs the decision{% if decision.reasons %}, once the other reasons above are resolved in the configuration{% endif %}.{% if can_decide %} <a href="{% url 'sampling:decide' lot.pk %}">Decide conflicting requirements</a>.{% endif %}</p>
+    {% include "sampling/includes/conflicts.html" with conflicts=decision.conflicts %}
+    {% endif %}
+    <dl class="vr-facts mb-0"><div><dt>Requested</dt><dd>{{ current.material }} · {{ current.get_stage_display }} · {{ current.scope_list|join:", " }}</dd></div><div><dt>Recorded</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time></dd></div></dl>
     {% else %}
     {% with payload=current.payload %}
     <dl class="vr-facts">
       <div><dt>Material</dt><dd>{{ payload.material.code }} · {{ payload.material.name }}</dd></div>
+      {% if payload.specifications %}
+      <div><dt>Stage and scopes</dt><dd>{{ current.get_stage_display }} · {{ payload.scopes|join:", " }}</dd></div>
+      <div><dt>Specifications</dt><dd>{% for spec in payload.specifications %}<a href="{% url 'catalog:specification_revision' spec.revision_id %}">{{ spec.code }} v{{ spec.version }}</a> ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% endfor %}</dd></div>
+      {% else %}
       <div><dt>Stage and scope</dt><dd>{{ current.get_stage_display }} · {{ payload.scope }}</dd></div>
       <div><dt>Specification</dt><dd><a href="{% url 'catalog:specification_revision' payload.specification.revision_id %}">{{ payload.specification.code }} v{{ payload.specification.version }}</a></dd></div>
+      {% endif %}
       <div><dt>Sampling plan</dt><dd><a href="{% url 'sampling:plan' current.plan_revision.plan_id %}">{{ payload.sampling_plan.code }} v{{ payload.sampling_plan.version }}</a> · {{ current.plan_revision.get_basis_display }} · at least {{ payload.sampling_plan.minimum_quantity }} {{ payload.sampling_plan.quantity_unit }}</dd></div>
       {% if payload.rules %}<div><dt>Rule set</dt><dd>{{ payload.rules.code }} v{{ payload.rules.version }} · requires {{ payload.rules.required_tests|join:", " }}</dd></div>{% endif %}
+      {% if payload.additional_rules %}<div><dt>Additional rule sets</dt><dd>{% for rule in payload.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
       <div><dt>Frozen</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time> · <span class="vr-id" title="SHA-256 of the frozen requirements">{{ current.payload_hash|truncatechars:13 }}</span></dd></div>
     </dl>
     <div class="vr-table-wrap">
       <table class="table vr-table">
         <caption class="visually-hidden">Required tests frozen for this lot</caption>
-        <thead><tr><th scope="col">Test</th><th scope="col">Acceptance criterion</th><th scope="col">Method version</th><th scope="col">Suitability evidence</th><th scope="col">Required</th></tr></thead>
+        <thead><tr><th scope="col">Test</th><th scope="col">Acceptance criterion</th><th scope="col">Method version</th><th scope="col">Suitability evidence</th><th scope="col">Required</th>{% if payload.specifications %}<th scope="col">Stated by</th>{% endif %}</tr></thead>
         <tbody>
           {% for test in payload.tests %}
           <tr>
@@ -51,6 +66,7 @@
             <td>{{ test.method.code }} v{{ test.method.version }}<br><span class="text-body-secondary">{{ test.method.document_ref }}</span></td>
             <td>{{ test.method.suitability_ref }}</td>
             <td>{% if test.required %}Required{% else %}Information only{% endif %}</td>
+            {% if payload.specifications %}<td>{{ test.sources|join:", " }}</td>{% endif %}
           </tr>
           {% endfor %}
         </tbody>
@@ -91,7 +107,7 @@
 <section class="card mb-3" aria-labelledby="assign-heading">
   <div class="card-header"><h2 class="card-title" id="assign-heading">Earlier requirement assignments</h2></div>
   <div class="card-body"><ol class="vr-timeline">
-    {% for a in assignments|slice:"1:" %}{% if a.is_replacement %}{% include "includes/history_item.html" with title="Requirements replaced during testing" at=a.assigned_at actor=a.assigned_by by="Signed by" reason=a.reason detail="Superseded" %}{% else %}{% include "includes/history_item.html" with title=a.get_status_display at=a.assigned_at actor=a.assigned_by reason=a.reason detail="Superseded" %}{% endif %}{% endfor %}
+    {% for a in assignments|slice:"1:" %}{% if a.is_replacement %}{% include "includes/history_item.html" with title="Requirements replaced during testing" at=a.assigned_at actor=a.assigned_by by="Signed by" reason=a.reason detail="Superseded" %}{% elif a.is_decision %}{% include "includes/history_item.html" with title="Conflicting requirements decided by quality" at=a.assigned_at actor=a.assigned_by by="Signed by" reason=a.reason detail="Superseded" %}{% else %}{% include "includes/history_item.html" with title=a.get_status_display at=a.assigned_at actor=a.assigned_by reason=a.reason detail="Superseded" %}{% endif %}{% endfor %}
   </ol></div>
 </section>
 {% endif %}

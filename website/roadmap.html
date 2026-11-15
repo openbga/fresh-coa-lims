@@ -75,6 +75,7 @@
           <ul class="qual-areas">
             <li id="configuration"><h3>Approved configuration</h3><p>Rule sets, specifications, methods and sampling plans are versioned and effective-dated. Someone other than the author signs each approval. When a later version that overlaps an approved one is approved, the earlier version is retired from the new version's start and keeps its approved content and signature. Every lot keeps a snapshot of the revisions it was tested against.</p></li>
             <li id="revised-requirements"><h3>Revised requirements during testing</h3><p>A lot keeps the versions frozen when its requirements were assigned. When a specification, a method or the rule set is revised while the lot is being tested, a quality person who recorded none of the lot's data can replace the lot's requirements with a reason and a signature. Tests whose requirement is unchanged carry over. The others stay in the record as superseded, never count, and are repeated under the new requirement. A replacement is refused while an investigation is open on the lot.</p></li>
+            <li id="applicability"><h3>Requirements by product, market and customer</h3><p>A lot can fall under more than one set of requirements. Its requirements are assigned for the general scope and for each market or customer it is for, and the approved specification of each applies in full. Rule sets apply by material, stage, market and customer beside the lot's own rule set. A requirement the specifications state alike counts once. When two of them state a test differently, or something required is not configured, the lot is held: nothing is merged and neither statement is picked. A quality person who recorded none of the lot's data decides which requirement applies, with a reason and a signature, and the certificate names what applied. One deployment serves one site.</p></li>
             <li id="receipt-sampling"><h3>Lot receipt and sampling</h3><p>Lots are received into quarantine with their receipt details: the supplier, from a register kept by quality, or that the material was made on site; the supplier's and the manufacturer's lot numbers; the delivery document, date, quantity and containers; and what the examination on receipt found. A correction adds a record and keeps the original. The register records who a supplier is and does not qualify it. Lots are then assigned their specifications and sampling plan. The results on a supplier's certificate are recorded against the lot's specification, with the method and limits the certificate states, and compared with the approved limits. They stay the supplier's results, apart from the laboratory's own tests, and recording them does not replace a test. Sampling records show which containers were sampled, where, when and by whom, with deviations assessed.</p></li>
             <li id="testing"><h3>Testing</h3><p>Numeric results and counts with units, replicates, declared rounding and batch QC checks. Qualitative results (conforms or does not conform, present or absent) are recorded with what was observed. A result reported as less than a value is kept as recorded and never becomes zero. Limits can include or exclude their boundary. A result can be calculated from raw measurements, such as weights, volumes and factors, with a formula approved with the method version; the record keeps the inputs and the formula used. Raw-data files are attached to a test and stored with a checksum. A correction adds an entry and keeps the original.</p></li>
             <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
@@ -102,15 +103,6 @@
           </div>
           <div class="col-lg-8">
             <ol class="qual-workflow">
-              <li id="applicability">
-                <h3>Requirements by product, market and customer</h3>
-                <p>A lot can fall under more than one set of rules, for example those of a destination market and of a customer agreement.</p>
-                <ul>
-                  <li>Apply several approved rule sets to one lot, selected by material, activity, site, market and customer.</li>
-                  <li>Hold the lot for a quality decision when requirements conflict or are incomplete.</li>
-                </ul>
-                <p class="qual-ref">Requirements OQ-001, OQ-009, OQ-015</p>
-              </li>
               <li id="stability-testing">
                 <h3>Stability testing in the system</h3>
                 <p>A stability pull on a released lot currently points to results kept elsewhere, because the record of a released lot cannot change.</p>
@@ -225,6 +217,7 @@
               <h3>Certificates for customers</h3>
               <ul>
                 <li>Certificates for each customer from the same lot, with the customer's limits and selected tests.</li>
+                <li>One result judged against each specification that applies to the lot, with conformity stated for each.</li>
                 <li>Certificate data in a machine-readable form beside the PDF.</li>
                 <li>A way for the recipient to confirm that a certificate is genuine and is the current version.</li>
                 <li>Archival and accessible PDF output.</li>

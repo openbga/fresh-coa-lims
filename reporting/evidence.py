@@ -85,21 +85,27 @@ def frozen_assignment_payload(lot):
     it: the signed assignment stays the disposition's decision basis. Callers must treat None as
     "not verifiable", never fall back to the latest live requirements.
     """
+    record = _frozen_assignment(lot)
+    if record is None or not isinstance(record.payload, dict):
+        return None
+    if canonical_hash(record.payload) != record.payload_hash:
+        return None
+    return record.payload
+
+
+def _frozen_assignment(lot):
+    """The assignment row the QC disposition names, by its id, lot and payload hash, or None.
+    Append-only, looked up by label so reporting imports no sibling code."""
     stored = lot.disposition_evidence or {}
     assignment_id, expected = stored.get("assignment_id"), stored.get("assignment_hash")
     if not assignment_id or not expected:
         return None
-    # Append-only frozen payload, looked up by label so reporting imports no sibling code.
-    record = (
+    return (
         apps.get_model("sampling", "LotAssignment")
         .objects.filter(pk=assignment_id, lot_id=lot.pk, payload_hash=expected, status="ready")
+        .select_related("assigned_by")
         .first()
     )
-    if record is None or not isinstance(record.payload, dict):
-        return None
-    if canonical_hash(record.payload) != expected:
-        return None
-    return record.payload
 
 
 def _native(lot):
@@ -126,8 +132,80 @@ def _native(lot):
             k: spec[k] for k in ("code", "version", "revision_id", "approved_hash") if k in spec
         }
         or None,
+        **_applicability(lot, payload),
         "methods": methods,
         "analytical": stored.get("analytical") or {},
+    }
+
+
+def _applicability(lot, payload):
+    """What a lot assigned under several scopes or rule sets was judged against, from its
+    frozen assignment: every specification and additional rule set that applied and each
+    decision between specifications that stated a test differently, with who decided it,
+    when and why, and the replacement that carried it since. Empty for a lot under one
+    specification and its own rule set, whose evidence keeps the keys it always had."""
+    if not payload or "specifications" not in payload:
+        return {}
+    decisions, carried = list(payload.get("decisions") or []), None
+    if decisions:
+        # The verified payload came from this row. It keeps, beside the payload, who made
+        # each choice: the signer of the decision, or of the replacement that made it.
+        record = _frozen_assignment(lot)
+        kept = (record.decision or {}).get("choices") or (record.replacement or {}).get("decisions")
+        decisions = kept or decisions
+        if record.origin == "replaced":
+            carried = {
+                "by": _person(record.assigned_by),
+                "at": iso(record.assigned_at),
+                "signed_at": record.replacement.get("signed_at"),
+            }
+    return {
+        "scopes": list(payload.get("scopes") or []),
+        "specifications": [
+            {k: spec[k] for k in ("scope", "code", "version", "revision_id", "approved_hash")}
+            for spec in payload["specifications"]
+        ],
+        "additional_rules": [
+            {k: rule[k] for k in ("id", "code", "version", "segment", "required_tests")}
+            for rule in payload.get("additional_rules") or []
+        ],
+        "decisions": [
+            {
+                "code": item["code"],
+                "differs": list(item.get("differs") or []),
+                "applies": _statement(item),
+                "not_applied": [_statement(alt) for alt in item["alternatives"]],
+                "decided": _decided(item.get("decided"), carried),
+            }
+            for item in decisions
+        ],
+    }
+
+
+def _decided(made, carried):
+    """Who decided a choice, when and why; and, when a later replacement of the lot's
+    requirements carried it unchanged, who signed that and when."""
+    if not made:
+        return None
+    from datetime import datetime
+
+    decided = {
+        "by": made["by"],
+        "at": iso(datetime.fromisoformat(made["at"])),
+        "reason": made["reason"],
+        "with": made["with"],
+    }
+    if carried and made["at"] != carried["signed_at"]:
+        decided["carried"] = {"by": carried["by"], "at": carried["at"]}
+    return decided
+
+
+def _statement(item):
+    return {
+        "specification": f"{item['specification']['code']} version "
+        f"{item['specification']['version']}",
+        "scopes": list(item["scopes"]),
+        "requirement": item["text"],
     }
 
 

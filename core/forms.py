@@ -22,7 +22,12 @@ class RuleForm(StyledForm):
             "required_tests": ["identity"],
             "review_meaning": "reviewed",
             "disposition_meaning": "approved",
-        }
+        },
+        help_text="Optional keys: supplier_results, with own_tests, lets a qualified "
+        "supplier's result stand in for a test other than those listed. applies_to, with "
+        "materials, stages and scopes (at least one, each a list of codes), makes this an "
+        "additional rule set: it is not chosen when a lot is received and applies to every "
+        "lot whose requirements are assigned for a material, stage and scope it names.",
     )
     effective_from = forms.DateTimeField()
     effective_until = forms.DateTimeField(required=False)

@@ -36,7 +36,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 |---|---|---|---|---|
 | Lot number | `Lot.number` | Text, max 80, unique | Yes | Lot identifier. |
 | Material | `Lot.material` | Text, max 160 | Yes | Material name. |
-| Rule set | `Lot.rules` | Choice of approved rule revisions, shown as "code vN" | Yes | Rule set that fixes the required tests for this lot. |
+| Rule set | `Lot.rules` | Choice of approved rule revisions, shown as "code vN" | Yes | Rule set that fixes the required tests for this lot. Additional rule sets (policy with `applies_to`) are not offered. |
 | Source | `LotReceipt.source` | Received from a supplier, Made on site | Yes | Where the lot came from. The menu opens on "—"; choose one. |
 | Supplier | `LotReceipt.supplier` | Choice of every supplier in the register, shown as "code · name" | Conditional | Required for a lot received from a supplier; blank for one made on site. Help: "Required for a lot received from a supplier. A quality user adds suppliers to the register." |
 | Supplier lot number | `LotReceipt.supplier_lot` | Text, max 80 | No | Help: "As printed on the supplier's label or documents. Leave blank if not known." Blank for material made on site. |
@@ -57,6 +57,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 
 - **Not the release requirements**: choosing a rule set does not assign approved specification or sampling requirements and does not show the lot is ready for testing. Requirements are assigned afterwards on Lot requirements and sampling; the rule set's required-test list is only part of the foundation path, not the whole native release gate.
 - **Rule choices**: only approved rule revisions that are in force now are offered (inside their effective period and not retired by a later version). The service checks the chosen revision again, else "An approved, effective rule revision is required."
+- **Additional rule sets are not a choice**: a rule set whose policy states `applies_to` applies beside a lot's own rule set and is selected later, when the lot's requirements are assigned, by the material, stage and scopes. It is left out of the Rule set menu, so a submission that names one fails with the form's "Select a valid choice. That choice is not one of the available choices." The server refuses it as well: "Rule set <code> v<N> applies in addition to a lot's own rule set and is selected by the lot's material, stage and scopes. Choose the lot's own rule set."
 - **Lot number**: "This lot number already exists." when the number is taken (exact match). If another request saves the same lot number at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Supplier source**: "Select the supplier the lot was received from." when Source is "Received from a supplier" and no supplier is chosen.
 - **Made on site**: "Material made on site has no supplier, supplier lot or outside manufacturer." when Source is "Made on site" and Supplier, Supplier lot number, Manufacturer, Manufacturer location or Manufacturer lot number is filled in.
