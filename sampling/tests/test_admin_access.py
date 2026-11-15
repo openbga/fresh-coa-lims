@@ -70,6 +70,7 @@ MUTATIONS = {
     "catalog:method_withdraw": (("method_draft",), "approver"),
     "catalog:material_new": ((), "approver"),
     "sampling:assign": (("lot",), "analyst"),
+    "sampling:replace": (("lot_testing",), "approver"),
     "sampling:sampling_new": (("lot",), "analyst"),
     "sampling:sampling_correct": (("record",), "analyst"),
     "sampling:deviation_assess": (("record",), "approver"),
@@ -89,6 +90,40 @@ PAYLOAD = {
     "title": "Synthetic admin attempt",
     "name": "Synthetic admin attempt",
 }
+
+
+def lot_in_testing(people, ready):  # noqa: F811
+    """A second lot whose testing has started and whose method was revised since: the only
+    state in which its requirements can be replaced."""
+    from analytical.models import AnalyticalTest
+    from quality.services import receive_lot
+    from sampling import services as sampling
+    from tests.receipts import on_site_receipt
+
+    from .test_services import sample
+
+    lot = receive_lot(
+        actor=people["analyst"],
+        number="SYN-LOT-T1",
+        material=ready["material"].name,
+        rules=ready["rules"],
+        reason="Synthetic receipt",
+        receipt=on_site_receipt(),
+    )
+    second = {**ready, "lot": lot}
+    assign(people, second)
+    taken = sample(people, second, reference="SYN-S-T1")
+    AnalyticalTest.objects.create(
+        lot=lot,
+        sample=taken.sample,
+        test_code="assay",
+        requirement=sampling.test_requirements(lot)["assay"],
+        requirement_hash="0" * 64,
+        created_by=people["analyst"],
+    )
+    method = ready["spec"].tests.get(code="assay").method
+    approve(method_revision(people["author"], method=method), people["approver"])
+    return lot
 
 
 @pytest.fixture
@@ -138,7 +173,9 @@ def world(people, ready):  # noqa: F811
     plan_draft = plan_revision(author, material(author, code="syn-api-002"))
     assign(people, ready)
     record = short(people, ready)
+    testing = lot_in_testing(people, ready)
     return {
+        "lot_testing": testing.pk,
         "spec": ready["spec"].specification.pk,
         "spec_approved": ready["spec"].pk,
         "spec_draft": spec_draft.pk,

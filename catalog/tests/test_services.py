@@ -123,12 +123,10 @@ def test_specification_requires_tests_and_effective_approved_methods(people):
     assert test["unit"] == "%"
 
 
-def test_overlapping_versions_rejected_and_boundaries_half_open(people):
+def test_adjacent_versions_retire_nothing_and_boundaries_are_half_open(people):
+    """Overlapping versions are covered in test_supersession.py."""
     method_v1 = method_revision(people["author"], start_days=-10, end_days=10)
     approve(method_v1, people["approver"])
-    overlap = method_revision(people["author"], method=method_v1.method, start_days=5, end_days=30)
-    with pytest.raises(ValidationError, match="overlap"):
-        approve(overlap, people["approver"])
     adjacent = services.new_method_revision(
         actor=people["author"],
         method=method_v1.method,
@@ -140,7 +138,10 @@ def test_overlapping_versions_rejected_and_boundaries_half_open(people):
         effective_until=method_v1.effective_until + timedelta(days=30),
         reason="Next version",
     )
+    assert services.retirements(adjacent) == []
     v2 = approve(adjacent, people["approver"])
+    method_v1.refresh_from_db()
+    assert method_v1.superseded_from is None and method_v1.superseded_by is None
     boundary = method_v1.effective_until
     pick = services.effective_revision
     assert pick(MethodRevision, method_v1.method, boundary - timedelta(microseconds=1)).version == 1

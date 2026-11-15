@@ -216,6 +216,46 @@ class AcceptedSupplierResults:
         return standing_by_lot(lot_ids)
 
 
+class TestingUnderReplacement:
+    """What replacing a lot's requirements during testing does to the lot's tests.
+
+    The sampling module owns the lot's requirements and never imports testing: it asks here
+    which tests carry over and which are superseded, why testing refuses the replacement, and
+    has the tests locked and superseded inside the signed transaction. ``requirements`` is
+    ``{test_code: payload}`` as testing would receive it for the new requirements.
+    """
+
+    def effects(self, lot, requirements):
+        """``{"refusals": [...], "tests": [...], "supplier_results": [...]}``, read-only."""
+        from analytical import replacement
+        from analytical.contracts import supplier_standing
+
+        reasons = replacement.held(requirements)
+        rows = replacement.effects(lot, requirements)
+        standing = supplier_standing(lot)
+        return {
+            "refusals": reasons + replacement.refusals(lot, rows),
+            "tests": rows,
+            "supplier_results": [
+                {"test_code": code, "label": standing[code]} for code in sorted(standing)
+            ],
+        }
+
+    def lock(self, lot):
+        from analytical import replacement
+
+        return replacement.lock(lot)
+
+    def apply(self, *, actor, lot, requirements, reason, locked):
+        from analytical import replacement
+
+        if reasons := replacement.held(requirements):
+            raise ValidationError(reasons)
+        return replacement.apply(
+            actor=actor, lot=lot, requirements=requirements, reason=reason, locked=locked
+        )
+
+
 def report_holds(lot):
     from stability.gates import lot_hold_evidence
 

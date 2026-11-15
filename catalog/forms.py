@@ -34,7 +34,8 @@ def effective_fields():
         "effective_until": forms.DateTimeField(
             label=f"Effective until ({TZ})",
             widget=LocalDateTimeInput(),
-            help_text="Exclusive end. Approved versions of one record must not overlap.",
+            help_text="Exclusive end. Approving a later version that overlaps ends this one "
+            "earlier.",
         ),
     }
 

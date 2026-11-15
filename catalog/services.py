@@ -19,7 +19,14 @@ from django.utils import timezone
 from core import formulas
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
-from core.services import require_role, sign_transition, validate_rules
+from core.services import (
+    applies_at,
+    require_role,
+    sign_transition,
+    supersede,
+    supersession_plan,
+    validate_rules,
+)
 
 from .models import (
     ExpectedResult,
@@ -37,7 +44,7 @@ from .units import INPUT_UNITS, RESULT_UNITS, plain, rounded
 
 AUTHOR_ROLE = "quality"
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
-CONFIG_LOCK = 681250  # Serializes approvals so overlap checks cannot race.
+CONFIG_LOCK = 681250  # Serializes approvals so supersession of overlapped versions cannot race.
 REQUIREMENTS_SCHEMA = "oq.requirements/1"
 
 
@@ -627,7 +634,11 @@ def _check_specification_revision(revision):
             validate_test_line(line)
         except ValidationError as exc:
             raise ValidationError([f"Test {line.code}: {m}" for m in exc.messages]) from exc
-        method_revision = effective_revision(MethodRevision, line.method, revision.effective_from)
+        # The method version that will apply when the specification does: at its start, or
+        # now for a specification whose start has already passed.
+        method_revision = effective_revision(
+            MethodRevision, line.method, max(revision.effective_from, timezone.now())
+        )
         if method_revision is None:
             missing.append(line.method.code)
             continue
@@ -640,7 +651,7 @@ def _check_specification_revision(revision):
             )
     if missing:
         raise ValidationError(
-            "No approved method revision is effective at the specification start: "
+            "No approved method revision applies when this specification takes effect: "
             + ", ".join(sorted(set(missing)))
         )
 
@@ -656,7 +667,26 @@ def register_check(model, check):
     CHECKS[model] = check
 
 
+def retirements(revision, at=None):
+    """[(earlier approved version, moment it stops applying)] if ``revision`` is approved at
+    ``at`` (now by default). Read-only: the approval page shows it and signing repeats it under
+    the configuration lock. Raises ValidationError when a later version is already approved for
+    the same dates."""
+    siblings = (
+        type(revision)
+        .objects.filter(**{revision.PARENT_FIELD: revision.parent})
+        .exclude(pk=revision.pk)
+    )
+    return supersession_plan(siblings, revision, at or timezone.now())
+
+
 def approve_revision(*, actor, pin, revision, expected_revision, reason):
+    """Sign a draft version as approved and retire the approved versions it overlaps.
+
+    An earlier approved version of the same document whose period overlaps stops applying when
+    this one takes over (see ``core.services.supersession_plan``); each retirement is audited
+    in the same transaction as the signature. Lots keep the versions frozen for them.
+    """
     model = type(revision)
     check = CHECKS[model]
 
@@ -666,18 +696,13 @@ def approve_revision(*, actor, pin, revision, expected_revision, reason):
             raise ValidationError("Only draft revisions can be approved.")
         ensure_independent(actor, locked)
         check(locked)
-        overlaps = (
-            model.objects.filter(
-                **{locked.PARENT_FIELD: locked.parent},
-                status=RevisionStatus.APPROVED,
-                effective_from__lt=locked.effective_until,
-                effective_until__gt=locked.effective_from,
-            )
-            .exclude(pk=locked.pk)
-            .exists()
+        supersede(
+            actor=actor,
+            plan=retirements(locked, locked._signing_timestamp),
+            revision=locked,
+            action="revision.superseded",
+            reason=reason,
         )
-        if overlaps:
-            raise ValidationError("Effective dates overlap an approved version.")
         content = locked.content()
         locked.approved_content = content
         locked.approved_hash = digest(content)
@@ -731,14 +756,11 @@ def approved_snapshot(revision):
 
 
 def effective_revision(model, parent, at):
-    """The single approved revision effective at ``at`` (intervals cannot overlap), or None."""
+    """The approved revision that applies at ``at``, or None: inside its effective period and
+    not superseded by then. The latest version wins where a version was approved after its own
+    start, while the one it retired still applied."""
     return (
-        model.objects.filter(
-            **{model.PARENT_FIELD: parent},
-            status=RevisionStatus.APPROVED,
-            effective_from__lte=at,
-            effective_until__gt=at,
-        )
+        model.objects.filter(applies_at(at), **{model.PARENT_FIELD: parent})
         .order_by("-version")
         .first()
     )
@@ -764,13 +786,14 @@ def _method_payload(revision):
 def effective_batch_methods(at=None):
     """Payloads of methods whose approved version effective at ``at`` runs in a QC batch."""
     at = at or timezone.now()
-    revisions = MethodRevision.objects.filter(
-        status=RevisionStatus.APPROVED,
-        requires_batch=True,
-        effective_from__lte=at,
-        effective_until__gt=at,
-    ).select_related("method")
-    return [_method_payload(revision) for revision in revisions.order_by("method__code")]
+    revisions = (
+        MethodRevision.objects.filter(applies_at(at), requires_batch=True)
+        .select_related("method")
+        .order_by("method__code", "version")
+    )
+    # One version per method: the latest of those that apply (see ``effective_revision``).
+    latest = {revision.method_id: revision for revision in revisions}
+    return [_method_payload(revision) for revision in latest.values()]
 
 
 def resolve_requirements(*, material, stage, scope="general", rules=None, at=None):

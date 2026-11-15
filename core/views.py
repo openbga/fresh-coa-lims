@@ -1,5 +1,6 @@
 import csv
 
+from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -57,7 +58,7 @@ def rules(request):
             return redirect("core:rules")
         except ValidationError as exc:
             form.add_error(None, exc)
-    revisions = list(RuleSet.objects.all())
+    revisions = list(RuleSet.objects.select_related("superseded_by"))
     signatures = ElectronicSignature.objects.filter(object_type="core.ruleset")
     by_record = {}
     for signature in signatures:
@@ -71,18 +72,37 @@ def rules(request):
     )
 
 
+def _quarantined_lots(rule):
+    """How many lots in quarantine were received under this rule version. Read through the app
+    registry: rule sets do not depend on the lot module."""
+    if not apps.is_installed("quality"):
+        return 0
+    return apps.get_model("quality", "Lot").objects.filter(rules=rule, state="quarantine").count()
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def rule_approve(request, pk):
     require_role(request.user, "quality")
     rule = get_object_or_404(RuleSet, pk=pk)
-    if request.method == "GET":
-        try:
-            check_rule_approval(actor=request.user, rule=rule)
-        except (PermissionDenied, ValidationError) as exc:
+    retires = []
+    try:
+        plan = check_rule_approval(actor=request.user, rule=rule)
+    except (PermissionDenied, ValidationError) as exc:
+        if request.method == "GET":
             reason = "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
             messages.warning(request, reason)
             return redirect("core:rules")
+        plan = []  # signing repeats the check and reports the refusal on the form
+    for other, moment in plan:
+        retires.append(
+            {
+                "rule": other,
+                "moment": moment,
+                "never": moment <= other.effective_from,
+                "lots": _quarantined_lots(other),
+            }
+        )
     form = SignForm(request.POST or None, initial={"revision": rule.revision})
     if request.method == "POST" and form.is_valid():
         try:
@@ -99,7 +119,13 @@ def rule_approve(request, pk):
     return render(
         request,
         "core/form.html",
-        {"form": form, "heading": f"Approve {rule}", "signing": True, "record": rule},
+        {
+            "form": form,
+            "heading": f"Approve {rule}",
+            "signing": True,
+            "record": rule,
+            "retires": retires,
+        },
     )
 
 

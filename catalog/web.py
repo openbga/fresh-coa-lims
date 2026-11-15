@@ -143,6 +143,16 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
         if approved:
             messages.success(request, f"{kind} {approved} approved and signed.")
             return redirect(success_url)
+    # What signing now would retire; signing works it out again at the moment of the signature.
+    retires, refusal = [], ""
+    if not blocked:
+        try:
+            retires = [
+                {"revision": other, "moment": moment, "never": moment <= other.effective_from}
+                for other, moment in services.retirements(revision)
+            ]
+        except ValidationError as exc:
+            refusal = " ".join(exc.messages)
     status = 403 if blocked else form_status(request, form)
     return render(
         request,
@@ -153,6 +163,8 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
             "revision": revision,
             "form": form,
             "blocked": blocked,
+            "retires": retires,
+            "refusal": refusal,
             "crumbs": crumbs,
             "cancel_url": success_url,
             "detail_template": detail_template,

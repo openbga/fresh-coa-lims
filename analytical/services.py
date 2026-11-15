@@ -124,32 +124,62 @@ def supplier_refusal(test):
 # Test assignment and observations ----------------------------------------------------------
 
 
+def _lineages(lot, sample):
+    """{test_code: tests, oldest first} of the lineages that start with an original test of
+    ``sample``: the original and every rerun, retest, resample or repeat that answers for it,
+    on whichever sample of the lot it was made."""
+    tests = list(AnalyticalTest.objects.filter(lot_id=lot.pk).order_by("pk"))
+    by_pk = {test.pk: test for test in tests}
+    lineages = {}
+    for test in tests:
+        root = test
+        while root.kind != AnalyticalTest.Kind.ORIGINAL:
+            root = by_pk[root.parent_id]
+        if root.sample_id == sample.pk:
+            lineages.setdefault(test.test_code, []).append(test)
+    return lineages
+
+
 def assign_tests(*, actor, sample, reason):
-    """Create original tests for supported required codes; return hold reasons for the rest."""
+    """Create the tests a sample still needs for the lot's required codes; return the tests
+    and the hold reasons for codes that cannot be tested.
+
+    A code the sample has no test for gets an original test. A code whose tests were all
+    superseded when the lot's requirements were replaced gets a linked repeat under the
+    current requirement (kind ``revised``), on the sample the superseded test was made on.
+    """
     require_role(actor, ANALYST)
     _require_reason(reason)
     with transaction.atomic():
         (lot,) = _lock_lots(Sample.objects.get(pk=sample.pk).lot_id)
         validate_rules(lot.rules)
-        existing = set(
-            AnalyticalTest.objects.filter(sample_id=sample.pk, kind="original").values_list(
-                "test_code", flat=True
-            )
-        )
+        lineages = _lineages(lot, sample)
         accepted, holds = resolve(lot)
         # A requirement a supplier's result is proposed or accepted for gets no test; one is
         # assigned here later if that is withdrawn.
         relied = supplier_standing(lot)
         created = []
         for code, payload in accepted.items():
-            if code in existing or code in relied:
+            if code in relied:
                 continue
+            lineage = lineages.get(code, [])
+            superseded = [t for t in lineage if t.state == AnalyticalTest.State.SUPERSEDED]
+            if lineage and (
+                not superseded
+                or any(t.state in OPEN_STATES | {AnalyticalTest.State.REVIEWED} for t in lineage)
+            ):
+                # The lineage has a test in progress or reviewed, or was closed by an
+                # investigation or a rejected batch, which decide what follows.
+                continue
+            parent = superseded[-1] if superseded else None
             test = AnalyticalTest.objects.create(
                 lot=lot,
-                sample_id=sample.pk,
+                sample_id=parent.sample_id if parent else sample.pk,
                 test_code=code,
                 requirement=payload,
                 requirement_hash=canonical_hash(payload),
+                kind=AnalyticalTest.Kind.REVISED if parent else AnalyticalTest.Kind.ORIGINAL,
+                parent=parent,
                 created_by=actor,
             )
             created.append(test)
@@ -158,10 +188,11 @@ def assign_tests(*, actor, sample, reason):
                 action="test.assigned",
                 obj=test,
                 after={
-                    "sample": sample.pk,
+                    "sample": test.sample_id,
                     "test_code": code,
                     "requirement": payload["source"],
                     "requirement_hash": test.requirement_hash,
+                    **({"repeats": parent.pk} if parent else {}),
                 },
                 reason=reason,
             )
@@ -860,11 +891,22 @@ def review_refusal(actor, test):
     return None
 
 
+def results_submitted(batch):
+    """True once a test of the batch has been submitted: the batch's QC is then fixed and it
+    takes no more tests. A test superseded before it was ever submitted does not count; one
+    superseded after submission does, because its result relied on the QC as it stood."""
+    return (
+        batch.tests.exclude(state=AnalyticalTest.State.OPEN)
+        .exclude(state=AnalyticalTest.State.SUPERSEDED, evaluated_at__isnull=True)
+        .exists()
+    )
+
+
 def batch_join_refusal(batch):
     """Batch-side preconditions for adding a test: open and no results submitted yet."""
     if batch.state != QCBatch.State.OPEN:
         return "Only open tests can join an open batch."
-    if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
+    if results_submitted(batch):
         return "This batch already has submitted results; start a new batch."
     return None
 
@@ -1013,7 +1055,7 @@ def assign_to_batch(*, actor, test, batch, reason):
 def _qc_guard(batch):
     if batch.state != QCBatch.State.OPEN:
         raise ValidationError("This batch is closed to QC entries.")
-    if batch.tests.exclude(state=AnalyticalTest.State.OPEN).exists():
+    if results_submitted(batch):
         raise ValidationError("QC cannot change after test results in this batch are submitted.")
 
 
@@ -1149,12 +1191,15 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
             raise ValidationError("Only open batches can be rejected.")
         if locked.qc_status()[0] != "failed":
             raise ValidationError("Only a batch with failed QC can be rejected.")
-        tests = list(locked.tests.select_for_update().order_by("pk"))
+        members = list(locked.tests.select_for_update().order_by("pk"))
         recorders = set(locked.qc_results.values_list("recorded_by_id", flat=True))
-        for test in tests:
+        for test in members:
             recorders |= _test_authors(test)
         if actor.pk in recorders:
             raise ValidationError("You cannot reject a batch containing your own work.")
+        # A superseded test is closed and stays as it is: it is not invalidated or rerun,
+        # though whoever worked on it is still an author of the batch.
+        tests = [t for t in members if t.state != AnalyticalTest.State.SUPERSEDED]
         lots = _lock_lots(*[t.lot_id for t in tests])
         for test in tests:
             if test.state not in OPEN_STATES:

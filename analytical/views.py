@@ -202,9 +202,13 @@ TEST_FILTERS = {
     "": ("All tests", Q()),
     "open": ("Open", Q(state="open")),
     "submitted": ("Awaiting review", Q(state="submitted")),
-    "oos": ("Out of specification", Q(conforms=False) & ~Q(state="invalidated")),
+    "oos": (
+        "Out of specification",
+        Q(conforms=False) & ~Q(state__in=["invalidated", "superseded"]),
+    ),
     "reviewed": ("Reviewed", Q(state="reviewed")),
     "invalidated": ("Invalidated", Q(state="invalidated")),
+    "superseded": ("Superseded", Q(state="superseded")),
 }
 
 
@@ -1010,7 +1014,7 @@ def qc_record(request, pk, code):
 
 
 def qc_frozen(batch):
-    return batch.state != "open" or batch.tests.exclude(state="open").exists()
+    return batch.state != "open" or services.results_submitted(batch)
 
 
 def qc_check(batch, code):
@@ -1095,7 +1099,7 @@ def batch_reject(request, pk):
         summary=[
             ("Batch", batch.number),
             ("QC status", status.capitalize()),
-            ("Tests invalidated", batch.tests.count()),
+            ("Tests invalidated", batch.tests.exclude(state="superseded").count()),
             (
                 "Effect",
                 "Each test is invalidated with a linked rerun; any out-of-limit "

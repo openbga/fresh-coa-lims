@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% comment %}Signed replacement of a lot's requirements during testing. Context: lot, preview, current, form, blocked, cancel_url, crumbs.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ lot.number }}</span> · lot record revision {{ lot.revision }} · {% include "includes/status.html" with label="Quarantine" tone="hold" %}</p>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="versions-heading">
+  <div class="card-header"><h2 class="card-title" id="versions-heading">Versions in force now</h2></div>
+  <div class="card-body">
+    <p>The lot is tested against the versions frozen when its requirements were assigned. A replacement freezes the versions in force now for the same material, stage and scope. The sampling plan is kept, because the lot's samples were taken under it.</p>
+    <dl class="vr-facts mb-0">
+      <div><dt>Material, stage and scope</dt><dd>{{ current.payload.material.code }} · {{ current.get_stage_display }} · {{ current.scope }}</dd></div>
+      <div><dt>Rule set</dt><dd>{{ lot.rules }}{% if preview.rules and preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>{% elif preview.rules %} · unchanged{% endif %}</dd></div>
+      <div><dt>Specification</dt><dd>{{ current.payload.specification.code }} v{{ current.payload.specification.version }}{% if preview.payload %}{% if preview.payload.specification.revision_id != current.payload.specification.revision_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong><a href="{% url 'catalog:specification_revision' preview.payload.specification.revision_id %}">{{ preview.payload.specification.code }} v{{ preview.payload.specification.version }}</a></strong>{% else %} · unchanged{% endif %}{% endif %}</dd></div>
+      <div><dt>Sampling plan</dt><dd>{{ current.payload.sampling_plan.code }} v{{ current.payload.sampling_plan.version }} · kept</dd></div>
+    </dl>
+  </div>
+</section>
+{% if preview.reasons %}
+<section class="card mb-3" aria-labelledby="refused-heading">
+  <div class="card-header"><h2 class="card-title" id="refused-heading">The requirements cannot be replaced now</h2></div>
+  <div class="card-body">
+    <div class="alert alert-warning mb-3" role="alert">{% include "includes/status.html" with label="Refused" tone="warning" plain=True %}<div class="text-break"><ul class="mb-0 ps-3">{% for reason in preview.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+    <p class="mb-0">Nothing was changed. The lot keeps the requirements it has. <a class="btn btn-outline-secondary ms-2" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
+  </div>
+</section>
+{% endif %}
+{% if preview.lines %}
+<section class="card vr-table-card mb-3" aria-labelledby="lines-heading">
+  <div class="card-header"><h2 class="card-title" id="lines-heading">Requirements</h2><span class="vr-count">{{ preview.lines|length }}</span></div>
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="lines-heading">
+      <thead><tr><th scope="col">Test</th><th scope="col">Change</th><th scope="col">Frozen for the lot</th><th scope="col">In force now</th></tr></thead>
+      <tbody>
+        {% for line in preview.lines %}
+        <tr>
+          <th scope="row"><span class="vr-id">{{ line.code }}</span><br>{{ line.name }}</th>
+          <td>{% if line.change == "unchanged" %}{% include "includes/status.html" with label="Unchanged" tone="neutral" plain=True %}{% elif line.change == "changed" %}{% include "includes/status.html" with label="Changed" tone="warning" plain=True %}{% elif line.change == "added" %}{% include "includes/status.html" with label="Added" tone="warning" plain=True %}{% else %}{% include "includes/status.html" with label="Removed" tone="warning" plain=True %}{% endif %}</td>
+          <td class="vr-wrap">{% if line.before %}{{ line.before }}{% if not line.was_required %}<br><span class="small">Information only</span>{% endif %}{% else %}<span class="vr-muted">Not in the frozen requirements</span>{% endif %}</td>
+          <td class="vr-wrap">{% if line.after %}{{ line.after }}{% if not line.required %}<br><span class="small">Information only</span>{% endif %}{% else %}<span class="vr-muted">Not in the specification in force</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% if preview.payload %}
+<section class="card vr-table-card mb-3" aria-labelledby="tests-heading">
+  <div class="card-header"><h2 class="card-title" id="tests-heading">Effect on the lot's tests</h2><span class="vr-count">{{ preview.tests|length }}</span></div>
+  <div class="card-body">
+    <p class="mb-0">A test carries over when its requirement is exactly the same: name, acceptance criterion, rounding, replicates and method version. Any other test is kept as recorded and marked superseded; it takes no more work and never counts toward the disposition. Assign the required tests again afterwards to repeat a superseded test under the new requirement.</p>
+  </div>
+  {% if preview.tests %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="tests-heading">
+      <thead><tr><th scope="col">Test</th><th scope="col">Code</th><th scope="col">Sample</th><th scope="col">Status now</th><th scope="col" class="text-end">Reportable</th><th scope="col">Effect</th></tr></thead>
+      <tbody>
+        {% for row in preview.tests %}
+        <tr>
+          <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a></th>
+          <td>{{ row.test_code }}</td>
+          <td>{{ row.sample }}</td>
+          <td>{% if row.state == "open" %}Open{% if row.has_results %} · results recorded{% endif %}{% elif row.state == "submitted" %}Awaiting review{% else %}Reviewed{% endif %}{% if row.conforms is False %} · out of specification{% endif %}</td>
+          <td class="text-end vr-nowrap">{{ row.result|default:"—" }}</td>
+          <td>{% if row.effect == "carried" %}{% include "includes/status.html" with label="Carries over" tone="success" plain=True %}{% elif row.why == "not_required" %}{% include "includes/status.html" with label="Superseded" tone="warning" plain=True %} no longer required{% else %}{% include "includes/status.html" with label="Superseded" tone="warning" plain=True %} requirement changed{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if preview.supplier_results %}
+  <div class="card-body">
+    <div class="alert alert-warning mb-0" role="status">{% include "includes/status.html" with label="Supplier results" tone="warning" plain=True %}<div class="text-break">A supplier's result is proposed or accepted in place of a test for {% for item in preview.supplier_results %}{{ item.test_code }} (<span class="vr-id">{{ item.label }}</span>){% if not forloop.last %}, {% endif %}{% endfor %}. It was accepted against the requirements being replaced, so it stops standing and blocks the disposition until it is withdrawn on the lot record. It can then be proposed again against the new requirements.</div></div>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% if preview.possible or blocked %}
+<section class="card" aria-labelledby="sign-title">
+  <div class="card-body">
+    <h2 id="sign-title" class="card-title">Sign replacement</h2>
+    {% if blocked %}
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div class="text-break">{{ blocked }} Independence cannot be bypassed by any role, including administrators.</div></div>
+    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
+    {% else %}
+    <p>Your signature records the meaning <strong>requirements replaced</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>: the requirements shown above as in force now are frozen for the lot, {{ preview.superseded|length }} test{{ preview.superseded|length|pluralize }} {{ preview.superseded|length|pluralize:"is,are" }} superseded and {{ preview.carried|length }} carr{{ preview.carried|length|pluralize:"ies,y" }} over. The earlier requirements and every test stay in the record. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If the versions in force or the lot's tests change before you sign, signing fails and you must review again.</p>
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_errors.html" with form=form %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="vr-form-actions">
+        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">Sign and replace requirements</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=lot.number %}{% endblock %}

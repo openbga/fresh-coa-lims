@@ -9,7 +9,14 @@ from django.core.exceptions import ValidationError
 from core.models import ElectronicSignature
 from quality.models import Sample
 
-from .contracts import bench, canonical_hash, reported_source, resolve, supplier_results
+from .contracts import (
+    bench,
+    canonical_hash,
+    content_hash,
+    reported_source,
+    resolve,
+    supplier_results,
+)
 from .models import (
     AnalyticalTest,
     Investigation,
@@ -43,11 +50,15 @@ def _root(test, by_pk):
 def tested_here(lot, test_code):
     """Why a supplier's result cannot stand in for this requirement of the lot, or "": the
     laboratory has started testing it. A test that is still open, in no QC batch, without any
-    observation (corrected ones included) and without a raw-data file has not started."""
+    observation (corrected ones included) and without a raw-data file has not started; nor has
+    one that was superseded in that condition when the lot's requirements were replaced.
+    Laboratory work on a superseded test still counts: replacing a requirement does not make
+    room for a supplier's result where the laboratory already has its own."""
     tests = AnalyticalTest.objects.filter(lot_id=lot.pk, test_code=test_code).order_by("pk")
     for test in tests:
         if (
-            test.state != STATE.OPEN
+            test.state not in (STATE.OPEN, STATE.SUPERSEDED)
+            or test.evaluated_at is not None
             or test.batch_id is not None
             or Observation.objects.filter(test=test).exists()
             or RawDataFile.objects.filter(test=test).exists()
@@ -68,6 +79,11 @@ def lot_status(lot):
     covers another; samples holding only authorized resample/rerun tests answer for the original
     sample they replace. A requirement for which a supplier's certificate result was accepted is
     answered for the whole lot by that acceptance and needs no test.
+
+    A test answers a requirement by content (``content_hash``), so a test carries over when
+    the lot's requirements are replaced by identical ones. A superseded test is closed: it
+    blocks nothing and answers nothing, and its sample then needs a test of the kind
+    ``revised`` under the current requirement.
     """
     return _status(lot)[:4]
 
@@ -84,6 +100,7 @@ def _status(lot):
     by_test = {i.test_id: i for i in investigations.values()}
     required, holds = resolve(lot)
     current = {code: canonical_hash(payload) for code, payload in required.items()}
+    content = {code: content_hash(payload) for code, payload in required.items()}
     stale = set()
     blockers = []
     for inv in investigations.values():
@@ -107,8 +124,12 @@ def _status(lot):
     worked = set(
         Observation.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True)
     ) | set(RawDataFile.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True))
-    reportable, roots = {}, {}
+    reportable, roots, replaced = {}, {}, set()
     for test in tests:
+        if test.state == STATE.SUPERSEDED:
+            root = _root(test, by_pk)
+            replaced.add((root.sample_id, root.test_code))
+            continue
         if test.state == STATE.OPEN:
             # An untouched test of a requirement the supplier's result answers is not work
             # left undone; it stays open and takes no result while the acceptance stands.
@@ -126,7 +147,10 @@ def _status(lot):
         key = (root.sample_id, root.test_code)
         roots[key] = root
         if _reportable(test, investigations):
-            if test.test_code in current and test.requirement_hash != current[test.test_code]:
+            if (
+                test.test_code in content
+                and content_hash(test.requirement) != content[test.test_code]
+            ):
                 stale.add(key)  # tested against a superseded requirement: never counts
             else:
                 reportable.setdefault(key, []).append(test)
@@ -139,7 +163,13 @@ def _status(lot):
         for code in required:
             if code in accepted:
                 continue  # answered for the whole lot by the accepted supplier result
-            if (sample.pk, code) not in roots:
+            if (sample.pk, code) not in roots and (sample.pk, code) in replaced:
+                blockers.append(
+                    f"Sample {sample.reference} has no {code} test under the lot's current "
+                    "requirements: the earlier test was superseded when they were replaced. "
+                    "Assign the required tests."
+                )
+            elif (sample.pk, code) not in roots:
                 blockers.append(f"Sample {sample.reference} has no {code} test assigned.")
             elif (sample.pk, code) not in reportable and (sample.pk, code) in stale:
                 blockers.append(
@@ -252,7 +282,9 @@ def lot_notices(lot):
     except ValidationError:
         return []
     notices = []
-    tests = AnalyticalTest.objects.filter(lot_id=lot.pk).exclude(state=STATE.INVALIDATED)
+    tests = AnalyticalTest.objects.filter(lot_id=lot.pk).exclude(
+        state__in=[STATE.INVALIDATED, STATE.SUPERSEDED]
+    )
     for test in tests.order_by("pk"):
         source = test.contract_source()
         notice = desk.contract_notice(source) if source else ""
@@ -336,7 +368,7 @@ def lot_evidence(lot):
         "excluded_tests": [
             {"test": t.pk, "test_code": t.test_code, "kind": t.kind, "state": t.state}
             for t in tests
-            if t.state == STATE.INVALIDATED
+            if t.state in (STATE.INVALIDATED, STATE.SUPERSEDED)
         ],
         "investigations": [
             {

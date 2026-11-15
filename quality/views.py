@@ -84,6 +84,11 @@ def lot_detail(request, pk):
     corrected = {receipt.corrects_id for receipt in receipts}
     receipt = next((r for r in receipts if r.pk not in corrected), None)
     can_record = request.user.groups.filter(name="analyst").exists()
+    lot_signatures = list(
+        ElectronicSignature.objects.filter(
+            object_type="quality.lot", object_id=str(lot.pk)
+        ).order_by("signed_at")
+    )
     return render(
         request,
         "quality/lot_detail.html",
@@ -102,9 +107,9 @@ def lot_detail(request, pk):
             "reports": lot.reports.all(),
             "assignment": assignment,
             "samples": lot.samples.prefetch_related("results__analyst"),
-            "signatures": ElectronicSignature.objects.filter(
-                object_type="quality.lot", object_id=str(lot.pk)
-            ).order_by("signed_at"),
+            "signatures": lot_signatures,
+            # A lot is also signed when its requirements are replaced during testing.
+            "disposition_signed": any(s.meaning == "approved" for s in lot_signatures),
             "result_signatures": ElectronicSignature.objects.filter(
                 object_type="quality.result",
                 object_id__in=[
