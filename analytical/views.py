@@ -923,15 +923,17 @@ def batch_crumbs(batch, current=None):
 def batch_new(request):
     require_role(request.user, "analyst")
     methods = batch_methods()
-    form = BatchForm(request.POST or None, methods=sorted(methods.items()))
+    # Earlier revisions that tests in progress are frozen to: a lot keeps its frozen versions.
+    earlier = sorted(services.earlier_batch_methods())
+    form = BatchForm(request.POST or None, methods=sorted(methods.items()), earlier=earlier)
     if request.method == "POST" and form.is_valid():
         batch = perform(
-            form, lambda: services.create_batch(actor=request.user, **form.cleaned_data)
+            form, lambda: services.create_batch(actor=request.user, **form.batch_data())
         )
         if batch:
             messages.success(request, f"QC batch {batch.number} created.")
             return redirect("analytical:batch_detail", pk=batch.pk)
-    if not methods:
+    if not methods and not earlier:
         form.add_error(None, "No approved batch method is available; batches are held.")
     return action_page(
         request,

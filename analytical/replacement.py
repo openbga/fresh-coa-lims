@@ -14,8 +14,9 @@ states it. When the requirements are replaced:
   requirement.
 
 Nothing recorded is set aside unevaluated: the replacement is refused while an investigation is
-open on the lot, and while a test that would be superseded holds results that were not
-submitted. A failing result therefore always meets the requirement it was tested under first.
+open on the lot, and while a test that would be superseded holds results or raw-data files
+that were not submitted. A failing result therefore always meets the requirement it was
+tested under first.
 
 Lock order: the lot's tests (by pk) are locked before the lot, as everywhere in testing
 (``lock`` runs before the signed lot is locked, ``apply`` under both locks).
@@ -26,7 +27,7 @@ from django.core.exceptions import ValidationError
 from core.audit import record_event
 
 from .contracts import content_hash, parse_requirement
-from .models import AnalyticalTest, Investigation, Observation
+from .models import AnalyticalTest, Investigation, Observation, RawDataFile
 
 STATE = AnalyticalTest.State
 CLOSED = (STATE.INVALIDATED, STATE.SUPERSEDED)
@@ -61,11 +62,13 @@ def effects(lot, requirements, tests=None):
     if tests is None:
         tests = AnalyticalTest.objects.filter(lot_id=lot.pk).select_related("sample")
         tests = list(tests.order_by("pk"))
+    ids = [t.pk for t in tests]
+    # Laboratory work that was recorded on a test: current observations and raw-data files.
     recorded = set(
-        Observation.objects.filter(
-            test__in=[t.pk for t in tests], correction__isnull=True
-        ).values_list("test_id", flat=True)
-    )
+        Observation.objects.filter(test__in=ids, correction__isnull=True).values_list(
+            "test_id", flat=True
+        )
+    ) | set(RawDataFile.objects.filter(test__in=ids).values_list("test_id", flat=True))
     rows = []
     for test in tests:
         if test.state in CLOSED:
@@ -105,9 +108,9 @@ def refusals(lot, rows):
         .order_by("pk")
     ]
     reasons.extend(
-        f"{row['label']} {row['test_code']} holds results that were not submitted, and its "
-        "requirement would change. Complete and submit it first, so that what was recorded "
-        "is evaluated against the requirement it was tested under."
+        f"{row['label']} {row['test_code']} holds results or raw-data files that were not "
+        "submitted, and its requirement would change. Complete and submit it first, so that "
+        "what was recorded is evaluated against the requirement it was tested under."
         for row in rows
         if row["effect"] == SUPERSEDED and row["state"] == STATE.OPEN and row["has_results"]
     )

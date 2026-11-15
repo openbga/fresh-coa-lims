@@ -458,11 +458,11 @@ def test_results_that_were_not_submitted_are_not_set_aside(world):
     lot = Lot.objects.get(pk=world["lot"].pk)
     preview = sampling.replacement_preview(lot)
     assert preview.reasons == [
-        f"{assay.label} assay holds results that were not submitted, and its requirement would "
-        "change. Complete and submit it first, so that what was recorded is evaluated against "
-        "the requirement it was tested under."
+        f"{assay.label} assay holds results or raw-data files that were not submitted, and its "
+        "requirement would change. Complete and submit it first, so that what was recorded is "
+        "evaluated against the requirement it was tested under."
     ]
-    with pytest.raises(ValidationError, match="holds results that were not submitted"):
+    with pytest.raises(ValidationError, match="holds results or raw-data files that were not"):
         replace(world)
     assert unchanged(world)
     # An unchanged requirement's open test with results simply carries over.
@@ -623,7 +623,9 @@ def test_a_superseded_rule_version_holds_the_lot_until_its_requirements_are_repl
     first.refresh_from_db()
     assert first.superseded_by == second and first.superseded_from <= timezone.now()
     with pytest.raises(ValidationError, match="approved, effective rule"):
-        review(world, world["tests"]["assay"])
+        analytical.assign_tests(
+            actor=people["analyst"], sample=world["tests"]["assay"].sample, reason="More tests"
+        )
     with pytest.raises(ValidationError, match="approved, effective rule"):
         dispose(world, people["approver"])
     preview = sampling.replacement_preview(Lot.objects.get(pk=lot.pk))
@@ -639,6 +641,31 @@ def test_a_superseded_rule_version_holds_the_lot_until_its_requirements_are_repl
     }
     review(world, world["tests"]["assay"])
     assert dispose(world, people["approver"]).state == "released"
+
+
+def test_a_retired_rule_version_never_strands_an_investigation(world):
+    """A failing result is reviewed and its investigation concluded under the rule version the
+    lot has, in force or not; only then are the requirements replaced. Without this a rule
+    version approved during an investigation left the lot with no legal move."""
+    lot = world["lot"]
+    assay = world["tests"]["assay"]
+    record(world, assay, "97.00")
+    _, investigation = submit(world, assay)
+    second = new_rule_version(world)
+    # The replacement waits for the investigation; the investigation does not wait for it.
+    preview = sampling.replacement_preview(Lot.objects.get(pk=lot.pk))
+    assert any("is open on this lot" in reason for reason in preview.reasons)
+    concluded = conclude_confirmed(world, investigation)  # reviews the failing result first
+    assert concluded.phase == "closed"
+    assay.refresh_from_db()
+    assert assay.state == STATE.REVIEWED and assay.conforms is False
+    preview = sampling.replacement_preview(Lot.objects.get(pk=lot.pk))
+    assert preview.possible and preview.rules == second and len(preview.carried) == 5
+    assert replace(world, who="author").rules == second
+    # The confirmed result still blocks the lot, under whatever rule version.
+    assert f"{investigation.label} confirmed an out-of-specification result." in (
+        gates.lot_blockers(lot)
+    )
 
 
 def test_database_keeps_a_lot_on_its_own_rule_set(world):
@@ -905,3 +932,155 @@ def test_a_hold_does_not_move_the_lot_to_another_rule_version(django_user_model)
     assert held.status == "hold"
     assert held.hold_reasons == ["Rule set requires tests missing from the specification: water"]
     assert lot.rules == first
+
+
+def test_a_second_replacement_supersedes_the_repeat_and_links_the_next_one(world):
+    people, lot = world["people"], world["lot"]
+    assay = world["tests"]["assay"]
+    complete(world, "assay")
+    new_specification_version(world)
+    replace(world)
+    first_repeat = analytical.assign_tests(
+        actor=people["analyst"], sample=assay.sample, reason="Repeat superseded tests"
+    )[0][0]
+    new_specification_version(world, low="98.7")
+    replace(world, who="author")
+    first_repeat.refresh_from_db()
+    assert first_repeat.state == STATE.SUPERSEDED  # open and untouched: nothing to set aside
+    created, _ = analytical.assign_tests(
+        actor=people["analyst"], sample=assay.sample, reason="Repeat superseded tests"
+    )
+    assert [(t.kind, t.parent_id) for t in created] == [("revised", first_repeat.pk)]
+    assert created[0].spec.lower == Decimal("98.7")
+    assert AnalyticalTest.objects.filter(lot=lot, test_code="assay").count() == 3
+    world["tests"]["assay"] = created[0]
+    complete(world, *READINGS)
+    assert gates.lot_blockers(lot) == []
+    evidence = dispose(world, people["approver"]).disposition_evidence["analytical"]
+    assert [r["test"] for r in evidence["results"] if r["test_code"] == "assay"] == [created[0].pk]
+    assert sorted(t["test"] for t in evidence["excluded_tests"]) == [assay.pk, first_repeat.pk]
+    assert len(quality.disposition_notices(lot)) == 2
+
+
+def test_raw_data_files_that_were_not_submitted_are_not_set_aside(world):
+    """A raw-data file is laboratory work, as it is for a supplier's result: an open test that
+    holds one is completed against its own requirement before that requirement is replaced."""
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from analytical.models import RawDataFile
+    from analytical.rawdata import attach_raw_file
+
+    lot, assay = world["lot"], world["tests"]["assay"]
+    attach_raw_file(
+        actor=world["people"]["analyst"],
+        test=assay,
+        upload=SimpleUploadedFile("assay-run-1.csv", b"replicate,value\n1,97.10\n", "text/csv"),
+        description="Synthetic instrument export of the assay run",
+    )
+    assert gates.tested_here(lot, "assay")
+    new_specification_version(world, low="97.0", high="103.0")  # wider limits
+    preview = sampling.replacement_preview(Lot.objects.get(pk=lot.pk))
+    row = next(r for r in preview.tests if r["test_code"] == "assay")
+    assert row["effect"] == "superseded" and row["has_results"] is True
+    assert not preview.possible
+    assert "holds results or raw-data files that were not submitted" in preview.reasons[0]
+    with pytest.raises(ValidationError, match="raw-data files that were not submitted"):
+        replace(world)
+    assert unchanged(world)
+    assert RawDataFile.objects.filter(test=assay).count() == 1
+
+
+def test_assigning_tests_and_a_second_replacement_at_once_do_not_deadlock(world, monkeypatch):
+    """Assigning a repeat links it to the superseded test it follows, so it takes the lot's
+    tests before the lot, the order the replacement uses. Whichever comes first, the other
+    waits and then finds the record changed; neither is aborted by a lock cycle."""
+    import threading
+
+    from django.db import connection
+
+    people = world["people"]
+    assay = world["tests"]["assay"]
+    new_specification_version(world)
+    replace(world)  # the assay test is superseded and not yet repeated
+    new_specification_version(world, low="98.7")
+    lot = Lot.objects.get(pk=world["lot"].pk)
+    shown = sampling.replacement_preview(lot).basis
+    tests_locked, assigning = threading.Event(), threading.Event()
+    real_testing = sampling._testing()
+
+    class Paused:
+        """The replacement holds the lot's tests and pauses before it takes the lot."""
+
+        def effects(self, *args, **kwargs):
+            return real_testing.effects(*args, **kwargs)
+
+        def apply(self, **kwargs):
+            return real_testing.apply(**kwargs)
+
+        def lock(self, the_lot):
+            held = real_testing.lock(the_lot)
+            tests_locked.set()
+            assigning.wait(10)
+            threading.Event().wait(0.5)  # let the assignment queue on the tests
+            return held
+
+    monkeypatch.setattr(sampling, "_testing", lambda: Paused())
+    outcomes = {}
+
+    def replacement():
+        try:
+            outcomes["replace"] = sampling.replace_requirements(
+                actor=people["author"],
+                pin=PIN,
+                lot=lot,
+                expected_revision=lot.revision,
+                reason=REASON,
+                basis=shown,
+            )
+        except Exception as exc:  # reported to the asserting test
+            outcomes["replace"] = exc
+        finally:
+            connection.close()
+
+    def assignment():
+        tests_locked.wait(10)
+        assigning.set()
+        try:
+            outcomes["assign"] = analytical.assign_tests(
+                actor=people["analyst"], sample=assay.sample, reason="Repeat superseded tests"
+            )
+        except Exception as exc:  # reported to the asserting test
+            outcomes["assign"] = exc
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=replacement), threading.Thread(target=assignment)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(30)
+    assert not any("deadlock" in str(outcome) for outcome in outcomes.values()), outcomes
+    assert isinstance(outcomes["replace"], Lot), outcomes
+    created, holds = outcomes["assign"]  # the assignment waited and ran after the replacement
+    assert holds == [] and [(t.test_code, t.kind) for t in created] == [("assay", "revised")]
+    assert created[0].spec.lower == Decimal("98.7") and created[0].parent == assay
+
+
+def test_the_disposition_signer_is_told_when_newer_versions_are_in_force(world):
+    """A lot keeps its frozen versions unless quality replaces them: the signer of its
+    disposition sees that a later version exists."""
+    people, lot = world["people"], world["lot"]
+    complete(world, *READINGS)
+    assert quality.disposition_notices(lot) == []
+    new_specification_version(world)
+    (notice,) = quality.disposition_notices(lot)
+    assert notice == (
+        "The versions in force now are not the ones frozen for this lot: specification "
+        "synthetic-rt-spec v2, 1 requirement changed. The lot is dispositioned against its "
+        "frozen requirements unless quality replaces them first. This does not block the "
+        "disposition."
+    )
+    released = dispose(world, people["approver"])
+    assert released.state == "released"
+    assert sampling.newer_versions(released) is None
+    assert quality.disposition_notices(released) == []

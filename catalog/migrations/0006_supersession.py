@@ -3,8 +3,8 @@
 Approving a later version retires the approved versions it overlaps. A retired version keeps
 its approved content and signature and states from when it no longer applies and which version
 replaced it. The guard, shared with sampling plan versions, lets exactly those two columns
-change on an approved row, only to be set or brought forward, never cleared or delayed; it
-reads them through ``to_jsonb`` so that it also runs on a table that has not gained the
+change on an approved row, only to be set or brought forward, never cleared or delayed, and
+only naming a later version of the same document; it reads them through ``to_jsonb`` so that it also runs on a table that has not gained the
 columns yet. Adding nullable columns does not fire the row triggers.
 """
 
@@ -13,6 +13,12 @@ from django.db import migrations, models
 
 GUARD = """
 CREATE OR REPLACE FUNCTION catalog_guard_revision() RETURNS trigger AS $$
+DECLARE
+  parent text := CASE TG_TABLE_NAME
+    WHEN 'catalog_methodrevision' THEN 'method_id'
+    WHEN 'catalog_specificationrevision' THEN 'specification_id'
+    ELSE 'plan_id' END;
+  successor jsonb;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Controlled revisions cannot be deleted; withdraw a draft instead';
@@ -25,6 +31,13 @@ BEGIN
              < (to_jsonb(OLD) ->> 'superseded_from')::timestamptz)
      AND (to_jsonb(OLD) - 'superseded_from' - 'superseded_by_id')
          = (to_jsonb(NEW) - 'superseded_from' - 'superseded_by_id') THEN
+    EXECUTE format('SELECT to_jsonb(s) FROM %I s WHERE s.id = $1', TG_TABLE_NAME)
+      INTO successor USING (to_jsonb(NEW) ->> 'superseded_by_id')::bigint;
+    IF successor IS NULL
+       OR (successor ->> parent) IS DISTINCT FROM (to_jsonb(OLD) ->> parent)
+       OR (successor ->> 'version')::integer <= OLD.version THEN
+      RAISE EXCEPTION 'A version is superseded only by a later version of the same document';
+    END IF;
     RETURN NEW;
   END IF;
   IF OLD.status <> 'draft' THEN

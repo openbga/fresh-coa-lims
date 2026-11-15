@@ -3,6 +3,7 @@
 from functools import reduce
 from operator import or_
 
+from django.apps import apps
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
@@ -121,6 +122,26 @@ def status_tone(status):
     return {"draft": "progress", "approved": "success", "withdrawn": "neutral"}.get(status, "info")
 
 
+def tests_in_progress(revision):
+    """How many open or awaiting-review tests of lots in quarantine are frozen to this method
+    version. Read through the app registry: the catalog does not depend on testing. Zero for
+    a specification or a sampling plan, which a lot keeps as a whole."""
+    if revision._meta.label_lower != "catalog.methodrevision" or not apps.is_installed(
+        "analytical"
+    ):
+        return 0
+    return (
+        apps.get_model("analytical", "AnalyticalTest")
+        .objects.filter(
+            state__in=["open", "submitted"],
+            lot__state="quarantine",
+            requirement__method__code=revision.method.code,
+            requirement__method__revision=revision.version,
+        )
+        .count()
+    )
+
+
 def approve_page(request, revision, *, kind, crumbs, success_url, detail_template):
     """Full-page signing action for any controlled revision. The service re-checks everything."""
     require_role(request.user, services.AUTHOR_ROLE)
@@ -133,7 +154,23 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
             services.ensure_independent(request.user, revision)
         except PermissionDenied as exc:
             blocked = str(exc)
-    if request.method == "POST" and not blocked and form.is_valid():
+    # What signing now would retire; signing works it out again at the moment of the signature.
+    # A draft overtaken by a later approved version is refused here, before any PIN is asked for.
+    retires, refusal = [], ""
+    if not blocked:
+        try:
+            retires = [
+                {
+                    "revision": other,
+                    "moment": moment,
+                    "never": moment <= other.effective_from,
+                    "tests": tests_in_progress(other),
+                }
+                for other, moment in services.retirements(revision)
+            ]
+        except ValidationError as exc:
+            refusal = " ".join(exc.messages)
+    if request.method == "POST" and not blocked and not refusal and form.is_valid():
         approved = run(
             form,
             lambda: services.approve_revision(
@@ -143,16 +180,6 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
         if approved:
             messages.success(request, f"{kind} {approved} approved and signed.")
             return redirect(success_url)
-    # What signing now would retire; signing works it out again at the moment of the signature.
-    retires, refusal = [], ""
-    if not blocked:
-        try:
-            retires = [
-                {"revision": other, "moment": moment, "never": moment <= other.effective_from}
-                for other, moment in services.retirements(revision)
-            ]
-        except ValidationError as exc:
-            refusal = " ".join(exc.messages)
     status = 403 if blocked else form_status(request, form)
     return render(
         request,

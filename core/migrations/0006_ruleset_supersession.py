@@ -3,7 +3,7 @@
 Approving a later version of a rule set retires the approved versions it overlaps: each keeps
 its approved content and states from when it no longer applies and which version replaced it.
 The guard lets exactly those two columns change on an approved row, only to be set or brought
-forward, never cleared or delayed. Adding nullable columns does not fire the row trigger.
+forward, never cleared or delayed, and only naming a later version of the same rule set. Adding nullable columns does not fire the row trigger.
 """
 
 import django.db.models.deletion
@@ -17,12 +17,18 @@ BEGIN
      AND NEW.superseded_from IS NOT NULL AND NEW.superseded_by_id IS NOT NULL
      AND (OLD.superseded_from IS NULL OR NEW.superseded_from < OLD.superseded_from)
      AND (to_jsonb(OLD) - 'superseded_from' - 'superseded_by_id')
-         = (to_jsonb(NEW) - 'superseded_from' - 'superseded_by_id') THEN
+         = (to_jsonb(NEW) - 'superseded_from' - 'superseded_by_id')
+     AND EXISTS (SELECT 1 FROM core_ruleset successor
+                 WHERE successor.id = NEW.superseded_by_id
+                   AND successor.code = OLD.code AND successor.version > OLD.version) THEN
    RETURN NEW;
   END IF;
   RAISE EXCEPTION 'Approved rules cannot be updated or deleted';
  END IF;
  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+ IF NEW.superseded_from IS NOT NULL OR NEW.superseded_by_id IS NOT NULL THEN
+  RAISE EXCEPTION 'Only an approved rule version is superseded, by the approval of a later one';
+ END IF;
  RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

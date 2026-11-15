@@ -177,8 +177,8 @@ def test_nothing_recorded_is_set_aside_unevaluated(people, assigned, revised):
     payloads = requirements(lot, revised, identity={"upper_limit": "1.50"})
     rows = replacement.effects(lot, payloads)
     reasons = replacement.refusals(lot, rows)
-    assert len(reasons) == 1 and "holds results that were not submitted" in reasons[0]
-    with pytest.raises(ValidationError, match="holds results that were not submitted"):
+    assert len(reasons) == 1 and "holds results or raw-data files that were not" in reasons[0]
+    with pytest.raises(ValidationError, match="holds results or raw-data files that were not"):
         supersede(people, lot, payloads)
     _, investigation = submit(people, tests["identity"])
     reasons = replacement.refusals(lot, replacement.effects(lot, payloads))
@@ -330,7 +330,11 @@ def test_whoever_worked_on_a_superseded_test_does_not_reject_its_batch(
         upload=SimpleUploadedFile("run.csv", b"synthetic run", content_type="text/csv"),
         description="Synthetic raw data",
     )
-    supersede(people, lot, requirements(lot, revised, assay={"lower_limit": "96.0"}))
+    # A replacement refuses to set unsubmitted raw data aside, so this state does not arise
+    # through the pages; the own-work rule holds all the same if it ever does.
+    with pytest.raises(ValidationError, match="raw-data files that were not submitted"):
+        supersede(people, lot, requirements(lot, revised, assay={"lower_limit": "96.0"}))
+    AnalyticalTest.objects.filter(pk=tests["assay"].pk).update(state="superseded")
     assert fresh(tests["assay"]).state == "superseded"
     pass_qc(people, batch, control="90.0")
     with pytest.raises(ValidationError, match="containing your own work"):

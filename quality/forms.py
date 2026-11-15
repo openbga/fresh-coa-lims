@@ -7,6 +7,7 @@ from django.utils.html import escape
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
 from core.models import RuleSet
+from core.services import applies_at
 from suppliers.models import Supplier
 
 from . import certificates
@@ -137,7 +138,8 @@ class LotForm(ReceiptForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["rules"].queryset = RuleSet.objects.filter(status="approved")
+        # Only versions in force: a lot is not received under a retired or expired version.
+        self.fields["rules"].queryset = RuleSet.objects.filter(applies_at(timezone.now()))
 
     def clean_number(self):
         number = self.cleaned_data["number"]

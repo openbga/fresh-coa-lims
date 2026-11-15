@@ -209,7 +209,48 @@ def rules_in_force(rules, at):
     return RuleSet.objects.filter(applies_at(at), code=rules.code).order_by("-version").first()
 
 
-def _plan_payload(material, stage, at, reasons):
+def _plan_fields(revision):
+    """The approved sampling plan version as it is frozen into a lot's requirements."""
+    return {
+        "revision_id": revision.pk,
+        "code": revision.plan.code,
+        "version": revision.version,
+        "approved_hash": revision.approved_hash,
+        **{
+            key: revision.approved_content[key]
+            for key in (
+                "basis",
+                "parameter",
+                "minimum_quantity",
+                "quantity_unit",
+                "composite_allowed",
+                "instructions",
+            )
+        },
+    }
+
+
+def _sampled_plan(lot, material, stage):
+    """The plan version the lot's samples were taken under, for requirements assigned again
+    to the same material and stage, or None.
+
+    Samples already taken stay valid under the plan they were taken under: a later version of
+    the plan does not make them unusable, and nothing could make them usable again. None
+    when nothing was sampled, when the lot's sampling records name several versions, or when
+    the plan belongs to another material or stage; the sampling gate then says which samples
+    do not fit the requirements.
+    """
+    revisions = {record.plan_revision for record in current_records(lot).values()}
+    if len(revisions) != 1:
+        return None
+    (revision,) = revisions
+    plan = revision.plan
+    return revision if (plan.material_id, plan.stage) == (material.pk, stage) else None
+
+
+def _plan_payload(lot, material, stage, at, reasons):
+    if kept := _sampled_plan(lot, material, stage):
+        return kept, _plan_fields(kept)
     plan = SamplingPlan.objects.filter(material=material, stage=stage).first()
     revision = effective_revision(SamplingPlanRevision, plan, at) if plan else None
     if plan is None:
@@ -217,23 +258,7 @@ def _plan_payload(material, stage, at, reasons):
     elif revision is None:
         reasons.append(f"Sampling plan {plan.code} has no approved version effective now.")
     else:
-        return revision, {
-            "revision_id": revision.pk,
-            "code": plan.code,
-            "version": revision.version,
-            "approved_hash": revision.approved_hash,
-            **{
-                key: revision.approved_content[key]
-                for key in (
-                    "basis",
-                    "parameter",
-                    "minimum_quantity",
-                    "quantity_unit",
-                    "composite_allowed",
-                    "instructions",
-                )
-            },
-        }
+        return revision, _plan_fields(revision)
     return None, None
 
 
@@ -350,7 +375,8 @@ def assign_requirements(*, actor, lot, material, stage, reason, scope="general")
     """Freeze the effective specification, methods and sampling plan for a lot, or record a hold.
 
     A new assignment supersedes the previous one; earlier assignments and their payloads remain.
-    The lot moves to the version in force of its own rule set when that is not the one it has.
+    The lot moves to the version in force of its own rule set when that is not the one it has,
+    and once it has been sampled it keeps the plan version its samples were taken under.
     The lot revision increments so a disposition prepared against old requirements goes stale.
     Once testing has started this is refused: tests are bound to the frozen payload, and only
     a signed replacement (``replace_requirements``) changes the lot's requirements.
@@ -373,7 +399,7 @@ def assign_requirements(*, actor, lot, material, stage, reason, scope="general")
         )
     except ApplicabilityHold as hold:
         reasons.extend(hold.reasons)
-    plan_revision, plan_payload = _plan_payload(material, stage, at, reasons)
+    plan_revision, plan_payload = _plan_payload(locked, material, stage, at, reasons)
     assignment = LotAssignment(
         lot=locked,
         material=material,
@@ -621,10 +647,59 @@ def replacement_preview(lot, at=None):
     return preview
 
 
+def newer_versions(lot, current=None):
+    """What differs between the versions in force and the ones frozen for a lot in testing, or
+    None when nothing does (or the lot is not in quarantine and in testing).
+
+    ``{"items": [...], "reasons": [...], "rules": bool}``: ``items`` names the rule set and
+    specification versions in force and counts the requirements that changed; ``reasons`` is
+    set instead when the versions in force cannot be applied to the lot; ``rules`` says that
+    the lot's rule version is no longer the one in force, which the disposition requires. The
+    lot keeps its frozen requirements either way, until quality replaces them.
+    """
+    if lot.state != "quarantine" or not testing_started(lot):
+        return None
+    preview = replacement_preview(lot)
+    if preview.blocker:
+        return None
+    found = {
+        "items": [],
+        "reasons": preview.reasons if preview.payload is None else [],
+        # The lot's rule version is no longer the one in force: that blocks the disposition.
+        "rules": preview.rules is None or preview.rules.pk != lot.rules_id,
+    }
+    if preview.rules and preview.rules.pk != lot.rules_id:
+        found["items"].append(f"rule set {preview.rules}")
+    if preview.payload:
+        spec = preview.payload["specification"]
+        if spec["revision_id"] != preview.current.specification_revision_id:
+            found["items"].append(f"specification {spec['code']} v{spec['version']}")
+        changed = sum(1 for row in preview.lines if row["change"] != "unchanged")
+        if changed:
+            found["items"].append(f"{changed} requirement{'' if changed == 1 else 's'} changed")
+    return found
+
+
 def replacement_notices(lot):
-    """What a disposition signer should know about replacements of the lot's requirements
-    during testing; never a blocker. One line per signed replacement, oldest first."""
+    """What a disposition signer should know about the lot's requirements; never a blocker.
+
+    First, when the versions in force are no longer the frozen ones, that the lot is judged
+    against its frozen requirements. Then one line per signed replacement, oldest first."""
     notices = []
+    newer = newer_versions(lot)
+    if newer and newer["rules"]:
+        notices.append(
+            "The lot's rule set version is no longer in force"
+            + (": " + ", ".join(newer["items"]) + " in force now" if newer["items"] else "")
+            + ". The disposition is refused until quality replaces the lot's requirements."
+        )
+    elif newer and newer["items"]:
+        notices.append(
+            "The versions in force now are not the ones frozen for this lot: "
+            + ", ".join(newer["items"])
+            + ". The lot is dispositioned against its frozen requirements unless quality "
+            "replaces them first. This does not block the disposition."
+        )
     replaced = LotAssignment.objects.filter(lot=lot, origin=AssignmentOrigin.REPLACED)
     for assignment in replaced.select_related("assigned_by").order_by("assigned_at", "id"):
         superseded = [

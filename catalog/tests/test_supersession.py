@@ -208,6 +208,11 @@ def test_database_lets_a_supersession_only_be_set_or_brought_forward(people):
         with pytest.raises(DatabaseError, match="Approved or withdrawn revisions are immutable"):
             with transaction.atomic():
                 table.update(**change)
+    elsewhere = approve(method_revision(author, code="gc-other", end_days=400), approver)
+    for successor in (elsewhere, v1):  # another method; the version itself
+        with pytest.raises(DatabaseError, match="only by a later version of the same document"):
+            with transaction.atomic():
+                table.update(superseded_from=retired - timedelta(days=1), superseded_by=successor)
     with transaction.atomic():
         table.update(superseded_from=retired - timedelta(days=1))  # brought forward
     draft = method_revision(author, method=v1.method, start_days=100, end_days=200)
@@ -219,8 +224,8 @@ def test_database_lets_a_supersession_only_be_set_or_brought_forward(people):
     for moment in (v2.effective_from - timedelta(days=1), v2.effective_until):
         with pytest.raises(DatabaseError, match="methodrevision_superseded"):
             with transaction.atomic():
-                MethodRevision.objects.filter(pk=v2.pk).update(
-                    superseded_from=moment, superseded_by=v1
+                MethodRevision.objects.filter(pk=v2.pk).update(  # outside its own period
+                    superseded_from=moment, superseded_by=draft
                 )
     with pytest.raises(DatabaseError, match="cannot be deleted"):
         with transaction.atomic():
@@ -291,4 +296,18 @@ def test_approval_page_lists_what_the_signature_retires(client, people):
         .split()
     )
     assert "Cannot be approved" in page and "Version 4 is already approved for these dates" in page
+    assert 'name="pin"' not in page and "Sign and approve" not in page
+    signatures = ElectronicSignature.objects.count()
+    response = client.post(
+        reverse("catalog:specification_approve", args=[stale.pk]),
+        {
+            "reason": "Sign anyway",
+            "signature_username": approver.username,
+            "pin": "00000000",
+            "expected_revision": stale.revision,
+        },
+    )
+    assert "Cannot be approved" in response.content.decode()
+    assert not AuditEvent.objects.filter(action="signature.denied").exists()  # no PIN was tried
+    assert ElectronicSignature.objects.count() == signatures
     assert SpecificationRevision.objects.get(pk=stale.pk).status == "draft"

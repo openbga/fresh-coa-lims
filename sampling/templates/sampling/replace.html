@@ -60,7 +60,7 @@
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a></th>
           <td>{{ row.test_code }}</td>
           <td>{{ row.sample }}</td>
-          <td>{% if row.state == "open" %}Open{% if row.has_results %} · results recorded{% endif %}{% elif row.state == "submitted" %}Awaiting review{% else %}Reviewed{% endif %}{% if row.conforms is False %} · out of specification{% endif %}</td>
+          <td>{% if row.state == "open" %}Open{% if row.has_results %} · results or raw data recorded{% endif %}{% elif row.state == "submitted" %}Awaiting review{% else %}Reviewed{% endif %}{% if row.conforms is False %} · out of specification{% endif %}</td>
           <td class="text-end vr-nowrap">{{ row.result|default:"—" }}</td>
           <td>{% if row.effect == "carried" %}{% include "includes/status.html" with label="Carries over" tone="success" plain=True %}{% elif row.why == "not_required" %}{% include "includes/status.html" with label="Superseded" tone="warning" plain=True %} no longer required{% else %}{% include "includes/status.html" with label="Superseded" tone="warning" plain=True %} requirement changed{% endif %}</td>
         </tr>

@@ -273,6 +273,27 @@ def test_a_rule_version_that_starts_later_retires_the_earlier_one_from_its_start
     validate_rules(third, at=second.effective_from)
 
 
+def test_a_version_that_already_never_applies_is_left_as_it_is(rule, people):
+    """Bringing a change forward twice: the version that was retired before it started is not
+    retired again at the same moment (the guard refuses that, and signing used to fail)."""
+    approve(rule, people[1])
+    second = approve(future_rule(rule, people, 30), people[1])
+    third = approve(future_rule(rule, people, 10), people[1])
+    draft = future_rule(rule, people, 5)
+    from core.services import check_rule_approval
+
+    plan = check_rule_approval(actor=people[1], rule=draft)
+    assert [str(other) for other, _ in plan] == [str(rule), str(third)]
+    fourth = approve(draft, people[1])
+    rule.refresh_from_db()
+    second.refresh_from_db()
+    third.refresh_from_db()
+    assert (rule.superseded_from, rule.superseded_by) == (fourth.effective_from, fourth)
+    assert (second.superseded_from, second.superseded_by) == (second.effective_from, third)
+    assert (third.superseded_from, third.superseded_by) == (third.effective_from, fourth)
+    validate_rules(fourth, at=fourth.effective_from)
+
+
 def test_a_draft_cannot_retire_a_later_approved_rule_version(rule, people):
     approve(rule, people[1])
     stale = future_rule(rule, people, 10)
@@ -301,18 +322,33 @@ def test_database_lets_a_supersession_only_be_set_or_brought_forward(rule, peopl
         with pytest.raises(DatabaseError, match="Approved rules cannot be updated"):
             with transaction.atomic():
                 table.update(**change)
+    other = RuleSet.objects.create(
+        code="synthetic-other",
+        segment="chemical",
+        author=people[0],
+        status="approved",
+        version=9,
+        effective_from=timezone.now(),
+        effective_until=timezone.now() + timedelta(days=30),
+        policy=rule.policy,
+    )
+    for successor in (other, rule):  # another rule set; the version itself
+        with pytest.raises(DatabaseError, match="Approved rules cannot be updated"):
+            with transaction.atomic():
+                table.update(superseded_from=retired - timedelta(days=1), superseded_by=successor)
     with transaction.atomic():
         table.update(superseded_from=retired - timedelta(days=1))  # brought forward
     draft = future_rule(rule, people, 60)
+    for change in ({}, {"status": "approved"}):  # a draft, also when approved in the same write
+        with pytest.raises(DatabaseError, match="Only an approved rule version is superseded"):
+            with transaction.atomic():
+                RuleSet.objects.filter(pk=draft.pk).update(
+                    superseded_from=draft.effective_from, superseded_by=second, **change
+                )
     with pytest.raises(DatabaseError, match="rule_superseded"):
         with transaction.atomic():
-            RuleSet.objects.filter(pk=draft.pk).update(
-                superseded_from=draft.effective_from, superseded_by=second
-            )
-    with pytest.raises(DatabaseError, match="rule_superseded"):
-        with transaction.atomic():
-            RuleSet.objects.filter(pk=second.pk).update(
-                superseded_from=second.effective_from - timedelta(days=1), superseded_by=rule
+            RuleSet.objects.filter(pk=second.pk).update(  # before its own start
+                superseded_from=second.effective_from - timedelta(days=1), superseded_by=draft
             )
 
 

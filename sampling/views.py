@@ -174,22 +174,7 @@ def lot_detail(request, pk):
         )
     # Once testing has started, say when the versions in force are no longer the frozen ones:
     # the lot keeps its own until quality replaces them.
-    newer = None
-    if testing and lot.state == "quarantine":
-        preview = services.replacement_preview(lot)
-        if not preview.blocker:
-            newer = {"reasons": preview.reasons if preview.payload is None else [], "items": []}
-            if preview.rules and preview.rules.pk != lot.rules_id:
-                newer["items"].append(f"rule set {preview.rules}")
-            if preview.payload:
-                spec = preview.payload["specification"]
-                if spec["revision_id"] != current.specification_revision_id:
-                    newer["items"].append(f"specification {spec['code']} v{spec['version']}")
-                changed = sum(1 for row in preview.lines if row["change"] != "unchanged")
-                if changed:
-                    newer["items"].append(
-                        f"{changed} requirement{'' if changed == 1 else 's'} changed"
-                    )
+    newer = services.newer_versions(lot)
     return render(
         request,
         "sampling/lot_detail.html",

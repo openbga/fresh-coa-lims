@@ -175,6 +175,18 @@ def validate_rules(rule, at=None):
     validate_policy(rule.policy)
 
 
+def validate_approved_rules(rule):
+    """An approved rule version with a valid policy, whether or not it is still in force.
+
+    For steps that evaluate what was already recorded under it (the review of a result).
+    Assigning tests and the disposition need the version in force (``validate_rules``), so a
+    version retired meanwhile never strands a result awaiting review or an investigation.
+    """
+    if rule.status != "approved":
+        raise ValidationError("An approved rule revision is required.")
+    validate_policy(rule.policy)
+
+
 def applies_at(at):
     """Filter for approved versions that apply at ``at``: inside their effective period and not
     yet superseded by a later version. Shared by rule sets and controlled catalog revisions,
@@ -207,12 +219,15 @@ def supersession_plan(siblings, revision, at):
     )
     plan = []
     for other in overlapping.order_by("version"):
+        moment = max(other.effective_from, start)
+        if other.superseded_from is not None and other.superseded_from <= moment:
+            continue  # already retired by then (for example a version that never applies)
         if other.version > revision.version:
             raise ValidationError(
                 f"Version {other.version} is already approved for these dates, and a version "
                 "cannot retire a later one. Withdraw this draft and create a new version."
             )
-        plan.append((other, max(other.effective_from, start)))
+        plan.append((other, moment))
     return plan
 
 
