@@ -77,7 +77,8 @@ def supplier_new(request):
             "cancel_url": reverse("suppliers:list"),
             "submit_label": "Create supplier",
             "intro": "A supplier's identity cannot be edited after creation; use synthetic names "
-            "only. Adding a supplier does not qualify it.",
+            "only. Adding a supplier does not qualify it; a qualification is recorded on the "
+            "supplier's page and signed by a second quality person.",
         },
         status=form_status(request, form),
     )

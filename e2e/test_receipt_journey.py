@@ -56,7 +56,7 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         page.get_by_role("button", name="Create supplier", exact=True).click()
         expect(page.get_by_text("Supplier sup-syn-001 created.")).to_be_visible()
         expect(page.get_by_text("No lots received from this supplier")).to_be_visible()
-        expect(page.get_by_text("Not recorded in this register")).to_be_visible()
+        expect(page.get_by_text("No qualification is recorded.")).to_be_visible()
         sign_out()
 
         # The analyst receives a lot; incomplete receipt details are refused and kept on screen.

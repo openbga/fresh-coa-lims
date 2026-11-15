@@ -165,7 +165,7 @@ def test_certificate_page_offers_a_proposal_only_where_it_would_stand(client, wo
         sign_in(client, world, name)
         page = text(client.get(page_url))
         assert "Propose in place of a test" not in page and "Not available" not in page
-        assert "Not proposed" in page
+        assert "In place of a test:" not in page
         assert client.get(assay).status_code == 403
     assert not AuditEvent.objects.filter(action="supplier_result.refused").exists()
 

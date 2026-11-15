@@ -187,8 +187,10 @@ def _evidence(*, lot, result, receipt, qualification):
 
 
 def _record_checks(lot, result):
-    """The checks on the lot's own records; returns the current receipt. Raises ValidationError
-    with the reason when the stated result cannot be relied on as the records stand."""
+    """The rule set, then the lot's own records; returns the current receipt.
+
+    Raises RelianceRefused when the rule set does not allow the result to be relied on, and
+    ValidationError with the reason when it cannot be relied on as the records stand."""
     from analytical.contracts import canonical_hash
 
     certificate = result.certificate
@@ -196,6 +198,11 @@ def _record_checks(lot, result):
         raise ValidationError("The supplier result belongs to another lot.")
     if lot.state != "quarantine":
         raise ValidationError(QUARANTINE_ONLY)
+    # The rule set speaks first: what it keeps with the laboratory is never relied on,
+    # whatever the records say.
+    check_rules(lot.rules)
+    if refusal := supplier_reliance_refusal(lot.rules, result.test_code):
+        raise RelianceRefused(str(lot.rules), [refusal])
     if certificates.change_blocker(certificate):
         raise ValidationError(NOT_CURRENT)
     receipt = current_receipt(lot)
@@ -215,15 +222,12 @@ def _record_checks(lot, result):
 
 
 def _authorization(lot, result, receipt, *, lock):
-    """The rule set and the supplier qualification; returns the qualification relied on.
-    Raises RelianceRefused when either does not let the result be relied on."""
+    """The supplier qualification relied on. Raises RelianceRefused when none covers the
+    supplier, the material, the test and the day the lot was received."""
     from suppliers.models import SupplierQualification
     from suppliers.qualification import lock_qualifications, reliance_finding
 
-    check_rules(lot.rules)
     code = result.test_code
-    if refusal := supplier_reliance_refusal(lot.rules, code):
-        raise RelianceRefused(str(lot.rules), [refusal])
     material = _material(lot)
     qualifications = lock_qualifications(receipt.supplier, material) if lock else None
     finding = reliance_finding(
@@ -379,9 +383,6 @@ def accept_result(*, actor, pin, acceptance, expected_revision, reason):
         if actor.pk in _chain_author_ids(result.certificate):
             raise PermissionDenied(CERTIFICATE_AUTHOR)
         receipt = _record_checks(lot, result)
-        check_rules(lot.rules)
-        if refusal := supplier_reliance_refusal(lot.rules, locked.test_code):
-            raise ValidationError(refusal)
         # The qualification the proposal named, locked: a revocation being signed is waited for.
         qualification = (
             SupplierQualification.objects.select_for_update(of=("self",))

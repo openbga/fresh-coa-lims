@@ -39,7 +39,7 @@
     {% if replaced %}<p>A result was compared with a requirement that is no longer current for this lot. Its comparison stands as recorded{% if can_correct %}; correct the certificate record to compare it with the current requirements{% endif %}.</p>{% endif %}
     <div class="vr-table-wrap">
       <table class="table vr-table" aria-labelledby="results-heading">
-        <thead><tr><th scope="col">Test</th><th scope="col">Result stated</th><th scope="col">Method stated</th><th scope="col">Limits stated</th><th scope="col">Specification</th><th scope="col">Comparison</th><th scope="col">In place of a test</th></tr></thead>
+        <thead><tr><th scope="col">Test</th><th scope="col">Result stated</th><th scope="col">Method stated</th><th scope="col">Limits stated</th><th scope="col">Specification</th><th scope="col">Comparison</th></tr></thead>
         <tbody>
           {% for row in rows %}
           <tr>
@@ -49,8 +49,12 @@
             <td class="vr-wrap">{{ row.line.limits|default:"Not stated" }}</td>
             <td class="vr-wrap small">{{ row.acceptance }}<div class="vr-muted">{{ row.source }}</div></td>
             <td>{% if row.line.conforms %}{% include "includes/status.html" with label="Meets the specification" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %}{% endif %}{% if row.replaced %}<div>{% include "includes/status.html" with label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}</td>
-            <td class="vr-wrap small">{% if row.standing %}<a class="vr-id" href="{% url 'quality:acceptance_detail' row.standing.pk %}">{{ row.standing.label }}</a> {% if row.standing.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}{% elif row.can_propose %}<a href="{% url 'quality:acceptance_new' row.line.pk %}">Propose in place of a test<span class="visually-hidden">: {{ row.name }}</span></a>{% elif row.refusal %}<span class="vr-muted">Not available: {{ row.refusal }}</span>{% else %}<span class="vr-muted">Not proposed</span>{% endif %}</td>
           </tr>
+          {% if row.standing or row.can_propose or row.refusal %}
+          <tr>
+            <td colspan="6" class="vr-wrap small"><span class="vr-muted">In place of a test:</span> {% if row.standing %}<a class="vr-id" href="{% url 'quality:acceptance_detail' row.standing.pk %}">{{ row.standing.label }}</a> {% if row.standing.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}{% elif row.can_propose %}<a href="{% url 'quality:acceptance_new' row.line.pk %}">Propose in place of a test<span class="visually-hidden">: {{ row.name }}</span></a>{% else %}Not available: {{ row.refusal }}{% endif %}</td>
+          </tr>
+          {% endif %}
           {% endfor %}
         </tbody>
       </table>
