@@ -286,6 +286,28 @@ A draft cannot retire an approved version with a higher number: withdraw the dra
 
 Lots already received keep the versions frozen when their requirements were assigned, so a revised specification, method or sampling plan changes nothing for them by itself. For a method that runs in QC batches, a test joins only a batch of the method version it is frozen to. **New QC batch** therefore offers the version in force and, while open tests not yet in a batch are frozen to an earlier version, that earlier version too ("earlier version, for tests in progress"), so that work a lot has started can be finished and evaluated. The method approval page counts the tests in progress frozen to the version it retires. A lot that has been sampled keeps the sampling plan version its samples were taken under, also when its requirements are assigned again before testing. A revised **rule set** does: tests are assigned and the lot is dispositioned only while the lot's rule version is in force. Results already recorded can still be reviewed and an investigation concluded. Before approving a rule version that takes over at once, look at the count of lots in quarantine on the approval page; either start the new version later, so that lots in progress finish first, or move each of those lots afterwards: assign its requirements again if it has no test yet, replace them with a signature if it has.
 
+## Markets, customers and several sets of requirements on one lot
+
+A lot's requirements are assigned under one or more **scopes**: `general`, and a name the laboratory gives each market or customer whose requirements differ, for example `eu-market`. The scope names are yours; use one spelling everywhere, because a lot is matched to the configuration by the name. The assignment form lists the scopes the configuration uses.
+
+| To require | Configure |
+|---|---|
+| Other limits, methods or tests for a market or customer | A specification of the material and stage with that scope (Catalog, **New specification**, Scope). It applies in full to every lot assigned under the scope, beside the specifications of the lot's other scopes |
+| Tests that must be performed for a market, a customer, a material or a stage, whatever the specification says | A rule set whose policy carries `applies_to`, for example `{"scopes": ["eu-market"]}`, `{"materials": ["mat-001"], "stages": ["incoming"]}`. Each key is a list; a key left out matches every lot; one of the listed scopes is enough. The rule set then applies to every such lot beside the lot's own rule set, from the next time the lot's requirements are assigned or replaced |
+| Reliance on a supplier's results under such a rule set | `supplier_results` in that rule set's policy as well: every rule set a lot is under must allow the reliance, and a test any of them lists under `own_tests` stays with the laboratory |
+
+An additional rule set is not offered when a lot is received, and a rule set keeps its kind: create an additional rule set under its own code. Approval refuses a material or stage that does not exist. The site is the deployment; there is no site key.
+
+The lot is placed on an **applicability hold** with the reasons when a named scope has nothing configured, a specification or method has no version in force, or a rule set requires a test that no specification applying to the lot requires. Resolve these in the configuration and assign the requirements again.
+
+When two specifications state the same test differently (limits, method version, rounding, replicates, name or whether it is required), nothing is merged and neither is picked. A quality person who recorded none of the lot's data opens **Sampling**, the lot, **Decide conflicting requirements**, chooses for each such test the requirement that applies to this lot, gives a reason and signs. A lot has to meet every specification that binds it: choose the requirement under which a passing result also meets the others, or record why another specification does not bind this lot. The software does not check the choice. The requirements not chosen stay in the lot's record, are shown where the disposition is signed and are printed on the certificate. Assigning the requirements again asks for the decision again. Where the same difference returns for every lot, revise the specifications so that they agree, or keep one complete specification for that market or customer and assign such lots under that scope alone.
+
+A requirement chosen before testing can be changed once testing has started only by a signed replacement: quality opens the lot's requirements page and follows the link to review a replacement, chooses the other requirement and signs. The test made under the first choice is then superseded and repeated, and the replacement is refused while an investigation is open on the lot.
+
+Rule set versions end on their effective end date unless a later version is approved. Before an additional rule set that is the only configuration of a scope ends, approve its next version or a specification for that scope: a lot in testing under the scope cannot be dispositioned once the version it froze is no longer in force, and its requirements cannot be replaced while the scope selects nothing.
+
+A lot is tested once against the requirement that applies. A result is not evaluated against each differing specification, and a certificate for one customer with only that customer's limits is not produced.
+
 ## Replacing a lot's requirements during testing
 
 Before a lot has a test, an analyst or quality assigns its requirements again from the lot's requirements page; no signature is needed. Once a test exists, quality opens **Sampling**, the lot, **Replace requirements**. The page shows the versions in force beside the frozen ones, every requirement that changes and what happens to each test, then asks for a reason and a signature.
@@ -293,7 +315,8 @@ Before a lot has a test, an analyst or quality assigns its requirements again fr
 | Rule | Detail |
 |---|---|
 | Who signs | A quality person who recorded none of the lot's receipt, supplier certificate, sampling or test data and proposed no supplier result for it; reviewing a test is not authorship |
-| What is frozen | The versions in force for the same material, stage and scope, and the version in force of the lot's own rule set. The sampling plan is kept |
+| What is frozen | The versions in force for the same material, stage and scopes, the version in force of the lot's own rule set and the additional rule sets that apply then. The sampling plan is kept |
+| Requirements stated differently | Where the specifications in force state a test differently, the page lists every statement and asks which one applies; a choice made for the lot's current requirements is carried while its scope still states the test. Nothing is signed while a test waits for a choice |
 | Tests that carry over | Those whose requirement is exactly the same: name, acceptance criterion, rounding, replicates and method version |
 | Tests that are superseded | Every other test. It is kept with everything recorded on it, takes no more work and never counts. **Assign required tests** on the lot's testing page then adds a linked repeat under the new requirement |
 | Refused when | An investigation is open on the lot; a test that would be superseded is open with results or raw-data files that were not submitted (complete and submit it first); nothing changed; no version is in force or the rule set requires a test the specification lacks |
