@@ -2479,8 +2479,12 @@ fieldset.vr-field > legend {
   align-items: baseline;
 }
 
+/* An event name can be one long unbroken word (an audit action): it wraps inside the item
+   instead of widening the page on a phone. */
 .vr-timeline-title {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .vr-timeline-meta {
