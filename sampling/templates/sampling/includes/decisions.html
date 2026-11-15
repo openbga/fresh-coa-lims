@@ -1,0 +1,4 @@
+{% comment %}Conflicts between specifications decided for a lot's requirements. Parameter: decisions (payload decisions: code, specification, scopes, text, alternatives).{% endcomment %}
+<ul class="mb-0 ps-3">
+  {% for item in decisions %}<li><span class="vr-id">{{ item.code }}</span>: <strong>{{ item.specification.code }} v{{ item.specification.version }}</strong> ({{ item.scopes|join:", " }}) applies, {{ item.text }}{% if not item.required %}, information only{% endif %}. Not applied: {% for alt in item.alternatives %}{{ alt.specification.code }} v{{ alt.specification.version }} ({{ alt.scopes|join:", " }}), {{ alt.text }}{% if not alt.required %}, information only{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</li>{% endfor %}
+</ul>

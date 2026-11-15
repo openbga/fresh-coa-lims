@@ -158,7 +158,9 @@ class SpecificationForm(SpecificationRevisionForm):
     scope = forms.SlugField(
         max_length=60,
         initial="general",
-        help_text="general, or a named market/customer overlay. Overlays are never merged.",
+        help_text="general, or a named market or customer overlay such as eu-market. A lot is "
+        "assigned under every scope it falls under and each specification applies in full; "
+        "where two state a test differently the lot is held for a quality decision.",
     )
     groups = [
         ("Specification", ["code", "title", "material", "stage", "scope"]),

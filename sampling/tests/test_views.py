@@ -80,7 +80,7 @@ def test_assign_hold_then_ready_then_sample_and_correct(client, people, lot):
     form = client.get(assign_url)
     assert f'value="{mat.pk}" selected' in form.content.decode()
     held = client.post(
-        assign_url, {"material": mat.pk, "stage": "incoming", "scope": "general", "reason": "x"}
+        assign_url, {"material": mat.pk, "stage": "incoming", "scopes": "general", "reason": "x"}
     )
     assert held.status_code == 302
     detail = client.get(reverse("sampling:lot", args=[lot.pk])).content.decode()
@@ -90,7 +90,7 @@ def test_assign_hold_then_ready_then_sample_and_correct(client, people, lot):
     approve(plan_revision(people["author"], mat), people["approver"])
     client.post(
         assign_url,
-        {"material": mat.pk, "stage": "incoming", "scope": "general", "reason": "Resolved"},
+        {"material": mat.pk, "stage": "incoming", "scopes": "general", "reason": "Resolved"},
     )
     assert LotAssignment.objects.filter(lot=lot).count() == 2
     detail = client.get(reverse("sampling:lot", args=[lot.pk])).content.decode()

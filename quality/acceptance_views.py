@@ -91,6 +91,15 @@ def evidence_facts(evidence, *, lot=None, links=True):
             f"{', '.join(kept) if kept else 'no test named'}",
         ),
     ]
+    # Rule sets that apply to the lot in addition to its own each allowed the reliance too.
+    for extra in evidence.get("additional_rules", []):
+        facts.append(
+            (
+                "Additional rule set",
+                f"{extra['code']} version {extra['version']} · the laboratory always performs: "
+                f"{', '.join(extra['own_tests']) if extra['own_tests'] else 'no test named'}",
+            )
+        )
     if lot is not None:
         facts.insert(0, ("Lot", cell(f"{lot.number} · {lot.material}", _lot_url(lot))))
     return facts

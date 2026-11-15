@@ -339,7 +339,8 @@ def test_reassignment_refused_once_native_testing_started(client, people, ready)
     assert url not in body and "cannot be assigned again" in body
     assert reverse("sampling:replace", args=[ready["lot"].pk]) not in body  # analyst, no change
     response = client.post(
-        url, {"material": first.material_id, "stage": "incoming", "scope": "general", "reason": "x"}
+        url,
+        {"material": first.material_id, "stage": "incoming", "scopes": "general", "reason": "x"},
     )
     assert response.status_code == 302
     assert services.current_assignment(ready["lot"]) == first

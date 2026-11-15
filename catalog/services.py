@@ -1,8 +1,9 @@
 """Controlled specification/method services and the published requirement contract.
 
 Published contract for other apps (stable names):
-- ``resolve_requirements(material=, stage=, scope=, rules=, at=)`` -> requirement payload dict, or
-  raises ``ApplicabilityHold`` listing every reason the material cannot be assessed.
+- ``resolve_requirements(material=, stage=, scopes=, rules=, at=, decisions=)`` -> requirement
+  payload dict, or raises ``ApplicabilityHold`` listing every reason the material cannot be
+  assessed and the conflicts between the specifications that apply.
 - ``approved_snapshot(revision)`` -> the frozen content and hash bound by the approval signature.
 - ``conforms(test, value)`` -> True/False against one payload test line; exact Decimal comparison.
 """
@@ -20,6 +21,8 @@ from core import formulas
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import (
+    APPLIES_TO,
+    additional_rules,
     applies_at,
     require_role,
     sign_transition,
@@ -46,13 +49,23 @@ AUTHOR_ROLE = "quality"
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 CONFIG_LOCK = 681250  # Serializes approvals so supersession of overlapped versions cannot race.
 REQUIREMENTS_SCHEMA = "oq.requirements/1"
+# Several scopes, an additional rule set or a decided conflict: the same keys and more.
+REQUIREMENTS_SCHEMA_V2 = "oq.requirements/2"
+GENERAL = "general"
 
 
 class ApplicabilityHold(ValidationError):
-    """Requirements cannot be determined; the lot must stay on hold until resolved."""
+    """Requirements cannot be determined; the lot must stay on hold until resolved.
 
-    def __init__(self, reasons):
-        self.reasons = list(reasons)
+    ``reasons`` is everything that holds the lot. ``conflicts`` is the part of it a quality
+    decision settles (specifications that apply state different requirements for one test)
+    and ``blocking`` the part it cannot (something is missing or not in force).
+    """
+
+    def __init__(self, reasons, conflicts=()):
+        self.blocking = list(reasons)
+        self.conflicts = list(conflicts)
+        self.reasons = self.blocking + [conflict["reason"] for conflict in self.conflicts]
         super().__init__(self.reasons)
 
 
@@ -796,55 +809,228 @@ def effective_batch_methods(at=None):
     return [_method_payload(revision) for revision in latest.values()]
 
 
-def resolve_requirements(*, material, stage, scope="general", rules=None, at=None):
-    """Resolve the approved, effective requirements for a material at a stage and scope.
+def normalize_scopes(scopes):
+    """The scopes named for a lot, each once: ``general`` first, then the overlays by name."""
+    names = sorted(set(scopes))
+    return [name for name in names if name == GENERAL] + [n for n in names if n != GENERAL]
 
-    Never merges or picks among obligations: a missing specification, method or rule coverage is a
-    hold for the quality owner. The payload is plain JSON to be frozen by the caller.
+
+def _rules_payload(rules):
+    return {
+        "id": rules.pk,
+        "code": rules.code,
+        "version": rules.version,
+        "segment": rules.segment,
+        "required_tests": list(rules.policy["required_tests"]),
+    }
+
+
+def _specification_payload(spec, revision):
+    return {
+        "revision_id": revision.pk,
+        "code": spec.code,
+        "version": revision.version,
+        "approved_hash": revision.approved_hash,
+        "effective_from": revision.effective_from.isoformat(),
+        "effective_until": revision.effective_until.isoformat(),
+    }
+
+
+def same_requirement(before, after):
+    """True when testing would freeze the same requirement for both lines (see
+    ``test_requirement``) and both are required alike; a line an earlier release froze
+    without today's keys counts as different."""
+    if before["required"] != after["required"]:
+        return False
+    try:
+        return test_requirement(before, "") == test_requirement(after, "")
+    except KeyError:
+        return False
+
+
+# Keys a line frozen by an earlier release may lack; they read as that release meant them.
+LINE_DEFAULTS = {
+    "lower_inclusive": True,
+    "upper_inclusive": True,
+    "expected_result": "",
+    "reporting_decimals": None,
+    "replicates": 1,
+}
+
+
+def requirement_text(line):
+    """One requirement line as text: acceptance, rounding, replicates and method version."""
+    line = {**LINE_DEFAULTS, **line}
+    parts = [describe_limits(line)]
+    if line["result_type"] != "qualitative" and line["reporting_decimals"] is not None:
+        parts.append(f"rounded to {line['reporting_decimals']} decimals")
+    if line["replicates"] != 1:
+        parts.append(f"{line['replicates']} replicates")
+    parts.append(f"method {line['method']['code']} v{line['method']['version']}")
+    return " · ".join(parts)
+
+
+def _statement(group):
+    """One way a test is stated, with the scopes and specifications that state it so."""
+    scope, spec, revision, line = group[0]
+    return {
+        "scope": scope,
+        "scopes": [candidate[0] for candidate in group],
+        "specification": {
+            "revision_id": revision.pk,
+            "code": spec.code,
+            "version": revision.version,
+        },
+        "name": line["name"],
+        "text": requirement_text(line),
+        "required": line["required"],
+    }
+
+
+def resolve_requirements(
+    *, material, stage, scope=GENERAL, scopes=None, rules=None, at=None, decisions=None
+):
+    """Resolve the approved, effective requirements for a material at a stage under one or
+    more scopes (``general`` and named market or customer overlays).
+
+    Every specification of a named scope applies in full, and so does every additional rule
+    set in force that names the material, stage or one of the scopes (``rules`` is the lot's
+    own rule set; additional ones are selected only when it is given). A test that the
+    specifications state alike is one requirement. A test they state differently is a
+    conflict: nothing is merged and neither the stricter nor the wider statement is picked;
+    the lot is held until quality decides which one applies (``decisions``, {test code: scope
+    whose statement applies}). A missing specification, method or rule coverage is a hold for
+    the quality owner. The payload is plain JSON to be frozen by the caller.
+
+    One scope without additional rule sets yields ``oq.requirements/1`` exactly as before;
+    anything more yields ``oq.requirements/2``, which keeps the same keys (``specification``
+    is the first one) and adds ``scopes``, ``specifications``, ``additional_rules``,
+    ``decisions`` and, on each test, the ``sources`` (scopes) that state it.
     """
     at = at or timezone.now()
+    scopes = normalize_scopes(scopes if scopes is not None else [scope])
+    decisions = dict(decisions or {})
     reasons = []
     rules_payload = None
+    extra = []
     if rules is not None:
         try:
             validate_rules(rules, at)
-            rules_payload = {
-                "id": rules.pk,
-                "code": rules.code,
-                "version": rules.version,
-                "segment": rules.segment,
-                "required_tests": list(rules.policy["required_tests"]),
-            }
+            rules_payload = _rules_payload(rules)
         except ValidationError:
             reasons.append(f"Rule set {rules} is not approved and effective.")
-    spec = Specification.objects.filter(material=material, stage=stage, scope=scope).first()
-    revision = effective_revision(SpecificationRevision, spec, at) if spec else None
-    tests = []
-    if spec is None:
-        reasons.append(
-            f"No specification exists for {material.code} at stage {stage} and scope {scope}."
+        extra = additional_rules(
+            material=material.code, stage=stage, scopes=scopes, at=at, exclude_code=rules.code
         )
-    elif revision is None:
-        reasons.append(f"Specification {spec.code} has no approved version effective now.")
-    else:
+    combined = len(scopes) > 1 or bool(extra)
+    # A scope may select rule sets only; one that selects nothing at all is incomplete.
+    ruled = {name for rule in extra for name in rule.policy[APPLIES_TO].get("scopes", [])}
+    specifications = []
+    for name in scopes:
+        spec = Specification.objects.filter(material=material, stage=stage, scope=name).first()
+        revision = effective_revision(SpecificationRevision, spec, at) if spec else None
+        if spec is None:
+            if name not in ruled:
+                reasons.append(
+                    f"No specification exists for {material.code} at stage {stage} and scope "
+                    f"{name}."
+                )
+        elif revision is None:
+            reasons.append(f"Specification {spec.code} has no approved version effective now.")
+        else:
+            specifications.append((name, spec, revision))
+    if not specifications and not reasons:
+        reasons.append(
+            f"No specification applies to {material.code} at stage {stage}: "
+            f"{', '.join(scopes)} select{'s' if len(scopes) == 1 else ''} rule sets only."
+        )
+    methods = {}
+    stated = {}  # test code -> [(scope, specification, revision, line with its method)]
+    required_as_stated = {}  # test code -> required by a specification, method resolved or not
+    for name, spec, revision in specifications:
         for line in revision.approved_content["tests"]:
-            method = Method.objects.get(code=line["method"])
-            method_revision = effective_revision(MethodRevision, method, at)
-            if method_revision is None:
-                reasons.append(f"Method {method.code} has no approved version effective now.")
+            code = line["code"]
+            required_as_stated[code] = required_as_stated.get(code, False) or line["required"]
+            if line["method"] not in methods:
+                method = Method.objects.get(code=line["method"])
+                method_revision = effective_revision(MethodRevision, method, at)
+                methods[line["method"]] = (
+                    _method_payload(method_revision) if method_revision else None
+                )
+                if method_revision is None:
+                    reasons.append(f"Method {method.code} has no approved version effective now.")
+            if methods[line["method"]] is None:
                 continue
-            tests.append({**line, "method": _method_payload(method_revision)})
-    if rules_payload and revision is not None:
-        required_codes = {t["code"] for t in revision.approved_content["tests"] if t["required"]}
-        uncovered = sorted(set(rules_payload["required_tests"]) - required_codes)
-        if uncovered:
-            reasons.append(
-                "Rule set requires tests missing from the specification: " + ", ".join(uncovered)
+            stated.setdefault(code, []).append(
+                (name, spec, revision, {**line, "method": methods[line["method"]]})
             )
-    if reasons:
-        raise ApplicabilityHold(reasons)
-    return {
-        "schema": REQUIREMENTS_SCHEMA,
+    tests, decided, conflicts = [], [], []
+    required_codes = {code for code, required in required_as_stated.items() if required}
+    for code, candidates in stated.items():
+        groups = []  # the distinct ways the specifications state this test
+        for candidate in candidates:
+            for group in groups:
+                if same_requirement(group[0][3], candidate[3]):
+                    group.append(candidate)
+                    break
+            else:
+                groups.append([candidate])
+        chosen = groups[0]
+        if len(groups) > 1:
+            statements = [_statement(group) for group in groups]
+            wanted = decisions.get(code)
+            chosen = next((g for g in groups if any(c[0] == wanted for c in g)), None)
+            if chosen is None:
+                conflicts.append(
+                    {
+                        "code": code,
+                        "name": candidates[0][3]["name"],
+                        "candidates": statements,
+                        "reason": "Specifications "
+                        + " and ".join(
+                            f"{item['specification']['code']} v{item['specification']['version']}"
+                            f" ({', '.join(item['scopes'])})"
+                            for item in statements
+                        )
+                        + f" state different requirements for {code}. Quality decides which "
+                        "one applies to this lot.",
+                    }
+                )
+                continue
+            picked = _statement(chosen)
+            decided.append(
+                {
+                    "code": code,
+                    **picked,
+                    "alternatives": [item for item in statements if item != picked],
+                }
+            )
+        line = chosen[0][3]
+        if line["required"]:
+            required_codes.add(code)
+        else:
+            required_codes.discard(code)
+        tests.append({**line, "sources": [c[0] for c in chosen]} if combined else line)
+    if specifications:
+        for payload in [rules_payload, *(_rules_payload(rule) for rule in extra)]:
+            if payload is None:
+                continue
+            uncovered = sorted(set(payload["required_tests"]) - required_codes)
+            if uncovered and not combined:
+                reasons.append(
+                    "Rule set requires tests missing from the specification: "
+                    + ", ".join(uncovered)
+                )
+            elif uncovered:
+                reasons.append(
+                    f"Rule set {payload['code']} v{payload['version']} requires tests that no "
+                    "specification applying to the lot requires: " + ", ".join(uncovered)
+                )
+    if reasons or conflicts:
+        raise ApplicabilityHold(reasons, conflicts)
+    name, spec, revision = specifications[0]
+    payload = {
+        "schema": REQUIREMENTS_SCHEMA_V2 if combined else REQUIREMENTS_SCHEMA,
         "resolved_at": at.isoformat(),
         "material": {
             "id": material.pk,
@@ -853,18 +1039,24 @@ def resolve_requirements(*, material, stage, scope="general", rules=None, at=Non
             "kind": material.kind,
         },
         "stage": stage,
-        "scope": scope,
+        "scope": name,
         "rules": rules_payload,
-        "specification": {
-            "revision_id": revision.pk,
-            "code": spec.code,
-            "version": revision.version,
-            "approved_hash": revision.approved_hash,
-            "effective_from": revision.effective_from.isoformat(),
-            "effective_until": revision.effective_until.isoformat(),
-        },
+        "specification": _specification_payload(spec, revision),
         "tests": tests,
     }
+    if combined:
+        payload.update(
+            scopes=scopes,
+            additional_rules=[
+                {**_rules_payload(rule), "applies_to": rule.policy[APPLIES_TO]} for rule in extra
+            ],
+            specifications=[
+                {"scope": name, **_specification_payload(spec, revision)}
+                for name, spec, revision in specifications
+            ],
+            decisions=decided,
+        )
+    return payload
 
 
 # Analytical testing contract (oq.test-requirement/1 and /2) -------------------------------------
@@ -1029,5 +1221,7 @@ __all__ = [
     "batch_method_requirements",
     "test_requirement",
     "plain",
+    "requirement_text",
     "resolve_requirements",
+    "same_requirement",
 ]

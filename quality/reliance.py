@@ -188,6 +188,23 @@ def _material(lot):
     return assignment.material if assignment is not None else None
 
 
+def _applied_rules(lot):
+    """The rule set versions the lot is under: its own, then the ones that apply in addition
+    to it. Each of them must allow a supplier's result to be relied on."""
+    from sampling.services import applied_rules
+
+    return applied_rules(lot)
+
+
+def _rules_evidence(rules):
+    return {
+        "id": rules.pk,
+        "code": rules.code,
+        "version": rules.version,
+        "own_tests": own_tests(rules),
+    }
+
+
 def _evidence(*, lot, result, receipt, qualification):
     """What an acceptance relies on, as frozen with it. Built the same way when the proposal is
     made and when it is signed, so a difference means something underneath has changed."""
@@ -195,7 +212,8 @@ def _evidence(*, lot, result, receipt, qualification):
     from suppliers.qualification import qualification_evidence
 
     spec = parse_requirement(result.requirement)
-    certificate, supplier, rules = result.certificate, receipt.supplier, lot.rules
+    certificate, supplier = result.certificate, receipt.supplier
+    rules, *additional = _applied_rules(lot)
     return {
         "schema": SCHEMA,
         "test_code": result.test_code,
@@ -229,12 +247,9 @@ def _evidence(*, lot, result, receipt, qualification):
         },
         "received_on": receipt.received_on.isoformat(),
         "qualification": qualification_evidence(qualification),
-        "rules": {
-            "id": rules.pk,
-            "code": rules.code,
-            "version": rules.version,
-            "own_tests": own_tests(rules),
-        },
+        "rules": _rules_evidence(rules),
+        # Only when rule sets apply in addition to the lot's own: each allowed the reliance.
+        **({"additional_rules": [_rules_evidence(r) for r in additional]} if additional else {}),
     }
 
 
@@ -250,11 +265,12 @@ def _record_checks(lot, result):
         raise ValidationError("The supplier result belongs to another lot.")
     if lot.state != "quarantine":
         raise ValidationError(QUARANTINE_ONLY)
-    # The rule set speaks first: what it keeps with the laboratory is never relied on,
-    # whatever the records say.
-    check_rules(lot.rules)
-    if refusal := supplier_reliance_refusal(lot.rules, result.test_code):
-        raise RelianceRefused(str(lot.rules), [refusal])
+    # The rule sets speak first: what one of them keeps with the laboratory is never relied
+    # on, whatever the records say. Every rule set version the lot is under must allow it.
+    for rules in _applied_rules(lot):
+        check_rules(rules)
+        if refusal := supplier_reliance_refusal(rules, result.test_code):
+            raise RelianceRefused(str(rules), [refusal])
     if certificates.change_blocker(certificate):
         raise ValidationError(NOT_CURRENT)
     receipt = current_receipt(lot)
@@ -617,10 +633,11 @@ def standing_problems(acceptance, lot=None, required=None):
         qualification = type(acceptance.qualification).objects.get(pk=acceptance.qualification_id)
         if qualification.state != qualification.State.APPROVED:
             problems.append(f"{qualification.label} was revoked before the proposal was accepted")
-        try:
-            check_rules(lot.rules)
-        except ValidationError:
-            problems.append(f"rule set {lot.rules} is no longer approved and effective")
+        for rules in _applied_rules(lot):
+            try:
+                check_rules(rules)
+            except ValidationError:
+                problems.append(f"rule set {rules} is no longer approved and effective")
     return problems
 
 

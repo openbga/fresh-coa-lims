@@ -3,7 +3,7 @@
 {% block page_header %}{% endblock %}
 {% block content %}
 <p><a href="{% url 'quality:lot_list' %}">Material lots</a></p><h1>{{ lot.number }}</h1>
-<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ lot.state|capfirst }}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
+<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ lot.state|capfirst }}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<br>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% endfor %}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
 {% if lot.state == 'quarantine' %}<div class="d-flex gap-2 mb-4">{% if can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">Add sample</a>{% endif %}{% if can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}</div>{% endif %}
 <p><a href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling</a> · {% if assignment %}{{ assignment.get_status_display }}{% else %}Not assigned{% endif %} · <a href="{% url 'analytical:lot_testing' lot.pk %}">Testing and investigations</a></p>
 <section class="card mb-4" aria-labelledby="receipt-heading">

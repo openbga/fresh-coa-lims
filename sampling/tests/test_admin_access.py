@@ -71,6 +71,7 @@ MUTATIONS = {
     "catalog:material_new": ((), "approver"),
     "sampling:assign": (("lot",), "analyst"),
     "sampling:replace": (("lot_testing",), "approver"),
+    "sampling:decide": (("lot_conflict",), "approver"),
     "sampling:sampling_new": (("lot",), "analyst"),
     "sampling:sampling_correct": (("record",), "analyst"),
     "sampling:deviation_assess": (("record",), "approver"),
@@ -126,6 +127,30 @@ def lot_in_testing(people, ready):  # noqa: F811
     return lot
 
 
+def lot_with_conflict(people, ready):  # noqa: F811
+    """A third lot assigned under the general scope and a market scope whose specification
+    states the assay differently: held until quality decides which requirement applies."""
+    from quality.services import receive_lot
+    from tests.receipts import on_site_receipt
+
+    author = people["author"]
+    overlay = specification(author, ready["material"], code="spec-eu", scope="eu-market")[1]
+    method = ready["spec"].tests.get(code="assay").method
+    numeric_line(author, overlay, method, code="assay", low="99.0", high="101.0")
+    approve(overlay, people["approver"])
+    lot = receive_lot(
+        actor=people["analyst"],
+        number="SYN-LOT-C1",
+        material=ready["material"].name,
+        rules=ready["rules"],
+        reason="Synthetic receipt",
+        receipt=on_site_receipt(),
+    )
+    held = assign(people, {**ready, "lot": lot}, scopes=["general", "eu-market"])
+    assert held.status == "hold", held.hold_reasons
+    return lot
+
+
 @pytest.fixture
 def world(people, ready):  # noqa: F811
     """Approved and draft versions of every controlled record, and a lot with a deviation."""
@@ -174,8 +199,10 @@ def world(people, ready):  # noqa: F811
     assign(people, ready)
     record = short(people, ready)
     testing = lot_in_testing(people, ready)
+    conflict = lot_with_conflict(people, ready)
     return {
         "lot_testing": testing.pk,
+        "lot_conflict": conflict.pk,
         "spec": ready["spec"].specification.pk,
         "spec_approved": ready["spec"].pk,
         "spec_draft": spec_draft.pk,

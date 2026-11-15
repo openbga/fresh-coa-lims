@@ -10,7 +10,7 @@ from django.views.decorators.debug import sensitive_variables
 
 from catalog.units import plain
 from core.audit import record_event
-from core.services import require_role, sign_transition, validate_rules
+from core.services import is_additional, require_role, sign_transition, validate_rules
 
 from .models import Lot, LotReceipt, ReceiptCondition, ReceiptSource, Result, Sample
 
@@ -42,6 +42,12 @@ RECEIPT_TEXT = (
 )
 OUTSIDE_SOURCE = ("supplier_lot", "manufacturer", "manufacturer_location", "manufacturer_lot")
 RECEIPT_STALE = "The receipt details changed. Reload and review them before correcting."
+
+
+ADDITIONAL_RULES = (
+    "Rule set {rules} applies in addition to a lot's own rule set and is selected by the "
+    "lot's material, stage and scopes. Choose the lot's own rule set."
+)
 
 
 def effective_rules(rules):
@@ -165,6 +171,8 @@ def receive_lot(*, actor, number, material, rules, reason, receipt):
     """Receive a lot into quarantine together with its receipt details, or not at all."""
     require_role(actor, "analyst")
     effective_rules(rules)
+    if is_additional(rules):
+        raise ValidationError(ADDITIONAL_RULES.format(rules=rules))
     lot = Lot.objects.create(number=number, material=material, rules=rules, created_by=actor)
     record_event(
         actor=actor,
@@ -359,13 +367,19 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
         required = set(effective_rules(locked.rules))
         from analytical.gates import lot_blockers, lot_evidence
         from analytical.models import AnalyticalTest
-        from sampling.services import current_assignment, current_requirements
+        from sampling.services import (
+            current_assignment,
+            current_requirements,
+            require_additional_rules,
+        )
         from sampling.services import lot_blockers as sampling_blockers
 
         assignment = current_assignment(locked)
         native = assignment is not None or AnalyticalTest.objects.filter(lot=locked).exists()
         if native or not settings.DEBUG:
             current_requirements(locked)  # missing or held applicability is a hard stop
+            # The lot's own rule set was checked above; so are the ones that apply with it.
+            require_additional_rules(locked)
             if not locked.samples.exists():
                 raise ValidationError("The lot requires a sampled and tested record.")
             problems = sampling_blockers(locked) + lot_blockers(locked)

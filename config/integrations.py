@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from analytical.contracts import RequirementHold, parse_method, parse_requirement
 from catalog.services import ApplicabilityHold, batch_method_requirements
-from sampling.services import test_requirements
+from sampling.services import require_additional_rules, test_requirements
 
 
 class CatalogRequirementProvider:
@@ -30,6 +30,11 @@ class CatalogRequirementProvider:
         if errors:
             raise RequirementHold(errors)
         return payloads
+
+    def require_additional_rules(self, lot):
+        """Refuse while a rule set version that applies to the lot in addition to its own is
+        no longer in force (testing checks the lot's own rule set itself)."""
+        require_additional_rules(lot)
 
     def methods(self):
         result = []

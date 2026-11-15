@@ -2,6 +2,7 @@ import hashlib
 import json
 from datetime import timedelta
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -261,12 +262,28 @@ POLICY_KEYS = frozenset({"required_tests", "review_meaning", "disposition_meanin
 # performs itself. A rule set without it allows no such reliance.
 SUPPLIER_RESULTS = "supplier_results"
 OWN_TESTS = "own_tests"
+# Optional. A rule set that carries it is not chosen when a lot is received: it applies, in
+# addition to the lot's own rule set, to every lot whose material, stage and scopes it names.
+# A dimension it leaves out matches every lot. The site is the deployment.
+APPLIES_TO = "applies_to"
+APPLIES_TO_KEYS = ("materials", "stages", "scopes")
+OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO})
+
+
+def _codes(value, *, allow_empty=False):
+    """True for a list of codes: non-empty text without surrounding space, each listed once."""
+    return (
+        isinstance(value, list)
+        and (allow_empty or bool(value))
+        and all(isinstance(t, str) and t.strip() and t == t.strip() for t in value)
+        and len(set(value)) == len(value)
+    )
 
 
 def validate_policy(policy):
-    if not isinstance(policy, dict) or not POLICY_KEYS <= set(policy) <= POLICY_KEYS | {
-        SUPPLIER_RESULTS
-    }:
+    if not isinstance(policy, dict) or not POLICY_KEYS <= set(policy) <= (
+        POLICY_KEYS | OPTIONAL_POLICY_KEYS
+    ):
         raise ValidationError("Unsupported or missing rule policy keys.")
     tests = policy["required_tests"]
     if (
@@ -283,9 +300,7 @@ def validate_policy(policy):
         if (
             not isinstance(reliance, dict)
             or set(reliance) != {OWN_TESTS}
-            or not isinstance(own, list)
-            or any(not isinstance(t, str) or not t.strip() or t != t.strip() for t in own)
-            or len(set(own)) != len(own)
+            or not _codes(own, allow_empty=True)
         ):
             raise ValidationError(
                 "supplier_results must hold exactly own_tests: a list of the test codes the "
@@ -298,6 +313,100 @@ def validate_policy(policy):
             raise ValidationError(
                 "own_tests must be among required_tests; not required: " + ", ".join(unknown) + "."
             )
+    if APPLIES_TO in policy:
+        where = policy[APPLIES_TO]
+        if (
+            not isinstance(where, dict)
+            or not where
+            or not set(where) <= set(APPLIES_TO_KEYS)
+            or not all(_codes(value) for value in where.values())
+        ):
+            raise ValidationError(
+                "applies_to must say where the rule set applies with at least one of "
+                "materials, stages and scopes, each a list of codes listed once."
+            )
+
+
+def is_additional(rule):
+    """True for a rule set that applies in addition to a lot's own rule set (``applies_to``)."""
+    return isinstance(rule.policy, dict) and isinstance(rule.policy.get(APPLIES_TO), dict)
+
+
+def rule_applies(rule, *, material, stage, scopes):
+    """Whether an additional rule set version applies to a lot of this material code, at this
+    stage, under these scopes. Every dimension it names must match; one of its scopes is
+    enough. A rule set without ``applies_to`` never applies this way."""
+    if not is_additional(rule):
+        return False
+    where = rule.policy[APPLIES_TO]
+    return (
+        ("materials" not in where or material in where["materials"])
+        and ("stages" not in where or stage in where["stages"])
+        and ("scopes" not in where or bool(set(where["scopes"]) & set(scopes)))
+    )
+
+
+def additional_rules(*, material, stage, scopes, at, exclude_code=None):
+    """The additional rule set versions in force at ``at`` that apply to such a lot, by code.
+
+    One version per rule set: the latest of those that apply at ``at``, as for a lot's own
+    rule set. Nothing is selected by a rule set that states no ``applies_to``.
+    """
+    latest = {}
+    for rule in RuleSet.objects.filter(applies_at(at)).order_by("code", "version"):
+        latest[rule.code] = rule
+    return [
+        rule
+        for code, rule in latest.items()
+        if code != exclude_code
+        and rule_applies(rule, material=material, stage=stage, scopes=scopes)
+    ]
+
+
+def applicability_problems(policy):
+    """Codes under ``applies_to`` that name nothing: an unknown material or stage never
+    matches a lot, so the rule set would silently never apply. Read through the app registry;
+    rule sets do not depend on the catalog."""
+    where = policy.get(APPLIES_TO) if isinstance(policy, dict) else None
+    if not isinstance(where, dict) or not apps.is_installed("catalog"):
+        return []
+    problems = []
+    if "materials" in where:
+        material = apps.get_model("catalog", "Material")
+        known = set(
+            material.objects.filter(code__in=where["materials"]).values_list("code", flat=True)
+        )
+        if unknown := [code for code in where["materials"] if code not in known]:
+            problems.append("applies_to names unknown materials: " + ", ".join(unknown) + ".")
+    if "stages" in where:
+        field = apps.get_model("catalog", "Specification")._meta.get_field("stage")
+        known = {value for value, _ in field.choices}
+        if unknown := [code for code in where["stages"] if code not in known]:
+            problems.append(
+                "applies_to names unknown stages: "
+                + ", ".join(unknown)
+                + ". Use "
+                + ", ".join(sorted(known))
+                + "."
+            )
+    return problems
+
+
+def check_applicability(policy, earlier=None):
+    """Refuse an ``applies_to`` that names nothing known, and a version that changes what kind
+    of rule set this is: a lot's own rule set and an additional one are never the same code."""
+    if problems := applicability_problems(policy):
+        raise ValidationError(problems)
+    if earlier is not None and is_additional(earlier) != (APPLIES_TO in policy):
+        raise ValidationError(
+            f"Rule set {earlier.code} "
+            + (
+                "applies in addition to a lot's own rule set, so every version states applies_to."
+                if is_additional(earlier)
+                else "is chosen when a lot is received, so no version states applies_to. "
+                "Create an additional rule set under another code."
+            )
+        )
 
 
 def supplier_reliance_refusal(rule, test_code):
@@ -341,6 +450,7 @@ def save_rule(*, actor, code, segment, policy, effective_from, reason, effective
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(681240)")
         latest = RuleSet.objects.filter(code=code).order_by("-version").first()
+        check_applicability(policy, latest)
         rule = RuleSet.objects.create(
             code=code,
             segment=segment,
@@ -371,6 +481,7 @@ def check_rule_approval(*, actor, rule, at=None):
     if rule.effective_until is None:
         raise ValidationError("An effective end date is required for approval.")
     siblings = RuleSet.objects.filter(code=rule.code).exclude(pk=rule.pk)
+    check_applicability(rule.policy, siblings.order_by("version").first())
     return supersession_plan(siblings, rule, at or timezone.now())
 
 
