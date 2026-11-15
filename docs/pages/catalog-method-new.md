@@ -4,7 +4,7 @@ urls: catalog:method_new
 views: catalog.views.method_new
 templates: catalog/form.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-12
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -46,7 +46,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 | Suitability basis | `MethodRevision.suitability_kind` | Method validation, Compendial method verification, Method transfer, Documented fitness for intended use | Yes | Kind of evidence of suitability for intended use. |
 | Suitability evidence | `MethodRevision.suitability_ref` | Text, max 200 | Yes | Help: "Stable ID or location of the approved validation or verification report." |
 | Effective from (time zone) | `MethodRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
-| Effective until (time zone) | `MethodRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approved versions of one record must not overlap." |
+| Effective until (time zone) | `MethodRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approving a later version that overlaps ends this one earlier." |
 | Reason for change | `MethodRevision.change_reason` | Text, max 2000 | Yes | Why this change is made; stored on the new record and in its audit event. |
 
 

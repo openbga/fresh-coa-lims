@@ -33,7 +33,7 @@ Add a test whose method runs in a QC batch to an open batch of the same method r
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Open QC batch | `AnalyticalTest.batch` | Choice | Yes | Only Open batches with the test's method code and identical method revision that have no submitted, reviewed or invalidated tests, newest first. Any other batch posted is refused ("Select a valid choice..."); the add rechecks under lock ("This batch already has submitted results; start a new batch.") |
+| Open QC batch | `AnalyticalTest.batch` | Choice | Yes | Only Open batches with the test's method code and identical method revision that have no submitted results (no test other than Open, apart from a test superseded before it was ever submitted), newest first. Any other batch posted is refused ("Select a valid choice..."); the add rechecks under lock ("This batch already has submitted results; start a new batch.") |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Reason recorded with `test.batched` |
 
 ## Rules and hidden logic

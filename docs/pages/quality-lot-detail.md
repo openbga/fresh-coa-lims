@@ -41,7 +41,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Supplier results in place of tests** card (only when the lot has such a record, withdrawn ones included): the text "Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.", then one row per record, oldest first: Record (SRA-n, a link), Test (name, with the code below), Supplier's result, Certificate, Qualification, Proposed by and Status.
 - **Samples and results**: one card per sample with its collection time, a **Record result** link (Quarantine lots only) and the foundation results table: Test, Result, Limits, Analyst, Review. This table shows only manual foundation results; native observations, reviews and investigations are on Testing and investigations. "No results recorded." here does not mean no native testing exists. "No samples recorded." when the lot has no samples.
 - **Certificates of analysis** (Released lots only): **Issue certificate of analysis** for quality users, then links to issued reports, or "No certificate issued yet."
-- **Electronic signatures**: foundation result review signatures, then lot disposition signatures, or "No lot disposition signature yet." Native test review signatures are not listed here.
+- **Electronic signatures**: foundation result review signatures, then every signature on the lot, oldest first: the disposition (meaning approved) and any signed replacement of its requirements during testing (meaning requirements_replaced). "No lot disposition signature yet." shows until the lot has a signature with the meaning approved. Native test review signatures are not listed here.
 
 ## Actions
 
@@ -71,8 +71,8 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 | Lot number (heading) | `Lot.number` | Text | — | Lot identifier |
 | Material | `Lot.material` | Text | — | Material received |
 | Status | `Lot.state` | Quarantine, Released | — | Released only by signed disposition |
-| Rule set | `Lot.rules` | "code vN" | — | Foundation rule revision chosen at receipt |
-| Record revision | `Lot.revision` | Integer | — | Rises with each change to the lot, its samples, tests or holds, when receipt details are recorded later or corrected, when a supplier certificate is recorded, corrected or withdrawn, and when a supplier result is proposed, accepted or withdrawn in place of a test; disposition signatures bind to it |
+| Rule set | `Lot.rules` | "code vN" | — | Rule revision chosen at receipt. A signed replacement of the lot's requirements during testing moves it to the version of the same rule set in force then |
+| Record revision | `Lot.revision` | Integer | — | Rises with each change to the lot, its samples, tests or holds, when receipt details are recorded later or corrected, when a supplier certificate is recorded, corrected or withdrawn, when a supplier result is proposed, accepted or withdrawn in place of a test, and when its requirements are assigned or replaced; disposition and replacement signatures bind to it |
 | Assignment status | `LotAssignment.status` (latest) | Requirements assigned, Applicability hold, or "Not assigned" | — | Whether approved specification and sampling requirements are attached |
 | Source | `LotReceipt.source` | Received from a supplier, Made on site | — | Where the lot came from |
 | Supplier | `LotReceipt.supplier` → `Supplier.code`, `name`, `location` | Link and text | — | Shown when the receipt names a supplier; the code opens the supplier record |

@@ -20,8 +20,8 @@ List rule set revisions (required tests, signature meanings and whether a suppli
 ## Layout
 
 - Title "Rule sets" and a note that presets are synthetic and approved revisions cannot be edited.
-- **Revisions table**: Rule ("code vN"), Segment, Status with any approval signatures, Effective from, Policy, Action. Empty: "No rule revisions yet."
-- **New revision** form with **Create draft**, for quality users only.
+- **Revisions table**: Rule ("code vN"), Segment, Status with any approval signatures, Effective (start, and "to <end>" when an end is set; a retired revision adds "Superseded by version N from <time>" or "Superseded by version N before it took effect"), Policy, Action. Empty: "No rule revisions yet."
+- **New revision** form with **Create draft**, for quality users only, under the note "Use the same code to create the next version. When it is approved, an approved version of the same code whose effective period it overlaps stops applying from this version's start, or from the moment of approval if that is later."
 
 ## Actions
 
@@ -38,6 +38,7 @@ List rule set revisions (required tests, signature meanings and whether a suppli
 | Segment | `RuleSet.segment` | Slug | Yes | Industry segment preset label; not a legal policy |
 | Policy | `RuleSet.policy` | JSON | Yes | `required_tests` (non-empty list), `review_meaning` = reviewed, `disposition_meaning` = approved, and optionally `supplier_results` = `{"own_tests": [...]}`. No other key is accepted |
 | Effective from | `RuleSet.effective_from` | Date and time | Yes | Start of the effective interval |
+| Superseded (shown under Effective) | `RuleSet.superseded_from`, `superseded_by` | Date and time, version | — | Set when a later approved version of the code retired this one: the moment it stopped applying and the version that took over |
 | Effective until | `RuleSet.effective_until` | Date and time | No to save, yes to approve | End of the interval; must be after the start |
 | Reason | `AuditEvent.reason` | Text | Yes | Why the revision is created |
 | Version (shown in Rule) | `RuleSet.version` | Integer | — | Assigned automatically: last version of the code + 1 |
@@ -50,11 +51,11 @@ List rule set revisions (required tests, signature meanings and whether a suppli
 - **Supplier results (optional key)**: a policy with `supplier_results` lets a result stated on a qualified supplier's certificate stand in for a test of a lot received under this rule revision. `own_tests` lists the test codes the laboratory always performs itself, for example `{"own_tests": ["identity"]}`; a supplier result is never accepted for them. An empty list keeps no test with the laboratory. `supplier_results` must be an object holding only `own_tests`; each code is text without surrounding spaces, listed once, and one of `required_tests`.
 - **Without the key**: a rule revision that has no `supplier_results` allows no reliance at all. Every required test is performed by the laboratory, whatever qualification a supplier holds.
 - **The key is not enough by itself**: a supplier result also needs a signed supplier qualification that covers the supplier, the material, the test and the date the lot was received, and an acceptance signed on the lot.
-- **Lots keep their revision**: a lot uses the rule revision chosen when it was received. Approving a later revision with `supplier_results` does not change lots already received.
+- **Lots keep their revision**: a lot uses the rule revision chosen when it was received. Approving a later revision with `supplier_results` does not change lots already received. Only a signed replacement of a lot's requirements during testing moves a quarantined lot to the version of its rule set in force then (Replace lot requirements).
 - **Own tests must be required**: every code in `own_tests` must be one of `required_tests`, compared exactly, upper and lower case included. A code that is not required, for example a misspelt one, is refused and named in the message.
 - **Not enforced by this page**: the codes are not checked against any specification.
 - **Interval**: "Provide a reason and a valid effective interval." when the end is not after the start.
-- **Effective interval**: start inclusive, end exclusive. Approved revisions and their intervals are immutable; create and approve a non-overlapping replacement before an approved revision expires.
+- **Effective interval**: start inclusive, end exclusive. Approved revisions, their policy and their intervals are never edited. Approving a later version of the same code whose interval overlaps an approved one retires the earlier one from the later of the new version's start and the moment of approval, never retroactively; a revision retired before it started never applies. A revision applies only while inside its interval and not retired.
 - **Versioning**: new revisions start as draft; approved revisions are never edited. Creation is serialized so two drafts cannot get the same version.
 - **Order and paging**: the table is not explicitly sorted and not paginated. A refused submission re-renders the page with a form-level error (status 200); success reloads the page with no message.
 - **Audit**: writes `rule.created` with the revision snapshot.

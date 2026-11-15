@@ -4,7 +4,7 @@ urls: sampling:plan_version_new
 views: sampling.views.plan_version_new
 templates: catalog/form.html
 models: sampling.SamplingPlanRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -41,7 +41,7 @@ Creates the next draft version of a sampling plan.
 | Instructions | `SamplingPlanRevision.instructions` | Text | Yes | Sampling tools, location, precautions, labelling. |
 | Rationale | `SamplingPlanRevision.rationale` | Text | Yes | Help: "Why the plan is representative. A sampling scheme is a configured choice reviewed by quality, not a legal requirement." |
 | Effective from (time zone) | `SamplingPlanRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
-| Effective until (time zone) | `SamplingPlanRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approved versions of one record must not overlap." |
+| Effective until (time zone) | `SamplingPlanRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approving a later version that overlaps ends this one earlier." |
 | Reason for change | `SamplingPlanRevision.change_reason` | Text, max 2000 | Yes | Why this change is made; stored on the new record and in its audit event. |
 
 
@@ -51,7 +51,7 @@ Creates the next draft version of a sampling plan.
 - **Parameter shape**: "Enter a positive count or percentage." "A fixed plan needs a whole number of containers." "A percentage cannot exceed 100." "This basis takes no parameter." (for 1 + √N and Every container).
 - **Amount**: "Enter an amount greater than zero."
 - **Interval**: "The effective end must be after the start." (form) and "The effective end must be after the effective start." (server).
-- **Overlap** with approved versions is checked only at approval.
+- **Overlap** with approved versions is worked out only at approval: approving this version retires an earlier approved version whose period it overlaps (see Approve sampling plan version).
 - **Audit**: `sampling_plan_revision.created` with your reason.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept.") plus refusals from the server as form-level errors.

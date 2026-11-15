@@ -4,7 +4,7 @@ urls: catalog:specification_new
 views: catalog.views.specification_new
 templates: catalog/form.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -42,7 +42,7 @@ Creates a specification (one material, one stage, one scope) together with its d
 | Scope | `Specification.scope` | Slug, max 60, default "general" | Yes | Help: "general, or a named market/customer overlay. Overlays are never merged." |
 | Basis | `SpecificationRevision.basis` | Text | Yes | Help: "Scientific, compendial or contractual basis for these limits." |
 | Effective from (time zone) | `SpecificationRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
-| Effective until (time zone) | `SpecificationRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approved versions of one record must not overlap." |
+| Effective until (time zone) | `SpecificationRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approving a later version that overlaps ends this one earlier." |
 | Reason for change | `SpecificationRevision.change_reason` | Text, max 2000 | Yes | Why this change is made; stored on the new record and in its audit event. |
 
 

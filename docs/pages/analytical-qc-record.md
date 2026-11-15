@@ -4,7 +4,7 @@ urls: analytical:qc_record
 views: analytical.views.qc_record
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.QCBatch, analytical.QCResult
-reviewed: 2026-11-12
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -40,7 +40,7 @@ Record the result of one QC check of a batch.
 
 ## Rules and hidden logic
 
-- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the batch record with the warning "QC entries for this batch are closed." (batch not Open, or a test in it already submitted).
+- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the batch record with the warning "QC entries for this batch are closed." (batch not Open, or a test in it already submitted; a test superseded before it was ever submitted does not count, one superseded after submission does).
 - **Preconditions**: batch Open ("This batch is closed to QC entries."); no test in the batch submitted ("QC cannot change after test results in this batch are submitted."); check not already recorded ("This QC check is recorded. Correct it instead.").
 - **Blank record**: "Record where the original QC observation is kept."
 - **Bench checks**: without a configured bench the page redirects to the batch record with "No bench check is configured; results are held." The bench checks your current qualification for the batch method and every instrument and lot selected; a refusal shows "Refused: <subject>: <reason>" on the refused checkbox list or above the form, nothing is saved and the bench audits the attempt. A method that requires equipment or a reagent or standard lot refuses an entry with none selected. The evidence is frozen on the QC result (`QCResult.eligibility`) and in its audit event.

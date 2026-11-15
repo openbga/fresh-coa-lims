@@ -4,7 +4,7 @@ urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
 models: catalog.Method, catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-12
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -51,7 +51,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 | Summary | `MethodRevision.summary` | Text | — | Free description of the method; shown only when the version has one. |
 | Controlled procedure | `MethodRevision.document_ref` | Text | — | Procedure document and revision. |
 | Suitability | `MethodRevision.suitability_kind`, `suitability_ref` | "kind · evidence reference" | — | Basis and evidence of suitability. |
-| Effective | `MethodRevision.effective_from`, `effective_until` | Date and time range | — | End exclusive. |
+| Effective | `MethodRevision.effective_from`, `effective_until`, `superseded_from`, `superseded_by` | Date and time range | — | End exclusive. When a later version retired it, a second line reads "Superseded by version N from <time>", or "Superseded by version N before it took effect" when it never applied. |
 | QC batch | `MethodRevision.requires_batch` | Yes/No text | — | Whether results must come from a batch whose QC checks pass. |
 | Instrument | `MethodRevision.requires_equipment` | Text | — | Whether every result and batch QC entry must record an instrument. |
 | Reagent or standard | `MethodRevision.requires_reagent` | Text | — | Whether every result and batch QC entry must record a reagent or standard lot. |
@@ -68,7 +68,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **Order**: versions newest first; history oldest first.
 - **Immutability**: approved and withdrawn versions, and their QC checks, resource options, calculation and inputs, are immutable at the database level.
 - **Not shown here**: the reason for change appears only in the audit history.
-- **Effective intervals** are half-open and approved versions of one method may not overlap.
+- **Effective intervals** are half-open. The version used is the approved one that applies now: inside its period and not superseded. Approving a later version whose period overlaps an approved one retires the earlier one from the later of the new version's start and the moment of approval (never retroactively); the earlier version keeps its approved content and signature. Approving a draft that overlaps an approved version numbered after it is refused. Lots keep the versions frozen for them.
 - **Independence**: author and anyone who changed the draft cannot approve it.
 - A new version starts with the calculation and inputs of the previous version. Approval checks the calculation (see Approve method version); a specification test of a calculated method must be numeric with the calculation's unit.
 - Audit actions are shown as stored, for example `method_revision.qc_check_added`, `method_revision.calculation_set`, `method_revision.calculation_cleared`, `method_revision.calculation_input_added`.
