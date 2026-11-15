@@ -15,6 +15,14 @@ from tests.test_requirement_replacement import READINGS, complete, new_specifica
 from tests.test_result_types_journey import assign_sample_tests, build_world
 
 REASON = "Change record CC-SYN-014: assay limits tightened"
+# What makes a page scroll sideways on a phone: elements that reach past the right edge,
+# outside the tables that scroll inside their own frame.
+WIDER_THAN_THE_PAGE = """() => [...document.querySelectorAll('body *')]
+  .filter(e => !e.closest('.vr-table-wrap') && e.getBoundingClientRect().right > innerWidth + 0.5)
+  .slice(0, 12)
+  .map(e => `${e.tagName}.${String(e.className).slice(0, 40)} right=`
+    + `${Math.round(e.getBoundingClientRect().right)} `
+    + `${e.children.length ? '' : (e.textContent || '').trim().slice(0, 60)}`)"""
 
 
 @pytest.mark.django_db(transaction=True)
@@ -56,7 +64,10 @@ def test_revised_specification_replaces_requirements_and_the_test_is_repeated(
         def shots(name):
             page.screenshot(path=str(artifacts / f"{name}-desktop.png"), full_page=True)
             page.set_viewport_size({"width": 390, "height": 844})
-            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), (
+                name,
+                page.evaluate(WIDER_THAN_THE_PAGE),
+            )
             page.screenshot(path=str(artifacts / f"{name}-mobile.png"), full_page=True)
             page.set_viewport_size({"width": 1440, "height": 1000})
 
