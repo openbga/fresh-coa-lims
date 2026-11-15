@@ -9,8 +9,10 @@ from .contracts import (
     OUTCOMES,
     Reading,
     bench_resources,
+    contract_source,
     parse_method,
     parse_requirement,
+    reported_source,
 )
 
 DECIMAL = {"max_digits": 20, "decimal_places": 8}
@@ -189,13 +191,23 @@ class AnalyticalTest(models.Model):
     def current_observations(self):
         return self.observations.filter(correction__isnull=True).select_related("recorded_by")
 
+    def contract_source(self):
+        """The contract laboratory evidence when every current observation was reported by a
+        contract laboratory, otherwise None. A test never mixes the two origins."""
+        return reported_source(self.current_observations())
+
     def raw_file_list(self):
         """Raw-data files for display, oldest first, without loading their stored bytes."""
         return self.raw_files.defer("content").select_related("uploaded_by")
 
 
 class Observation(models.Model):
-    """One replicate observation. Rows are append-only; a correction is a new linked row."""
+    """One replicate observation. Rows are append-only; a correction is a new linked row.
+
+    ``eligibility`` is the evidence relied on when the row was accepted: the analyst's
+    qualification and the resources used at this bench, or, under ``contract``, the approval and
+    the report of the contract laboratory that reported the replicate.
+    """
 
     test = models.ForeignKey(AnalyticalTest, on_delete=models.PROTECT, related_name="observations")
 
@@ -284,6 +296,11 @@ class Observation(models.Model):
     @property
     def is_calculated(self):
         return bool(self.calculation)
+
+    @property
+    def contract(self):
+        """Evidence that a contract laboratory reported this replicate, or None."""
+        return contract_source(self.eligibility)
 
     @property
     def equipment_used(self):

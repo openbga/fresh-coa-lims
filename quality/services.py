@@ -321,6 +321,17 @@ def disposition_authors(lot):
     )
 
 
+def disposition_notices(lot):
+    """What a disposition signer should see that does not block the signature: supplier results
+    that do not meet the specification, and reported results whose contract laboratory
+    approval has been revoked since."""
+    from analytical.gates import lot_notices
+
+    from .certificates import disposition_notices as certificate_notices
+
+    return [*certificate_notices(lot), *lot_notices(lot)]
+
+
 def disposition_denial(actor, lot):
     """Read-only preflight shown before any PIN is requested; signing repeats it under lock."""
     return SELF_DISPOSITION if actor.pk in disposition_authors(lot) else ""

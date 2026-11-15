@@ -219,3 +219,77 @@ class UseForm(forms.Form):
         if not data.get("equipment") and not data.get("reagents") and not self.errors:
             raise forms.ValidationError("Select at least one piece of equipment or reagent lot.")
         return data
+
+
+class ContractLaboratoryForm(forms.Form):
+    code = forms.SlugField(max_length=60, help_text="Short stable identifier, e.g. cl-syn-001.")
+    name = forms.CharField(max_length=160)
+    location = forms.CharField(
+        max_length=160, help_text="Site that performs the testing: town and country."
+    )
+    reason = reason_field(max_length=2000)
+
+    def clean_code(self):
+        from .models import ContractLaboratory
+
+        code = self.cleaned_data["code"]
+        if ContractLaboratory.objects.filter(code=code).exists():
+            raise forms.ValidationError("This contract laboratory code already exists.")
+        return code
+
+
+class ContractApprovalForm(forms.Form):
+    method_code = forms.CharField(
+        max_length=80,
+        label="Method code",
+        help_text="Code of the test method, exactly as in the method catalog. The approval "
+        "applies to every version of that method.",
+    )
+    scope_note = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 2}),
+        required=False,
+        max_length=2000,
+        label="Scope",
+        help_text="Limits of the approval, for example the materials it covers. It is shown "
+        "with every result that relies on the approval; the software does not check it.",
+    )
+    evidence_ref = forms.CharField(
+        max_length=200,
+        label="Evidence reference",
+        help_text="Quality agreement, audit report or accreditation certificate, with its "
+        "revision.",
+    )
+    evidence_url = forms.URLField(required=False, max_length=500, label="Evidence link")
+    valid_from = date_field()
+    valid_until = date_field(label="Valid until (inclusive)")
+    reason = reason_field(max_length=2000)
+
+    def clean_method_code(self):
+        """A code the method catalog does not hold would approve nothing; refuse the typo."""
+        from django.apps import apps
+
+        code = self.cleaned_data["method_code"].strip()
+        if not apps.is_installed("catalog"):
+            return code
+        method = apps.get_model("catalog", "Method").objects.filter(code__iexact=code).first()
+        if method is None:
+            raise forms.ValidationError(
+                "The method catalog holds no method with this code. Enter the code as it "
+                "appears under Specifications, Methods."
+            )
+        return method.code
+
+    def clean_evidence_url(self):
+        from .models import http_url
+
+        url = self.cleaned_data["evidence_url"]
+        if url:
+            http_url(url)
+        return url
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("valid_from"), data.get("valid_until")
+        if start and end and end < start:
+            self.add_error("valid_until", "Valid until cannot precede valid from.")
+        return data

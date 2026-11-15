@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import contract_views, views
 
 app_name = "laboratory"
 urlpatterns = [
@@ -38,6 +38,41 @@ urlpatterns = [
     path("reagents/<int:pk>/", views.reagent_detail, name="reagent_detail"),
     path("reagents/<int:pk>/release/", views.reagent_release, name="reagent_release"),
     path("reagents/<int:pk>/reject/", views.reagent_reject, name="reagent_reject"),
+    path(
+        "contract-laboratories/",
+        contract_views.contract_laboratory_list,
+        name="contract_laboratory_list",
+    ),
+    path(
+        "contract-laboratories/new/",
+        contract_views.contract_laboratory_new,
+        name="contract_laboratory_new",
+    ),
+    path(
+        "contract-laboratories/<int:pk>/",
+        contract_views.contract_laboratory_detail,
+        name="contract_laboratory_detail",
+    ),
+    path(
+        "contract-laboratories/<int:pk>/approvals/new/",
+        contract_views.contract_approval_new,
+        name="contract_approval_new",
+    ),
+    path(
+        "contract-approvals/<int:pk>/",
+        contract_views.contract_approval_detail,
+        name="contract_approval_detail",
+    ),
+    path(
+        "contract-approvals/<int:pk>/approve/",
+        contract_views.contract_approval_approve,
+        name="contract_approval_approve",
+    ),
+    path(
+        "contract-approvals/<int:pk>/revoke/",
+        contract_views.contract_approval_revoke,
+        name="contract_approval_revoke",
+    ),
     path("uses/", views.use_list, name="use_list"),
     path("uses/new/", views.use_new, name="use_new"),
 ]

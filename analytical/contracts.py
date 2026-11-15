@@ -19,6 +19,12 @@ a calculation applies to test observations only.
 settings.ANALYTICAL_BENCH names the bench class (``choices``, ``lock_actor``, ``authorize``,
 ``record_refusal``) that checks the analyst and the selected equipment and reagent lots for every
 observation and batch QC entry. There is no default: without it those entries are held.
+
+The same bench answers for results reported by a contract laboratory (``contract_choices``,
+``authorize_contract``, ``record_contract_refusal``, ``contract_notice``): it checks that the
+laboratory holds a signed approval for the method covering the date of its report, and returns
+the evidence relied on. That evidence is frozen on each observation under ``CONTRACT``; an
+observation that carries it was reported by the contract laboratory, not made at this bench.
 """
 
 import hashlib
@@ -711,6 +717,32 @@ def bench():
     if not path:
         raise ValidationError("No bench check is configured; results are held.")
     return import_string(path)()
+
+
+CONTRACT = "contract"
+CONTRACT_KEYS = {"laboratory", "approval", "report"}
+
+
+def contract_source(evidence):
+    """The contract laboratory evidence frozen on an observation, or None for bench work.
+
+    ``{"laboratory": {...}, "approval": {...}, "report": {"number", "date"}, ...}``.
+    """
+    source = evidence.get(CONTRACT) if isinstance(evidence, dict) else None
+    if not isinstance(source, dict) or not CONTRACT_KEYS <= set(source):
+        return None
+    if not all(isinstance(source[key], dict) for key in CONTRACT_KEYS):
+        return None
+    return source
+
+
+def reported_source(observations):
+    """The contract laboratory evidence when every one of a test's current observations was
+    reported by a contract laboratory, otherwise None. A test never mixes the two origins."""
+    sources = [contract_source(o.eligibility) for o in observations]
+    if not sources or any(source is None for source in sources):
+        return None
+    return sources[0]
 
 
 def bench_resources(evidence):

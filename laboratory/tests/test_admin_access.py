@@ -5,11 +5,22 @@ from django.urls import reverse
 
 from core.models import AuditEvent
 from laboratory import services, urls
-from laboratory.models import Calibration, Equipment, Qualification, ReagentLot, ResourceUse
+from laboratory.models import (
+    Calibration,
+    ContractApproval,
+    ContractLaboratory,
+    ContractUse,
+    Equipment,
+    Qualification,
+    ReagentLot,
+    ResourceUse,
+)
 
 from .access import check_boundary, make_user, route_names
 from .helpers import (
     accept_new_calibration,
+    approve_contract_laboratory,
+    make_contract_laboratory,
     make_equipment,
     make_reagent,
     qualify_analyst,
@@ -27,6 +38,9 @@ READ_ROUTES = {
     "laboratory:reagent_list",
     "laboratory:reagent_detail",
     "laboratory:use_list",
+    "laboratory:contract_laboratory_list",
+    "laboratory:contract_laboratory_detail",
+    "laboratory:contract_approval_detail",
 }
 MUTATION_ROUTES = {
     "laboratory:equipment_new",
@@ -42,8 +56,21 @@ MUTATION_ROUTES = {
     "laboratory:reagent_release",
     "laboratory:reagent_reject",
     "laboratory:use_new",
+    "laboratory:contract_laboratory_new",
+    "laboratory:contract_approval_new",
+    "laboratory:contract_approval_approve",
+    "laboratory:contract_approval_revoke",
 }
-TRACKED = [Equipment, Calibration, Qualification, ReagentLot, ResourceUse]
+TRACKED = [
+    Equipment,
+    Calibration,
+    Qualification,
+    ReagentLot,
+    ResourceUse,
+    ContractLaboratory,
+    ContractApproval,
+    ContractUse,
+]
 
 
 def test_every_laboratory_route_is_classified_exactly_once():
@@ -74,6 +101,9 @@ def world(people, django_user_model):
     )
     approved = qualify_analyst(people, people["analyst2"], "ASSAY-B")
     reagent = make_reagent(people, "R-NEW", release=False)
+    outside = make_contract_laboratory(people)
+    waiting = approve_contract_laboratory(people, outside, "ASSAY-A", sign=False)
+    signed = approve_contract_laboratory(people, outside, "ASSAY-B")
     users = dict(people)
     for name, roles in {
         "admin_analyst": ["admin", "analyst"],
@@ -90,6 +120,9 @@ def world(people, django_user_model):
         "pending": pending,
         "approved": approved,
         "reagent": reagent,
+        "outside": outside,
+        "waiting": waiting,
+        "signed": signed,
     }
 
 
@@ -106,6 +139,10 @@ def routes(world):
         ("laboratory:reagent_list", [], None),
         ("laboratory:reagent_detail", [world["reagent"].pk], None),
         ("laboratory:use_list", [], None),
+        ("laboratory:contract_laboratory_list", [], None),
+        ("laboratory:contract_laboratory_detail", [world["outside"].pk], None),
+        ("laboratory:contract_approval_detail", [world["waiting"].pk], None),
+        ("laboratory:contract_approval_detail", [world["signed"].pk], None),
     ]
     mutations = [
         ("laboratory:equipment_new", [], "analyst"),
@@ -121,6 +158,11 @@ def routes(world):
         ("laboratory:reagent_release", [world["reagent"].pk], "reviewer"),
         ("laboratory:reagent_reject", [world["reagent"].pk], "analyst"),
         ("laboratory:use_new", [], "analyst"),
+        ("laboratory:contract_laboratory_new", [], "quality"),
+        ("laboratory:contract_approval_new", [world["outside"].pk], "quality"),
+        # Recorded by "quality", so a second quality person signs the approval.
+        ("laboratory:contract_approval_approve", [world["waiting"].pk], "quality2"),
+        ("laboratory:contract_approval_revoke", [world["signed"].pk], "quality"),
     ]
     assert {n for n, _, _ in reads} == READ_ROUTES
     assert {n for n, _, _ in mutations} == MUTATION_ROUTES

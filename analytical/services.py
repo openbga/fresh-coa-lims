@@ -7,9 +7,16 @@ Every evidence change bumps the lot revision so a disposition opened earlier bec
 Observations and batch QC entries also pass the configured bench (contracts.bench): its
 ``lock_actor`` runs first inside the transaction, ``authorize`` just before the row is created,
 and a refusal rolls the entry back before ``record_refusal`` audits it.
+
+A result reported by a contract laboratory is recorded as the test's observations, every
+replicate at once, behind the same bench: ``authorize_contract`` checks the laboratory's approval
+for the method instead of the analyst and the resources. A test is tested at this bench or
+reported by a contract laboratory, never both.
 """
 
+import datetime
 import json
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -21,12 +28,15 @@ from core.services import require_role, sign_transition, validate_rules
 from quality.models import Lot, Sample
 
 from .contracts import (
+    CONTRACT,
     LESS_THAN,
     Reading,
     WorkRefused,
     batch_methods,
     bench,
     canonical_hash,
+    contract_source,
+    reported_source,
     resolve,
 )
 from .gates import data_author_ids, investigation_author_ids
@@ -76,9 +86,12 @@ def _bump(*lots):
         lot.save(update_fields=["revision"])
 
 
+STALE = "Record changed. Reload and review before continuing."
+
+
 def _check_revision(record, expected_revision):
     if expected_revision is not None and record.revision != expected_revision:
-        raise ValidationError("Record changed. Reload and review before continuing.")
+        raise ValidationError(STALE)
 
 
 def _touch(record):
@@ -199,6 +212,12 @@ def _recheck_calculations(spec, observations, refusal):
             raise ValidationError(refusal)
 
 
+def _bench_observations(observations):
+    """Observations made at this bench. A value reported by a contract laboratory is entered as
+    reported and has no stored inputs to recalculate from."""
+    return [o for o in observations if o.contract is None]
+
+
 def _reading_record(observation):
     """The reading as recorded, for audit events."""
     return {
@@ -218,11 +237,11 @@ def _resource_ids(ids, label):
         raise ValidationError(f"Unknown {label} selected.") from exc
 
 
-def _with_bench(actor, work):
+def _with_bench(actor, work, refused="record_refusal"):
     """Run ``work(desk, attempt)`` in one transaction behind the configured bench.
 
-    ``lock_actor`` is the first statement. ``_authorize`` fills ``attempt`` before calling the
-    bench, so a WorkRefused rolls everything back and is then audited by ``record_refusal``.
+    ``lock_actor`` is the first statement. The work fills ``attempt`` before calling the bench,
+    so a WorkRefused rolls everything back and is then audited by the bench's ``refused`` method.
     """
     desk = bench()
     attempt = {}
@@ -232,7 +251,7 @@ def _with_bench(actor, work):
             return work(desk, attempt)
     except WorkRefused as exc:
         if attempt:
-            desk.record_refusal(actor=actor, refusals=exc.refusals, **attempt)
+            getattr(desk, refused)(actor=actor, refusals=exc.refusals, **attempt)
         raise
 
 
@@ -272,6 +291,10 @@ def _authorize(
     )
     if not isinstance(evidence, dict):
         raise ValidationError("Bench evidence is missing.")
+    if CONTRACT in evidence:
+        # Only record_contract_result marks an observation as reported by a contract laboratory;
+        # that mark waives this laboratory's batch QC and recalculation.
+        raise ValidationError("Bench evidence cannot name a contract laboratory.")
     json.dumps(evidence)  # must be storable as frozen evidence
     return evidence
 
@@ -304,6 +327,8 @@ def record_observation(
         if locked.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting observations.")
         spec = locked.spec
+        if locked.contract_source() is not None:
+            raise ValidationError(REPORTED)
         if spec.method.requires_batch and locked.batch_id is None:
             raise ValidationError("Assign this test to a QC batch before recording results.")
         count = locked.current_observations().count()
@@ -391,6 +416,8 @@ def correct_observation(
         original = Observation.objects.get(pk=observation.pk)
         if Observation.objects.filter(supersedes=original).exists():
             raise ValidationError("This observation has already been corrected.")
+        if original.contract is not None:
+            raise ValidationError(CONTRACT_REPLICATE)
         spec = test.spec
         fields = _entry(
             spec,
@@ -448,6 +475,246 @@ def correct_observation(
     return _with_bench(actor, work)
 
 
+# Results reported by a contract laboratory ---------------------------------------------------
+
+NOT_ACCEPTING = "This test is not accepting results."
+IN_BATCH = (
+    "This test is in a QC batch of this laboratory. It is tested here; a contract laboratory's "
+    "result cannot be recorded on it."
+)
+OWN_OBSERVATIONS = (
+    "This test holds observations made in this laboratory. A test is tested here or reported "
+    "by a contract laboratory, never both."
+)
+REPORTED = (
+    "This test holds a result reported by a contract laboratory. It takes no observation made "
+    "in this laboratory; correct the contract laboratory result instead."
+)
+CONTRACT_REPLICATE = (
+    "This replicate was reported by a contract laboratory. Correct the contract laboratory "
+    "result as a whole."
+)
+# One replicate as the report states it. Every key is required; nothing is defaulted.
+CONTRACT_READING = ("value", "qualifier", "outcome", "observed_text")
+REPORT_NUMBER_LENGTH = 120
+
+
+def contract_refusal(test, current=None):
+    """Why a contract laboratory's result cannot be recorded or corrected on this test, or None.
+
+    Shared by the page and the locked service. ``current`` are the test's current observations
+    when the caller has already read them.
+    """
+    if test.state != AnalyticalTest.State.OPEN:
+        return NOT_ACCEPTING
+    if test.batch_id is not None:
+        return IN_BATCH
+    current = list(test.current_observations()) if current is None else current
+    if current and reported_source(current) is None:
+        return OWN_OBSERVATIONS
+    return None
+
+
+def _contract_readings(spec, readings):
+    """Observation fields for each replicate a report states, checked against the requirement.
+
+    The value is entered as reported, also when the method has a calculation: the inputs stay in
+    the contract laboratory's own records.
+    """
+    if not isinstance(readings, (list, tuple)) or len(readings) != spec.replicates:
+        raise ValidationError(
+            f"Enter the {spec.replicates} replicate result{'s' if spec.replicates != 1 else ''} "
+            "the report states."
+        )
+    fields = []
+    for number, item in enumerate(readings, start=1):
+        if not isinstance(item, dict) or set(item) != set(CONTRACT_READING):
+            raise ValidationError("The contract laboratory result is incomplete.")
+        value = item["value"]
+        try:
+            if value is not None and not isinstance(value, Decimal):
+                raise ValidationError("Enter the result as an exact decimal number.")
+            if spec.is_qualitative and not (item["observed_text"] or "").strip():
+                raise ValidationError("Enter the wording of the result on the report.")
+            if not spec.is_qualitative and value is None:
+                raise ValidationError("Enter the value the report states.")
+            reading, text = _reading(
+                spec, value, item["qualifier"], item["outcome"], item["observed_text"]
+            )
+        except ValidationError as exc:
+            raise ValidationError(
+                [f"Replicate {number}: {message}" for message in exc.messages]
+            ) from exc
+        fields.append(
+            {
+                "value": reading.value,
+                "qualifier": reading.qualifier,
+                "outcome": reading.outcome,
+                "value_text": text,
+                "observed_text": (item["observed_text"] or "").strip()
+                if spec.is_qualitative
+                else "",
+                "inputs": [],
+                "calculation": {},
+            }
+        )
+    return fields
+
+
+def _contract_record(observations):
+    """A contract laboratory result as audit evidence: what was reported, by whom and where."""
+    first = observations[0]
+    source = first.contract or {}
+    return {
+        "observations": [o.pk for o in observations],
+        "replicates": [_reading_record(o) for o in observations],
+        "raw_reference": first.raw_reference,
+        "laboratory": source.get("laboratory", {}).get("code"),
+        "report": source.get("report"),
+        "approval": source.get("approval", {}).get("id"),
+    }
+
+
+def record_contract_result(
+    *,
+    actor,
+    test,
+    expected_revision,
+    laboratory_id,
+    report_number,
+    report_date,
+    raw_reference,
+    readings,
+    reason="",
+):
+    """Record what a contract laboratory's report states for a test: every replicate at once.
+
+    The laboratory needs a signed approval for the test's method that covers the date of the
+    report; the evidence relied on is frozen on each observation. A test that already holds a
+    contract laboratory's result is corrected the same way: each replicate gets a linked row,
+    the originals stay, and a reason is required. A correction that keeps the laboratory and the
+    report keeps the evidence already relied on; naming another laboratory or another report is
+    a new acceptance and is checked against the approval again.
+    """
+    require_role(actor, ANALYST)
+    report_number = (report_number or "").strip()
+    raw_reference = (raw_reference or "").strip()
+    errors = {}
+    if not report_number:
+        errors["report_number"] = "Enter the number of the laboratory's report."
+    elif len(report_number) > REPORT_NUMBER_LENGTH:
+        errors["report_number"] = (
+            f"The report number has at most {REPORT_NUMBER_LENGTH} characters."
+        )
+    if not raw_reference:
+        errors["raw_reference"] = "Record where the laboratory's report is kept."
+    if not isinstance(report_date, datetime.date) or isinstance(report_date, datetime.datetime):
+        errors["report_date"] = "Enter the date of the report."
+    elif report_date > timezone.localdate():
+        errors["report_date"] = "The report cannot be dated in the future."
+    if errors:
+        raise ValidationError(errors)
+    if isinstance(expected_revision, bool) or not isinstance(expected_revision, int):
+        # The page always states the revision it showed; without one a stale entry could
+        # replace a result recorded since.
+        raise ValidationError(STALE)
+
+    def work(desk, attempt):
+        locked = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
+        _check_revision(locked, expected_revision)
+        (lot,) = _lock_lots(locked.lot_id)
+        current = list(locked.current_observations().order_by("replicate", "pk"))
+        _raise(contract_refusal(locked, current))
+        spec = locked.spec
+        fields = _contract_readings(spec, readings)
+        if current:
+            _require_reason(reason)
+            if len(current) != spec.replicates:
+                raise ValidationError(NOT_ACCEPTING)
+        report = {"number": report_number, "date": report_date.isoformat()}
+        before = current[0].contract if current else None
+        same_report = (
+            before is not None
+            and before["laboratory"].get("id") == laboratory_id
+            and before["report"] == report
+        )
+        if same_report:
+            # The same report of the same laboratory: the acceptance already made stands and
+            # nothing new is relied on, so a transcription error can be corrected whatever has
+            # happened to the approval since.
+            evidence = before
+            unchanged = all(o.raw_reference == raw_reference for o in current) and all(
+                (o.value, o.qualifier, o.outcome, o.value_text, o.observed_text)
+                == (
+                    new["value"],
+                    new["qualifier"],
+                    new["outcome"],
+                    new["value_text"],
+                    new["observed_text"],
+                )
+                for o, new in zip(current, fields, strict=True)
+            )
+            if unchanged:
+                raise ValidationError("The correction changes nothing.")
+        else:
+            # A first entry, another laboratory or another report: a new acceptance, checked
+            # against the laboratory's approval for the method.
+            context = ("analytical.analyticaltest", locked.pk)
+            note = reason or f"Contract laboratory result for {locked.label} {locked.test_code}"
+            attempt.update(
+                method_code=spec.method.code,
+                test_code=locked.test_code,
+                context_type=context[0],
+                context_id=context[1],
+                laboratory_id=laboratory_id,
+                report_number=report_number,
+                report_date=report_date,
+                reason=note,
+            )
+            evidence = desk.authorize_contract(
+                actor=actor,
+                laboratory_id=laboratory_id,
+                method_code=spec.method.code,
+                test_code=locked.test_code,
+                context_type=context[0],
+                context_id=context[1],
+                report_number=report_number,
+                report_date=report_date,
+            )
+            if contract_source({CONTRACT: evidence}) is None:
+                raise ValidationError("Contract laboratory evidence is missing.")
+            json.dumps(evidence)  # must be storable as frozen evidence
+        observations = []
+        for index, values in enumerate(fields):
+            observation = Observation(
+                test=locked,
+                replicate=index + 1,
+                unit=spec.unit,
+                raw_reference=raw_reference,
+                supersedes=current[index] if current else None,
+                reason=reason,
+                eligibility={CONTRACT: evidence},
+                recorded_by=actor,
+                **values,
+            )
+            observation.full_clean()
+            observation.save()
+            observations.append(observation)
+        _touch(locked)
+        _bump(lot)
+        record_event(
+            actor=actor,
+            action="contract_result.corrected" if current else "contract_result.recorded",
+            obj=locked,
+            before=_contract_record(current) if current else None,
+            after={**_contract_record(observations), "unit": spec.unit, "contract": evidence},
+            reason=reason or "Contract laboratory result recorded.",
+        )
+        return observations
+
+    return _with_bench(actor, work, refused="record_contract_refusal")
+
+
 TRIGGER_LENGTH = Investigation._meta.get_field("trigger").max_length
 
 
@@ -496,15 +763,20 @@ def submit_test(*, actor, test, expected_revision, reason):
         if test.state != AnalyticalTest.State.OPEN or test.batch_id != batch_id:
             raise ValidationError("This test cannot be submitted.")
         spec = test.spec
-        if spec.method.requires_batch:
+        current = list(test.current_observations())
+        # A contract laboratory runs the method's QC itself; its report is the evidence and
+        # the reviewer checks it there. A test reported by one is never in a batch here.
+        reported = test.batch_id is None and reported_source(current) is not None
+        if spec.method.requires_batch and not reported:
             if batch is None or batch.state != QCBatch.State.OPEN:
                 raise ValidationError("An open QC batch is required.")
             status, _ = batch.qc_status()
             if status != "passed":
                 raise ValidationError(f"Batch QC is {status}; tests cannot be submitted.")
-        current = list(test.current_observations())
         _recheck_calculations(
-            spec, current, "Calculated result changed; correct the observation before submitting."
+            spec,
+            _bench_observations(current),
+            "Calculated result changed; correct the observation before submitting.",
         )
         readings = [o.reading for o in current]
         test.mean_value, test.reportable_value, test.reportable_text, test.conforms = spec.evaluate(
@@ -614,7 +886,9 @@ def review_test(*, actor, pin, test, expected_revision, reason):
         validate_rules(lot.rules)
         current = list(locked.current_observations())
         _recheck_calculations(
-            locked.spec, current, "Calculated result changed; return the test for resubmission."
+            locked.spec,
+            _bench_observations(current),
+            "Calculated result changed; return the test for resubmission.",
         )
         readings = [o.reading for o in current]
         _, reportable, text, conforms = locked.spec.evaluate(readings)

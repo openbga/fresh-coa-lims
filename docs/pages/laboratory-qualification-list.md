@@ -4,7 +4,7 @@ urls: laboratory:qualification_list
 views: laboratory.views.qualification_list
 templates: ops/list.html
 models: laboratory.Qualification
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Approved training and qualification evidence by activity or method, for analysts
 
 ## Layout
 
-- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New qualification** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (activity, the person's username, or the equipment asset ID; case-insensitive "contains") and **Status** (All, Awaiting approval, Approved, starts later, Approved and effective, Expiring within 30 days, Expired, Revoked). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Activity (links to the record), Subject, Type (Analyst or Equipment), Valid from, Valid until (inclusive), State. Sort by Recorded (newest first by default; there is no Recorded column), Valid until or Activity. Sortable headers toggle ascending/descending.

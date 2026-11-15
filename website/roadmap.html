@@ -79,6 +79,7 @@
             <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
             <li id="review-disposition"><h3>Review and QC disposition</h3><p>A reviewer who did not record the results signs the review. Quality signs the disposition, which is blocked while tests are missing or failing or while investigations or holds are open.</p></li>
             <li id="issued-certificates"><h3>Certificates of analysis</h3><p>A signed, versioned PDF built from the reviewed evidence. The issued file is stored with its checksum and returned unchanged on every download. An amendment states its reason and links to the original.</p></li>
+            <li id="contract-laboratories"><h3>Contract laboratories</h3><p>A register of outside laboratories and, for each method a laboratory may perform, an approval with its evidence and dates, signed by a second quality person. A result the laboratory reports is recorded on the test with its report and is refused unless an approval covers the date of the report. It is then reviewed, investigated when it fails and printed on the certificate like any other result, with the laboratory named. The laboratory's record lists the results that relied on each approval.</p></li>
             <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, and analyst qualifications by method. Recording a result or a batch QC check names the instruments and the reagent or standard lots used. The entry is refused when an instrument is out of calibration or out of service, a lot is expired or not released, or the analyst has no current qualification for the method. After a failed calibration the equipment page lists the results that used it.</p></li>
             <li id="stability-retention"><h3>Stability and retention</h3><p>Stability protocols with conditions, time points and scheduled pulls. Reserve samples, retention obligations calculated from their anchor dates, and holds that block disposal.</p></li>
             <li id="signatures-audit"><h3>Signatures, audit trail and accounts</h3><p>Username and PIN are re-entered for every signature, which is bound to the exact revision signed. The audit trail records who changed what, when and why, and can be reviewed and exported. Accounts are named, roles are explicit and account changes are signed.</p></li>
@@ -100,11 +101,10 @@
           <div class="col-lg-8">
             <ol class="qual-workflow">
               <li id="external-results">
-                <h3>Supplier and contract-laboratory results</h3>
-                <p>Many laboratories take part of a lot's evidence from a supplier's certificate or from an outside laboratory. That reliance has conditions, and the record has to show they were met. Each lot already names its supplier and its delivery, and can hold what the supplier's certificate states beside the specification.</p>
+                <h3>Reliance on supplier results</h3>
+                <p>Many laboratories take part of a lot's evidence from a supplier's certificate. That reliance has conditions, and the record has to show they were met. Each lot already names its supplier and its delivery, and can hold what the supplier's certificate states beside the specification.</p>
                 <ul>
                   <li>A supplier qualification status that lets a result from the supplier's certificate stand in for a test. Identity testing stays required where the rules say so.</li>
-                  <li>Results from contract laboratories, with the evidence that the laboratory is approved for the test.</li>
                 </ul>
                 <p class="qual-ref">Requirement OQ-006</p>
               </li>

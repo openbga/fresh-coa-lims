@@ -4,7 +4,7 @@ urls: analytical:observation_correct
 views: analytical.views.observation_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.Observation, analytical.AnalyticalTest, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-12
+reviewed: 2026-11-14
 ---
 
 ## Purpose
@@ -61,8 +61,8 @@ Correct one replicate result by adding a linked correction. The original result 
 
 ## Rules and hidden logic
 
-- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "Only current observations of open tests can be corrected.".
-- **Preconditions**: test must be Open ("Only open tests can be corrected. A reviewer must return a submitted test first."); lot in quarantine; the observation must not already be corrected ("This observation has already been corrected.").
+- **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "Only current observations of open tests can be corrected.". A replicate reported by a contract laboratory is refused the same way: "This replicate was reported by a contract laboratory. Correct the contract laboratory result as a whole."
+- **Preconditions**: test must be Open ("Only open tests can be corrected. A reviewer must return a submitted test first."); lot in quarantine; the observation must not already be corrected ("This observation has already been corrected."); it was made in this laboratory, not reported by a contract laboratory (the message above; the server repeats the check).
 - **Bench checks**: without a configured bench the page redirects to the test record with "No bench check is configured; results are held." and the server refuses the entry with the same message. After the record locks and validations the bench checks your current qualification for the test's method and every instrument and lot you selected. A refusal shows each reason, as "Refused: <subject>: <reason>", on the checkbox list of the refused instrument or lot, or above the form for your qualification (for example "Refused: analyst.test: No approved, current qualification for “<method>”."). Nothing is saved; the refused attempt is audited by the bench. The accepted evidence (user, activity, qualification, equipment and lots with their use records) is frozen on the observation and in its audit event.
 - **Required resources**: a method that requires equipment refuses an entry with none selected ("Select the instrument used; this method requires one."); the same applies to reagent or standard lots. The server repeats this check ("Method <code> requires at least one instrument; select the equipment used.").
 - **Calculated results**: when the method has a calculation, the form asks for each input instead of the value. The server calculates the value with the approved formula and rounds it half-up to the approved decimals. A missing, non-finite or over-precise input (more than 8 decimal places or 20 digits), a division by zero ("The value cannot be calculated: The formula divides by zero for these values.") or a result too large to store refuses the entry; nothing is saved. A calculated result cannot be reported as less than a value. The inputs as entered and the calculation applied (method, revision, formula, unit, decimals) are stored on the observation and in its audit event.
@@ -78,3 +78,4 @@ Correct one replicate result by adding a linked correction. The original result 
 ## Related pages
 
 - Test record (return target).
+- Record contract laboratory result (corrects a reported result as a whole).
