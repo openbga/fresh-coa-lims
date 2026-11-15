@@ -49,6 +49,9 @@ class LaboratoryBench:
     the analyst needs a current approved qualification for the method, and every instrument and
     reagent or standard lot selected must be fit for use. Success records the resource uses and
     returns the evidence relied on; a refusal is audited after the entry has rolled back.
+
+    A result reported by a contract laboratory takes the other door: the laboratory needs a signed
+    approval for the method that covers the date of its report.
     """
 
     def choices(self):
@@ -115,6 +118,78 @@ class LaboratoryBench:
             refusals=refusals,
             reason=reason,
         )
+
+    # A result reported by a contract laboratory is checked against that laboratory's approval
+    # for the method instead of the analyst and the selected resources.
+
+    def contract_choices(self, method_code):
+        from laboratory.contract import contract_choices
+
+        return contract_choices(method_code)
+
+    def authorize_contract(
+        self,
+        *,
+        actor,
+        laboratory_id,
+        method_code,
+        test_code,
+        context_type,
+        context_id,
+        report_number,
+        report_date,
+    ):
+        from analytical.contracts import WorkRefused
+        from laboratory.contract import ContractBlocked, use_contract_report
+
+        try:
+            return use_contract_report(
+                actor=actor,
+                laboratory_id=laboratory_id,
+                method_code=method_code,
+                context_type=context_type,
+                context_id=context_id,
+                report_number=report_number,
+                report_date=report_date,
+                test_code=test_code,
+            )
+        except ContractBlocked as exc:
+            raise WorkRefused(
+                [{"subject": exc.finding.subject, "reasons": list(exc.finding.reasons)}]
+            ) from exc
+
+    def record_contract_refusal(
+        self,
+        *,
+        actor,
+        laboratory_id,
+        method_code,
+        test_code,
+        context_type,
+        context_id,
+        report_number,
+        report_date,
+        refusals,
+        reason,
+    ):
+        from laboratory.contract import record_blocked_contract
+
+        record_blocked_contract(
+            actor=actor,
+            laboratory_id=laboratory_id,
+            method_code=method_code,
+            context_type=context_type,
+            context_id=context_id,
+            report_number=report_number,
+            report_date=report_date,
+            refusals=refusals,
+            reason=reason,
+        )
+
+    def contract_notice(self, evidence):
+        from laboratory.contract import reliance_notice
+
+        return reliance_notice(evidence)
 
 
 def report_holds(lot):

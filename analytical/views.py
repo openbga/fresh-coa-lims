@@ -13,11 +13,12 @@ from core.services import require_role
 from quality.models import Lot, Sample
 
 from . import gates, services
-from .contracts import WorkRefused, batch_methods, bench, plain
+from .contracts import WorkRefused, batch_methods, bench, plain, reported_source
 from .forms import (
     BatchAssignForm,
     BatchForm,
     ConcludeForm,
+    ContractResultForm,
     CorrectionForm,
     EntryForm,
     ObservationForm,
@@ -74,6 +75,31 @@ def bench_choices():
         return bench().choices(), None
     except ValidationError as exc:
         return None, " ".join(exc.messages)
+
+
+def contract_choices(method_code):
+    """Contract laboratories approved for the method, or (None, hold message) without a bench."""
+    try:
+        return bench().contract_choices(method_code), None
+    except ValidationError as exc:
+        return None, " ".join(exc.messages)
+
+
+def contract_notice(source):
+    """What has happened since to the approval a reported result relied on, or ""."""
+    try:
+        return bench().contract_notice(source) if source else ""
+    except ValidationError:
+        return ""
+
+
+def contract_text(source):
+    """One line naming the contract laboratory and its report, from frozen evidence."""
+    laboratory, report = source["laboratory"], source["report"]
+    return (
+        f"{laboratory.get('code', '')} · {laboratory.get('name', '')} · report "
+        f"{report.get('number', '')} dated {report.get('date', '')}"
+    )
 
 
 def calculation_summary(spec):
@@ -401,10 +427,18 @@ def test_detail(request, pk):
         obs.in_limits = spec.conforms(obs.reading)
     user_roles = roles(request.user)
     is_open = test.state == "open" and test.lot.state == "quarantine"
-    current_count = sum(1 for o in observations if o.is_current)
+    current = [o for o in observations if o.is_current]
+    current_count = len(current)
+    # Reported by a contract laboratory: every current replicate carries its evidence.
+    contract = reported_source(current)
     batch_status = test.batch.qc_status()[0] if test.batch else None
-    qc_ready = not spec.method.requires_batch or (
-        test.batch is not None and test.batch.state == "open" and batch_status == "passed"
+    qc_ready = (
+        contract is not None
+        or not spec.method.requires_batch
+        or (test.batch is not None and test.batch.state == "open" and batch_status == "passed")
+    )
+    can_contract = (
+        "analyst" in user_roles and is_open and services.contract_refusal(test, current) is None
     )
     return render(
         request,
@@ -425,6 +459,10 @@ def test_detail(request, pk):
             and current_count < spec.replicates
             and (test.batch_id or not spec.method.requires_batch),
             "can_correct": "analyst" in user_roles and is_open,
+            "contract": contract,
+            "contract_notice": contract_notice(contract),
+            "can_contract": can_contract and not current,
+            "can_contract_correct": can_contract and contract is not None,
             "can_batch": "analyst" in user_roles
             and is_open
             and spec.method.requires_batch
@@ -452,6 +490,8 @@ def observation_new(request, pk):
     back = reverse("analytical:test_detail", args=[test.pk])
     if test.state != "open" or test.lot.state != "quarantine":
         return unavailable(request, "This test is not accepting observations.", back)
+    if test.contract_source() is not None:
+        return unavailable(request, services.REPORTED, back)
     if test.spec.method.requires_batch and not test.batch_id:
         return unavailable(request, "Add this test to a QC batch before recording results.", back)
     if test.current_observations().count() >= test.spec.replicates:
@@ -495,6 +535,12 @@ def observation_correct(request, pk):
             "Only current observations of open tests can be corrected.",
             reverse("analytical:test_detail", args=[test.pk]),
         )
+    if observation.contract is not None:
+        return unavailable(
+            request,
+            services.CONTRACT_REPLICATE,
+            reverse("analytical:test_detail", args=[test.pk]),
+        )
     choices, hold = bench_choices()
     if hold:
         return unavailable(request, hold, reverse("analytical:test_detail", args=[test.pk]))
@@ -534,6 +580,101 @@ def observation_correct(request, pk):
             *([("Inputs being corrected", inputs_text(observation))] if observation.inputs else []),
             ("Original record", observation.raw_reference),
             *calculation_summary(test.spec),
+        ],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def contract_result(request, pk):
+    """Record, or correct as a whole, the result a contract laboratory reported for a test."""
+    require_role(request.user, "analyst")
+    test = get_test(pk)
+    back = reverse("analytical:test_detail", args=[test.pk])
+    current = list(test.current_observations().order_by("replicate", "pk"))
+    refusal = services.quarantine_refusal(test.lot) or services.contract_refusal(test, current)
+    if refusal:
+        return unavailable(request, refusal, back)
+    spec = test.spec
+    laboratories, hold = contract_choices(spec.method.code)
+    if hold:
+        return unavailable(request, hold, back)
+    correcting = bool(current)
+    initial = {"expected_revision": test.revision}
+    if correcting:
+        initial.update(ContractResultForm.initial_from(test, current))
+        # The laboratory already relied on stays selectable, so a transcription error can be
+        # corrected whatever has happened to its approval since.
+        recorded = current[0].contract["laboratory"]
+        if recorded.get("id") not in {pk for pk, _ in laboratories}:
+            label = f"{recorded.get('code', '')} · {recorded.get('name', '')} · as recorded"
+            laboratories = [(recorded.get("id"), label), *laboratories]
+    if not laboratories:
+        return unavailable(
+            request,
+            f"No contract laboratory is approved for method {spec.method.code}. Quality records "
+            "and signs the approval under Laboratory, Contract laboratories.",
+            back,
+        )
+    form = ContractResultForm(
+        request.POST or None,
+        spec=spec,
+        laboratories=laboratories,
+        correcting=correcting,
+        initial=initial,
+    )
+    if request.method == "POST" and form.is_valid():
+        if perform(
+            form,
+            lambda: services.record_contract_result(
+                actor=request.user, test=test, **form.cleaned_data
+            ),
+        ):
+            messages.success(
+                request,
+                "Contract laboratory result corrected; the result recorded before is kept."
+                if correcting
+                else "Contract laboratory result recorded.",
+            )
+            return redirect("analytical:test_detail", pk=test.pk)
+    action = "Correct" if correcting else "Record"
+    replicates = spec.replicates
+    return action_page(
+        request,
+        form,
+        title=f"{action} contract laboratory result · {test.label}",
+        submit=f"{action} contract laboratory result",
+        crumbs=test_crumbs(test, f"{action} contract laboratory result"),
+        cancel_url=back,
+        summary=[
+            *test_summary(test),
+            ("Method", f"{spec.method.code} revision {spec.method.revision}"),
+            (
+                "Replicates",
+                f"{replicates}: the report must state "
+                + ("it" if replicates == 1 else "each of them"),
+            ),
+            *(
+                [
+                    ("Result being corrected", readings_text(test)),
+                    ("Reported by", contract_text(current[0].contract)),
+                    ("Report kept at", current[0].raw_reference),
+                ]
+                if correcting
+                else []
+            ),
+            (
+                "What is checked",
+                "The laboratory needs a signed approval for this method that covers the date of "
+                "its report. Its batch QC, instruments, reagents and any calculation inputs "
+                "stay in its own report, which the reviewer checks."
+                + (
+                    " A correction that keeps the laboratory and the report keeps the approval "
+                    "already relied on."
+                    if correcting
+                    else ""
+                ),
+            ),
         ],
     )
 
@@ -666,6 +807,18 @@ def test_review(request, pk):
         summary=[
             *test_summary(test),
             ("Replicates", readings_text(test)),
+            *(
+                [
+                    ("Reported by contract laboratory", contract_text(source)),
+                    *(
+                        [("Approval revoked", notice)]
+                        if (notice := contract_notice(source))
+                        else []
+                    ),
+                ]
+                if (source := test.contract_source())
+                else []
+            ),
             *(
                 [("Mean", f"{plain(test.mean_value)} {test.spec.unit}")]
                 if test.mean_value is not None

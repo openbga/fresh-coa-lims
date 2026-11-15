@@ -39,7 +39,7 @@
           <tr>
             <th scope="row">{{ r.test_code }}{% if r.name and r.name != r.test_code %}<br><span class="vr-muted">{{ r.name }}</span>{% endif %}</th>
             <td>{{ r.sample }}</td>
-            <td>{{ r.method.code }} r{{ r.method.revision }}</td>
+            <td>{{ r.method.code }} r{{ r.method.revision }}{% if r.contract_laboratory %}<span class="d-block vr-muted">Tested by contract laboratory {{ r.contract_laboratory.name }}, {{ r.contract_laboratory.location }}. Report {{ r.contract_laboratory.report_number }} dated {{ r.contract_laboratory.report_date }}.</span>{% endif %}</td>
             <td>{% for rep in r.replicates %}{{ rep.value }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
             <td class="text-end">{{ r.reportable }}{% if r.unit %} {{ r.unit }}{% endif %}</td>
             <td>{% if r.acceptance %}{{ r.acceptance }}{% else %}{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}{% endif %}</td>

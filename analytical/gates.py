@@ -4,10 +4,12 @@ Call these inside the disposition/report transaction after locking the lot row: 
 evidence change locks and bumps the same lot revision, so the result is consistent under that lock.
 """
 
+from django.core.exceptions import ValidationError
+
 from core.models import ElectronicSignature
 from quality.models import Sample
 
-from .contracts import canonical_hash, resolve
+from .contracts import bench, canonical_hash, reported_source, resolve
 from .models import (
     AnalyticalTest,
     Investigation,
@@ -165,11 +167,55 @@ def _signature(object_type, object_id, meaning):
     }
 
 
+def _reported_by(observations):
+    """{"contract_laboratory": {...}} when a contract laboratory reported every current
+    replicate, else {}. A test never mixes the two origins."""
+    source = reported_source(observations)
+    if source is None:
+        return {}
+    laboratory, report, approval = source["laboratory"], source["report"], source["approval"]
+    return {
+        "contract_laboratory": {
+            "code": laboratory.get("code"),
+            "name": laboratory.get("name"),
+            "location": laboratory.get("location"),
+            "report_number": report.get("number"),
+            "report_date": report.get("date"),
+            "approval": approval.get("id"),
+            "approval_evidence": approval.get("evidence_ref"),
+        }
+    }
+
+
+def lot_notices(lot):
+    """What a disposition signer should know about the lot's results; never a blocker.
+
+    A result reported by a contract laboratory says so when the approval it relied on has been
+    revoked since: the result stands as recorded and the decision is taken knowing it.
+    """
+    try:
+        desk = bench()
+    except ValidationError:
+        return []
+    notices = []
+    tests = AnalyticalTest.objects.filter(lot_id=lot.pk).exclude(state=STATE.INVALIDATED)
+    for test in tests.order_by("pk"):
+        source = test.contract_source()
+        notice = desk.contract_notice(source) if source else ""
+        if notice:
+            notices.append(
+                f"{test.label} {test.test_code} was reported by a contract laboratory. {notice} "
+                "This does not block the disposition."
+            )
+    return notices
+
+
 def lot_evidence(lot):
     """Frozen-ready JSON evidence for reports. Values are strings; nothing is recomputed later.
 
     Replicate values are the text as recorded ("99.80", "<10", "Absent"); ``mean`` is null when
-    the result has none (qualitative, or a replicate reported as less than a value).
+    the result has none (qualitative, or a replicate reported as less than a value). A result
+    reported by a contract laboratory names it under ``contract_laboratory``.
     """
     blockers, reportable, tests, investigations = lot_status(lot)
     results = []
@@ -177,6 +223,7 @@ def lot_evidence(lot):
     for sample_id, code in sorted(reportable, key=lambda k: (references[k[0]], k[1])):
         for test in reportable[(sample_id, code)]:
             spec = test.spec
+            observations = list(test.current_observations())
             results.append(
                 {
                     "test": test.pk,
@@ -207,13 +254,16 @@ def lot_evidence(lot):
                             "recorded_by": o.recorded_by.get_username(),
                             "recorded_at": o.recorded_at.isoformat(),
                         }
-                        for o in test.current_observations()
+                        for o in observations
                     ],
                     "mean": None if test.mean_value is None else str(test.mean_value),
                     "reportable": test.reportable_display,
                     "reporting_decimals": spec.reporting_decimals,
                     "batch": test.batch.number if test.batch else None,
                     "review": _signature("analytical.analyticaltest", test.pk, "reviewed"),
+                    # Present only for a result a contract laboratory reported, so evidence
+                    # of results made at this bench keeps the shape it always had.
+                    **_reported_by(observations),
                 }
             )
     return {

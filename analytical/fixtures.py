@@ -7,10 +7,12 @@ laboratory bench checks and is only for explicit test overrides of ANALYTICAL_BE
 """
 
 import copy
+import datetime
 import itertools
 
 from django.core.exceptions import ValidationError
 from django.db import connection
+from django.utils import timezone
 
 from .contracts import SCHEMA, SCHEMA_V2, SCHEMA_V3, WorkRefused
 
@@ -291,6 +293,13 @@ REAGENTS = {
     1: ("SYN-RS-001", "Reference standard", "released"),
     2: ("SYN-RS-002", "Reference standard", "expired"),
 }
+# Synthetic contract laboratories: id -> (code, name, location, approval status). The approved
+# one is approved for every method, for reports dated within the last CONTRACT_WINDOW days.
+CONTRACT_LABORATORIES = {
+    1: ("SYN-CL-01", "Synthetic Contract Analytics", "Synthetic City", "approved"),
+    2: ("SYN-CL-02", "Synthetic Outside Laboratory", "Synthetic Town", "revoked"),
+}
+CONTRACT_WINDOW = 30
 BENCH_LOG = []  # (call, details) in call order, for tests of lock order and refusal audit
 UNQUALIFIED = set()  # usernames the synthetic bench treats as not qualified
 _USES = itertools.count(1)
@@ -393,3 +402,108 @@ class SyntheticBench:
                 },
             )
         )
+
+    def contract_choices(self, method_code):
+        return [
+            (pk, f"{code} · {name} · {status}")
+            for pk, (code, name, _, status) in CONTRACT_LABORATORIES.items()
+        ]
+
+    def authorize_contract(
+        self,
+        *,
+        actor,
+        laboratory_id,
+        method_code,
+        test_code,
+        context_type,
+        context_id,
+        report_number,
+        report_date,
+    ):
+        if not connection.in_atomic_block:
+            raise RuntimeError("authorize_contract needs the caller's transaction.")
+        BENCH_LOG.append(
+            (
+                "authorize_contract",
+                {
+                    "laboratory_id": laboratory_id,
+                    "method_code": method_code,
+                    "test_code": test_code,
+                    "context_type": context_type,
+                    "context_id": context_id,
+                    "report_number": report_number,
+                    "report_date": report_date.isoformat(),
+                },
+            )
+        )
+        if laboratory_id not in CONTRACT_LABORATORIES:
+            raise ValidationError("The selected contract laboratory does not exist.")
+        code, name, location, status = CONTRACT_LABORATORIES[laboratory_id]
+        today = timezone.localdate()
+        start = today - datetime.timedelta(days=CONTRACT_WINDOW)
+        if status != "approved":
+            raise WorkRefused(
+                [{"subject": code, "reasons": [f"The approval for “{method_code}” is {status}."]}]
+            )
+        if not start <= report_date <= today:
+            raise WorkRefused(
+                [
+                    {
+                        "subject": code,
+                        "reasons": [
+                            f"No approval for method “{method_code}” covers a report dated "
+                            f"{report_date.isoformat()}."
+                        ],
+                    }
+                ]
+            )
+        return {
+            "policy": "synthetic-test-fixture",
+            "laboratory": {"id": laboratory_id, "code": code, "name": name, "location": location},
+            "approval": {
+                "id": laboratory_id,
+                "method_code": method_code,
+                "valid_from": start.isoformat(),
+                "valid_until": today.isoformat(),
+                "evidence_ref": "QAG-SYN-001 rev 1",
+            },
+            "report": {"number": report_number, "date": report_date.isoformat()},
+            "use": next(_USES),
+        }
+
+    def record_contract_refusal(
+        self,
+        *,
+        actor,
+        laboratory_id,
+        method_code,
+        test_code,
+        context_type,
+        context_id,
+        report_number,
+        report_date,
+        refusals,
+        reason,
+    ):
+        BENCH_LOG.append(
+            (
+                "record_contract_refusal",
+                {
+                    "in_transaction": connection.in_atomic_block,
+                    "actor": actor.pk,
+                    "laboratory_id": laboratory_id,
+                    "method_code": method_code,
+                    "test_code": test_code,
+                    "context_type": context_type,
+                    "context_id": context_id,
+                    "report_number": report_number,
+                    "report_date": report_date.isoformat(),
+                    "refusals": refusals,
+                    "reason": reason,
+                },
+            )
+        )
+
+    def contract_notice(self, evidence):
+        return ""

@@ -45,6 +45,7 @@ READ = {
 MUTATION_PAGES = {
     "observation_new",
     "observation_correct",
+    "contract_result",
     "test_batch",
     "test_return",
     "test_review",
@@ -149,6 +150,17 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "observation_correct": (
             reverse("analytical:observation_correct", args=[obs.pk]),
             {"value": "100.1", "raw_reference": "NB-9", "reason": "Typo"},
+        ),
+        "contract_result": (
+            reverse("analytical:contract_result", args=[tests2["identity"].pk]),
+            {
+                "laboratory_id": "1",
+                "report_number": "CLR-SYN-9",
+                "report_date": timezone.localdate().isoformat(),
+                "raw_reference": "DMS-SYN-9",
+                "value_1": "1.00",
+                "expected_revision": tests2["identity"].revision,
+            },
         ),
         "test_batch": (
             reverse("analytical:test_batch", args=[tests2["assay"].pk]),
@@ -284,7 +296,10 @@ def _action_markers(w):
         ],
         "identity": [reverse("analytical:test_review", args=[w["identity"].pk])],
         "unbatched": [reverse("analytical:test_batch", args=[w["unbatched"].pk])],
-        "unrecorded": [reverse("analytical:observation_new", args=[w["unrecorded"].pk])],
+        "unrecorded": [
+            reverse("analytical:observation_new", args=[w["unrecorded"].pk]),
+            reverse("analytical:contract_result", args=[w["unrecorded"].pk]),
+        ],
         "batch_detail": [
             reverse(
                 "analytical:qc_correct",

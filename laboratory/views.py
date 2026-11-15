@@ -32,7 +32,14 @@ from .forms import (
     SigningForm,
     UseForm,
 )
-from .models import Calibration, Equipment, Qualification, ReagentLot, ResourceUse
+from .models import (
+    Calibration,
+    ContractApproval,
+    Equipment,
+    Qualification,
+    ReagentLot,
+    ResourceUse,
+)
 from .services import UseBlocked
 from .ui import (
     access,
@@ -150,6 +157,30 @@ def overview(request):
             "warning",
             reverse("laboratory:qualification_list") + "?status=expiring",
         ),
+        # Counted as laboratories, because these queues open the list of laboratories.
+        (
+            "Contract laboratories with an approval awaiting signature",
+            ContractApproval.objects.filter(state="recorded")
+            .values("laboratory")
+            .distinct()
+            .count(),
+            "info",
+            reverse("laboratory:contract_laboratory_list") + "?status=waiting",
+        ),
+        (
+            "Contract laboratories with an approval expiring within 30 days",
+            ContractApproval.objects.filter(
+                state="approved",
+                valid_from__lte=today,
+                valid_until__gte=today,
+                valid_until__lte=soon,
+            )
+            .values("laboratory")
+            .distinct()
+            .count(),
+            "warning",
+            reverse("laboratory:contract_laboratory_list") + "?status=expiring",
+        ),
     ]
     return render(
         request,
@@ -157,8 +188,8 @@ def overview(request):
         {
             "page_title": "Laboratory operations",
             "tabs": section_tabs(request),
-            "intro": "Equipment fitness, reagent and standard provenance, and analyst "
-            "qualification gates for laboratory work.",
+            "intro": "Equipment fitness, reagent and standard provenance, analyst qualification "
+            "and contract laboratory approvals: the gates for laboratory work.",
             "queues": [
                 {"label": label, "count": count, "tone": tone if count else "neutral", "href": href}
                 for label, count, tone, href in queues

@@ -29,6 +29,7 @@ SECTION_TABS = {
         ("Calibrations", "calibration_list"),
         ("Qualifications", "qualification_list"),
         ("Reagents and standards", "reagent_list"),
+        ("Contract laboratories", "contract_laboratory_list"),
         ("Resource use", "use_list"),
     ],
     "stability": [

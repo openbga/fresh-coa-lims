@@ -3,8 +3,8 @@ title: Sign review
 urls: analytical:test_review
 views: analytical.views.test_review
 templates: analytical/sign.html, analytical/_summary.html
-models: analytical.AnalyticalTest, quality.Lot, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-12
+models: analytical.AnalyticalTest, quality.Lot, laboratory.ContractApproval, core.ElectronicSignature, core.PINCredential
+reviewed: 2026-11-14
 ---
 
 ## Purpose
@@ -14,13 +14,13 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 ## Who can use it
 
 - Sign-in required. **Reviewers** only; others receive 403.
-- Never a user who generated the test's data (observation recorders including superseded ones, the submitter, recorders of the batch's QC), even with the reviewer role.
+- Never a user who generated the test's data (observation recorders including superseded ones, whoever recorded or corrected a contract laboratory result, the submitter, recorders of the batch's QC), even with the reviewer role.
 - Requires an enrolled signature PIN.
 - **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
 
-- Breadcrumbs and a card "Sign review · T-n": the sentence "Your signature records reviewed for T-n at record revision N", a summary (test, lot and sample, Specification with its acceptance, Record revision, Replicates as recorded separated by "; " with the unit, or for qualitative tests each outcome followed by what was observed in brackets, Mean when there is one, Reportable with unit and " · conforms" or " · OUT OF SPECIFICATION"), signer, a link to enrol or change the PIN, the form, **Cancel** and **Sign and review**.
+- Breadcrumbs and a card "Sign review · T-n": the sentence "Your signature records reviewed for T-n at record revision N", a summary (test, lot and sample, Specification with its acceptance, Record revision, Replicates as recorded separated by "; " with the unit, or for qualitative tests each outcome followed by what was observed in brackets, Reported by contract laboratory ("code · name · report NUMBER dated DATE") when a contract laboratory reported the result, followed by Approval revoked when the approval it relied on was revoked since, Mean when there is one, Reportable with unit and " · conforms" or " · OUT OF SPECIFICATION"), signer, a link to enrol or change the PIN, the form, **Cancel** and **Sign and review**.
 
 ## Actions
 
@@ -40,8 +40,11 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 
 ## Rules and hidden logic
 
-- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, including a contract laboratory result, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
 - **Preconditions**: test Submitted ("This test is not awaiting review."); not your own ("You cannot review your own test."); rule set approved and effective ("An approved, effective rule revision is required."); lot in quarantine; batch still Open with QC passed ("Batch QC no longer passes; this test cannot be reviewed."); calculation unchanged: the reportable value, the reportable text frozen at submission (for example "<10" or "Absent") and conformance are recalculated from the current replicates and must match ("Calculated result changed; return the test for resubmission.").
+- **Result reported by a contract laboratory**: the summary names the laboratory and its report; check the replicates against that report, which also holds the laboratory's batch QC, instruments and calculation inputs. The test has no QC batch of this laboratory, so the batch check does not apply. The reported values have no stored inputs and are not recalculated from inputs; the reportable result and conformance are still worked out again from the replicates and must match.
+- **Approval revoked**: when the approval the result relied on was revoked since, the summary shows "The approval this result relied on (CLA-n) was revoked on DATE TIME. The result stands as recorded. The approval's record lists every result that relied on it, for quality to assess under the laboratory's procedure." It is information only.
+- **Not enforced by this page**: a revoked contract laboratory approval does not block the review.
 - **Stale page**: "Record changed. Reload and review before signing."
 - **Identity and session**: "Enter your own signing username and PIN." (audited `signature.identity_denied`); "Session expired. Sign in again before signing."
 - **PIN**: "Enroll a signature PIN first."; "Signature PIN was not accepted."; five consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are audited (`signature.denied`) even though the signing is rejected.

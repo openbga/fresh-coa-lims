@@ -3,7 +3,7 @@ title: Sign lot disposition
 urls: quality:disposition
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
-models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
+models: laboratory.ContractApproval, quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-14
 ---
 
@@ -21,7 +21,8 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 
 - A signing dialog (a plain card without JavaScript): meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
 - **Supplier certificate notice**: above the form, one warning for each supplier certificate of the lot that is not withdrawn and states a result which does not meet the specification (see Rules). It is information only.
-- For a data author, the same card shows the refusal in place of the form, without the dialog behaviour and without the supplier certificate notices.
+- **Contract laboratory notice**: above the form, one warning for each test of the lot whose result was reported by a contract laboratory under an approval that has been revoked since (see Rules). It is information only.
+- For a data author, the same card shows the refusal in place of the form, without the dialog behaviour and without these notices.
 
 ## Actions
 
@@ -39,6 +40,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; cleared after errors |
 | Expected revision (hidden) | `Lot.revision` | Integer | Yes | Lot revision shown when the page opened |
 | Supplier certificate notice | `SupplierCertificate.number`, `SupplierCertificateResult.conforms` | Text | — | Certificate number and the names of the tests whose stated result does not meet the specification |
+| Contract laboratory notice | `Observation.eligibility` (contract), `ContractApproval.state`, `.revoked_at` | Text | — | The test (T-n and its code), the approval relied on (CLA-n) and when it was revoked |
 | Frozen evidence (not shown) | `Lot.disposition_evidence` | JSON | — | Native path: assignment ID and hash plus the analytical evidence snapshot |
 
 ## Rules and hidden logic
@@ -54,6 +56,8 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - *Native, frozen evidence*: on release the assignment ID and hash and the analytical evidence snapshot are stored on the lot.
 - **Manual foundation path** (development only: DEBUG and neither assignment nor native tests): at least one sample ("The lot requires a sample and reviewed results."); all required rule-set tests per sample ("Required tests are missing."); every result Reviewed and conforming ("All results must conform and have independent review.").
 - **Independence**: "You cannot disposition a lot containing your own receipt, supplier certificate, sampling or test data." Authors are users who recorded or corrected the lot's receipt details, including the recorder of a record that a correction later replaced; recorded, corrected or withdrew a supplier certificate of the lot, including the recorder of a record that was later corrected or withdrawn; sampled or recorded any sampling record of the lot, including corrected originals and intermediate corrections; recorded observations (including corrected originals), submitted tests, recorded batch QC, opened an investigation, or wrote investigative entries; and, on the manual path, the analysts of the results. Holding several roles never waives this. Writing rules or specifications, assigning requirements or tests, or signing reviews, assessments and conclusions is not authorship. The check is shown when the page opens and repeated under the lot lock when signing.
+- **Contract laboratory notice**: for each test of the lot that is not invalidated, whose current result was reported by a contract laboratory and whose approval has been revoked since, the page shows "T-12 assay was reported by a contract laboratory. The approval this result relied on (CLA-3) was revoked on 2026-11-14 10:30 UTC. The result stands as recorded. The approval's record lists every result that relied on it, for quality to assess under the laboratory's procedure. This does not block the disposition." The result still counts as the test's reviewed result. Place a hold from Holds if the lot must wait for the assessment. Not enforced by this page: the software records no assessment of such a result.
+- **Reported results and independence**: whoever recorded or corrected a contract laboratory's report on one of the lot's tests recorded its observations and is an author of the lot's test data. Recording or signing the laboratory's approval is not authorship.
 - **Receipt authors**: the receipt check applies on both the native and the manual path. The analyst who received the lot through New material lot recorded its receipt details and so cannot sign its disposition. The check reads the receipt records only: a lot received before receipt details were kept has no receipt author until an analyst records them.
 - **Supplier certificate authors**: the check applies on both the native and the manual path. It reads every supplier certificate record of the lot and every withdrawal, so a user stays an author after their record was corrected or withdrawn by someone else. A lot without supplier certificates has no such author.
 - **Supplier certificate notice**: for each supplier certificate whose current record is not withdrawn and states a result that does not meet the specification, the page shows "Supplier certificate COA-TEST-001 states a result that does not meet the specification: Assay. Supplier results are not laboratory tests and do not block this disposition." with that certificate's number and the names of those tests. The notice never blocks signing and needs no acknowledgement. A withdrawn certificate raises no notice. The notice uses the comparison stored when the result was recorded.
@@ -70,4 +74,5 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - Lot requirements and sampling; Assess sampling deviation; Lot testing; Holds.
 - Record receipt details; Correct receipt details.
 - Supplier certificate record; Record supplier certificate.
+- Test record; Contract laboratory approval record (after a revocation).
 - [Signature PIN](/signature-pin/)

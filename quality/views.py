@@ -384,7 +384,7 @@ def sign(request, pk, action):
             "is_review": is_review,
             "meaning": "reviewed" if is_review else "approved",
             "denial": denial,
-            "notices": [] if is_review or denial else certificates.disposition_notices(obj),
+            "notices": [] if is_review or denial else services.disposition_notices(obj),
         },
         status=403 if denial else 422 if request.method == "POST" else 200,
     )

@@ -196,6 +196,145 @@ class ReadingForm(BenchForm):
         return data
 
 
+class ContractResultForm(StyledForm):
+    """What a contract laboratory's report states for a test: the laboratory, the report and
+    every replicate, shaped by the frozen requirement.
+
+    ``cleaned_data`` holds exactly the service's arguments (expected_revision, laboratory_id,
+    report_number, report_date, raw_reference, readings and, for a correction, reason).
+    """
+
+    laboratory_id = forms.TypedChoiceField(
+        label="Contract laboratory",
+        coerce=int,
+        help_text="Laboratories with a signed approval for this method. The approval must cover "
+        "the date of the report.",
+        error_messages={"required": "Select the contract laboratory that issued the report."},
+    )
+    report_number = forms.CharField(
+        label="Report number",
+        max_length=120,
+        help_text="As printed on the laboratory's report or certificate of analysis.",
+    )
+    report_date = forms.DateField(
+        label="Date of the report",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="As printed. It cannot be in the future.",
+    )
+    raw_reference = forms.CharField(
+        label="Where the report is kept",
+        max_length=200,
+        help_text="Document number or location in your controlled records.",
+    )
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+
+    def __init__(self, *args, spec, laboratories, correcting=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.spec = spec
+        self.fields["laboratory_id"].choices = [
+            ("", "Select the laboratory"),
+            *[(str(pk), label) for pk, label in laboratories],
+        ]
+        fields = {}
+        for number in range(1, spec.replicates + 1):
+
+            def label(text, number=number):
+                if spec.replicates == 1:
+                    return text
+                return f"Replicate {number} {text[0].lower()}{text[1:]}"
+
+            if spec.is_qualitative:
+                fields[f"outcome_{number}"] = forms.ChoiceField(
+                    label=label("Reported result"),
+                    choices=spec.outcomes,
+                    widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+                    help_text=f"Acceptance: {escape(spec.acceptance)}.",  # renders unescaped
+                )
+                fields[f"observed_text_{number}"] = forms.CharField(
+                    label=label("Wording on the report"),
+                    max_length=200,
+                    help_text="The result in the report's own words, e.g. Complies.",
+                )
+            else:
+                count = spec.result_type == "count"
+                fields[f"value_{number}"] = forms.DecimalField(
+                    label=label("Reported value") + (f" ({spec.unit})" if spec.unit else ""),
+                    help_text=(
+                        "Whole number of zero or more, as the report states it. "
+                        if count
+                        else "As the report states it; at most 8 decimal places. "
+                    )
+                    + "Do not convert a result stated in another unit, and never enter a "
+                    "nondetect as zero.",
+                    **VALUE,
+                )
+                fields[f"less_than_{number}"] = forms.BooleanField(
+                    label=label("Reported as less than this value"),
+                    required=False,
+                    widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+                    help_text="For a result printed as &lt;10. It is kept as reported and never "
+                    "becomes zero or the number.",
+                )
+        for field in fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        hidden = self.fields.pop("expected_revision")
+        self.fields.update(fields)
+        if correcting:
+            self.fields["reason"] = _reason(
+                "Reason for correction", "The result recorded before stays visible in the record."
+            )
+        self.fields["expected_revision"] = hidden
+
+    def clean(self):
+        data = super().clean()
+        readings = []
+        for number in range(1, self.spec.replicates + 1):
+            if self.spec.is_qualitative:
+                readings.append(
+                    {
+                        "value": None,
+                        "qualifier": "",
+                        "outcome": data.pop(f"outcome_{number}", ""),
+                        "observed_text": data.pop(f"observed_text_{number}", ""),
+                    }
+                )
+            else:
+                readings.append(
+                    {
+                        "value": data.pop(f"value_{number}", None),
+                        "qualifier": "<" if data.pop(f"less_than_{number}", False) else "",
+                        "outcome": "",
+                        "observed_text": "",
+                    }
+                )
+        data["readings"] = readings
+        return data
+
+    def bench_field(self, subject):
+        """A refusal names the laboratory; show it beside the laboratory selected."""
+        return "laboratory_id"
+
+    @staticmethod
+    def initial_from(test, observations):
+        """Initial values for correcting a recorded contract laboratory result."""
+        source = observations[0].contract
+        initial = {
+            "laboratory_id": str(source["laboratory"].get("id", "")),
+            "report_number": source["report"].get("number", ""),
+            "report_date": source["report"].get("date", ""),
+            "raw_reference": observations[0].raw_reference,
+        }
+        for observation in observations:
+            number = observation.replicate
+            if test.spec.is_qualitative:
+                initial[f"outcome_{number}"] = observation.outcome
+                initial[f"observed_text_{number}"] = observation.observed_text
+            else:
+                initial[f"value_{number}"] = observation.value_text.removeprefix("<")
+                initial[f"less_than_{number}"] = observation.qualifier == "<"
+        return initial
+
+
 class ReadingCorrectionForm(ReadingForm):
     reason = _reason("Reason for correction", "The original result stays visible in the record.")
 
