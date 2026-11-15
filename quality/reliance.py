@@ -9,9 +9,10 @@ the stated result meets the lot's current requirement, and the laboratory has no
 testing that requirement itself. What was relied on is frozen on the acceptance.
 
 Nothing is edited: an acceptance is signed or withdrawn, and a withdrawn one is replaced by a
-new proposal. Whatever changes underneath it afterwards (the certificate record, the receipt,
-the requirement) does not change the acceptance; it stops standing and blocks the disposition
-until it is withdrawn.
+new proposal. A proposal is withdrawn with a reason; an acceptance already signed is withdrawn
+with a signature. Whatever changes underneath it afterwards (the certificate record, the
+receipt, the requirement, another certificate of the lot) does not change the acceptance; it
+stops standing and blocks the disposition until it is withdrawn.
 
 Lock order: the actor's account, then the acceptance row when one exists, then the lot, then
 the supplier's qualification rows.
@@ -46,7 +47,10 @@ from .services import current_receipt
 
 PROPOSER_ROLE = "analyst"
 ACCEPTOR_ROLE = "reviewer"
+# A proposal is withdrawn by any of these with a reason. An acceptance carries a reviewer's
+# signature, so withdrawing it takes a signature of a reviewer or of quality.
 WITHDRAW_ROLES = ("analyst", "reviewer", "quality")
+SIGNED_WITHDRAW_ROLES = ("reviewer", "quality")
 STATE = SupplierResultAcceptance.State
 STANDING = (STATE.PROPOSED, STATE.ACCEPTED)
 SCHEMA = "quality.supplier-result-acceptance/1"
@@ -79,11 +83,21 @@ BASIS_CHANGED = (
     "What this proposal relied on has changed since it was made. Withdraw it and propose the "
     "supplier's result again."
 )
+BASIS_STALE = (
+    "What this proposal would rely on changed after the page was opened. Review what is shown "
+    "now, then submit again."
+)
 SELF_ACCEPTANCE = "You cannot accept a supplier's result you proposed."
 CERTIFICATE_AUTHOR = (
     "You recorded or corrected the supplier certificate this result comes from; another "
     "reviewer accepts it."
 )
+RECEIPT_AUTHOR = (
+    "You recorded or corrected the receipt details of this lot, which name the supplier and "
+    "the date the acceptance relies on; another reviewer accepts it."
+)
+SIGNATURE_NEEDED = "Withdrawing a supplier result that was accepted takes a signature."
+UNREADABLE = "its evidence cannot be read"
 
 
 class RelianceRefused(ValidationError):
@@ -123,10 +137,48 @@ def _chain_author_ids(certificate):
     return ids
 
 
+def _receipt_author_ids(lot):
+    """Everyone who recorded or corrected the lot's receipt details: the supplier and the date
+    of receipt an acceptance relies on are their data."""
+    from .services import receipt_author_ids
+
+    return receipt_author_ids(lot)
+
+
 def _tested_here(lot, test_code):
     from analytical.gates import tested_here
 
     return tested_here(lot, test_code)
+
+
+def conflicting_certificates(lot, result):
+    """Numbers of the lot's other current certificate records that state, for the same test, a
+    result that does not meet the specification. A supplier's result is not relied on while
+    another certificate of the same lot contradicts it."""
+    numbers = []
+    for chain in certificates.lot_chains(lot):
+        head = chain[-1]
+        if head.pk == result.certificate_id or certificates.is_withdrawn(head):
+            continue
+        if any(
+            line.test_code == result.test_code and not line.conforms for line in head.results.all()
+        ):
+            numbers.append(head.number)
+    return numbers
+
+
+def _conflict_text(numbers, test_code):
+    return (
+        f"supplier certificate {', '.join(numbers)} states a result for {test_code} that does "
+        "not meet the specification"
+    )
+
+
+def basis_token(evidence):
+    """One hash of what a proposal would rely on; a page opened before it changed is refused."""
+    from analytical.contracts import canonical_hash
+
+    return canonical_hash(evidence)
 
 
 def _material(lot):
@@ -216,6 +268,12 @@ def _record_checks(lot, result):
         raise ValidationError(DOES_NOT_MEET)
     if not result.method.strip() or not result.limits.strip():
         raise ValidationError(NOT_STATED)
+    if conflict := conflicting_certificates(lot, result):
+        text = _conflict_text(conflict, code)
+        raise ValidationError(
+            f"{text[0].upper()}{text[1:]}. Correct or withdraw that record if it is wrong, or "
+            "test the requirement in the laboratory."
+        )
     if started := _tested_here(lot, code):
         raise ValidationError(started)
     return receipt
@@ -297,9 +355,12 @@ def _audit_refusal(actor, lot, result, refusal, reason):
         )
 
 
-def propose_acceptance(*, actor, result, reason):
+def propose_acceptance(*, actor, result, basis, reason):
     """Propose that a result stated on the supplier's certificate stands in for the laboratory's
-    test of that requirement. It answers nothing until a reviewer signs it."""
+    test of that requirement. It answers nothing until a reviewer signs it.
+
+    ``basis`` is the token of what the proposer was shown (``basis_token`` of
+    ``proposal_basis``): a proposal never freezes evidence its author has not seen."""
     require_role(actor, PROPOSER_ROLE)
     _require_reason(reason)
     result = SupplierCertificateResult.objects.select_related("certificate__lot").get(pk=result.pk)
@@ -316,15 +377,18 @@ def propose_acceptance(*, actor, result, reason):
                 raise ValidationError(ALREADY)
             receipt = _record_checks(lot, result)
             qualification = _authorization(lot, result, receipt, lock=True)
+            evidence = _evidence(
+                lot=lot, result=result, receipt=receipt, qualification=qualification
+            )
+            if basis != basis_token(evidence):
+                raise ValidationError(BASIS_STALE)
             acceptance = SupplierResultAcceptance(
                 lot=lot,
                 test_code=result.test_code,
                 result=result,
                 qualification=qualification,
                 requirement_hash=result.requirement_hash,
-                evidence=_evidence(
-                    lot=lot, result=result, receipt=receipt, qualification=qualification
-                ),
+                evidence=evidence,
                 reason=reason,
                 proposed_by=actor,
             )
@@ -355,6 +419,8 @@ def acceptance_denial(actor, acceptance):
         return SELF_ACCEPTANCE
     if actor.pk in _chain_author_ids(acceptance.result.certificate):
         return CERTIFICATE_AUTHOR
+    if actor.pk in _receipt_author_ids(acceptance.lot):
+        return RECEIPT_AUTHOR
     return ""
 
 
@@ -382,6 +448,8 @@ def accept_result(*, actor, pin, acceptance, expected_revision, reason):
             raise PermissionDenied(SELF_ACCEPTANCE)
         if actor.pk in _chain_author_ids(result.certificate):
             raise PermissionDenied(CERTIFICATE_AUTHOR)
+        if actor.pk in _receipt_author_ids(lot):
+            raise PermissionDenied(RECEIPT_AUTHOR)
         receipt = _record_checks(lot, result)
         # The qualification the proposal named, locked: a revocation being signed is waited for.
         qualification = (
@@ -427,10 +495,24 @@ def withdrawal_refusal(acceptance):
     return ""
 
 
+def withdrawal_roles(acceptance):
+    """The roles that may withdraw this record: a signed acceptance takes a signing role."""
+    return SIGNED_WITHDRAW_ROLES if acceptance.state == STATE.ACCEPTED else WITHDRAW_ROLES
+
+
+def _withdraw(locked, lot, actor, reason):
+    locked.state = STATE.WITHDRAWN
+    locked.withdrawn_by = actor
+    locked.withdrawn_at = timezone.now()
+    locked.withdrawal_reason = reason.strip()
+    lot.revision += 1
+    lot.save(update_fields=["revision"])
+
+
 @transaction.atomic
-def withdraw_acceptance(*, actor, acceptance, expected_revision, reason):
-    """Withdraw a proposal or an acceptance: the requirement is then answered by a test in the
-    laboratory, or by a new proposal. The record is kept."""
+def withdraw_proposal(*, actor, acceptance, expected_revision, reason):
+    """Withdraw a proposal that nobody has accepted: the requirement is then answered by a test
+    in the laboratory, or by a new proposal. The record is kept."""
     require_role(actor, *WITHDRAW_ROLES)
     _require_reason(reason)
     _lock_account(actor)
@@ -441,25 +523,50 @@ def withdraw_acceptance(*, actor, acceptance, expected_revision, reason):
     locked.lot = lot
     if refusal := withdrawal_refusal(locked):
         raise ValidationError(refusal)
-    before = {"state": locked.state}
-    locked.state = STATE.WITHDRAWN
-    locked.withdrawn_by = actor
-    locked.withdrawn_at = timezone.now()
-    locked.withdrawal_reason = reason.strip()
+    if locked.state != STATE.PROPOSED:
+        raise ValidationError(SIGNATURE_NEEDED)
+    _withdraw(locked, lot, actor, reason)
     locked.revision += 1
     locked.full_clean()
     locked.save()
-    lot.revision += 1
-    lot.save(update_fields=["revision"])
     record_event(
         actor=actor,
         action="supplier_result.withdrawn",
         obj=locked,
-        before=before,
+        before={"state": STATE.PROPOSED},
         after={"state": locked.state, "test_code": locked.test_code, "lot": lot.pk},
         reason=reason,
     )
     return locked
+
+
+def withdraw_accepted(*, actor, pin, acceptance, expected_revision, reason):
+    """Withdraw an acceptance that was signed. It reverses a signed decision, so a reviewer or
+    a quality person signs it; the signer may be the one who accepted it."""
+    held = set(actor.groups.filter(name__in=SIGNED_WITHDRAW_ROLES).values_list("name", flat=True))
+    permission = next((role for role in SIGNED_WITHDRAW_ROLES if role in held), None)
+    if permission is None:
+        raise PermissionDenied("Your role does not permit this action.")
+
+    def apply(locked):
+        lot = Lot.objects.select_for_update().get(pk=locked.lot_id)
+        locked.lot = lot
+        if refusal := withdrawal_refusal(locked):
+            raise ValidationError(refusal)
+        if locked.state != STATE.ACCEPTED:
+            raise ValidationError(STALE)
+        _withdraw(locked, lot, actor, reason)
+
+    return sign_transition(
+        actor=actor,
+        pin=pin,
+        obj=acceptance,
+        expected_revision=expected_revision,
+        meaning="withdrawn",
+        reason=reason,
+        permission=permission,
+        apply=apply,
+    )
 
 
 # Reading -----------------------------------------------------------------------------------------
@@ -467,28 +574,36 @@ def withdraw_acceptance(*, actor, acceptance, expected_revision, reason):
 
 def standing_problems(acceptance, lot=None, required=None):
     """Why a proposal or an acceptance no longer stands on what it relied on (empty when it
-    does). A revoked qualification is not among them: an acceptance already signed stands, and
-    the revocation is shown as a notice."""
+    does).
+
+    An acceptance already signed stands when its qualification is revoked afterwards: that is
+    shown as a notice. A proposal does not: nobody can sign it any more, so it is a problem.
+    """
     from analytical.contracts import canonical_hash
 
     lot = lot or acceptance.lot
     evidence, problems = acceptance.evidence, []
+    try:
+        supplier_id, received_on = evidence["supplier"]["id"], evidence["received_on"]
+    except KeyError, TypeError:
+        return [UNREADABLE]
     certificate = acceptance.result.certificate
     if certificates.change_blocker(certificate):
         problems.append(
             f"supplier certificate {certificate.number} was corrected or withdrawn after the "
             "result was taken from it"
         )
+    elif conflict := conflicting_certificates(lot, acceptance.result):
+        problems.append(_conflict_text(conflict, acceptance.test_code))
     receipt = current_receipt(lot)
-    qualification = acceptance.qualification
     if receipt is None or receipt.source != ReceiptSource.SUPPLIER:
         problems.append("the receipt details no longer name a supplier")
-    elif receipt.supplier_id != evidence["supplier"]["id"]:
+    elif receipt.supplier_id != supplier_id:
         problems.append("the receipt details now name another supplier")
-    elif not qualification.valid_from <= receipt.received_on <= qualification.valid_until:
+    elif receipt.received_on.isoformat() != received_on:
         problems.append(
-            f"the date received is now {receipt.received_on.isoformat()}, outside the dates of "
-            f"{qualification.label}"
+            f"the date received was corrected from {received_on} to "
+            f"{receipt.received_on.isoformat()}"
         )
     if required is None:
         required, _ = certificates.lot_requirements(lot)
@@ -497,6 +612,15 @@ def standing_problems(acceptance, lot=None, required=None):
         problems.append("the lot's requirement for this test has changed")
     if started := _tested_here(lot, code):
         problems.append(started.rstrip("."))
+    if acceptance.state == STATE.PROPOSED:
+        # Read now, not from a copy loaded with the proposal: a revocation may have followed.
+        qualification = type(acceptance.qualification).objects.get(pk=acceptance.qualification_id)
+        if qualification.state != qualification.State.APPROVED:
+            problems.append(f"{qualification.label} was revoked before the proposal was accepted")
+        try:
+            check_rules(lot.rules)
+        except ValidationError:
+            problems.append(f"rule set {lot.rules} is no longer approved and effective")
     return problems
 
 
@@ -591,16 +715,17 @@ def lot_reliance(lot):
     rows = [row for row in lot_acceptances(lot) if row.stands]
     accepted, blockers, authors = {}, [], set()
     for row in rows:
-        if row.state == STATE.PROPOSED:
+        if row.problems:
+            kind = "accepted supplier result" if row.state == STATE.ACCEPTED else "proposal"
+            blockers.append(
+                f"{row.label}: the {kind} for {row.test_code} no longer stands: "
+                f"{'; '.join(row.problems)}. Withdraw it, then propose the supplier's result "
+                "again or test the requirement in the laboratory."
+            )
+        elif row.state == STATE.PROPOSED:
             blockers.append(
                 f"{row.label}: the supplier's result for {row.test_code} awaits acceptance by "
                 "a reviewer."
-            )
-        elif row.problems:
-            blockers.append(
-                f"{row.label}: the accepted supplier result for {row.test_code} no longer "
-                f"stands: {'; '.join(row.problems)}. Withdraw it, then propose the supplier's "
-                "result again or test the requirement in the laboratory."
             )
         else:
             accepted[row.test_code] = _gate_entry(row)

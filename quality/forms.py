@@ -365,6 +365,8 @@ class CertificateWithdrawalForm(GroupedForm):
 
 
 class AcceptanceProposalForm(GroupedForm):
+    # Token of what the page showed the proposal would rely on; a stale page is refused.
+    basis = forms.CharField(widget=forms.HiddenInput, required=False, max_length=64)
     reason = reason_field("Reason for relying on the supplier's result")
     groups = [("Change control", ["reason"])]
 

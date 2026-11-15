@@ -144,13 +144,14 @@ def certificate_detail(request, pk):
     )
     # Each stated result with the proposal or acceptance that stands for its requirement, or,
     # for an analyst, whether it can be proposed in place of a test and why not.
-    standing = {
-        item.test_code: item
-        for item in reliance.lot_acceptances(lot)
-        if item.stands and item.result.certificate_id == head.pk
-    }
+    # A proposal or acceptance stands for the lot's requirement, whichever record of whichever
+    # certificate it was taken from; it is shown under every statement of that test.
+    standing = {item.test_code: item for item in reliance.lot_acceptances(lot) if item.stands}
     for row in rows:
         row["standing"] = standing.get(row["line"].test_code)
+        row["elsewhere"] = (
+            row["standing"] is not None and row["standing"].result_id != row["line"].pk
+        )
         row["refusal"] = (
             reliance.proposal_refusal(lot, row["line"])
             if can_change and row["standing"] is None

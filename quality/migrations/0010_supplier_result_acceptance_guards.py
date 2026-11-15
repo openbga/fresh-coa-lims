@@ -6,10 +6,22 @@ DECLARE
   lot_state text;
   stated record;
   qualification record;
+  part text;
 BEGIN
   IF NEW.state <> 'proposed' THEN
     RAISE EXCEPTION 'A supplier result acceptance starts as a proposal';
   END IF;
+  -- What was relied on is frozen with the record, in the shape every reader expects.
+  IF jsonb_typeof(NEW.evidence) IS DISTINCT FROM 'object'
+     OR NEW.evidence ->> 'schema' IS DISTINCT FROM 'quality.supplier-result-acceptance/1'
+     OR jsonb_typeof(NEW.evidence -> 'received_on') IS DISTINCT FROM 'string' THEN
+    RAISE EXCEPTION 'A supplier result acceptance keeps the evidence it relies on';
+  END IF;
+  FOREACH part IN ARRAY ARRAY['stated', 'certificate', 'supplier', 'qualification', 'rules'] LOOP
+    IF jsonb_typeof(NEW.evidence -> part) IS DISTINCT FROM 'object' THEN
+      RAISE EXCEPTION 'A supplier result acceptance keeps the evidence it relies on';
+    END IF;
+  END LOOP;
   -- FOR SHARE waits for a disposition that is updating the lot, then reads the state it
   -- committed, so a proposal cannot slip in beside a release.
   SELECT state INTO lot_state FROM quality_lot WHERE id = NEW.lot_id FOR SHARE;
@@ -59,6 +71,7 @@ CREATE FUNCTION quality_guard_acceptance() RETURNS trigger AS $$
 DECLARE
   lot_state text;
   qualification_state text;
+  relied_certificate bigint;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Supplier result acceptances cannot be deleted';
@@ -85,6 +98,16 @@ BEGIN
      WHERE id = NEW.qualification_id FOR SHARE;
     IF qualification_state IS DISTINCT FROM 'approved' THEN
       RAISE EXCEPTION 'Only an approved supplier qualification can be relied on';
+    END IF;
+    -- As at the proposal: the record relied on is still the current one of its certificate.
+    SELECT c.id INTO relied_certificate
+      FROM quality_suppliercertificateresult r
+      JOIN quality_suppliercertificate c ON c.id = r.certificate_id
+     WHERE r.id = NEW.result_id FOR SHARE OF c;
+    IF EXISTS (SELECT 1 FROM quality_suppliercertificate WHERE corrects_id = relied_certificate)
+       OR EXISTS (SELECT 1 FROM quality_suppliercertificatewithdrawal w
+                   WHERE w.certificate_id = relied_certificate) THEN
+      RAISE EXCEPTION 'Only the current record of a supplier certificate can be relied on';
     END IF;
   END IF;
   RETURN NEW;

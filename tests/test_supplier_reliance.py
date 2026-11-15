@@ -170,10 +170,20 @@ def line(certificate, code):
     return certificate.results.get(test_code=code)
 
 
-def propose(data, certificate, code="assay", who="analyst"):
+def shown_basis(result):
+    """The token of what the proposal page would show, or "" when it would show a refusal."""
+    try:
+        return reliance.basis_token(reliance.proposal_basis(result.certificate.lot, result))
+    except ValidationError:
+        return ""  # The service refuses for the same reason, and audits it where it should.
+
+
+def propose(data, certificate, code="assay", who="analyst", **changes):
+    result = line(certificate, code)
     return reliance.propose_acceptance(
         actor=data["people"][who],
-        result=line(certificate, code),
+        result=result,
+        basis=changes.pop("basis", None) or shown_basis(result),
         reason="Supplier qualified for this test",
     )
 
@@ -190,13 +200,17 @@ def accept(data, acceptance, who="reviewer", **changes):
 
 
 def take_back(data, acceptance, who="analyst", **changes):
+    """Withdraw a proposal with a reason, or a signed acceptance with a signature."""
     acceptance.refresh_from_db()
-    return reliance.withdraw_acceptance(
-        actor=data["people"][who],
-        acceptance=acceptance,
-        expected_revision=changes.pop("expected_revision", acceptance.revision),
-        reason=changes.pop("reason", "Tested in the laboratory instead"),
-    )
+    common = {
+        "actor": data["people"][who],
+        "acceptance": acceptance,
+        "expected_revision": changes.pop("expected_revision", acceptance.revision),
+        "reason": changes.pop("reason", "Tested in the laboratory instead"),
+    }
+    if acceptance.state == STATE.ACCEPTED:
+        return reliance.withdraw_accepted(pin=changes.pop("pin", PIN), **common)
+    return reliance.withdraw_proposal(**common)
 
 
 def accepted_lot(data, codes=RELIED):
@@ -240,6 +254,10 @@ def test_rule_policy_takes_an_optional_list_of_the_laboratorys_own_tests():
             validate_policy(base | {"supplier_results": wrong})
     with pytest.raises(ValidationError, match="Unsupported or missing rule policy keys"):
         validate_policy(base | {"supplier_result": {"own_tests": []}})
+    # A mistyped code would leave the test it meant open to reliance: it is refused.
+    for slip in (["identiy"], ["Identity"], ["identity", "water"]):
+        with pytest.raises(ValidationError, match="own_tests must be among required_tests"):
+            validate_policy(base | {"supplier_results": {"own_tests": slip}})
 
 
 def test_a_rule_set_that_says_nothing_allows_no_reliance(world):
@@ -543,6 +561,7 @@ def test_a_stated_result_is_relied_on_only_as_the_certificate_record_stands(worl
         reliance.propose_acceptance(
             actor=world["people"]["analyst"],
             result=line(corrected, "impurity"),
+            basis="",
             reason="A withdrawn record",
         )
     assert refusal.value.messages == [reliance.NOT_CURRENT]
@@ -550,7 +569,10 @@ def test_a_stated_result_is_relied_on_only_as_the_certificate_record_stands(worl
     assert not refused_events().exists()
     with pytest.raises(ValidationError, match="A reason is required"):
         reliance.propose_acceptance(
-            actor=world["people"]["analyst"], result=line(corrected, "salmonella"), reason=" "
+            actor=world["people"]["analyst"],
+            result=line(corrected, "salmonella"),
+            basis="",
+            reason=" ",
         )
 
 
@@ -591,7 +613,7 @@ def test_a_requirement_the_laboratory_started_testing_is_not_relied_on(world):
     assert propose(world, certificate, "impurity").state == STATE.PROPOSED
 
 
-def test_a_lot_made_on_site_or_released_relies_on_nothing(world):
+def test_a_lot_made_on_site_relies_on_nothing(world):
     qualify(world)
     lot = world["lot"]
     certificate = certify(world, fully_stated(), lot=lot)
@@ -814,7 +836,11 @@ def test_laboratory_work_and_an_acceptance_exclude_each_other(world):
     withdrawn = take_back(world, accepted, who="reviewer")
     assert (withdrawn.state, withdrawn.withdrawn_by) == (STATE.WITHDRAWN, people["reviewer"])
     assert withdrawn.withdrawal_reason == "Tested in the laboratory instead"
-    assert AuditEvent.objects.filter(action="supplier_result.withdrawn").count() == 1
+    # It reverses a signed decision, so it is signed too.
+    signature = ElectronicSignature.objects.get(
+        object_type=reliance.SIGNED_TYPE, object_id=str(withdrawn.pk), meaning="withdrawn"
+    )
+    assert signature.signer == people["reviewer"] and signature.revision == withdrawn.revision
     assert any("assay is incomplete" in blocker for blocker in gates.lot_blockers(lot))
     assay.refresh_from_db()
     record(world, assay, "99.90")
@@ -855,22 +881,73 @@ def test_no_test_is_assigned_for_a_requirement_a_supplier_result_stands_for(worl
     assert [t.test_code for t in tests] == ["impurity"]
 
 
-@pytest.mark.parametrize("role", ["auditor", "admin", "analyst2"])
-def test_withdrawal_roles_and_stale_pages(world, role):
+def test_a_proposal_is_withdrawn_with_a_reason(world):
+    qualify(world)
+    certificate = certify(world, fully_stated(), lot=world["lot"])
+    proposal = propose(world, certificate)
+    for role in ("auditor", "admin"):
+        with pytest.raises(PermissionDenied):
+            take_back(world, proposal, who=role)
+    with pytest.raises(ValidationError) as stale:
+        take_back(world, proposal, who="analyst2", expected_revision=proposal.revision - 1)
+    assert stale.value.messages == [reliance.STALE]
+    with pytest.raises(ValidationError, match="A reason is required"):
+        take_back(world, proposal, who="analyst2", reason="  ")
+    proposal.refresh_from_db()
+    assert proposal.state == STATE.PROPOSED
+    withdrawn = take_back(world, proposal, who="analyst2", reason="Proposed on the wrong test")
+    assert withdrawn.state == STATE.WITHDRAWN
+    assert withdrawn.withdrawn_by == world["people"]["analyst2"]
+    event = AuditEvent.objects.get(action="supplier_result.withdrawn")
+    assert event.reason == "Proposed on the wrong test" and event.before == {"state": "proposed"}
+    # Nothing was signed, so nothing is signed away.
+    assert not ElectronicSignature.objects.filter(object_type=reliance.SIGNED_TYPE).exists()
+    # The requirement is free again.
+    assert propose(world, certificate).state == STATE.PROPOSED
+
+
+def test_a_signed_acceptance_is_withdrawn_only_with_a_signature(world):
+    people = world["people"]
     certificate, accepted = accepted_lot(world, codes=["assay"])
     acceptance = accepted["assay"]
-    if role == "analyst2":
-        with pytest.raises(ValidationError) as stale:
-            take_back(world, acceptance, who=role, expected_revision=acceptance.revision - 1)
-        assert stale.value.messages == [reliance.STALE]
-        with pytest.raises(ValidationError, match="A reason is required"):
-            take_back(world, acceptance, who=role, reason="  ")
-        assert take_back(world, acceptance, who=role).state == STATE.WITHDRAWN
-    else:
+    assert reliance.withdrawal_roles(acceptance) == reliance.SIGNED_WITHDRAW_ROLES
+    # The reason-only path refuses a signed acceptance, whoever asks.
+    with pytest.raises(ValidationError) as unsigned:
+        reliance.withdraw_proposal(
+            actor=people["reviewer"],
+            acceptance=acceptance,
+            expected_revision=acceptance.revision,
+            reason="Without a signature",
+        )
+    assert unsigned.value.messages == [reliance.SIGNATURE_NEEDED]
+    for role in ("analyst2", "auditor", "admin"):
         with pytest.raises(PermissionDenied):
             take_back(world, acceptance, who=role)
-        acceptance.refresh_from_db()
-        assert acceptance.state == STATE.ACCEPTED
+    with pytest.raises(ValidationError, match="Record changed"):
+        take_back(world, acceptance, who="quality", expected_revision=acceptance.revision - 1)
+    denied = AuditEvent.objects.filter(action="signature.denied").count()
+    with pytest.raises(ValidationError, match="PIN was not accepted"):
+        take_back(world, acceptance, who="quality", pin="00000000")
+    assert AuditEvent.objects.filter(action="signature.denied").count() == denied + 1
+    acceptance.refresh_from_db()
+    assert acceptance.state == STATE.ACCEPTED
+    lot = world["lot"]
+    lot.refresh_from_db()
+    revision = lot.revision
+    withdrawn = take_back(world, acceptance, who="quality", reason="Supplier under review")
+    assert (withdrawn.state, withdrawn.withdrawn_by) == (STATE.WITHDRAWN, people["quality"])
+    assert withdrawn.accepted_at == acceptance.accepted_at  # The acceptance stays on record.
+    meanings = list(
+        ElectronicSignature.objects.filter(
+            object_type=reliance.SIGNED_TYPE, object_id=str(withdrawn.pk)
+        )
+        .order_by("signed_at")
+        .values_list("meaning", flat=True)
+    )
+    assert meanings == ["accepted", "withdrawn"]
+    lot.refresh_from_db()
+    assert lot.revision == revision + 1
+    assert reliance.lot_reliance(lot)["accepted"] == {}
 
 
 def test_an_acceptance_stops_standing_when_what_it_relied_on_changes(world):
@@ -911,7 +988,9 @@ def test_an_acceptance_stops_standing_when_what_it_relied_on_changes(world):
     assert dispose(world, people["approver"]).state == "released"
 
 
-def test_a_corrected_receipt_can_take_the_ground_from_an_acceptance(world):
+@pytest.mark.parametrize("days", [1, 4])
+def test_a_corrected_date_of_receipt_takes_the_ground_from_an_acceptance(world, days):
+    """Inside the qualification's dates or outside them: the acceptance froze another day."""
     people, lot = world["people"], world["lot"]
     qualify(world, valid_from=today() - timedelta(days=3))
     certificate = certify(world, fully_stated(), lot=lot)
@@ -919,18 +998,53 @@ def test_a_corrected_receipt_can_take_the_ground_from_an_acceptance(world):
     assert reliance.standing_problems(acceptance) == []
     receipt = quality.current_receipt(lot)
     values = {name: getattr(receipt, name) for name in quality.RECEIPT_FIELDS}
+    corrected = today() - timedelta(days=days)
     quality.correct_receipt(
         actor=people["analyst2"],
         receipt=receipt,
         reason="Date received misread",
-        **(values | {"received_on": today() - timedelta(days=4)}),
+        **(values | {"received_on": corrected}),
     )
-    (problem,) = reliance.standing_problems(acceptance)
-    assert "outside the dates of" in problem
+    assert reliance.standing_problems(acceptance) == [
+        f"the date received was corrected from {today().isoformat()} to {corrected.isoformat()}"
+    ]
     assert any("no longer stands" in blocker for blocker in gates.lot_blockers(lot))
     assert reliance.lot_reliance(lot)["accepted"] == {}
     # It still stands for the requirement until withdrawn: no laboratory work beside it.
     assert reliance.standing_codes(lot) == {"assay": acceptance.label}
+    take_back(world, acceptance, reason="Date of receipt corrected")
+    if days == 1:  # Still within the qualification: proposed again on the corrected date.
+        again = accept(world, propose(world, certificate))
+        assert again.evidence["received_on"] == corrected.isoformat()
+    else:
+        with pytest.raises(reliance.RelianceRefused, match="covers a lot received on"):
+            propose(world, certificate)
+
+
+def test_another_supplier_named_on_the_receipt_takes_the_ground_too(world):
+    from suppliers.services import create_supplier
+
+    people, lot = world["people"], world["lot"]
+    certificate, accepted = accepted_lot(world, codes=["assay"])
+    other = create_supplier(
+        actor=people["author"],
+        code="sup-syn-002",
+        name="Another Synthetic Supply",
+        location="Elsewhere, Exampleland",
+        reason="Synthetic master data",
+    )
+    receipt = quality.current_receipt(lot)
+    values = {name: getattr(receipt, name) for name in quality.RECEIPT_FIELDS}
+    quality.correct_receipt(
+        actor=people["analyst2"],
+        receipt=receipt,
+        reason="Supplier misread",
+        **(values | {"supplier": other}),
+    )
+    assert reliance.standing_problems(accepted["assay"]) == [
+        "the receipt details now name another supplier"
+    ]
+    assert reliance.lot_reliance(lot)["accepted"] == {}
 
 
 def test_a_revocation_ends_further_reliance_and_keeps_what_was_accepted(world):
@@ -946,7 +1060,14 @@ def test_a_revocation_ends_further_reliance_and_keeps_what_was_accepted(world):
     assert "assay" in reliance.lot_reliance(lot)["accepted"]
     (notice,) = quality.disposition_notices(lot)
     assert f"({qualification.label}) was revoked" in notice and "does not block" in notice
-    # Not yet signed: it is relied on no further.
+    # Not yet signed: it is relied on no further, and says so before anyone enters a PIN.
+    assert reliance.standing_problems(pending) == [
+        f"{qualification.label} was revoked before the proposal was accepted"
+    ]
+    assert any(
+        f"{pending.label}: the proposal for impurity no longer stands" in blocker
+        for blocker in gates.lot_blockers(lot)
+    )
     with pytest.raises(ValidationError, match="no longer covers this result"):
         accept(world, pending)
     with pytest.raises(reliance.RelianceRefused, match="was revoked"):
@@ -985,11 +1106,17 @@ def test_database_refuses_edited_or_unfounded_acceptances(world):
             "result": result,
             "qualification": qualification,
             "requirement_hash": result.requirement_hash,
-            "evidence": {},
+            "evidence": acceptance.evidence,
             "reason": "Direct write",
             "proposed_by": world["people"]["analyst"],
         } | changes
         return SupplierResultAcceptance.objects.create(**values)
+
+    for unreadable in ({}, [], {"schema": reliance.SCHEMA}, acceptance.evidence | {"stated": 1}):
+        refused(
+            lambda unreadable=unreadable: copy("tamc", evidence=unreadable),
+            "keeps the evidence it relies on",
+        )
 
     refused(lambda: copy("assay"), "supplier_acceptance_one_standing")
     refused(
@@ -1101,3 +1228,303 @@ def test_received_date_must_be_a_calendar_day():
         [],
     )
     assert not finding.ok and finding.reasons == ("The date the lot was received is not known.",)
+
+
+# Findings of the independent review ---------------------------------------------------------------
+
+
+def sampled_tests(data, lot=None):
+    """Sample the lot and assign its tests; {code: test}."""
+    analyst = data["people"]["analyst"]
+    sample = sampling.record_sampling(
+        actor=analyst,
+        lot=lot or data["lot"],
+        reference="SYN-REL-S001",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=10,
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Synthetic controlled sampling",
+    ).sample
+    tests, _ = analytical.assign_tests(
+        actor=analyst, sample=sample, reason="Assign frozen required tests"
+    )
+    return {test.test_code: test for test in tests}
+
+
+def raw_file(data, test, content=b"synthetic chromatogram", name="assay-run.csv"):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from analytical.rawdata import attach_raw_file
+
+    return attach_raw_file(
+        actor=data["people"]["analyst"],
+        test=test,
+        upload=SimpleUploadedFile(name, content, content_type="text/csv"),
+        description="Synthetic raw data",
+    )
+
+
+def test_a_raw_data_file_is_laboratory_work(world):
+    """A file attached to the test shows the laboratory tested the requirement: the supplier's
+    result cannot then stand in, and no file is added beside one that stands."""
+    qualify(world)
+    lot = world["lot"]
+    certificate = certify(world, fully_stated(), lot=lot)
+    tests = sampled_tests(world)
+    raw_file(world, tests["assay"])
+    assert "raw-data file" in gates.tested_here(lot, "assay")
+    with pytest.raises(ValidationError, match="already holds laboratory work"):
+        propose(world, certificate, "assay")
+    assert not SupplierResultAcceptance.objects.exists()
+    # The other direction: while a proposal or an acceptance stands, no raw data is attached.
+    proposal = propose(world, certificate, "impurity")
+    with pytest.raises(ValidationError, match="in place of this test"):
+        raw_file(world, tests["impurity"])
+    accepted = accept(world, proposal)
+    with pytest.raises(ValidationError, match="in place of this test"):
+        raw_file(world, tests["impurity"])
+    assert not tests["impurity"].raw_files.exists()
+    assert reliance.standing_problems(accepted) == []
+
+
+def test_another_certificate_that_contradicts_the_result_stops_reliance(world):
+    qualify(world)
+    lot = world["lot"]
+    failing = certify(
+        world,
+        [stated("assay", "97.50", method="Supplier HPLC-07", limits="98.0 - 102.0 %")],
+        lot=lot,
+        number="COA-SYN-FAIL",
+    )
+    passing = certify(world, fully_stated(), lot=lot)
+    with pytest.raises(ValidationError) as refusal:
+        propose(world, passing, "assay")
+    assert not isinstance(refusal.value, reliance.RelianceRefused)
+    assert refusal.value.messages[0].startswith(
+        "Supplier certificate COA-SYN-FAIL states a result for assay that does not meet"
+    )
+    # A requirement the other certificate does not contradict is unaffected.
+    impurity = accept(world, propose(world, passing, "impurity"))
+    # Once the contradicting record is withdrawn as wrong, the result can be relied on.
+    withdraw(world, failing)
+    assay = accept(world, propose(world, passing, "assay"))
+    assert reliance.standing_problems(assay) == []
+    # A contradicting certificate recorded afterwards takes the ground from the acceptance.
+    certify(
+        world,
+        [stated("impurity", "6", method="Supplier HPLC-09", limits="NMT 5 mg/g")],
+        lot=lot,
+        number="COA-SYN-LATER",
+    )
+    assert reliance.standing_problems(impurity) == [
+        "supplier certificate COA-SYN-LATER states a result for impurity that does not meet "
+        "the specification"
+    ]
+    assert reliance.standing_problems(assay) == []
+    assert "impurity" not in reliance.lot_reliance(lot)["accepted"]
+
+
+def test_whoever_recorded_the_receipt_does_not_accept(world, django_user_model):
+    """The acceptance freezes the supplier and the day of receipt, which are their data."""
+    qualify(world)
+    lot = world["lot"]
+    receiver = person(django_user_model, "rel_receiver", "analyst", "reviewer")
+    world["people"]["receiver"] = receiver
+    receipt = quality.current_receipt(lot)
+    values = {name: getattr(receipt, name) for name in quality.RECEIPT_FIELDS}
+    quality.correct_receipt(
+        actor=receiver,
+        receipt=receipt,
+        reason="Supplier lot number misread",
+        **(values | {"supplier_lot": "SUP-LOT-SYN-002"}),
+    )
+    certificate = certify(world, fully_stated(), lot=lot)
+    acceptance = propose(world, certificate)
+    assert reliance.acceptance_denial(receiver, acceptance) == reliance.RECEIPT_AUTHOR
+    with pytest.raises(PermissionDenied, match="receipt details of this lot"):
+        accept(world, acceptance, who="receiver")
+    # The original receipt was recorded by an analyst without the reviewer role.
+    assert world["people"]["analyst2"].pk in quality.receipt_author_ids(lot)
+    assert accept(world, acceptance).state == STATE.ACCEPTED
+
+
+def test_qualification_signers_and_the_acceptor_are_not_authors_of_the_result(world):
+    """Recording or signing a qualification is not authorship of what is later accepted under
+    it, and the reviewer who accepts is treated as a reviewer of a test is: both may hold the
+    quality role and sign the disposition. The proposer and the certificate recorders may not."""
+    people, lot = world["people"], world["lot"]
+    certificate, accepted = accepted_lot(world)
+    sample_and_test(world)
+    assert gates.lot_blockers(lot) == []
+    for name in ("author", "approver", "reviewer", "quality"):
+        assert quality.disposition_denial(people[name], lot) == "", name
+    for name in ("analyst", "analyst2"):
+        assert quality.disposition_denial(people[name], lot) == quality.SELF_DISPOSITION
+    assert "a supplier result you proposed" in quality.SELF_DISPOSITION
+
+
+def test_a_proposal_never_freezes_what_its_author_did_not_see(world):
+    """The page showed one qualification; a newer one was signed before the submission."""
+    qualify(world)
+    lot = world["lot"]
+    certificate = certify(world, fully_stated(), lot=lot)
+    result = line(certificate, "assay")
+    shown = shown_basis(result)
+    newer = qualify(world)  # The newest covering qualification is the one relied on.
+    with pytest.raises(ValidationError) as stale:
+        propose(world, certificate, basis=shown)
+    assert stale.value.messages == [reliance.BASIS_STALE]
+    assert not SupplierResultAcceptance.objects.exists() and not refused_events().exists()
+    for nothing in ("", "not-a-token"):
+        with pytest.raises(ValidationError):
+            reliance.propose_acceptance(
+                actor=world["people"]["analyst"], result=result, basis=nothing, reason="Unseen"
+            )
+    acceptance = propose(world, certificate)
+    assert acceptance.qualification == newer
+
+
+def test_database_guards_repeat_the_checks_at_acceptance(world):
+    people, lot = world["people"], world["lot"]
+    qualification = qualify(world)
+    certificate = certify(world, fully_stated(), lot=lot)
+    acceptance = propose(world, certificate)
+    other = propose(world, certificate, "impurity")
+    table = SupplierResultAcceptance.objects
+
+    def refused(write, message):
+        with pytest.raises((DatabaseError, IntegrityError), match=message), transaction.atomic():
+            write()
+
+    def signed(row):
+        return table.filter(pk=row.pk).update(state="accepted", accepted_at=timezone.now())
+
+    def copy(code, source):
+        result = line(source, code)
+        return table.create(
+            lot=lot,
+            test_code=code,
+            result=result,
+            qualification=qualification,
+            requirement_hash=result.requirement_hash,
+            evidence=acceptance.evidence,
+            reason="Direct write",
+            proposed_by=people["analyst"],
+        )
+
+    corrected = correct(world, certificate, fully_stated(), notes="Notes added")
+    refused(lambda: signed(acceptance), "Only the current record of a supplier certificate")
+    refused(lambda: copy("tamc", certificate), "Only the current record of a supplier certificate")
+    for row in (acceptance, other):
+        take_back(world, row, reason="Certificate record corrected")
+    again = propose(world, corrected)
+    revoke(world, qualification)
+    refused(lambda: signed(again), "Only an approved supplier qualification")
+    refused(lambda: copy("tamc", corrected), "Only an approved supplier qualification")
+    again.refresh_from_db()
+    assert again.state == STATE.PROPOSED and table.filter(state="accepted").count() == 0
+
+
+def test_database_refuses_a_proposal_for_a_released_lot(world):
+    people = world["people"]
+    qualification = qualify(world)
+    certificate = certify(world, fully_stated(), lot=world["lot"])
+    acceptance = accept(world, propose(world, certificate, "impurity"))
+    for code in ("salmonella", "tamc"):
+        accept(world, propose(world, certificate, code))
+    tests = sampled_tests(world)
+    for code, reading in (("identity", "conforms"), ("assay", "100.25")):
+        record(world, tests[code], reading)
+        submit(world, tests[code])
+        from tests.test_result_types_journey import review
+
+        review(world, tests[code])
+    lot = dispose(world, people["approver"])
+    result = line(certificate, "assay")
+    with pytest.raises(DatabaseError, match="only while the lot is in quarantine"):
+        with transaction.atomic():
+            SupplierResultAcceptance.objects.create(
+                lot=lot,
+                test_code="assay",
+                result=result,
+                qualification=qualification,
+                requirement_hash=result.requirement_hash,
+                evidence=acceptance.evidence,
+                reason="Direct write",
+                proposed_by=people["analyst"],
+            )
+    # A lot answered partly by tests and partly by supplier results froze both kinds apart.
+    frozen = lot.disposition_evidence["analytical"]
+    assert sorted(r["test_code"] for r in frozen["results"]) == ["assay", "identity"]
+    relied = [s["test_code"] for s in frozen["supplier_results"]]
+    assert relied == ["impurity", "salmonella", "tamc"]
+
+
+def test_a_lot_answered_entirely_by_supplier_results(world):
+    """A rule set that keeps no test with the laboratory: the lot is still sampled, and the
+    certificate says that this laboratory performed no test."""
+    people = world["people"]
+    rules = reliance_rules(world, code="synthetic-reliance-all", own=())
+    lot = receive(world, rules, "SYN-REL-ALL")
+    world["lot"] = lot
+    qualify(world, codes=["identity", *RELIED])
+    certificate = certify(world, fully_stated(), lot=lot)
+    for code in ("identity", *RELIED):
+        accept(world, propose(world, certificate, code))
+    with pytest.raises(ValidationError, match="requires a sampled and tested record"):
+        dispose(world, people["approver"])
+    assert sampled_tests(world, lot) == {}  # Nothing left to test.
+    assert gates.lot_blockers(lot) == []
+    released = dispose(world, people["approver"])
+    frozen = released.disposition_evidence["analytical"]
+    assert frozen["results"] == [] and len(frozen["supplier_results"]) == 5
+    evidence, evidence_hash, blockers = reporting.preview(released)
+    assert blockers == [], blockers
+    issued = reporting.issue_report(
+        actor=people["approver"],
+        pin=PIN,
+        lot=released,
+        recipient="Synthetic quality recipient",
+        evidence_hash=evidence_hash,
+        reason="Independent synthetic certificate issue",
+    )
+    snapshot = issued.versions.get(number=1).snapshot
+    printed = render_to_string("reporting/_certificate.html", {"snapshot": snapshot})
+    assert "No requirement of this lot was tested by this laboratory." in printed
+    assert 'aria-label="Reportable results"' not in printed
+    assert printed.count("Requirement source") == 1
+    assert "Supplier result identity accepted in place of a test" in printed
+
+
+@pytest.mark.parametrize("first", ["proposal", "observation"])
+def test_a_proposal_and_an_observation_at_once(world, monkeypatch, first):
+    """Both lock the lot: exactly one of the two stands, whichever came first."""
+    from analytical import services as testing
+    from laboratory.tests.helpers import run_interleaved
+
+    qualify(world)
+    lot = world["lot"]
+    certificate = certify(world, fully_stated(), lot=lot)
+    assay = sampled_tests(world)["assay"]
+    shown = shown_basis(line(certificate, "assay"))  # The page was opened before either.
+
+    def suggest():
+        return propose(world, certificate, basis=shown)
+
+    def observe():
+        return record(world, assay, "99.90")
+
+    if first == "proposal":
+        # Reached once the proposal holds the lot and has passed its checks.
+        outcome = run_interleaved(monkeypatch, reliance, "_evidence", suggest, observe)
+    else:
+        outcome = run_interleaved(monkeypatch, testing, "_touch", observe, suggest)
+    assert not isinstance(outcome["first"], Exception), outcome["first"]
+    assert isinstance(outcome["second"], ValidationError), outcome["second"]
+    proposals = SupplierResultAcceptance.objects.count()
+    observations = Observation.objects.filter(test=assay).count()
+    assert (proposals, observations) == ((1, 0) if first == "proposal" else (0, 1))

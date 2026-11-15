@@ -372,10 +372,23 @@ def assign_tests(request, lot):
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
         return redirect("analytical:lot_testing", pk=sample.lot_id)
+    relied = supplier_standing(lot)
     if created:
         messages.success(request, f"Assigned {len(created)} test(s) to {sample.reference}.")
+    elif not holds and relied:
+        messages.info(
+            request,
+            "No test to assign: every requirement of this sample has a test or a supplier's "
+            "result that stands for it.",
+        )
     elif not holds:
         messages.info(request, "Every required test is already assigned to this sample.")
+    if created and relied:
+        messages.info(
+            request,
+            "No test was assigned for " + ", ".join(sorted(relied)) + ": a supplier's result "
+            "is proposed or accepted in place of it.",
+        )
     for hold in holds:
         messages.warning(request, f"Held: {hold}")
     return redirect("analytical:lot_testing", pk=sample.lot_id)
@@ -467,7 +480,9 @@ def test_detail(request, pk):
     )
     # A supplier's result proposed or accepted in place of this test: it takes no laboratory
     # work until that is withdrawn on the lot record.
-    supplier_label = supplier_standing(test.lot).get(test.test_code) if is_open else None
+    supplier_label = (
+        supplier_standing(test.lot).get(test.test_code) if test.state == "open" else None
+    )
     test.supplier_result = supplier_label
     is_open = is_open and supplier_label is None
     can_contract = (

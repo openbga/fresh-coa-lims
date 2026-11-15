@@ -15,8 +15,8 @@ reported by a contract laboratory, never both.
 
 A supplier's certificate result accepted in place of a test is never an observation. While a
 proposal or an acceptance stands for a requirement of the lot, a test of that requirement takes
-no observation, no reported result and no QC batch (``supplier_refusal``), and no test is
-assigned for it.
+no observation, no reported result, no raw-data file and no QC batch (``supplier_refusal``),
+and no test is assigned for it.
 """
 
 import datetime

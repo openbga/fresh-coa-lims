@@ -282,7 +282,7 @@ def review_result(*, actor, pin, result, expected_revision, reason):
 
 SELF_DISPOSITION = (
     "You cannot disposition a lot containing your own receipt, supplier certificate, sampling "
-    "or test data."
+    "or test data, or a supplier result you proposed in place of a test."
 )
 
 

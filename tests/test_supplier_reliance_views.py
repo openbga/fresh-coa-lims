@@ -1,6 +1,7 @@
 """Reliance on a supplier's results through the pages: the supplier qualification, the proposal,
 the signed acceptance, its withdrawal, and what the lot, testing and disposition pages show."""
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -51,6 +52,11 @@ def signing(user, record, reason="Checked against the evidence", pin=PIN):
 
 def text(response):
     return response.content.decode()
+
+
+def basis_of(page):
+    """The token the proposal page carries of what it showed."""
+    return re.search(r'name="basis" value="([0-9a-f]{64})"', page).group(1)
 
 
 # Supplier qualification pages ---------------------------------------------------------------------
@@ -190,9 +196,14 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
         "the laboratory always performs: identity",
     ):
         assert shown in form, shown
-    missing = client.post(new, {"reason": ""})
+    basis = basis_of(form)
+    missing = client.post(new, {"basis": basis, "reason": ""})
     assert missing.status_code == 422 and not SupplierResultAcceptance.objects.exists()
-    response = client.post(new, {"reason": "Supplier qualified for this test"})
+    # A submission that does not carry what the page showed is refused, and shown again.
+    unseen = client.post(new, {"reason": "Supplier qualified for this test"})
+    assert unseen.status_code == 422 and reliance.BASIS_STALE in text(unseen)
+    assert basis_of(text(unseen)) == basis and not SupplierResultAcceptance.objects.exists()
+    response = client.post(new, {"basis": basis, "reason": "Supplier qualified for this test"})
     acceptance = SupplierResultAcceptance.objects.get()
     detail = reverse("quality:acceptance_detail", args=[acceptance.pk])
     accept_url = reverse("quality:acceptance_accept", args=[acceptance.pk])
@@ -246,19 +257,33 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
     assert reviewer.get_full_name() in page  # The signature names its signer.
     assert f'href="{accept_url}"' not in page
 
-    # Withdrawing asks for a reason and refuses a page opened before the record changed.
-    stale = client.post(withdraw_url, {"expected_revision": 1, "reason": "Stale page"})
-    assert stale.status_code == 422 and reliance.STALE in text(stale)
+    # Withdrawing a signed acceptance takes a signature, and an analyst alone cannot give it.
+    sign_in(client, world, "analyst2")
+    assert f'href="{withdraw_url}"' not in text(client.get(detail))
+    assert client.get(withdraw_url).status_code == 403
+    reviewer = sign_in(client, world, "reviewer")
+    sign = text(client.get(withdraw_url))
+    assert "You withdraw the acceptance of this supplier&#x27;s result." in sign
+    assert 'name="pin"' in sign
+    stale = client.post(
+        withdraw_url, signing(reviewer, acceptance, "Stale page") | {"expected_revision": 1}
+    )
+    assert stale.status_code == 422 and "Record changed" in text(stale)
+    unsigned = client.post(
+        withdraw_url, {"expected_revision": acceptance.revision, "reason": "No signature"}
+    )
+    assert unsigned.status_code == 422
+    acceptance.refresh_from_db()
+    assert acceptance.state == "accepted"
     response = client.post(
-        withdraw_url,
-        {"expected_revision": acceptance.revision, "reason": "Tested in the laboratory instead"},
+        withdraw_url, signing(reviewer, acceptance, "Tested in the laboratory instead")
     )
     assert response.status_code == 302 and response.url == detail
     acceptance.refresh_from_db()
     assert acceptance.state == "withdrawn" and acceptance.withdrawn_by == reviewer
     page = text(client.get(detail))
     assert "Withdrawn" in page and "Tested in the laboratory instead" in page
-    assert f'href="{withdraw_url}"' not in page
+    assert "signed.withdrawn" in page and f'href="{withdraw_url}"' not in page
     again = client.get(withdraw_url, follow=True)
     assert "already withdrawn" in text(again)
     assert "Withdrawn" in text(client.get(lot_url))
@@ -270,9 +295,9 @@ def test_a_refused_submission_is_reported_and_audited(client, world):
     certificate = certify(world, fully_stated(), lot=world["lot"])
     new = reverse("quality:acceptance_new", args=[line(certificate, "assay").pk])
     sign_in(client, world, "analyst")
-    assert client.get(new).status_code == 200
+    basis = basis_of(text(client.get(new)))
     revoke(world, qualification)
-    response = client.post(new, {"reason": "Supplier qualified for this test"})
+    response = client.post(new, {"basis": basis, "reason": "Supplier qualified for this test"})
     assert response.status_code == 422 and "was revoked" in text(response)
     assert not SupplierResultAcceptance.objects.exists()
     refusal = AuditEvent.objects.get(action="supplier_result.refused")
@@ -375,7 +400,7 @@ def test_disposition_page_names_the_accepted_supplier_results(client, world):
             reverse("suppliers:qualification_detail", args=[SupplierQualification.objects.get().pk])
         )
     )
-    assert "4 supplier results relied on this qualification" in revoked
+    assert "4 accepted supplier results relied on this qualification" in revoked
     assert lot.number in revoked and "Released" in revoked
 
 
@@ -389,5 +414,83 @@ def test_an_acceptance_that_no_longer_stands_says_so_on_its_pages(client, world)
     sign_in(client, world, "reviewer")
     page = text(client.get(reverse("quality:acceptance_detail", args=[acceptance.pk])))
     assert "No longer stands" in page and "was corrected or withdrawn" in page
+    assert reverse("quality:acceptance_accept", args=[acceptance.pk]) not in page
     lot_page = text(client.get(reverse("quality:lot_detail", args=[lot.pk])))
     assert "No longer stands" in lot_page and "Withdraw it." in lot_page
+    # The corrected record links the acceptance taken from the one it replaced, and says the
+    # same; nothing is offered for that requirement until it is withdrawn.
+    from quality import certificates
+
+    current = certificates.lot_chains(lot)[0][-1]
+    sign_in(client, world, "analyst2")
+    record = text(client.get(reverse("quality:certificate_detail", args=[current.pk])))
+    assert reverse("quality:acceptance_detail", args=[acceptance.pk]) in record
+    assert "No longer stands" in record and "Taken from another record: COA-SYN-0001." in record
+    assert record.count("Propose in place of a test") == 3
+
+
+def test_a_proposal_under_a_revoked_qualification_says_so_before_any_pin(client, world):
+    qualification = qualify(world)
+    lot = world["lot"]
+    certificate = certify(world, fully_stated(), lot=lot)
+    proposal = propose(world, certificate)
+    revoke(world, qualification)
+    detail = reverse("quality:acceptance_detail", args=[proposal.pk])
+    accept_url = reverse("quality:acceptance_accept", args=[proposal.pk])
+    sign_in(client, world, "reviewer")
+    page = text(client.get(detail))
+    assert "No longer stands" in page
+    assert f"{qualification.label} was revoked before the proposal was accepted" in page
+    assert f'href="{accept_url}"' not in page
+    denied = client.get(accept_url)
+    assert denied.status_code == 403 and 'name="pin"' not in text(denied)
+    assert "was revoked before the proposal was accepted" in text(denied)
+    lot_page = text(client.get(reverse("quality:lot_detail", args=[lot.pk])))
+    assert "No longer stands" in lot_page and "Awaiting acceptance" not in lot_page
+    # The qualification's record counts signed acceptances only: here there is none to assess.
+    record = text(client.get(reverse("suppliers:qualification_detail", args=[qualification.pk])))
+    assert "Assess the results" not in record and proposal.label in record
+
+
+def test_testing_pages_after_release_and_the_raw_data_page(client, world):
+    from analytical.models import AnalyticalTest
+    from tests.test_supplier_reliance import raw_file, sampled_tests
+
+    people, lot = world["people"], world["lot"]
+    qualify(world)
+    certificate = certify(world, fully_stated(), lot=lot)
+    tests = sampled_tests(world)  # Every requirement has a test before anything is proposed.
+    sign_in(client, world, "analyst")
+    for code in RELIED:
+        accept(world, propose(world, certificate, code))
+    assay = tests["assay"]
+    # Raw data is not attached beside a supplier's result that stands, by link or by address.
+    page = text(client.get(reverse("analytical:test_detail", args=[assay.pk])))
+    upload = reverse("analytical:raw_file_new", args=[assay.pk])
+    assert f'href="{upload}"' not in page
+    blocked = client.get(upload, follow=True)
+    assert "Withdraw it on the lot record" in text(blocked)
+    with pytest.raises(Exception, match="in place of this test"):
+        raw_file(world, assay)
+    # Assigning again says why nothing was assigned.
+    testing = reverse("analytical:lot_testing", args=[lot.pk])
+    again = client.post(
+        testing, {"sample": assay.sample_id, "reason": "Assign required tests"}, follow=True
+    )
+    assert "has a test or a supplier&#x27;s result that stands for it" in text(again)
+    identity = tests["identity"]
+    from tests.test_result_types_journey import record, review, submit
+
+    record(world, identity, "conforms")
+    submit(world, identity)
+    review(world, identity)
+    from tests.test_integrated_journey import dispose
+
+    assert dispose(world, people["approver"]).state == "released"
+    # Released: the untouched test still says what answered its requirement, on every page.
+    page = text(client.get(reverse("analytical:test_detail", args=[assay.pk])))
+    assert "Not tested · supplier result" in page and "This test was not performed." in page
+    assert "Withdraw it there" not in page
+    listed = text(client.get(reverse("analytical:test_list"), {"q": lot.number}))
+    assert listed.count("Not tested · supplier result") == 4
+    assert AnalyticalTest.objects.filter(lot=lot, state="open").count() == 4

@@ -186,6 +186,11 @@ def _accepted_section(qualification):
     )
 
 
+def _signed_count(qualification):
+    """Signed acceptances under this qualification that have not been withdrawn."""
+    return qualification.acceptances.filter(state="accepted").count()
+
+
 def _facts(qualification, *, revoke=False):
     """What the signer signs: everything the signature's snapshot holds."""
     supplier = qualification.supplier
@@ -200,12 +205,7 @@ def _facts(qualification, *, revoke=False):
         ("Recorded by", str(qualification.recorded_by)),
     ]
     if revoke:
-        facts.append(
-            (
-                "Supplier results that relied on it",
-                qualification.acceptances.exclude(state="withdrawn").count(),
-            )
-        )
+        facts.append(("Accepted supplier results that relied on it", _signed_count(qualification)))
     return facts
 
 
@@ -216,16 +216,17 @@ def qualification_detail(request, pk):
     supplier = qualification.supplier
     label, tone = rules.qualification_status(qualification)
     keeper = _keeper(request.user)
-    total, accepted = _accepted_section(qualification)
+    _, accepted = _accepted_section(qualification)
+    signed = _signed_count(qualification)
     notice = None
-    if qualification.state == "revoked" and total:
+    if qualification.state == "revoked" and signed:
         notice = {
             "tone": "warning",
             "label": "Assess the results",
-            "text": f"{total} supplier result{'s' if total != 1 else ''} relied on this "
-            "qualification before it was revoked. Each acceptance stands as signed. Assess "
-            "them under your procedure: the software records no assessment and holds no lot "
-            "by itself.",
+            "text": f"{signed} accepted supplier result{'s' if signed != 1 else ''} relied on "
+            "this qualification before it was revoked. Each acceptance stands as signed. "
+            "Assess them under your procedure: the software records no assessment and holds "
+            "no lot by itself. A proposal not yet accepted can no longer be signed.",
         }
     return record_page(
         request,

@@ -117,12 +117,16 @@ def acceptance_new(request, pk):
         evidence = reliance.proposal_basis(lot, result)
     except ValidationError:
         evidence = None  # The submission below reports why, and the refusal is audited.
-    form = AcceptanceProposalForm(request.POST or None)
+    token = reliance.basis_token(evidence) if evidence else ""
+    form = AcceptanceProposalForm(request.POST or None, initial={"basis": token})
     if request.method == "POST" and form.is_valid():
         acceptance = run(
             form,
             lambda: reliance.propose_acceptance(
-                actor=request.user, result=result, reason=form.cleaned_data["reason"]
+                actor=request.user,
+                result=result,
+                basis=form.cleaned_data["basis"],
+                reason=form.cleaned_data["reason"],
             ),
         )
         if acceptance:
@@ -130,6 +134,11 @@ def acceptance_new(request, pk):
                 request, "Supplier result proposed in place of a test; a reviewer accepts it."
             )
             return redirect(acceptance_url(acceptance))
+        # A refused submission is shown again with what a proposal would rely on now, and
+        # carries that token, so the proposer reviews it before submitting again.
+        data = form.data.copy()
+        data["basis"] = token
+        form.data = data
     title = "Propose supplier result in place of a test"
     return action_page(
         request,
@@ -178,8 +187,9 @@ def _notice(acceptance, problems, revoked):
             "label": "No longer stands",
             "text": "What this record relied on has changed: "
             + "; ".join(problems)
-            + ". It blocks the lot's disposition until it is withdrawn. Then propose the "
-            "supplier's result again or test the requirement in the laboratory.",
+            + ". It answers nothing and blocks the lot's disposition until it is withdrawn. "
+            "Then propose the supplier's result again or test the requirement in the "
+            "laboratory.",
         }
     if revoked:
         return {"tone": "warning", "label": "Qualification revoked", "text": revoked}
@@ -216,9 +226,9 @@ def acceptance_detail(request, pk):
         and not problems
         and not reliance.acceptance_denial(user, acceptance)
     )
-    can_withdraw = bool(roles & set(reliance.WITHDRAW_ROLES)) and not reliance.withdrawal_refusal(
-        acceptance
-    )
+    can_withdraw = bool(
+        roles & set(reliance.withdrawal_roles(acceptance))
+    ) and not reliance.withdrawal_refusal(acceptance)
     return record_page(
         request,
         identifier=acceptance.label,
@@ -299,41 +309,75 @@ def acceptance_accept(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def acceptance_withdraw(request, pk):
+    """Withdraw a proposal with a reason, or an acceptance already signed with a signature."""
     require_role(request.user, *reliance.WITHDRAW_ROLES)
     acceptance = _acceptance(pk)
     detail = acceptance_url(acceptance)
     if request.method != "POST" and (refusal := reliance.withdrawal_refusal(acceptance)):
         messages.error(request, refusal)
         return redirect(detail)
+    title = "Withdraw supplier result"
+    crumbs = _crumbs(acceptance.lot, (acceptance.label, detail), (title, None))
+    facts = [
+        ("Lot", acceptance.lot.number),
+        ("Record", acceptance.label),
+        ("Test", f"{acceptance.evidence['name']} ({acceptance.test_code})"),
+        ("Supplier's result", reliance.stated_text(acceptance.evidence)),
+        ("State", acceptance.get_state_display()),
+    ]
+    if acceptance.state == STATE.ACCEPTED:
+        # It reverses a signed decision: a reviewer or a quality person signs.
+        require_role(request.user, *reliance.SIGNED_WITHDRAW_ROLES)
+        form = SigningForm(request.POST or None, initial={"expected_revision": acceptance.revision})
+        return sign_page(
+            request,
+            form,
+            title=title,
+            identifier=acceptance.label,
+            meaning="withdrawn",
+            meaning_text=(
+                "You withdraw the acceptance of this supplier's result. It no longer answers "
+                "the requirement: the laboratory tests it, or the supplier's result is proposed "
+                "again. The record and its signatures are kept."
+            ),
+            button="Sign and withdraw",
+            facts=facts,
+            revision=acceptance.revision,
+            cancel_url=detail,
+            run=lambda d: reliance.withdraw_accepted(
+                actor=request.user,
+                pin=d["pin"],
+                acceptance=acceptance,
+                expected_revision=d["expected_revision"],
+                reason=d["reason"],
+            ),
+            success="Supplier result withdrawn; the record is kept.",
+            success_url=detail,
+            denial=reliance.withdrawal_refusal(acceptance),
+            crumbs=crumbs,
+        )
     form = AcceptanceWithdrawalForm(
         request.POST or None, initial={"expected_revision": acceptance.revision}
     )
     if request.method == "POST" and form.is_valid():
         done = run(
             form,
-            lambda: reliance.withdraw_acceptance(
+            lambda: reliance.withdraw_proposal(
                 actor=request.user, acceptance=acceptance, **form.cleaned_data
             ),
         )
         if done:
             messages.success(request, "Supplier result withdrawn; the record is kept.")
             return redirect(detail)
-    title = "Withdraw supplier result"
     return action_page(
         request,
         form,
         title=title,
-        crumbs=_crumbs(acceptance.lot, (acceptance.label, detail), (title, None)),
+        crumbs=crumbs,
         cancel_url=detail,
         submit=title,
         tone="danger",
-        intro="A withdrawn proposal or acceptance no longer answers the requirement: the "
-        "laboratory tests it, or the supplier's result is proposed again. The record is kept.",
-        facts=[
-            ("Lot", acceptance.lot.number),
-            ("Record", acceptance.label),
-            ("Test", f"{acceptance.evidence['name']} ({acceptance.test_code})"),
-            ("Supplier's result", reliance.stated_text(acceptance.evidence)),
-            ("State", acceptance.get_state_display()),
-        ],
+        intro="A withdrawn proposal no longer stands for the requirement: the laboratory tests "
+        "it, or the supplier's result is proposed again. The record is kept.",
+        facts=facts,
     )

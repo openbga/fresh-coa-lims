@@ -26,7 +26,7 @@ from core.services import require_role
 from core.uploads import size_text
 
 from .models import AnalyticalTest, RawDataFile
-from .services import ANALYST, _bump, _lock_lots, _touch
+from .services import ANALYST, _bump, _lock_lots, _touch, supplier_refusal
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
@@ -74,6 +74,9 @@ def attach_raw_file(*, actor, test, upload, description):
         (lot,) = _lock_lots(test.lot_id)
         if test.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting raw data.")
+        # Raw data is laboratory work: none is added beside a supplier's result that stands.
+        if refusal := supplier_refusal(test):
+            raise ValidationError(refusal)
         existing = RawDataFile.objects.filter(test=test)
         if existing.count() >= MAX_FILES:
             raise ValidationError(f"A test holds at most {MAX_FILES} raw-data files.")
@@ -162,6 +165,9 @@ def raw_file_new(request, pk):
     back = reverse("analytical:test_detail", args=[test.pk])
     if test.state != AnalyticalTest.State.OPEN or test.lot.state != "quarantine":
         messages.warning(request, "This test is not accepting raw data.")
+        return redirect(back)
+    if refusal := supplier_refusal(test):
+        messages.warning(request, refusal)
         return redirect(back)
     # A request far above the size limit never reaches this view (core.uploads refuses it
     # unread). Reading request.FILES receives the upload; BoundedUploadHandler stops a file

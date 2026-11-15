@@ -198,6 +198,13 @@ def validate_policy(policy):
                 "supplier_results must hold exactly own_tests: a list of the test codes the "
                 "laboratory always performs itself, each listed once (the list may be empty)."
             )
+        # A code the rule set does not require could be a slip that leaves the intended test
+        # open to reliance; a required code the specification lacks holds the lot instead.
+        unknown = [t for t in own if t not in tests]
+        if unknown:
+            raise ValidationError(
+                "own_tests must be among required_tests; not required: " + ", ".join(unknown) + "."
+            )
 
 
 def supplier_reliance_refusal(rule, test_code):

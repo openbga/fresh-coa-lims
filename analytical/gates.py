@@ -42,19 +42,20 @@ def _root(test, by_pk):
 
 def tested_here(lot, test_code):
     """Why a supplier's result cannot stand in for this requirement of the lot, or "": the
-    laboratory has started testing it. A test that is still open, in no QC batch and without
-    any observation (corrected ones included) has not started."""
+    laboratory has started testing it. A test that is still open, in no QC batch, without any
+    observation (corrected ones included) and without a raw-data file has not started."""
     tests = AnalyticalTest.objects.filter(lot_id=lot.pk, test_code=test_code).order_by("pk")
     for test in tests:
         if (
             test.state != STATE.OPEN
             or test.batch_id is not None
             or Observation.objects.filter(test=test).exists()
+            or RawDataFile.objects.filter(test=test).exists()
         ):
             return (
-                f"{test.label} {test_code} already holds laboratory work (a result, a QC batch "
-                "or a decision). A supplier's result cannot stand in for a requirement the "
-                "laboratory has started testing."
+                f"{test.label} {test_code} already holds laboratory work (a result, a raw-data "
+                "file, a QC batch or a decision). A supplier's result cannot stand in for a "
+                "requirement the laboratory has started testing."
             )
     return ""
 
@@ -103,15 +104,15 @@ def _status(lot):
                 f"{entry['label']}: the accepted supplier result for {code} does not match "
                 "the lot's current requirement or is not signed."
             )
-    observed = set(
+    worked = set(
         Observation.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True)
-    )
+    ) | set(RawDataFile.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True))
     reportable, roots = {}, {}
     for test in tests:
         if test.state == STATE.OPEN:
             # An untouched test of a requirement the supplier's result answers is not work
             # left undone; it stays open and takes no result while the acceptance stands.
-            untouched = test.batch_id is None and test.pk not in observed
+            untouched = test.batch_id is None and test.pk not in worked
             if not (test.test_code in accepted and untouched):
                 blockers.append(f"{test.label} {test.test_code} is incomplete.")
         elif test.state == STATE.SUBMITTED:
