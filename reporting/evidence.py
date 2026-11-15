@@ -141,24 +141,25 @@ def _native(lot):
 def _applicability(lot, payload):
     """What a lot assigned under several scopes or rule sets was judged against, from its
     frozen assignment: every specification and additional rule set that applied and each
-    decision between specifications that stated a test differently, with who signed it (the
-    decision itself, or the replacement that confirmed it), when and why. Empty for a lot
-    under one specification and its own rule set, whose evidence keeps the keys it always
-    had."""
+    decision between specifications that stated a test differently, with who decided it,
+    when and why, and the replacement that carried it since. Empty for a lot under one
+    specification and its own rule set, whose evidence keeps the keys it always had."""
     if not payload or "specifications" not in payload:
         return {}
-    decided = None
-    if payload.get("decisions"):
-        # The verified payload came from this row; it also says who signed, when and why.
+    decisions, carried = list(payload.get("decisions") or []), None
+    if decisions:
+        # The verified payload came from this row. It keeps, beside the payload, who made
+        # each choice: the signer of the decision, or of the replacement that made it.
         record = _frozen_assignment(lot)
-        decided = {
-            "by": _person(record.assigned_by),
-            "at": iso(record.assigned_at),
-            "reason": record.reason,
-            "with": "replacement" if record.origin == "replaced" else "decision",
-        }
+        kept = (record.decision or {}).get("choices") or (record.replacement or {}).get("decisions")
+        decisions = kept or decisions
+        if record.origin == "replaced":
+            carried = {
+                "by": _person(record.assigned_by),
+                "at": iso(record.assigned_at),
+                "signed_at": record.replacement.get("signed_at"),
+            }
     return {
-        "decided": decided,
         "scopes": list(payload.get("scopes") or []),
         "specifications": [
             {k: spec[k] for k in ("scope", "code", "version", "revision_id", "approved_hash")}
@@ -171,12 +172,32 @@ def _applicability(lot, payload):
         "decisions": [
             {
                 "code": item["code"],
+                "differs": list(item.get("differs") or []),
                 "applies": _statement(item),
                 "not_applied": [_statement(alt) for alt in item["alternatives"]],
+                "decided": _decided(item.get("decided"), carried),
             }
-            for item in payload.get("decisions") or []
+            for item in decisions
         ],
     }
+
+
+def _decided(made, carried):
+    """Who decided a choice, when and why; and, when a later replacement of the lot's
+    requirements carried it unchanged, who signed that and when."""
+    if not made:
+        return None
+    from datetime import datetime
+
+    decided = {
+        "by": made["by"],
+        "at": iso(datetime.fromisoformat(made["at"])),
+        "reason": made["reason"],
+        "with": made["with"],
+    }
+    if carried and made["at"] != carried["signed_at"]:
+        decided["carried"] = {"by": carried["by"], "at": carried["at"]}
+    return decided
 
 
 def _statement(item):

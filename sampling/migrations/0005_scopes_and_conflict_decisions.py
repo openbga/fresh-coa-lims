@@ -1,10 +1,15 @@
 """Several scopes on a lot's requirements and the signed decision of a conflict between them.
 
 A lot assignment names the scopes it was resolved under (rows written earlier keep their one
-``scope``; the column's database default keeps inserts of the previous release working while
-both run). An assignment that follows quality's decision of conflicting requirements states so
-(``origin`` decided) and keeps what was decided. Adding the columns does not fire the
+``scope``). An assignment that follows quality's decision of conflicting requirements states
+so (``origin`` decided) and keeps what was decided. Adding the columns does not fire the
 append-only trigger.
+
+The column's database default keeps the inserts of the previous release working while a
+deployment replaces it. That release does not read the new columns: once a lot is assigned
+under several scopes, falls under an additional rule set or holds a decision, no worker of
+the previous release may serve it, and this migration cannot be reversed (the constraint it
+replaces knows no ``decided`` origin).
 """
 
 from django.conf import settings

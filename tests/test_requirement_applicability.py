@@ -267,6 +267,62 @@ def test_one_scope_freezes_the_requirements_it_always_did(world):
     assert LotAssignment(scope="eu-market").scope_list == ["eu-market"]
 
 
+def test_one_scope_freezes_exactly_the_payload_of_earlier_releases(world):
+    """Key for key (the hash sorts them): hashes frozen before several scopes existed stay
+    reproducible."""
+    material, spec, rules = world["material"], world["spec"], world["lot"].rules
+    at = timezone.now()
+    payload = catalog.resolve_requirements(material=material, stage="incoming", rules=rules, at=at)
+    method = Method.objects.get(code="synthetic-rt-method").revisions.get(version=1)
+    assert list(payload) == [
+        "schema",
+        "resolved_at",
+        "material",
+        "stage",
+        "scope",
+        "rules",
+        "specification",
+        "tests",
+    ]
+    assert {key: payload[key] for key in payload if key != "tests"} == {
+        "schema": "oq.requirements/1",
+        "resolved_at": at.isoformat(),
+        "material": {
+            "id": material.pk,
+            "code": "synthetic-rt-material",
+            "name": "Synthetic result type material",
+            "kind": "raw_material",
+        },
+        "stage": "incoming",
+        "scope": "general",
+        "rules": {
+            "id": rules.pk,
+            "code": "synthetic-result-types",
+            "version": 1,
+            "segment": "chemical",
+            "required_tests": ["identity", "salmonella", "tamc", "impurity", "assay"],
+        },
+        "specification": {
+            "revision_id": spec.pk,
+            "code": "synthetic-rt-spec",
+            "version": 1,
+            "approved_hash": spec.approved_hash,
+            "effective_from": spec.effective_from.isoformat(),
+            "effective_until": spec.effective_until.isoformat(),
+        },
+    }
+    # Each line is the approved line with its method replaced by the method version in force.
+    approved = spec.approved_content["tests"]
+    assert [line["code"] for line in payload["tests"]] == [line["code"] for line in approved]
+    for line, source in zip(payload["tests"], approved, strict=True):
+        assert set(line) == set(source)
+        assert {k: v for k, v in line.items() if k != "method"} == {
+            k: v for k, v in source.items() if k != "method"
+        }
+        assert line["method"]["revision_id"] == method.pk and "sources" not in line
+    assert sampling.digest(payload) == catalog.digest(payload)
+
+
 def test_scopes_are_named_once_general_first_and_as_slugs(world):
     assert sampling.clean_scopes(["eu-market", "general", "eu-market"]) == [
         "general",
@@ -378,20 +434,55 @@ def test_specifications_that_state_a_test_differently_hold_the_lot(world):
 
 
 @pytest.mark.parametrize(
-    "change",
+    "change, differs",
     [
-        {"reporting_decimals": 1},
-        {"replicates": 2},
-        {"required": False},
-        {"name": "Assay by titration"},
-        {"upper_inclusive": False},
-        {"max_retests": 1},
+        ({"reporting_decimals": 1}, ["rounding"]),
+        ({"replicates": 2}, ["replicates"]),
+        ({"required": False}, ["required or information only"]),
+        ({"name": "Assay by titration"}, ["name"]),
+        ({"upper_inclusive": False}, ["limits"]),
+        ({"max_retests": 1}, ["retests allowed"]),
+        ({"replicates": 2, "replicate_limits": False}, None),
+        ({"unit": "% w/w", "lower_limit": Decimal("97")}, ["unit", "limits"]),
+        ({"result_type": "count", "unit": "CFU/g"}, None),
     ],
 )
-def test_any_difference_in_a_requirement_is_a_conflict_never_a_merge(world, change):
+def test_any_difference_in_a_requirement_is_a_conflict_never_a_merge(world, change, differs):
+    """And the signer is told what the statements differ in: no two read alike."""
     overlay(world, "eu-market", {**ASSAY, **change})
     held = assign(world, "general", "eu-market")
     assert held.status == "hold" and "different requirements for assay" in held.hold_reasons[0]
+    (conflict,) = sampling.decision_preview(lot_of(world)).conflicts
+    general, market = conflict["candidates"]
+    assert (general["name"], general["text"], general["required"]) != (
+        market["name"],
+        market["text"],
+        market["required"],
+    )
+    assert conflict["differs"] and (differs is None or conflict["differs"] == differs)
+
+
+def test_statements_show_what_the_usual_wording_leaves_out(world):
+    line = {
+        **ASSAY,
+        "lower_limit": "98",
+        "upper_limit": "102",
+        "lower_inclusive": True,
+        "upper_inclusive": True,
+        "replicates": 3,
+        "replicate_limits": False,
+        "max_retests": 2,
+        "method": {"code": "m", "version": 4},
+    }
+    assert catalog.statement_text(line) == (
+        "98 – 102 % · rounded to 2 decimals · 3 replicates · method m v4 · replicates judged "
+        "by their mean only · up to 2 retests"
+    )
+    assert catalog.statement_text({**line, "max_retests": 1, "replicates": 1}) == (
+        "98 – 102 % · rounded to 2 decimals · method m v4 · up to 1 retest"
+    )
+    count = {**line, "result_type": "count", "replicates": 1, "max_retests": 0}
+    assert catalog.statement_text(count).endswith("method m v4 · whole-number count")
 
 
 def test_quality_decides_which_requirement_applies_with_a_signature(world):
@@ -416,15 +507,25 @@ def test_quality_decides_which_requirement_applies_with_a_signature(world):
         "101",
         ["eu-market"],
     )
-    assert current.decision == {
-        "schema": "oq.requirement-decision/1",
-        "decides": {"assignment": held.pk},
-        "choices": payload["decisions"],
-        "lot_revision": decided.revision,
-    }
     signature = ElectronicSignature.objects.get(
         object_type="quality.lot", object_id=str(decided.pk), meaning="requirements_decided"
     )
+    # The decision keeps each choice with who made it, when, why and how.
+    made = {
+        "by": "Synthetic Approver",
+        "by_id": current.assigned_by_id,
+        "at": signature.signed_at.isoformat(),
+        "reason": REASON,
+        "with": "decision",
+    }
+    assert current.decision == {
+        "schema": "oq.requirement-decision/1",
+        "decides": {"assignment": held.pk},
+        "choices": [{**item, "decided": made}],
+        "lot_revision": decided.revision,
+    }
+    assert item["differs"] == ["limits"] and "decided" not in item
+    assert sampling.decision_records(current) == current.decision["choices"]
     assert signature.revision == decided.revision and signature.signer == current.assigned_by
     event = AuditEvent.objects.get(action="lot.requirements_decided", object_id=current.pk)
     assert event.reason == REASON
@@ -433,6 +534,7 @@ def test_quality_decides_which_requirement_applies_with_a_signature(world):
             "code": "assay",
             "scope": "eu-market",
             "specification": item["specification"],
+            "differs": ["limits"],
             "applies": item["text"],
             "not_applied": [alternative["text"]],
         }
@@ -445,7 +547,8 @@ def test_quality_decides_which_requirement_applies_with_a_signature(world):
     held.refresh_from_db()
     assert held.status == "hold" and held.hold_reasons == [CONFLICT]
     (notice,) = sampling.decision_notices(decided)
-    assert "state assay differently" in notice and REASON in notice
+    assert "state assay differently (limits). Decided on " in notice
+    assert " by Synthetic Approver: " in notice and notice.endswith(f"Reason: {REASON}")
     assert "synthetic-rt-eu-market v1 (eu-market) applies" in notice
     assert "not applied: synthetic-rt-spec v1 (general), 98 – 102 %" in notice
     notices = quality.disposition_notices(decided)
@@ -507,6 +610,121 @@ def test_a_decision_made_on_other_versions_than_shown_is_refused(world):
         .payload["decisions"][0]["text"]
         .startswith("99.5 – 101 %")
     )
+
+
+def test_a_decision_is_stale_when_anything_it_freezes_has_changed(world):
+    """Not only the statements in conflict: the signature freezes every requirement and rule
+    set that applies, so a version of any of them approved meanwhile needs a new review."""
+    overlay(world, "eu-market", TIGHT, WATER)
+    extra_rules(world, "synthetic-eu-rules", {"scopes": ["eu-market"]}, ["assay"])
+    held = assign(world, "general", "eu-market")
+    assert held.status == "hold"
+    preview = sampling.decision_preview(lot_of(world))
+    assert [row["code"] for row in preview.agreed] == [
+        "identity",
+        "impurity",
+        "salmonella",
+        "tamc",
+        "water",
+    ]
+    assert [(s["scope"], s["code"], s["version"]) for s in preview.specifications] == [
+        ("general", "synthetic-rt-spec", 1),
+        ("eu-market", "synthetic-rt-eu-market", 1),
+    ]
+    assert [(r["code"], r["version"]) for r in preview.additional_rules] == [
+        ("synthetic-eu-rules", 1)
+    ]
+    shown = preview.basis
+    # A line that is in no conflict is revised.
+    revise(world, "synthetic-rt-eu-market", {**WATER, "upper_limit": Decimal("2")})
+    refused(lambda: decide(world, basis=shown), "changed after this page was opened")
+    shown = sampling.decision_preview(lot_of(world)).basis
+    # An additional rule set gets a next version.
+    extra_rules(world, "synthetic-eu-rules", {"scopes": ["eu-market"]}, ["assay", "tamc"])
+    refused(lambda: decide(world, basis=shown), "changed after this page was opened")
+    shown = sampling.decision_preview(lot_of(world)).basis
+    # So does the method every line uses.
+    method = Method.objects.get(code="synthetic-rt-method")
+    revision = catalog.new_method_revision(
+        actor=world["people"]["author"],
+        method=method,
+        technique="Gravimetry",
+        document_ref="SOP-SYN-RT rev 2",
+        suitability_kind="validation",
+        suitability_ref="VAL-SYN-RT rev 2",
+        requires_batch=False,
+        effective_from=timezone.now() - timedelta(minutes=1),
+        effective_until=timezone.now() + timedelta(days=300),
+        reason="Synthetic method revision",
+    )
+    approve(revision, world["people"]["approver"])
+    refused(lambda: decide(world, basis=shown), "changed after this page was opened")
+    assert sampling.current_assignment(world["lot"]).pk == held.pk
+    decided = decide(world)
+    payload = sampling.current_assignment(decided).payload
+    assert [r["version"] for r in payload["additional_rules"]] == [2]
+    water = next(t for t in payload["tests"] if t["code"] == "water")
+    assert water["upper_limit"] == "2" and water["method"]["version"] == 2
+
+
+def test_a_version_approved_while_the_decision_is_signed_is_not_frozen_unseen(world, monkeypatch):
+    """What applies is read once under the lock: the token is checked against that read and
+    the same read is frozen, whatever is approved in between."""
+    from laboratory.tests.helpers import run_interleaved
+
+    conflicting(world)
+    lot = lot_of(world)
+    shown = sampling.decision_preview(lot).basis
+
+    def sign():
+        return decide(world, expected_revision=lot.revision, basis=shown)
+
+    def approve_wider():
+        return revise(
+            world,
+            "synthetic-rt-eu-market",
+            {**TIGHT, "lower_limit": Decimal("90"), "upper_limit": Decimal("110")},
+        )
+
+    # Reached after the read and the token check, before anything is frozen.
+    outcome = run_interleaved(monkeypatch, sampling, "_check_choices", sign, approve_wider)
+    assert not isinstance(outcome["first"], Exception), outcome["first"]
+    assert not isinstance(outcome["second"], Exception), outcome["second"]
+    current = sampling.current_assignment(lot)
+    assert current.origin == "decided"
+    (item,) = current.payload["decisions"]
+    assert item["specification"]["version"] == 1 and item["text"].startswith("99 – 101 %")
+    line = next(t for t in current.payload["tests"] if t["code"] == "assay")
+    assert (line["lower_limit"], line["upper_limit"]) == ("99", "101")
+
+
+def test_a_signed_decision_is_not_set_aside_by_an_analyst(world, django_user_model):
+    from django.contrib.auth.models import Group
+
+    bench = django_user_model.objects.create_user(username="rt_bench", password="x")
+    bench.groups.add(Group.objects.get_or_create(name="analyst")[0])
+    world["people"]["bench"] = bench
+    conflicting(world)
+    assert sampling.reassignment_denial(bench, world["lot"]) == ""
+    decided = decide(world)
+    current = sampling.current_assignment(decided)
+    assert sampling.reassignment_denial(bench, decided) == sampling.DECIDED_BY_QUALITY
+    assert sampling.reassignment_denial(world["people"]["author"], decided) == ""
+    refused(lambda: assign(world, who="bench"), "Only quality assigns", PermissionDenied)
+    refused(lambda: assign(world, "general", who="bench"), "Only quality", PermissionDenied)
+    assert sampling.current_assignment(decided).pk == current.pk
+    assert Lot.objects.get(pk=decided.pk).revision == decided.revision
+    # Quality may: under the general scope alone nothing conflicts. The decision that was
+    # set aside is named where the disposition is signed.
+    again = assign(world, "general", who="author")
+    assert again.status == "ready" and again.supersedes_id == current.pk
+    (notice,) = sampling.decision_notices(lot_of(world))
+    assert notice.startswith("The decision of ") and "by Synthetic Approver" in notice
+    assert "(assay) was set aside without a signature" in notice
+    assert notice.endswith("by Synthetic Author under the scope general.")
+    assert notice in quality.disposition_notices(lot_of(world))
+    # From here the lot's requirements are ordinary again.
+    assert sampling.reassignment_denial(bench, lot_of(world)) == ""
 
 
 def test_a_decision_settles_only_what_the_specifications_state_differently(world):
@@ -608,16 +826,18 @@ def test_a_decided_lot_goes_to_a_certificate_that_names_what_applied(world):
         ("eu-market", "synthetic-rt-eu-market"),
     ]
     assert native["additional_rules"] == []
-    decided = sampling.current_assignment(lot)
-    assert native["decided"] == {
-        "by": "Synthetic Approver",
-        "at": iso(decided.assigned_at),
-        "reason": REASON,
-        "with": "decision",
-    }
+    signature = ElectronicSignature.objects.get(meaning="requirements_decided")
+    assert "decided" not in native
     assert native["decisions"] == [
         {
             "code": "assay",
+            "differs": ["limits"],
+            "decided": {
+                "by": "Synthetic Approver",
+                "at": iso(signature.signed_at),
+                "reason": REASON,
+                "with": "decision",
+            },
             "applies": {
                 "specification": "synthetic-rt-eu-market version 1",
                 "scopes": ["eu-market"],
@@ -645,10 +865,11 @@ def test_a_decided_lot_goes_to_a_certificate_that_names_what_applied(world):
     flat = " ".join(render_to_string("reporting/_certificate.html", {"snapshot": snapshot}).split())
     assert "synthetic-rt-spec version 1 (scope general)" in flat
     assert "synthetic-rt-eu-market version 1 (scope eu-market)" in flat
-    assert "assay: synthetic-rt-eu-market version 1 (eu-market) applies, 99 – 101 %" in flat
+    assert "synthetic-rt-eu-market version 1 (eu-market) applies, 99 – 101 %" in flat
     assert "Not applied: synthetic-rt-spec version 1 (general), 98 – 102 %" in flat
-    assert "Synthetic Approver of the laboratory's quality unit decided on" in flat
-    assert f"Reason: {REASON}" in flat and "<dt>Specifications</dt>" in flat
+    assert "assay (stated differently in limits): synthetic-rt-eu-market version 1" in flat
+    assert "Decided by Synthetic Approver on " in flat and f": {REASON}" in flat
+    assert "Carried unchanged" not in flat and "<dt>Specifications</dt>" in flat
 
 
 def test_a_lot_under_one_specification_keeps_the_evidence_it_always_had(world):
@@ -806,6 +1027,10 @@ def test_a_rule_policy_may_say_where_the_rule_set_applies(world):
     ):
         with pytest.raises(ValidationError, match="applies_to must say where"):
             validate_policy(base | {"applies_to": where})
+    # A scope that could never be entered for a lot would never match one.
+    for scope in ("EU Market", "eu.market", "x" * 61, "général"):
+        with pytest.raises(ValidationError, match="is not a scope name"):
+            validate_policy(base | {"applies_to": {"scopes": [scope]}})
 
 
 def test_an_additional_rule_set_names_known_materials_and_stages(world):
@@ -1058,10 +1283,18 @@ def test_a_replacement_carries_the_decision_while_its_scope_still_states_the_tes
     assert len(preview.carried) == 5 and not preview.superseded
     (item,) = preview.payload["decisions"]
     assert item["scope"] == "eu-market" and item["alternatives"][0]["text"].startswith("98.5 –")
-    replaced = replace(world)
+    replaced = replace(world, who="author")
     current = sampling.current_assignment(replaced)
     assert current.origin == "replaced" and current.scopes == ["general", "eu-market"]
-    assert current.replacement["decisions"] == current.payload["decisions"]
+    # The choice stands as it was made: the replacement keeps who decided it and why.
+    (record,) = current.replacement["decisions"]
+    assert {k: v for k, v in record.items() if k != "decided"} == current.payload["decisions"][0]
+    assert (record["decided"]["by"], record["decided"]["with"], record["decided"]["reason"]) == (
+        "Synthetic Approver",
+        "decision",
+        REASON,
+    )
+    assert record["decided"]["at"] != current.replacement["signed_at"]
     assert current.replacement["versions"] == [
         {
             "kind": "specification",
@@ -1072,10 +1305,64 @@ def test_a_replacement_carries_the_decision_while_its_scope_still_states_the_tes
     ]
     event = AuditEvent.objects.get(action="lot.requirements_replaced", object_id=current.pk)
     assert event.after["decisions"] == [{"code": "assay", "scope": "eu-market"}]
-    assert "state assay differently" in sampling.decision_notices(replaced)[0]
-    # The certificate says that the replacement confirmed the choice, and who signed it.
-    released = dispose(world, world["people"]["author"])
-    assert reporting.preview(released)[0]["native"]["decided"]["with"] == "replacement"
+    (notice,) = sampling.decision_notices(replaced)
+    assert "Decided on " in notice and " by Synthetic Approver: " in notice
+    assert f"Reason: {REASON} The choice was carried by the replacement of " in notice
+    assert notice.endswith(" by Synthetic Author.")
+    # The certificate names who decided, and who signed the replacement that carried it.
+    released = dispose(world, world["people"]["approver"])
+    (decision,) = reporting.preview(released)[0]["native"]["decisions"]
+    assert (decision["decided"]["by"], decision["decided"]["with"]) == (
+        "Synthetic Approver",
+        "decision",
+    )
+    assert decision["decided"]["carried"]["by"] == "Synthetic Author"
+
+
+def test_a_choice_whose_statement_was_revised_is_made_again(world):
+    """A choice names a scope. It is carried only while that scope still states the test as
+    it is frozen for the lot: a revised statement is nobody's choice."""
+    conflicting(world)
+    decide(world)
+    complete(world, sample_and_tests(world))
+    revise(world, "synthetic-rt-eu-market", {**TIGHT, "upper_limit": Decimal("100.5")})
+    lot = lot_of(world)
+    preview = sampling.replacement_preview(lot)
+    assert preview.standing == {} and not preview.possible
+    assert [c["code"] for c in preview.conflicts] == ["assay"]
+    refused(lambda: replace(world), "Choose which requirement applies")
+    chosen = {"assay": "eu-market"}
+    replaced = replace(world, who="author", choices=chosen)
+    (record,) = sampling.current_assignment(replaced).replacement["decisions"]
+    assert record["text"].startswith("99 – 100.5 %")
+    # Made again with the replacement, by its signer.
+    assert (record["decided"]["by"], record["decided"]["with"]) == (
+        "Synthetic Author",
+        "replacement",
+    )
+    assert record["decided"]["at"] == sampling.current_assignment(replaced).replacement["signed_at"]
+    (notice,) = sampling.decision_notices(replaced)
+    assert " by Synthetic Author: " in notice and "carried by the replacement" not in notice
+
+
+def test_the_scope_that_was_named_is_the_one_recorded(world):
+    """Two scopes state the assay alike and a third differently: the choice keeps the scope
+    the signer named, with every scope that states the test so."""
+    overlay(world, "cust-b", ASSAY)
+    overlay(world, "eu-market", TIGHT)
+    held = assign(world, "general", "cust-b", "eu-market")
+    assert held.status == "hold"
+    decided = decide(world, choices={"assay": "cust-b"})
+    (item,) = sampling.current_assignment(decided).payload["decisions"]
+    assert (item["scope"], item["scopes"]) == ("cust-b", ["general", "cust-b"])
+    complete(world, sample_and_tests(world))
+    # The general statement is revised; the customer's, which was named, is not.
+    revise(world, "synthetic-rt-spec", {**ASSAY, "lower_limit": Decimal("90")})
+    preview = sampling.replacement_preview(lot_of(world))
+    assert preview.standing == {"assay": "cust-b"} and preview.possible
+    line = next(t for t in preview.payload["tests"] if t["code"] == "assay")
+    assert (line["lower_limit"], line["sources"]) == ("98", ["cust-b"])
+    assert len(preview.carried) == 5
 
 
 def test_a_requirement_chosen_before_testing_is_changed_by_a_signed_replacement(world):

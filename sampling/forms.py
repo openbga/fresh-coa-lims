@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.utils import timezone
 
@@ -198,12 +200,18 @@ class ReplacementForm(SignatureIdentityForm):
     field_order = ["reason", "signature_username", "pin", "expected_revision", "basis"]
 
 
+CODE = re.compile(r"[-a-zA-Z0-9_]{1,80}")
+
+
 def chosen_scopes(data):
     """{test code: scope} from the fields ``choice-<test code>`` of a submitted page: which
-    statement applies where the specifications state a test differently."""
+    statement applies where the specifications state a test differently. Only names that
+    could be a test code and a scope are read; the services decide whether they are."""
     prefix = "choice-"
     return {
-        key[len(prefix) :]: value for key, value in data.items() if key.startswith(prefix) and value
+        key[len(prefix) :]: value
+        for key, value in data.items()
+        if key.startswith(prefix) and CODE.fullmatch(key[len(prefix) :]) and CODE.fullmatch(value)
     }
 
 

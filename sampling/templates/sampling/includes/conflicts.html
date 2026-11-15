@@ -1,22 +1,20 @@
-{% comment %}Tests the specifications that apply to a lot state differently, each with its statements. Parameters: conflicts (services conflict rows); choose (truthy to offer a choice per test, named choice-<test code>; each conflict may carry .chosen); form_id (optional form the choices belong to).{% endcomment %}
+{% comment %}Tests the specifications that apply to a lot state differently, each with its statements and what they differ in. Parameters: conflicts (conflict rows: code, name, differs, candidates); choose (truthy to offer one choice per test, named choice-<test code>; each conflict may carry .chosen, a scope); form_id (optional form the choices belong to).{% endcomment %}
 {% for conflict in conflicts %}
 <fieldset class="mb-3">
-  <legend class="h6"><span class="vr-id">{{ conflict.code }}</span> {{ conflict.name }}</legend>
-  <div class="vr-table-wrap">
-    <table class="table vr-table mb-0">
-      <caption class="visually-hidden">The ways the specifications state {{ conflict.code }}</caption>
-      <thead><tr>{% if choose %}<th scope="col">Applies</th>{% endif %}<th scope="col">Specification</th><th scope="col">Scope</th><th scope="col">Requirement</th></tr></thead>
-      <tbody>
-        {% for item in conflict.candidates %}
-        <tr>
-          {% if choose %}<td><input class="form-check-input" type="radio" name="choice-{{ conflict.code }}" id="choice-{{ conflict.code }}-{{ forloop.counter }}" value="{{ item.scope }}"{% if form_id %} form="{{ form_id }}"{% endif %}{% if conflict.chosen in item.scopes %} checked{% endif %} required><label class="visually-hidden" for="choice-{{ conflict.code }}-{{ forloop.counter }}">{{ item.specification.code }} version {{ item.specification.version }} applies for {{ conflict.code }}</label></td>{% endif %}
-          <th scope="row"><a href="{% url 'catalog:specification_revision' item.specification.revision_id %}">{{ item.specification.code }} v{{ item.specification.version }}</a></th>
-          <td>{{ item.scopes|join:", " }}</td>
-          <td class="vr-wrap">{{ item.name }}: {{ item.text }}{% if not item.required %}<br><span class="small">Information only</span>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <legend class="h6 mb-1"><span class="vr-id">{{ conflict.code }}</span> {{ conflict.name }}</legend>
+  <p class="small mb-2">The statements differ in: {{ conflict.differs|join:", " }}.</p>
+  {% if choose %}
+  {% for item in conflict.candidates %}
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="choice-{{ conflict.code }}" id="choice-{{ conflict.code }}-{{ forloop.counter }}" value="{{ item.scope }}"{% if form_id %} form="{{ form_id }}"{% endif %}{% if conflict.chosen in item.scopes %} checked{% endif %}>
+    <label class="form-check-label text-break" for="choice-{{ conflict.code }}-{{ forloop.counter }}"><strong>{{ item.specification.code }} v{{ item.specification.version }}</strong> ({{ item.scopes|join:", " }}) · {{ item.name }}: {{ item.text }}{% if not item.required %} · information only{% endif %}</label>
+    <div class="small"><a href="{% url 'catalog:specification_revision' item.specification.revision_id %}">Open the specification<span class="visually-hidden"> {{ item.specification.code }} v{{ item.specification.version }}</span></a></div>
   </div>
+  {% endfor %}
+  {% else %}
+  <ul class="mb-0 ps-3">
+    {% for item in conflict.candidates %}<li class="text-break"><a href="{% url 'catalog:specification_revision' item.specification.revision_id %}">{{ item.specification.code }} v{{ item.specification.version }}</a> ({{ item.scopes|join:", " }}) · {{ item.name }}: {{ item.text }}{% if not item.required %} · information only{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
 </fieldset>
 {% endfor %}

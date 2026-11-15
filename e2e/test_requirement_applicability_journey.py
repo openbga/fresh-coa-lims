@@ -97,7 +97,11 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
             return page.locator("section", has=page.get_by_role("heading", name=heading))
 
         def statement(scope_of, code):
-            return scope_of.get_by_role("row", name=re.compile(re.escape(f"{code} v1")))
+            """One statement of a test: a list item where it is only read, an option where
+            one is chosen."""
+            return scope_of.locator("fieldset li, fieldset .form-check").filter(
+                has_text=f"{code} v1"
+            )
 
         decide_links = page.get_by_role("link", name="Decide conflicting requirements")
 
@@ -180,8 +184,20 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         expect(stated.get_by_role("group", name="assay Assay")).to_be_visible()
         expect(statement(stated, "synthetic-rt-spec")).to_contain_text(GENERAL)
         expect(statement(stated, "synthetic-rt-eu-market")).to_contain_text(MARKET)
+        expect(stated).to_contain_text("The statements differ in: limits.")
         expect(page.get_by_role("radio")).to_have_count(2)
         expect(page.get_by_role("radio", checked=True)).to_have_count(0)
+        expect(
+            applies.locator("dl.vr-facts > div", has_text="Specifications in force")
+        ).to_contain_text("synthetic-rt-eu-market v1 (eu-market)")
+        expect(
+            applies.locator("dl.vr-facts > div", has_text="Additional rule sets in force")
+        ).to_contain_text("synthetic-eu-rules v1")
+        agreed = section("Requirements stated one way")
+        expect(agreed.get_by_role("row", name=re.compile("^impurity"))).to_contain_text(
+            "general, eu-market"
+        )
+        expect(agreed.get_by_role("row", name=re.compile("^water"))).to_contain_text("eu-market")
         signing = section("Sign decision")
         expect(signing).to_contain_text("requirements decided")
         expect(signing).to_contain_text("Signer: Synthetic Approver (rt_approver)")
@@ -200,6 +216,14 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         toggle.click()
         expect(panel).not_to_be_visible()
         shots("requirement-decision-review")
+        # On a phone both statements are read in full, without scrolling sideways.
+        page.set_viewport_size({"width": 390, "height": 844})
+        for code, wording in (("synthetic-rt-spec", GENERAL), ("synthetic-rt-eu-market", MARKET)):
+            option = statement(stated, code).locator("label")
+            expect(option).to_contain_text(wording)
+            box = option.bounding_box()
+            assert box["x"] >= 0 and box["x"] + box["width"] <= 390, (code, box)
+        page.set_viewport_size({"width": 1440, "height": 1000})
 
         # Signed without a choice, nothing is decided and the PIN is not kept.
         sign = page.get_by_role("button", name="Sign decision and freeze requirements", exact=True)
@@ -219,7 +243,9 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         shots("requirement-decision-refused")
 
         # The market statement applies: a result within it also meets the general limits.
-        page.get_by_label("synthetic-rt-eu-market version 1 applies for assay", exact=True).check()
+        page.get_by_role(
+            "radio", name=re.compile(r"^synthetic-rt-eu-market v1 \(eu-market\)")
+        ).check()
         field("Reason for the decision").fill(REASON)
         field("Signing username").fill("rt_approver")
         field("Signature PIN").fill(PIN)

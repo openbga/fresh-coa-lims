@@ -3,6 +3,7 @@ requirements page, the signed decision of conflicting requirements, the replacem
 choice, and what the rule set, lot record and disposition pages show."""
 
 import re
+from decimal import Decimal
 
 import pytest
 from django.urls import reverse
@@ -21,6 +22,7 @@ from tests.test_requirement_applicability import (
     assign,
     complete,
     conflicting,
+    decide,
     extra_rules,
     overlay,
     revise,
@@ -108,6 +110,9 @@ def test_quality_decides_conflicting_requirements_on_the_page(client, world):  #
     assert decide_url in listed and ">Decide conflicting requirements</a>" in listed
     page = text(client.get(decide_url))
     assert "A lot has to meet every specification that binds it." in page
+    assert "The statements differ in: limits." in page
+    assert "Specifications in force" in page and "Requirements stated one way" in page
+    assert "<strong>synthetic-rt-eu-market v1</strong> (eu-market) · Assay: 99 – 101 %" in page
     assert page.count('type="radio" name="choice-assay"') == 2
     assert 'value="eu-market"' in page and 'value="general"' in page and "checked" not in page
     assert "requirements decided" in page and f"revision <strong>{lot.revision}</strong>" in page
@@ -151,6 +156,78 @@ def test_quality_decides_conflicting_requirements_on_the_page(client, world):  #
     assert "Applicability hold" in shown and "Earlier requirement assignments" in shown
 
 
+def test_a_refused_signature_leaves_a_page_that_can_be_signed(client, world):  # noqa: F811
+    """After a stale refusal the page shows what applies now and carries its token."""
+    people, lot = world["people"], world["lot"]
+    conflicting(world)
+    lot.refresh_from_db()
+    decide_url = reverse("sampling:decide", args=[lot.pk])
+    approver = people["approver"]
+    client.force_login(approver)
+    opened = text(client.get(decide_url))
+    revise(world, "synthetic-rt-eu-market", {**TIGHT, "lower_limit": Decimal("99.5")})
+    response = client.post(
+        decide_url, signing(approver, lot, opened) | {"choice-assay": "eu-market"}
+    )
+    refused = text(response)
+    assert response.status_code == 422
+    assert "changed after this page was opened" in refused
+    assert "99.5 – 101 %" in refused and "synthetic-rt-eu-market v2" in refused
+    assert basis_of(refused) != basis_of(opened)
+    assert basis_of(refused) == sampling.decision_preview(lot).basis
+    assert sampling.current_assignment(lot).status == "hold"
+    # Reviewed as shown and signed again, with the PIN entered again.
+    assert 'name="pin"' in refused and PIN not in refused
+    response = client.post(
+        decide_url, signing(approver, lot, refused) | {"choice-assay": "eu-market"}, follow=True
+    )
+    assert response.redirect_chain == [(reverse("sampling:lot", args=[lot.pk]), 302)]
+    (item,) = sampling.current_assignment(lot).payload["decisions"]
+    assert item["text"].startswith("99.5 – 101 %")
+
+
+def test_after_a_decision_only_quality_assigns_the_requirements_again(
+    client,
+    world,  # noqa: F811
+    django_user_model,
+):
+    from django.contrib.auth.models import Group
+
+    from tests.test_integrated_journey import PASSWORD
+
+    bench = django_user_model.objects.create_user(username="rt_bench", password=PASSWORD)
+    bench.groups.add(Group.objects.get_or_create(name="analyst")[0])
+    lot = world["lot"]
+    conflicting(world)
+    lot_url = reverse("sampling:lot", args=[lot.pk])
+    assign_url = reverse("sampling:assign", args=[lot.pk])
+    client.force_login(bench)
+    assert assign_url in text(client.get(lot_url))
+    decide(world)
+    assert assign_url not in text(client.get(lot_url))
+    response = client.get(assign_url, follow=True)
+    assert response.redirect_chain == [(lot_url, 302)]
+    assert "Only quality assigns its requirements again" in text(response)
+    form = {"material": world["material"].pk, "stage": "incoming", "scopes": "general"}
+    response = client.post(assign_url, form | {"reason": "Synthetic"}, follow=True)
+    assert response.redirect_chain == [(lot_url, 302)]
+    assert sampling.current_assignment(lot).origin == "decided"
+    client.force_login(world["people"]["author"])
+    assert assign_url in text(client.get(lot_url))
+
+
+def test_choices_are_read_only_from_names_that_could_be_codes():
+    from django.http import QueryDict
+
+    from sampling.forms import chosen_scopes
+
+    data = QueryDict(
+        "choice-assay=eu-market&choice-water=&choice-=x&choice-a b=x&choice-id=<script>"
+        "&other=1&choice-" + "x" * 81 + "=general&choice-tamc=cust_a"
+    )
+    assert chosen_scopes(data) == {"assay": "eu-market", "tamc": "cust_a"}
+
+
 def test_a_person_who_recorded_the_lots_data_is_shown_no_pin(client, world):  # noqa: F811
     people, lot = world["people"], world["lot"]
     conflicting(world)
@@ -187,6 +264,10 @@ def test_a_decision_page_says_what_else_holds_the_lot(client, world):  # noqa: F
     conflicting(world)
     extra_rules(world, "synthetic-eu-rules", {"scopes": ["eu-market"]}, ["water"])
     client.force_login(people["approver"])
+    # The lot page explains; the decision is offered once the configuration is complete.
+    listed = text(client.get(reverse("sampling:lot", args=[lot.pk])))
+    assert "once the other reasons above are resolved in the configuration" in listed
+    assert reverse("sampling:decide", args=[lot.pk]) not in listed
     page = text(client.get(reverse("sampling:decide", args=[lot.pk])))
     assert "The requirements cannot be decided now" in page
     assert "requires tests that no specification applying to the lot requires: water" in page
@@ -257,7 +338,9 @@ def test_a_conflict_that_arises_in_testing_is_chosen_on_the_replacement_page(cli
     assert current.origin == "replaced" and current.payload["decisions"][0]["scope"] == "eu-market"
     # The disposition page tells the signer about the decision and what the lot is under.
     disposition = text(client.get(reverse("quality:disposition", args=[lot.pk])))
-    assert "The specifications that apply to this lot state assay differently." in disposition
+    assert "The specifications that apply to this lot state assay differently (limits)." in (
+        disposition
+    )
     assert "requirements were assigned under the scopes general, eu-market" in disposition
 
     # Nothing has been revised since, yet the choice can be reviewed again and changed by

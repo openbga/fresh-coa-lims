@@ -204,6 +204,7 @@ def lot_detail(request, pk):
             # the conflict and who decides it.
             "can_decide": is_quality
             and decision is not None
+            and not decision.reasons
             and not services.decision_denial(request.user, lot),
             # In testing, a chosen requirement is changed only by a signed replacement, also
             # when no version has changed since.
@@ -224,7 +225,8 @@ def lot_detail(request, pk):
             "open": lot.state == "quarantine",
             "testing_started": testing,
             "can_assign": services.assignment_blocker(lot) is None
-            and can(request.user, "analyst", "quality"),
+            and can(request.user, "analyst", "quality")
+            and not services.reassignment_denial(request.user, lot, current),
             "can_sample": is_analyst and services.sampling_blocker(lot) is None,
             "is_analyst": is_analyst,
         },
@@ -247,6 +249,9 @@ def assign(request, pk):
         messages.error(request, blocker)
         return redirect(back)
     current = services.current_assignment(lot)
+    if denial := services.reassignment_denial(request.user, lot, current):
+        messages.error(request, denial)
+        return redirect(back)
     initial = {"scopes": "general"}
     if current:
         initial.update(
@@ -291,6 +296,15 @@ def assign(request, pk):
     )
 
 
+def _reissue(form, lot, basis):
+    """After a refused signature the page shows the record as it is now, so the form carries
+    the token and the revision of what is shown, not those of the page that was refused. The
+    signer reviews what is shown and enters the PIN again."""
+    form.data = form.data.copy()
+    form.data["basis"] = basis
+    form.data["expected_revision"] = str(lot.revision)
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def decide(request, pk):
@@ -326,6 +340,8 @@ def decide(request, pk):
         if done:
             messages.success(request, "Decision signed. The requirements are frozen for this lot.")
             return redirect(back)
+    if request.method == "POST":
+        _reissue(form, lot, preview.basis)
     for conflict in preview.conflicts:
         conflict["chosen"] = choices.get(conflict["code"], "")
     return render(
@@ -398,6 +414,8 @@ def replace(request, pk):
                 else "Requirements replaced and signed. Every test carried over.",
             )
             return redirect(back)
+    if request.method == "POST":
+        _reissue(form, lot, preview.basis)
     # Tests the specifications in force state differently: the ones already chosen for, with
     # the choice, then the ones still to choose for. Choices that settle a test not listed
     # here travel with the page.
@@ -407,6 +425,8 @@ def replace(request, pk):
         {
             "code": item["code"],
             "name": item["name"],
+            "differs": item["differs"],
+            # The statement chosen, then the others.
             "candidates": [{key: item[key] for key in statement}, *item["alternatives"]],
             "chosen": item["scope"],
         }

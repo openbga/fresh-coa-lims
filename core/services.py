@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from datetime import timedelta
 
 from django.apps import apps
@@ -268,6 +269,7 @@ OWN_TESTS = "own_tests"
 APPLIES_TO = "applies_to"
 APPLIES_TO_KEYS = ("materials", "stages", "scopes")
 OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO})
+SCOPE_NAME = re.compile(r"[-a-zA-Z0-9_]+")
 
 
 def _codes(value, *, allow_empty=False):
@@ -325,6 +327,14 @@ def validate_policy(policy):
                 "applies_to must say where the rule set applies with at least one of "
                 "materials, stages and scopes, each a list of codes listed once."
             )
+        # A scope is matched by its name: one that could never be entered for a lot would
+        # leave the rule set silently without effect.
+        for scope in where.get("scopes", []):
+            if len(scope) > 60 or not SCOPE_NAME.fullmatch(scope):
+                raise ValidationError(
+                    f"applies_to names “{scope}”, which is not a scope name: use letters, "
+                    "digits, - and _, at most 60 characters."
+                )
 
 
 def is_additional(rule):

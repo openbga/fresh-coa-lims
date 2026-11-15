@@ -50,6 +50,7 @@ from catalog.services import (
     AUTHOR_ROLE,
     GENERAL,
     ApplicabilityHold,
+    Applicable,
     _check_interval,
     _next_version,
     _require_reason,
@@ -58,7 +59,6 @@ from catalog.services import (
     normalize_scopes,
     register_check,
     requirement_text,
-    resolve_requirements,
     same_requirement,
     test_requirement,
 )
@@ -484,13 +484,15 @@ def assessment_blocker(review, actor=None):
 
 @dataclass
 class Resolution:
-    """The versions in force for a lot's material, stage and scopes, resolved at one moment.
+    """The versions in force for a lot's material, stage and scopes, read at one moment.
 
     ``reasons`` is everything that holds the lot; ``conflicts`` the part of it a quality
-    decision settles and ``blocking`` the part it cannot.
+    decision settles and ``blocking`` the part it cannot. ``applicable`` is what was read:
+    it is frozen again, without another read, once a choice is made.
     """
 
     rules: RuleSet
+    applicable: Applicable
     payload: dict | None = None
     plan_revision: SamplingPlanRevision | None = None
     plan_payload: dict | None = None
@@ -500,19 +502,14 @@ class Resolution:
 
 
 def _resolve(lot, *, material, stage, scopes, at, decisions=None):
-    """Resolve what applies to the lot now. The lot follows its own rule set: the version in
-    force is applied, as it is for the specifications and the methods; with none in force the
-    lot's version is named in the hold. A sampled lot keeps its sampling plan version."""
-    found = Resolution(rules=rules_in_force(lot.rules, at) or lot.rules)
+    """Read what applies to the lot now, once. The lot follows its own rule set: the version
+    in force is applied, as it is for the specifications and the methods; with none in force
+    the lot's version is named in the hold. A sampled lot keeps its sampling plan version."""
+    rules = rules_in_force(lot.rules, at) or lot.rules
+    read = Applicable(material=material, stage=stage, scopes=scopes, rules=rules, at=at)
+    found = Resolution(rules=rules, applicable=read)
     try:
-        found.payload = resolve_requirements(
-            material=material,
-            stage=stage,
-            scopes=scopes,
-            rules=found.rules,
-            at=at,
-            decisions=decisions,
-        )
+        found.payload = read.freeze(decisions)
     except ApplicabilityHold as hold:
         found.blocking.extend(hold.blocking)
         found.conflicts = hold.conflicts
@@ -525,11 +522,39 @@ def _resolve(lot, *, material, stage, scopes, at, decisions=None):
     return found
 
 
-def _frozen(lot, resolution):
+def _frozen(lot, resolution, payload=None):
     """The requirement payload as it is frozen for the lot."""
-    payload = {**resolution.payload, "lot": {"id": lot.pk, "number": lot.number}}
+    payload = {**(payload or resolution.payload), "lot": {"id": lot.pk, "number": lot.number}}
     payload["sampling_plan"] = resolution.plan_payload
     return payload
+
+
+DECIDED_BY_QUALITY = (
+    "Quality decided which requirement applies to this lot where its specifications differ. "
+    "Only quality assigns its requirements again; the decision is then made again."
+)
+
+
+def decision_records(assignment):
+    """The choices between differing statements behind an assignment's requirements, each
+    with who decided it, when, why and how (``decided``): made with a signed decision before
+    testing, or made or carried with a signed replacement during testing."""
+    if assignment is None:
+        return []
+    if assignment.origin == AssignmentOrigin.DECIDED:
+        return list(assignment.decision.get("choices") or [])
+    if assignment.origin == AssignmentOrigin.REPLACED:
+        return list(assignment.replacement.get("decisions") or [])
+    return []
+
+
+def reassignment_denial(actor, lot, assignment=None):
+    """Why this person cannot assign the lot's requirements again, or "": a signed decision
+    is not set aside by someone without the quality role."""
+    assignment = assignment or current_assignment(lot)
+    if decision_records(assignment) and not actor.groups.filter(name=AUTHOR_ROLE).exists():
+        return DECIDED_BY_QUALITY
+    return ""
 
 
 @transaction.atomic
@@ -558,6 +583,8 @@ def assign_requirements(*, actor, lot, material, stage, reason, scope=GENERAL, s
     if blocker := assignment_blocker(locked):
         raise ValidationError(blocker)
     previous = current_assignment(locked)
+    if denial := reassignment_denial(actor, locked, previous):
+        raise PermissionDenied(denial)
     resolution = _resolve(locked, material=material, stage=stage, scopes=scopes, at=timezone.now())
     reasons, rules = resolution.reasons, resolution.rules
     assignment = LotAssignment(
@@ -649,14 +676,19 @@ CHOICE_REQUIRED = (
 class Decision:
     """What deciding a lot's conflicting requirements now would settle. Built read-only for
     the page and again under the lock for the signature; ``basis`` identifies everything the
-    signer was shown except the time of resolution."""
+    signer was shown except the time of resolution: the tests stated differently with their
+    statements, the tests stated one way (``agreed``), and every version that was read."""
 
     lot: Lot
     current: LotAssignment | None
     blocker: str = ""
     conflicts: list = field(default_factory=list)
+    agreed: list = field(default_factory=list)
+    specifications: list = field(default_factory=list)
+    additional_rules: list = field(default_factory=list)
     reasons: list = field(default_factory=list)
     rules: RuleSet | None = None
+    resolution: Resolution | None = None
     basis: str = ""
 
     @property
@@ -697,11 +729,13 @@ def _conflict_basis(conflicts):
 
 
 def decision_preview(lot, at=None):
-    """Resolve the versions in force for the scopes of the lot's held assignment and list the
-    tests the specifications state differently, each with its statements.
+    """Read once the versions in force for the scopes of the lot's held assignment, and list
+    the tests the specifications state differently, each with its statements, beside the
+    tests stated one way and the specifications and rule sets that apply.
 
     ``reasons`` are the other reasons the lot is held; a decision cannot settle them, so it
-    is refused until they are resolved in the configuration and the lot is assigned again.
+    is refused until they are resolved in the configuration. ``resolution`` is what was
+    read: the signature freezes it with the choices, without reading again.
     """
     current = current_assignment(lot)
     preview = Decision(lot=lot, current=current)
@@ -718,14 +752,34 @@ def decision_preview(lot, at=None):
     if not resolution.conflicts:
         preview.blocker = NO_CONFLICT
         return preview
+    read = resolution.applicable
+    preview.resolution = resolution
     preview.rules = resolution.rules
     preview.conflicts = resolution.conflicts
+    preview.agreed = read.agreed
+    preview.specifications = [
+        {"scope": name, "code": spec.code, "version": revision.version, "revision_id": revision.pk}
+        for name, spec, revision in read.specifications
+    ]
+    preview.additional_rules = [
+        {
+            "code": rule.code,
+            "version": rule.version,
+            "required_tests": rule.policy["required_tests"],
+        }
+        for rule in read.extra
+    ]
     preview.reasons = resolution.blocking
     preview.basis = digest(
         {
             "previous": current.pk,
             "rules": resolution.rules.pk,
+            # Every version that was read: a specification, method or additional rule set
+            # approved since makes the page stale, whether or not it is part of a conflict.
+            "applied": read.applied,
+            "plan": resolution.plan_revision.pk if resolution.plan_revision else None,
             "conflicts": _conflict_basis(resolution.conflicts),
+            "agreed": [[row["code"], row["text"], row["required"]] for row in preview.agreed],
             "reasons": resolution.blocking,
         }
     )
@@ -744,6 +798,23 @@ def _check_choices(conflicts, choices):
     return choices
 
 
+def _stamped(decisions, *, actor, at, reason, how, earlier=None):
+    """The decided statements with who decided each, when, why and how. ``earlier`` maps a
+    test code to the record of a choice that still stands unchanged; it keeps its own."""
+    made = {
+        "by": actor.get_full_name() or actor.get_username(),
+        "by_id": actor.pk,
+        "at": at.isoformat(),
+        "reason": reason,
+        "with": how,
+    }
+    earlier = earlier or {}
+    return [
+        {**item, "decided": earlier[item["code"]]["decided"] if item["code"] in earlier else made}
+        for item in decisions
+    ]
+
+
 @sensitive_variables("pin")
 def decide_conflicts(*, actor, pin, lot, expected_revision, reason, choices, basis):
     """Decide, before testing, which statement applies where the specifications that apply to
@@ -751,9 +822,11 @@ def decide_conflicts(*, actor, pin, lot, expected_revision, reason, choices, bas
 
     Signed by a quality person who authored none of the lot's data. ``choices`` is {test
     code: scope whose statement applies} for every conflicting test and ``basis`` the preview
-    the signer reviewed; anything that changed since refuses the signature. The statements not
-    chosen stay in the record with the decision. Nothing else that holds the lot is settled
-    here: an incomplete resolution refuses the decision.
+    the signer reviewed; anything that changed since refuses the signature. What applies is
+    read once under the lock: the token is checked against that read and the same read is
+    frozen with the choices. The statements not chosen stay in the record with the decision.
+    Nothing else that holds the lot is settled here: an incomplete resolution refuses the
+    decision.
     """
 
     def apply(locked):
@@ -768,22 +841,19 @@ def decide_conflicts(*, actor, pin, lot, expected_revision, reason, choices, bas
         if preview.reasons:
             raise ValidationError(preview.reasons)
         decided = _check_choices(preview.conflicts, choices)
-        previous = preview.current
-        resolution = _resolve(
-            locked,
-            material=previous.material,
-            stage=previous.stage,
-            scopes=previous.scope_list,
-            at=at,
-            decisions=decided,
-        )
-        if resolution.reasons:
-            raise ValidationError(resolution.reasons)
-        payload, rules = _frozen(locked, resolution), resolution.rules
+        previous, resolution = preview.current, preview.resolution
+        try:
+            resolved = resolution.applicable.freeze(decided)
+        except ApplicabilityHold as hold:
+            # The choice itself can leave a rule set uncovered (an information-only line).
+            raise ValidationError(hold.reasons) from hold
+        payload, rules = _frozen(locked, resolution, resolved), resolution.rules
         evidence = {
             "schema": DECISION_SCHEMA,
             "decides": {"assignment": previous.pk},
-            "choices": payload["decisions"],
+            "choices": _stamped(
+                payload["decisions"], actor=actor, at=at, reason=reason, how="decision"
+            ),
             # The lot revision this decision's signature is bound to.
             "lot_revision": locked.revision + 1,
         }
@@ -826,6 +896,7 @@ def decide_conflicts(*, actor, pin, lot, expected_revision, reason, choices, bas
                         "code": item["code"],
                         "scope": item["scope"],
                         "specification": item["specification"],
+                        "differs": item["differs"],
                         "applies": item["text"],
                         "not_applied": [alt["text"] for alt in item["alternatives"]],
                     }
@@ -937,14 +1008,15 @@ class Replacement:
     except the time of resolution.
 
     ``conflicts`` are the tests the specifications in force state differently and no choice
-    settles yet; ``choices`` the scopes chosen for conflicting tests (carried from the lot's
-    current requirements unless given)."""
+    settles yet; ``standing`` the choices of the lot's current requirements that still stand,
+    and ``choices`` those and the ones given, by test code."""
 
     lot: Lot
     current: LotAssignment | None
     blocker: str = ""
     reasons: list = field(default_factory=list)
     conflicts: list = field(default_factory=list)
+    standing: dict = field(default_factory=dict)
     choices: dict = field(default_factory=dict)
     rules: RuleSet | None = None
     payload: dict | None = None
@@ -998,9 +1070,17 @@ def _version_changes(old, new):
     ]
 
 
-def _carried_choices(payload):
-    """{test code: scope} of the conflicts decided in a frozen payload."""
-    return {item["code"]: item["scope"] for item in payload.get("decisions") or []}
+def _standing_choices(payload, read):
+    """{test code: scope} of the choices in a frozen payload that still stand under what
+    applies now (``read``): the scope that was named states the test exactly as it is frozen
+    for the lot. A choice whose statement was revised is not carried; it is made again."""
+    frozen = {line["code"]: line for line in payload["tests"]}
+    standing = {}
+    for item in payload.get("decisions") or []:
+        stated = read.line(item["code"], item["scope"])
+        if stated is not None and same_requirement(frozen[item["code"]], stated):
+            standing[item["code"]] = item["scope"]
+    return standing
 
 
 def replacement_preview(lot, at=None, choices=None):
@@ -1011,9 +1091,10 @@ def replacement_preview(lot, at=None, choices=None):
     is incomplete (no effective specification, method or rule version, or a rule set the
     specifications do not cover) is a reason for refusal, never a hold recorded on the lot.
     Where the specifications in force state a test differently, the choice made for the lot's
-    current requirements is carried while the chosen scope still states the test, and
-    ``choices`` ({test code: scope}) settles the rest; a conflict without a choice is listed
-    and the replacement waits for one.
+    current requirements is carried while the scope that was named still states the test
+    exactly as it is frozen for the lot, and ``choices`` ({test code: scope}) settles the
+    rest; a conflict without a choice is listed and the replacement waits for one. What
+    applies is read once; the payload and the token of the preview come from that read.
     """
     current = current_assignment(lot)
     preview = Replacement(lot=lot, current=current)
@@ -1023,20 +1104,21 @@ def replacement_preview(lot, at=None, choices=None):
     at = at or timezone.now()
     rules = rules_in_force(lot.rules, at)
     preview.rules = rules
-    preview.choices = {**_carried_choices(current.payload), **dict(choices or {})}
+    read = Applicable(
+        material=current.material,
+        stage=current.stage,
+        scopes=current.scope_list,
+        rules=rules,
+        at=at,
+    )
+    preview.standing = _standing_choices(current.payload, read)
+    preview.choices = {**preview.standing, **dict(choices or {})}
     reasons = []
     if rules is None:
         reasons.append(f"Rule set {lot.rules.code} has no approved version effective now.")
     resolved = None
     try:
-        resolved = resolve_requirements(
-            material=current.material,
-            stage=current.stage,
-            scopes=current.scope_list,
-            rules=rules,
-            at=at,
-            decisions=preview.choices,
-        )
+        resolved = read.freeze(preview.choices)
     except ApplicabilityHold as hold:
         reasons.extend(hold.blocking)
         preview.conflicts = hold.conflicts
@@ -1156,25 +1238,54 @@ def applicability_notices(lot, current=None):
     ]
 
 
+def _moment(iso):
+    from datetime import datetime
+
+    return f"{timezone.localtime(datetime.fromisoformat(iso)):%Y-%m-%d %H:%M %Z}"
+
+
 def decision_notices(lot, current=None):
     """One line per conflict decided in the lot's current requirements: which specification's
-    statement applies, what it was chosen over, and who decided. Never a blocker."""
+    statement applies, what it was chosen over, who decided, when and why, and the
+    replacement that carried the choice since. Then one line for a signed decision that was
+    set aside when the lot's requirements were assigned again. Never a blocker."""
     current = current or current_assignment(lot)
-    if current is None or current.status != AssignmentStatus.READY:
-        return []
-    return [
-        f"The specifications that apply to this lot state {item['code']} differently. "
-        f"Decided on {_when_by(current)}: {item['specification']['code']} "
-        f"v{item['specification']['version']} ({', '.join(item['scopes'])}) applies, "
-        f"{item['text']}; not applied: "
-        + "; ".join(
-            f"{alt['specification']['code']} v{alt['specification']['version']} "
-            f"({', '.join(alt['scopes'])}), {alt['text']}"
-            for alt in item["alternatives"]
+    notices = []
+    if current is not None and current.status == AssignmentStatus.READY:
+        for item in decision_records(current):
+            made = item["decided"]
+            carried = current.is_replacement and made["at"] != current.replacement["signed_at"]
+            notices.append(
+                f"The specifications that apply to this lot state {item['code']} differently "
+                f"({', '.join(item['differs'])}). Decided on {_moment(made['at'])} by "
+                f"{made['by']}: {item['specification']['code']} "
+                f"v{item['specification']['version']} ({', '.join(item['scopes'])}) applies, "
+                f"{item['text']}; not applied: "
+                + "; ".join(
+                    f"{alt['specification']['code']} v{alt['specification']['version']} "
+                    f"({', '.join(alt['scopes'])}), {alt['text']}"
+                    for alt in item["alternatives"]
+                )
+                + f". Reason: {made['reason']}"
+                + (
+                    f" The choice was carried by the replacement of {_when_by(current)}."
+                    if carried
+                    else ""
+                )
+            )
+    set_aside = LotAssignment.objects.filter(
+        lot=lot, origin=AssignmentOrigin.DECIDED, superseded_by__origin=AssignmentOrigin.ASSIGNED
+    ).select_related("assigned_by", "superseded_by__assigned_by")
+    for decided in set_aside.order_by("assigned_at", "id"):
+        after = decided.superseded_by
+        codes = ", ".join(item["code"] for item in decision_records(decided))
+        notices.append(
+            f"The decision of {_when_by(decided)} on the requirements the specifications "
+            f"state differently ({codes}) was set aside without a signature when the lot's "
+            f"requirements were assigned again on {_when_by(after)} under the scope"
+            f"{'' if len(after.scope_list) == 1 else 's'} {', '.join(after.scope_list)}."
         )
-        + f". Reason: {current.reason}"
-        for item in current.payload.get("decisions") or []
-    ]
+    return notices
 
 
 def replacement_notices(lot):
@@ -1288,10 +1399,28 @@ def replace_requirements(*, actor, pin, lot, expected_revision, reason, basis, c
             "lot_revision": locked.revision + 1,
         }
         if preview.versions:
-            # Additional rule sets and specifications that changed, beyond the first.
+            # Every specification and additional rule set version that changed.
             evidence["versions"] = preview.versions
         if payload.get("decisions"):
-            evidence["decisions"] = payload["decisions"]
+            # Each choice between differing statements with who made it: this signer, or
+            # whoever decided it before when the statement that applies is unchanged.
+            records = {record["code"]: record for record in decision_records(previous)}
+            before = {line["code"]: line for line in previous.payload["tests"]}
+            after = {line["code"]: line for line in payload["tests"]}
+            standing = {
+                code: record
+                for code, record in records.items()
+                if code in after and same_requirement(before[code], after[code])
+            }
+            evidence["decisions"] = _stamped(
+                payload["decisions"],
+                actor=actor,
+                at=locked._signing_timestamp,
+                reason=reason,
+                how="replacement",
+                earlier=standing,
+            )
+            evidence["signed_at"] = locked._signing_timestamp.isoformat()
         assignment = LotAssignment(
             lot=locked,
             material=previous.material,
