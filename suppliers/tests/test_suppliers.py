@@ -174,7 +174,7 @@ def test_record_lists_lots_whose_current_receipt_names_the_supplier(client, peop
     body = client.get(first_url).content.decode()
     assert "SYN-SUP-LOT-1" in body and "SUP-LOT-SYN-001" in body and "25 kg" in body
     assert "supplier.created" in body
-    assert "Not recorded in this register" in body
+    assert "No qualification is recorded." in body
     assert "No lots received from this supplier" in client.get(second_url).content.decode()
     listing = client.get(reverse("suppliers:list")).content.decode()
     assert '<td class="text-end">1</td>' in listing and '<td class="text-end">0</td>' in listing

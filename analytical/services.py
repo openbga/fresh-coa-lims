@@ -12,6 +12,11 @@ A result reported by a contract laboratory is recorded as the test's observation
 replicate at once, behind the same bench: ``authorize_contract`` checks the laboratory's approval
 for the method instead of the analyst and the resources. A test is tested at this bench or
 reported by a contract laboratory, never both.
+
+A supplier's certificate result accepted in place of a test is never an observation. While a
+proposal or an acceptance stands for a requirement of the lot, a test of that requirement takes
+no observation, no reported result, no raw-data file and no QC batch (``supplier_refusal``),
+and no test is assigned for it.
 """
 
 import datetime
@@ -38,6 +43,7 @@ from .contracts import (
     contract_source,
     reported_source,
     resolve,
+    supplier_standing,
 )
 from .gates import data_author_ids, investigation_author_ids
 from .models import (
@@ -103,6 +109,18 @@ def _test_authors(test):
     return data_author_ids(test)
 
 
+def supplier_refusal(test):
+    """Why this test takes no laboratory work now, or None: a supplier's certificate result is
+    proposed or accepted in place of it. Shared by the pages and the locked services."""
+    label = supplier_standing(test.lot).get(test.test_code)
+    if label is None:
+        return None
+    return (
+        f"A supplier's result is proposed or accepted in place of this test ({label}). "
+        "Withdraw it on the lot record before testing the requirement in the laboratory."
+    )
+
+
 # Test assignment and observations ----------------------------------------------------------
 
 
@@ -119,9 +137,12 @@ def assign_tests(*, actor, sample, reason):
             )
         )
         accepted, holds = resolve(lot)
+        # A requirement a supplier's result is proposed or accepted for gets no test; one is
+        # assigned here later if that is withdrawn.
+        relied = supplier_standing(lot)
         created = []
         for code, payload in accepted.items():
-            if code in existing:
+            if code in existing or code in relied:
                 continue
             test = AnalyticalTest.objects.create(
                 lot=lot,
@@ -326,6 +347,7 @@ def record_observation(
         (lot,) = _lock_lots(locked.lot_id)
         if locked.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting observations.")
+        _raise(supplier_refusal(locked))
         spec = locked.spec
         if locked.contract_source() is not None:
             raise ValidationError(REPORTED)
@@ -624,7 +646,7 @@ def record_contract_result(
         _check_revision(locked, expected_revision)
         (lot,) = _lock_lots(locked.lot_id)
         current = list(locked.current_observations().order_by("replicate", "pk"))
-        _raise(contract_refusal(locked, current))
+        _raise(contract_refusal(locked, current) or supplier_refusal(locked))
         spec = locked.spec
         fields = _contract_readings(spec, readings)
         if current:
@@ -967,7 +989,7 @@ def assign_to_batch(*, actor, test, batch, reason):
         batch = QCBatch.objects.select_for_update().get(pk=batch.pk)
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         (lot,) = _lock_lots(test.lot_id)
-        _raise(batch_join_refusal(batch) or batching_refusal(test))
+        _raise(batch_join_refusal(batch) or batching_refusal(test) or supplier_refusal(test))
         method = test.spec.method
         if not method.requires_batch or (method.code, method.revision) != (
             batch.method_spec.code,

@@ -9,7 +9,7 @@
 </ul>
 {% endblock %}
 {% block page_actions %}{% if can_correct %}<a class="btn btn-outline-secondary" href="{% url 'quality:certificate_correct' certificate.pk %}">Correct supplier certificate</a>{% endif %}{% if can_withdraw %}<a class="btn btn-outline-danger" href="{% url 'quality:certificate_withdraw' certificate.pk %}">Withdraw supplier certificate</a>{% endif %}{% endblock %}
-{% block page_intro %}<p class="vr-page-intro">Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests, do not answer a requirement and do not count towards QC disposition.</p>{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests. A stated result answers a requirement and counts towards QC disposition only when it is accepted in place of a test, under a signed qualification of the supplier.</p>{% endblock %}
 {% block content %}
 {% if withdrawn %}
 <div class="alert alert-secondary" role="status">
@@ -50,6 +50,11 @@
             <td class="vr-wrap small">{{ row.acceptance }}<div class="vr-muted">{{ row.source }}</div></td>
             <td>{% if row.line.conforms %}{% include "includes/status.html" with label="Meets the specification" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %}{% endif %}{% if row.replaced %}<div>{% include "includes/status.html" with label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}</td>
           </tr>
+          {% if row.standing or row.can_propose or row.refusal %}
+          <tr>
+            <td colspan="6" class="vr-wrap small"><span class="vr-muted">In place of a test:</span> {% if row.standing %}<a class="vr-id" href="{% url 'quality:acceptance_detail' row.standing.pk %}">{{ row.standing.label }}</a> {% if row.standing.problems %}{% include "includes/status.html" with label="No longer stands" tone="danger" plain=True %} Withdraw it before proposing a result again.{% elif row.standing.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}{% if row.elsewhere %} <span class="vr-muted">Taken from another record: {{ row.standing.evidence.certificate.number }}.</span>{% endif %}{% elif row.can_propose %}<a href="{% url 'quality:acceptance_new' row.line.pk %}">Propose in place of a test<span class="visually-hidden">: {{ row.name }}</span></a>{% else %}Not available: {{ row.refusal }}{% endif %}</td>
+          </tr>
+          {% endif %}
           {% endfor %}
         </tbody>
       </table>

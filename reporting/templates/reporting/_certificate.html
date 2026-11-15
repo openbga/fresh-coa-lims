@@ -31,6 +31,9 @@
     </dl>
     <h3 class="h6 fw-bold mt-4">Results</h3>
     {% if snapshot.native %}
+    {% if not snapshot.native.analytical.results and snapshot.native.analytical.supplier_results %}
+    <p>No requirement of this lot was tested by this laboratory.</p>
+    {% else %}
     <div class="vr-table-wrap mb-3" tabindex="0" role="region" aria-label="Reportable results">
       <table class="table vr-table">
         <thead><tr><th scope="col">Test</th><th scope="col">Sample</th><th scope="col">Method</th><th scope="col">Replicates</th><th scope="col" class="text-end">Reportable result</th><th scope="col">Limits</th><th scope="col">Independent review</th></tr></thead>
@@ -49,6 +52,27 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
+    {% if snapshot.native.analytical.supplier_results %}
+    <p class="mb-1"><strong>Results accepted from the supplier's certificate of analysis.</strong> This laboratory did not perform these tests. Each result is stated on the supplier's certificate and was accepted in place of a test under a signed qualification of the supplier.</p>
+    <div class="vr-table-wrap mb-3" tabindex="0" role="region" aria-label="Results accepted from the supplier's certificate">
+      <table class="table vr-table">
+        <thead><tr><th scope="col">Test</th><th scope="col" class="text-end">Supplier's result</th><th scope="col">Method and limits stated</th><th scope="col">Specification</th><th scope="col">Supplier's certificate</th><th scope="col">Accepted</th></tr></thead>
+        <tbody>
+        {% for s in snapshot.native.analytical.supplier_results %}
+          <tr>
+            <th scope="row">{{ s.test_code }}{% if s.name and s.name != s.test_code %}<br><span class="vr-muted">{{ s.name }}</span>{% endif %}</th>
+            <td class="text-end">{{ s.stated.result }}{% if s.unit %} {{ s.unit }}{% endif %}{% if s.stated.wording %}<span class="d-block vr-muted">Stated as: {{ s.stated.wording }}</span>{% endif %}</td>
+            <td class="vr-wrap">{{ s.stated.method }}<span class="d-block vr-muted">Limits stated: {{ s.stated.limits }}</span></td>
+            <td class="vr-wrap">{{ s.criterion }}</td>
+            <td class="vr-wrap">{{ s.certificate.number }} dated {{ s.certificate.issued_on }}, issued by {{ s.certificate.issued_by }}<span class="d-block vr-muted">Supplier {{ s.supplier.name }}, {{ s.supplier.location }}. Qualification {{ s.qualification.label }}: {{ s.qualification.evidence_ref }}.</span></td>
+            <td>{% if s.signature %}{{ s.signature.signer }}<br><time class="vr-muted">{{ s.signature.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not accepted" tone="warning" plain=True %}{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
     {% else %}
     {% for sample in snapshot.samples %}
     <p class="mb-1"><strong>Sample {{ sample.reference }}</strong> · collected {{ sample.collected_at|stamp }}</p>
@@ -94,6 +118,9 @@
         {% for r in snapshot.native.analytical.results %}{% if r.review %}
           <tr><td>Test {{ r.sample }} {{ r.test_code }} reviewed</td><td>{{ r.review.signer }}</td><td>{{ r.review.signed_at|stamp }}</td><td>Test record revision {{ r.review.revision }}</td></tr>
         {% endif %}{% endfor %}
+        {% for s in snapshot.native.analytical.supplier_results %}{% if s.signature %}
+          <tr><td>Supplier result {{ s.test_code }} accepted in place of a test</td><td>{{ s.signature.signer }}</td><td>{{ s.signature.signed_at|stamp }}</td><td>Acceptance {{ s.label }} revision {{ s.signature.revision }}</td></tr>
+        {% endif %}{% endfor %}
         {% if snapshot.disposition %}<tr><td>QC disposition approved</td><td>{{ snapshot.disposition.signer_name }}</td><td>{{ snapshot.disposition.signed_at|stamp }}</td><td>Lot revision {{ snapshot.disposition.revision }}</td></tr>{% endif %}
         {% if snapshot.report %}<tr><td>Certificate {% if snapshot.report.kind == "amendment" %}amended{% else %}issued{% endif %}</td><td>{{ snapshot.report.issued_by }}</td><td>{{ snapshot.report.issued_at|stamp }}</td><td>Certificate version {{ snapshot.report.version }}</td></tr>{% endif %}
         </tbody>
@@ -107,6 +134,7 @@
         {% for m in snapshot.methods %}{% if m.approved_hash %}<div><dt>Method {{ m.code }} v{{ m.version }} hash</dt><dd><span class="vr-id text-wrap text-break">{{ m.approved_hash }}</span></dd></div>{% endif %}{% endfor %}
         {% if snapshot.native.assignment_hash %}<div><dt>Assignment hash</dt><dd><span class="vr-id text-wrap text-break">{{ snapshot.native.assignment_hash }}</span></dd></div>{% endif %}
         {% for r in snapshot.native.analytical.results %}{% ifchanged r.requirement_source %}<div><dt>Requirement source</dt><dd><span class="vr-id text-wrap text-break">{{ r.requirement_source }}</span></dd></div>{% endifchanged %}{% endfor %}
+        {% if not snapshot.native.analytical.results %}{% for s in snapshot.native.analytical.supplier_results %}{% ifchanged s.requirement_source %}<div><dt>Requirement source</dt><dd><span class="vr-id text-wrap text-break">{{ s.requirement_source }}</span></dd></div>{% endifchanged %}{% endfor %}{% endif %}
         <div><dt>Evidence SHA-256</dt><dd><span class="vr-id text-wrap text-break">{{ snapshot.evidence_hash }}</span></dd></div>
       </dl>
     </details>

@@ -282,7 +282,7 @@ def review_result(*, actor, pin, result, expected_revision, reason):
 
 SELF_DISPOSITION = (
     "You cannot disposition a lot containing your own receipt, supplier certificate, sampling "
-    "or test data."
+    "or test data, or a supplier result you proposed in place of a test."
 )
 
 
@@ -293,10 +293,12 @@ def receipt_author_ids(lot):
 
 def lot_record_author_ids(lot):
     """Everyone who recorded the lot's receipt details or supplier certificates, including
-    corrected originals, corrections and withdrawals."""
+    corrected originals, corrections and withdrawals, and everyone who proposed that a
+    supplier's result stands in for a test."""
     from .certificates import certificate_author_ids
+    from .reliance import acceptance_author_ids
 
-    return receipt_author_ids(lot) | certificate_author_ids(lot)
+    return receipt_author_ids(lot) | certificate_author_ids(lot) | acceptance_author_ids(lot)
 
 
 def disposition_authors(lot):
@@ -304,7 +306,7 @@ def disposition_authors(lot):
     none may sign its disposition.
 
     Recorders of receipt details and supplier certificates including corrected originals and
-    withdrawals, analytical authors
+    withdrawals, proposers of a supplier's result in place of a test, analytical authors
     (observations including corrected originals, submitters, batch QC, investigations),
     samplers and recorders of every sampling record including corrected originals and
     intermediate corrections, and foundation result analysts. Holding several roles never
@@ -323,13 +325,14 @@ def disposition_authors(lot):
 
 def disposition_notices(lot):
     """What a disposition signer should see that does not block the signature: supplier results
-    that do not meet the specification, and reported results whose contract laboratory
-    approval has been revoked since."""
+    that do not meet the specification, supplier results accepted in place of a laboratory
+    test, and reported results whose contract laboratory approval has been revoked since."""
     from analytical.gates import lot_notices
 
     from .certificates import disposition_notices as certificate_notices
+    from .reliance import disposition_notices as reliance_notices
 
-    return [*certificate_notices(lot), *lot_notices(lot)]
+    return [*certificate_notices(lot), *reliance_notices(lot), *lot_notices(lot)]
 
 
 def disposition_denial(actor, lot):

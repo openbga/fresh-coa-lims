@@ -77,7 +77,8 @@ def supplier_new(request):
             "cancel_url": reverse("suppliers:list"),
             "submit_label": "Create supplier",
             "intro": "A supplier's identity cannot be edited after creation; use synthetic names "
-            "only. Adding a supplier does not qualify it.",
+            "only. Adding a supplier does not qualify it; a qualification is recorded on the "
+            "supplier's page and signed by a second quality person.",
         },
         status=form_status(request, form),
     )
@@ -92,6 +93,11 @@ def supplier_detail(request, pk):
         .select_related("lot")
         .order_by("-received_on", "-id")
     )
+    from .qualification_views import qualification_rows, tests_text
+
+    qualifications = qualification_rows(supplier)
+    for row in qualifications:
+        row["tests"] = tests_text(row["qualification"])
     return render(
         request,
         "suppliers/detail.html",
@@ -101,5 +107,7 @@ def supplier_detail(request, pk):
             "crumbs": [(SECTION, reverse("suppliers:list")), (supplier.code, None)],
             "page_obj": page(request, receipts),
             "history": history(supplier),
+            "qualifications": qualifications,
+            "can_qualify": can(request.user, services.AUTHOR_ROLE),
         },
     )

@@ -196,6 +196,9 @@ ANALYTICAL_REQUIREMENT_PROVIDER = "config.integrations.CatalogRequirementProvide
 # whether each selected instrument and reagent or standard lot is fit for use. Without this
 # setting results are held.
 ANALYTICAL_BENCH = "config.integrations.LaboratoryBench"
+# The testing gate asks the lot record which supplier certificate results were accepted in place
+# of a test. Without this setting no supplier result answers a requirement.
+ANALYTICAL_SUPPLIER_RESULTS = "config.integrations.AcceptedSupplierResults"
 # Raw-data files are stored in PostgreSQL with their test. This is the largest file accepted,
 # in bytes; each upload is held in memory while its checksum is calculated.
 RAW_DATA_MAX_BYTES = int(os.environ.get("RAW_DATA_MAX_BYTES", str(10 * 1024 * 1024)))

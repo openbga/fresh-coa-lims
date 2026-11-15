@@ -4,7 +4,7 @@ urls: analytical:observation_new
 views: analytical.views.observation_new
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Record the next replicate observation of a test, with the location of its origin
 ## Who can use it
 
 - Sign-in required. **Analysts** only; others receive 403.
-- A test in the wrong state, or one that holds a result reported by a contract laboratory, redirects you back to the test record with a warning (see Rules).
+- A test in the wrong state, one that holds a result reported by a contract laboratory, or one whose requirement a supplier result is proposed or accepted for, redirects you back to the test record with a warning (see Rules).
 - **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
 ## Layout
@@ -58,8 +58,8 @@ Record the next replicate observation of a test, with the location of its origin
 
 ## Rules and hidden logic
 
-- **Wrong state** (opening or submitting): redirects to the test record with a warning: "This test is not accepting observations." (test not Open or lot not in quarantine); "This test holds a result reported by a contract laboratory. It takes no observation made in this laboratory; correct the contract laboratory result instead."; "Add this test to a QC batch before recording results."; "All replicates are recorded. Correct a value instead."
-- **Preconditions**: test Open ("This test is not accepting observations."); lot in quarantine ("Lot ... is no longer in quarantine."); no result reported by a contract laboratory on the test (the message above; a test is tested here or reported by a contract laboratory, never both); a QC batch assigned when the method needs one ("Assign this test to a QC batch before recording results."); fewer current values than replicates ("All replicates are recorded. Correct a value instead.").
+- **Wrong state** (opening or submitting): redirects to the test record with a warning: "This test is not accepting observations." (test not Open or lot not in quarantine); "A supplier's result is proposed or accepted in place of this test (SRA-1). Withdraw it on the lot record before testing the requirement in the laboratory." (a supplier result stands in place of the test); "This test holds a result reported by a contract laboratory. It takes no observation made in this laboratory; correct the contract laboratory result instead."; "Add this test to a QC batch before recording results."; "All replicates are recorded. Correct a value instead."
+- **Preconditions**: test Open ("This test is not accepting observations."); lot in quarantine ("Lot ... is no longer in quarantine."); no supplier result proposed or accepted in place of the test (the message above; testing and acceptance exclude each other, and the record is withdrawn from its acceptance record first); no result reported by a contract laboratory on the test (the message above; a test is tested here or reported by a contract laboratory, never both); a QC batch assigned when the method needs one ("Assign this test to a QC batch before recording results."); fewer current values than replicates ("All replicates are recorded. Correct a value instead.").
 - **Bench checks**: without a configured bench the page redirects to the test record with "No bench check is configured; results are held." and the server refuses the entry with the same message. After the record locks and validations the bench checks your current qualification for the test's method and every instrument and lot you selected. A refusal shows each reason, as "Refused: <subject>: <reason>", on the checkbox list of the refused instrument or lot, or above the form for your qualification (for example "Refused: analyst.test: No approved, current qualification for “<method>”."). Nothing is saved; the refused attempt is audited by the bench. The accepted evidence (user, activity, qualification, equipment and lots with their use records) is frozen on the observation and in its audit event.
 - **Required resources**: a method that requires equipment refuses an entry with none selected ("Select the instrument used; this method requires one."); the same applies to reagent or standard lots. The server repeats this check ("Method <code> requires at least one instrument; select the equipment used.").
 - **Calculated results**: when the method has a calculation, the form asks for each input instead of the value. The server calculates the value with the approved formula and rounds it half-up to the approved decimals. A missing, non-finite or over-precise input (more than 8 decimal places or 20 digits), a division by zero ("The value cannot be calculated: The formula divides by zero for these values.") or a result too large to store refuses the entry; nothing is saved. A calculated result cannot be reported as less than a value. The inputs as entered and the calculation applied (method, revision, formula, unit, decimals) are stored on the observation and in its audit event.

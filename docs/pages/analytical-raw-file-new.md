@@ -4,7 +4,7 @@ urls: analytical:raw_file_new, analytical:raw_file_download
 views: analytical.rawdata.raw_file_new, analytical.rawdata.raw_file_download
 templates: analytical/raw_file_form.html, analytical/_summary.html, analytical/_raw_files.html, 413.html
 models: analytical.RawDataFile, analytical.AnalyticalTest, quality.Lot, core.AuditEvent
-reviewed: 2026-11-13
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -15,7 +15,7 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 
 - Sign-in required. Attaching is for **analysts** only; others receive 403, including admin without the analyst role.
 - Downloading requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; a user without one of these roles receives 403, also for a file that does not exist.
-- A test that is not Open, or whose lot is not in quarantine, redirects you back to the test record with a warning.
+- A test that is not Open, whose lot is not in quarantine, or whose requirement a supplier result is proposed or accepted for, redirects you back to the test record with a warning (see Rules).
 - The person who attaches a file counts as an author of the test's data. They cannot review that test or sign the lot's QC disposition.
 
 ## Layout
@@ -49,6 +49,9 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 - **Never opened**: the system does not read, display or run the file content. It is only stored, checksummed and returned.
 - **File name**: only the base name is kept (folders in `/` or `\` form are dropped) and control characters are removed. A name that is empty afterwards, or longer than 200 characters, is refused.
 - **Refusals** (form error with status 422, nothing stored): "The file is empty."; "The file is larger than the limit of ..."; "A test holds at most 20 raw-data files."; "This file content is already attached to this test." (same checksum on the same test); "This deployment has reached its storage limit for raw-data files. The file was not stored." (only where the deployment sets a ceiling for all files together); "Describe what the file is."; "This test is not accepting raw data."; "Lot ... is no longer in quarantine."
+- **Wrong state** (opening or submitting): you are redirected to the test record with "This test is not accepting raw data." (test not Open or lot not in quarantine) or "A supplier's result is proposed or accepted in place of this test (SRA-1). Withdraw it on the lot record before testing the requirement in the laboratory."
+- **Supplier result in place of the test**: raw data is laboratory work. While a supplier result is proposed or accepted for this requirement of the lot and not withdrawn, no file is attached; the server refuses the same when saving. Withdraw that record from its acceptance record (reached from the lot record) first.
+- **A file marks the requirement as tested here**: a test that holds a raw-data file counts as started, so a supplier's result can no longer be proposed or accepted for its requirement: "T-12 assay already holds laboratory work (a result, a raw-data file, a QC batch or a decision). A supplier's result cannot stand in for a requirement the laboratory has started testing." Files are never deleted, so this stays true for the lot.
 - **Size limit in the browser**: choosing a file above the limit shows "The file is larger than the limit of ... and was not sent. Choose a smaller file." under **File**. **Attach file** then sends nothing and returns you to the **File** field until you choose a smaller file. This check needs JavaScript; the server applies the limit in every case.
 - **Size limit on the server**: an upload that declares more than the size limit plus 1 MiB is refused before it is received, with status 413 and the page "Upload too large": "The upload was larger than this system accepts. It was refused before it was received, and nothing was stored." The role and test checks do not run for such a request, so the page appears whoever sent it. A file that is over the limit by less than that is stopped while it is being received: you return to this page with "The file is larger than the limit of ... Nothing was stored." and enter the description again.
 - **Effect**: in one transaction the file is stored, the test revision and lot revision rise by 1 (so a disposition opened earlier becomes stale) and `rawdata.attached` is audited with the file number, name, size, SHA-256 and description.
@@ -59,3 +62,4 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 ## Related pages
 
 - Test record (return target, and the list of attached files).
+- Lot record and Supplier result acceptance record (when a supplier result stands in place of the test).

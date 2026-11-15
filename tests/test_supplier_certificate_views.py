@@ -134,7 +134,7 @@ def test_certificate_is_recorded_through_the_form(client, world):
     record = client.get(url("lot_detail", lot)).content.decode()
     assert f'href="{url("certificate_detail", certificate)}"' in record
     assert "All meet the specification" in record and "Current" in record
-    assert "do not count towards QC disposition" in record
+    assert "counts towards QC disposition only when it is accepted in place of a test" in record
 
 
 def test_refused_form_keeps_entries_and_records_nothing(client, world):

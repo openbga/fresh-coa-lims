@@ -4,7 +4,7 @@ urls: quality:certificate_correct
 views: quality.certificate_views.certificate_correct
 templates: catalog/form.html
 models: quality.SupplierCertificate, quality.SupplierCertificateResult, quality.Lot, quality.LotReceipt
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -66,11 +66,13 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 - **Quarantine only**: the lot is locked while saving; "Only quarantined lots accept supplier certificate records." if it was released after the page opened. The certificates of a released lot cannot be corrected.
 - **Effect**: a new record linked to the one it replaces is added with you as recorder and becomes the current record of the certificate. The lot's record revision increases by 1. Audit event `supplier_certificate.corrected` stores the record before and after with your reason. A disposition signing page opened earlier then fails as stale.
 - **What is kept**: the replaced record and its results are never changed. The supplier certificate record lists the correction in History and shows each changed detail as old value → new value. The lot record lists only the current record.
-- **Independence**: correcting makes you an author of the lot's supplier certificate data, as does having recorded a record that was later replaced. None of these users can sign this lot's disposition, even with the quality role.
+- **Supplier results in place of tests**: a correction is not refused when a result of the record is proposed or accepted in place of a test. Every proposal and acceptance taken from the replaced record stops standing, also when the corrected result is unchanged: it shows "No longer stands" on the lot record with "supplier certificate COA-TEST-001 was corrected or withdrawn after the result was taken from it" and blocks the lot's QC disposition. Withdraw it on its record, then propose the result again from the new current record.
+- **A failing result and other certificates**: a corrected result that does not meet the specification contradicts a result of the same test on another certificate of the lot: that result cannot be proposed or accepted in place of a test, and a proposal or acceptance already made for it stops standing ("supplier certificate COA-TEST-001 states a result for assay that does not meet the specification"). Correcting a failing result so that it meets the specification, or clearing it, ends the contradiction.
+- **Independence**: correcting makes you an author of the lot's supplier certificate data, as does having recorded a record that was later replaced. None of these users can sign this lot's disposition, even with the quality role. None of them can accept a result proposed from the corrected record either, even with the reviewer role.
 - **Append-only**: a certificate record and its results cannot be edited or deleted. The database also refuses a correction for a lot that is not in quarantine, a correction linked to another lot's record, a correction of a withdrawn record and a second correction of the same record.
-- **What this record does not do**: supplier results do not answer a requirement, do not count towards QC disposition and do not block it, and are not printed on the certificate of analysis. A corrected result that does not meet the specification does not place a hold; place one from Holds if the lot must not be dispositioned.
+- **What this record does not do by itself**: a corrected result answers no requirement until it is proposed and accepted in place of a test. A result that was never proposed does not count towards QC disposition, does not block it and is not printed on the certificate of analysis. A corrected result that does not meet the specification does not place a hold; place one from Holds if the lot must not be dispositioned.
 - **One current record per number**: changing the certificate number to one that another current certificate of this lot holds is refused beside Certificate number: "This lot already holds a certificate with this number. Correct that record, or withdraw it if it does not belong to this lot." Upper and lower case and surrounding spaces do not make a number different; a withdrawn certificate does not count. The record keeps its own number without objection.
-- **Not enforced by this page**: the supplier and the certificate's issuer are not checked for qualification or approval, and the record does not qualify the supplier.
+- **Not enforced by this page**: correcting a certificate does not need a qualified supplier and does not qualify the supplier; the qualification is checked only when a result is proposed and accepted. The certificate's issuer is not checked against the supplier.
 - Unknown certificate: 404.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept."). Refusals from the server appear beside the field they concern, or in the summary when they concern the whole form.
 
@@ -78,6 +80,7 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 
 - Supplier certificate record.
 - Record supplier certificate; Withdraw supplier certificate.
+- Supplier result acceptance record (to withdraw an acceptance that no longer stands); Propose supplier result in place of a test.
 - Lot record; Lot requirements and sampling.
 - [Holds](/stability/holds/)
 - [Material lots](/)

@@ -4,7 +4,7 @@ urls: quality:receipt_correct
 views: quality.views.receipt_correct
 templates: catalog/form.html
 models: quality.LotReceipt, quality.Lot, suppliers.Supplier
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -63,9 +63,10 @@ Corrects the receipt details of a quarantined lot by adding a linked, newer reco
 - **Effect**: a new record linked to the one it replaces is added with you as recorder and becomes the current receipt details. The lot's record revision increases by 1, and audit event `lot.receipt_corrected` stores the details before and after with your reason. A disposition signing page opened earlier then fails as stale.
 - **What is kept**: the replaced record is never changed. The lot record lists it in Receipt history, and the correction shows each changed detail as old value → new value.
 - **Lists that follow the current details**: Material lots and the supplier records use the new record. A lot corrected to another supplier moves to that supplier's record.
-- **Independence**: correcting makes you an author of the lot's receipt data, as does having recorded a record that was later replaced. None of these users can sign this lot's disposition, even with the quality role.
+- **Supplier results in place of tests**: a correction is not refused when a supplier result is proposed or accepted in place of a test of the lot. Such a record stops standing when the corrected details say Made on site, name another supplier, or give another date received, also one within the dates of the supplier qualification it relied on ("the date received was corrected from 2026-11-02 to 2026-10-01"). It then shows "No longer stands" on the lot record and blocks the lot's QC disposition until it is withdrawn on its own record.
+- **Independence**: correcting makes you an author of the lot's receipt data, as does having recorded a record that was later replaced. None of these users can sign this lot's disposition, even with the quality role, or accept a supplier result proposed in place of a test of this lot, even with the reviewer role.
 - **Append-only**: a receipt record cannot be edited or deleted, and the database refuses a receipt record for a lot that is not in quarantine or a correction linked to another lot's record.
-- **Not enforced by this page**: the supplier is not checked for qualification or approval; the receipt details do not change which tests the lot requires; "Discrepancy found" does not place a hold on the lot. Place a hold from Holds if the lot must not be dispositioned.
+- **Not enforced by this page**: the supplier is not checked for qualification here (a qualification is checked only when a supplier result is proposed and accepted in place of a test); the receipt details do not change which tests the lot requires; "Discrepancy found" does not place a hold on the lot. Place a hold from Holds if the lot must not be dispositioned.
 - Unknown lot: 404.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept."). Refusals from the server appear beside the field they concern, or in the summary when they concern the whole form.
 

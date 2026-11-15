@@ -23,11 +23,36 @@
     {% else %}
     <div class="alert alert-success" role="status">
       {% include "includes/status.html" with label="Complete" tone="success" plain=True %}
-      <div>Every required test has a reviewed, conforming result and no investigation is open. This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.</div>
+      <div>{% if supplier_results %}Every requirement has a reviewed, conforming result or an accepted supplier result, and no investigation is open.{% else %}Every required test has a reviewed, conforming result and no investigation is open.{% endif %} This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.</div>
     </div>
     {% endif %}
   </div>
 </section>
+{% if supplier_results %}
+<section class="card vr-table-card mb-3" aria-labelledby="supplier-results-heading">
+  <div class="card-header"><h2 class="card-title" id="supplier-results-heading">Supplier results accepted in place of tests</h2><span class="vr-count">{{ supplier_results|length }}</span></div>
+  <div class="card-body">
+    <p class="vr-muted small">These requirements are answered for the whole lot by a result stated on the supplier's certificate. They are not tested here; a test assigned for one stays open and takes no result while the acceptance stands.</p>
+    <div class="vr-table-wrap">
+      <table class="table vr-table" aria-labelledby="supplier-results-heading">
+        <thead><tr><th scope="col">Acceptance</th><th scope="col">Test</th><th scope="col" class="text-end">Supplier's result</th><th scope="col">Supplier certificate</th><th scope="col">Acceptance and specification</th><th scope="col">Accepted by</th></tr></thead>
+        <tbody>
+          {% for s in supplier_results %}
+          <tr>
+            <th scope="row"><a class="vr-id" href="{% url 'quality:acceptance_detail' s.acceptance %}">{{ s.label }}</a></th>
+            <td>{{ s.name }}<div class="vr-muted small">{{ s.test_code }}</div></td>
+            <td class="text-end vr-nowrap">{{ s.stated.result }}{% if s.unit %} <span class="vr-muted small">{{ s.unit }}</span>{% endif %}</td>
+            <td>{{ s.certificate.number }}<div class="vr-muted small">{{ s.supplier.name }}</div></td>
+            <td class="small">{{ s.criterion }}<div class="vr-muted">{{ s.requirement_source }}</div></td>
+            <td>{{ s.signature.signer }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% for sample in samples %}
 <section class="card vr-table-card mb-3" aria-labelledby="sample-{{ sample.pk }}">

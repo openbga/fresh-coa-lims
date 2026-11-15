@@ -12,7 +12,7 @@ from catalog.web import form_status, run
 from core.models import ElectronicSignature
 from core.services import require_role
 
-from . import certificates, services
+from . import certificates, reliance, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
 from .models import Lot, LotReceipt, ReceiptSource, Result, Sample
 
@@ -94,6 +94,7 @@ def lot_detail(request, pk):
             "certificates": certificates.lot_summary(lot),
             "supplied": receipt is not None and receipt.source == ReceiptSource.SUPPLIER,
             "certificate_blocker": certificates.recording_requirements(lot)[1],
+            "acceptances": reliance.lot_acceptances(lot),
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),

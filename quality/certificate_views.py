@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 from catalog.web import run
 from core.services import require_role
 
-from . import certificates
+from . import certificates, reliance
 from .forms import CertificateCorrectionForm, CertificateForm, CertificateWithdrawalForm
 from .models import Lot, SupplierCertificate
 from .services import current_receipt
@@ -26,8 +26,8 @@ HEADER_LABELS = (
 MEETS, FAILS = "Meets the specification", "Does not meet the specification"
 INTRO = (
     "Record what the supplier's certificate states, against the lot's approved requirements. "
-    "These are the supplier's results: they are kept apart from the laboratory's own tests and "
-    "do not replace them."
+    "These are the supplier's results: they are kept apart from the laboratory's own tests. "
+    "One stands in for a test only through an acceptance signed on the lot."
 )
 
 
@@ -142,6 +142,22 @@ def certificate_detail(request, pk):
         and lot.state == "quarantine"
         and not withdrawn
     )
+    # Each stated result with the proposal or acceptance that stands for its requirement, or,
+    # for an analyst, whether it can be proposed in place of a test and why not.
+    # A proposal or acceptance stands for the lot's requirement, whichever record of whichever
+    # certificate it was taken from; it is shown under every statement of that test.
+    standing = {item.test_code: item for item in reliance.lot_acceptances(lot) if item.stands}
+    for row in rows:
+        row["standing"] = standing.get(row["line"].test_code)
+        row["elsewhere"] = (
+            row["standing"] is not None and row["standing"].result_id != row["line"].pk
+        )
+        row["refusal"] = (
+            reliance.proposal_refusal(lot, row["line"])
+            if can_change and row["standing"] is None
+            else ""
+        )
+        row["can_propose"] = can_change and row["standing"] is None and not row["refusal"]
     return render(
         request,
         "quality/certificate_detail.html",
@@ -157,6 +173,7 @@ def certificate_detail(request, pk):
             "receipt": receipt,
             "lot_check": certificates.lot_number_check(head, receipt),
             "history": chain_history(chain, hashes),
+            "can_propose": can_change,
             "can_withdraw": can_change,
             # A correction needs what a new record needs: a supplier receipt and requirements.
             "can_correct": can_change and not certificates.recording_requirements(lot)[1],

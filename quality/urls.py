@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import certificate_views, views
+from . import acceptance_views, certificate_views, views
 
 app_name = "quality"
 urlpatterns = [
@@ -28,6 +28,26 @@ urlpatterns = [
         "supplier-certificates/<int:pk>/withdraw/",
         certificate_views.certificate_withdraw,
         name="certificate_withdraw",
+    ),
+    path(
+        "supplier-results/<int:pk>/propose/",
+        acceptance_views.acceptance_new,
+        name="acceptance_new",
+    ),
+    path(
+        "supplier-result-acceptances/<int:pk>/",
+        acceptance_views.acceptance_detail,
+        name="acceptance_detail",
+    ),
+    path(
+        "supplier-result-acceptances/<int:pk>/accept/",
+        acceptance_views.acceptance_accept,
+        name="acceptance_accept",
+    ),
+    path(
+        "supplier-result-acceptances/<int:pk>/withdraw/",
+        acceptance_views.acceptance_withdraw,
+        name="acceptance_withdraw",
     ),
     path("lots/<int:pk>/samples/new/", views.sample_new, name="sample_new"),
     path("samples/<int:pk>/results/new/", views.result_new, name="result_new"),

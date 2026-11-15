@@ -25,6 +25,12 @@ The same bench answers for results reported by a contract laboratory (``contract
 laboratory holds a signed approval for the method covering the date of its report, and returns
 the evidence relied on. That evidence is frozen on each observation under ``CONTRACT``; an
 observation that carries it was reported by the contract laboratory, not made at this bench.
+
+settings.ANALYTICAL_SUPPLIER_RESULTS names the source (``lot``, ``standing``,
+``standing_by_lot``) of supplier certificate results accepted in place of a test. Such a result
+is never an observation: the lot gate counts a signed acceptance as the answer to its
+requirement, and a test of that requirement takes no result while a proposal or an acceptance
+stands. Without the setting no supplier result answers a requirement.
 """
 
 import hashlib
@@ -743,6 +749,41 @@ def reported_source(observations):
     if not sources or any(source is None for source in sources):
         return None
     return sources[0]
+
+
+NO_RELIANCE = {"standing": {}, "accepted": {}, "blockers": [], "author_ids": []}
+
+
+def _supplier_source():
+    path = getattr(settings, "ANALYTICAL_SUPPLIER_RESULTS", "")
+    return import_string(path)() if path else None
+
+
+def supplier_results(lot):
+    """Supplier certificate results accepted in place of a test of the lot.
+
+    ``{"standing": {test_code: label}, "accepted": {test_code: evidence}, "blockers": [...],
+    "author_ids": [...]}`` from settings.ANALYTICAL_SUPPLIER_RESULTS. ``accepted`` holds signed
+    acceptances that still stand; ``standing`` also names proposals awaiting a signature.
+    Without a configured source nothing is relied on.
+    """
+    source = _supplier_source()
+    if source is None:
+        return {key: type(value)() for key, value in NO_RELIANCE.items()}
+    return source.lot(lot)
+
+
+def supplier_standing(lot):
+    """{test_code: label} of the lot's requirements a supplier's result is proposed or accepted
+    for; a test of such a requirement takes no result until that is withdrawn."""
+    source = _supplier_source()
+    return {} if source is None else source.standing(lot)
+
+
+def supplier_standing_by_lot(lot_ids):
+    """{(lot id, test_code): label} for a page of tests."""
+    source = _supplier_source()
+    return {} if source is None else source.standing_by_lot(lot_ids)
 
 
 def bench_resources(evidence):

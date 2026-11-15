@@ -13,7 +13,16 @@ from core.services import require_role
 from quality.models import Lot, Sample
 
 from . import gates, services
-from .contracts import WorkRefused, batch_methods, bench, plain, reported_source
+from .contracts import (
+    WorkRefused,
+    batch_methods,
+    bench,
+    plain,
+    reported_source,
+    supplier_results,
+    supplier_standing,
+    supplier_standing_by_lot,
+)
 from .forms import (
     BatchAssignForm,
     BatchForm,
@@ -199,6 +208,18 @@ TEST_FILTERS = {
 }
 
 
+def mark_supplier_results(tests):
+    """Set ``supplier_result`` on each open test whose requirement a supplier's certificate
+    result is proposed or accepted for: such a test is not work waiting to be done."""
+    tests = list(tests)
+    standing = supplier_standing_by_lot({t.lot_id for t in tests if t.state == "open"})
+    for test in tests:
+        test.supplier_result = (
+            standing.get((test.lot_id, test.test_code)) if test.state == "open" else None
+        )
+    return tests
+
+
 @login_required
 def test_list(request):
     access(request.user)
@@ -216,13 +237,15 @@ def test_list(request):
             | Q(test_code__icontains=query)
         )
     tests = tests.order_by("-created_at", "-pk")
+    page_obj = Paginator(tests, PAGE_SIZE).get_page(request.GET.get("page"))
+    mark_supplier_results(page_obj)
     return render(
         request,
         "analytical/test_list.html",
         {
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:test_list"),
-            "page_obj": Paginator(tests, PAGE_SIZE).get_page(request.GET.get("page")),
+            "page_obj": page_obj,
             "query": query,
             "state": state,
             "states": [(key, label) for key, (label, _) in TEST_FILTERS.items()],
@@ -306,8 +329,12 @@ def lot_testing(request, pk):
     if request.method == "POST":
         return assign_tests(request, lot)
     blockers, _, tests, investigations = gates.lot_status(lot)
+    relied = supplier_results(lot)
     by_sample = {}
     for test in tests:
+        test.supplier_result = (
+            relied["standing"].get(test.test_code) if test.state == "open" else None
+        )
         by_sample.setdefault(test.sample_id, []).append(test)
     samples = list(Sample.objects.filter(lot=lot).order_by("collected_at", "pk"))
     for sample in samples:
@@ -319,6 +346,7 @@ def lot_testing(request, pk):
             "page_title": f"Testing · {lot.number}",
             "lot": lot,
             "blockers": blockers,
+            "supplier_results": [relied["accepted"][code] for code in sorted(relied["accepted"])],
             "samples": samples,
             "investigations": sorted(investigations.values(), key=lambda i: -i.pk),
             "can_assign": "analyst" in roles(request.user) and lot.state == "quarantine",
@@ -344,10 +372,31 @@ def assign_tests(request, lot):
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
         return redirect("analytical:lot_testing", pk=sample.lot_id)
+    relied = supplier_standing(lot)
     if created:
         messages.success(request, f"Assigned {len(created)} test(s) to {sample.reference}.")
+    elif not holds and relied:
+        messages.info(
+            request,
+            "No test to assign: every requirement of this sample has a test or a supplier's "
+            "result that stands for it.",
+        )
     elif not holds:
         messages.info(request, "Every required test is already assigned to this sample.")
+    untested = sorted(
+        set(relied)
+        - set(
+            AnalyticalTest.objects.filter(sample=sample, kind="original").values_list(
+                "test_code", flat=True
+            )
+        )
+    )
+    if created and untested:
+        messages.info(
+            request,
+            "No test was assigned for " + ", ".join(untested) + ": a supplier's result is "
+            "proposed or accepted in place of it.",
+        )
     for hold in holds:
         messages.warning(request, f"Held: {hold}")
     return redirect("analytical:lot_testing", pk=sample.lot_id)
@@ -437,6 +486,13 @@ def test_detail(request, pk):
         or not spec.method.requires_batch
         or (test.batch is not None and test.batch.state == "open" and batch_status == "passed")
     )
+    # A supplier's result proposed or accepted in place of this test: it takes no laboratory
+    # work until that is withdrawn on the lot record.
+    supplier_label = (
+        supplier_standing(test.lot).get(test.test_code) if test.state == "open" else None
+    )
+    test.supplier_result = supplier_label
+    is_open = is_open and supplier_label is None
     can_contract = (
         "analyst" in user_roles and is_open and services.contract_refusal(test, current) is None
     )
@@ -461,6 +517,7 @@ def test_detail(request, pk):
             "can_correct": "analyst" in user_roles and is_open,
             "contract": contract,
             "contract_notice": contract_notice(contract),
+            "supplier_result": supplier_label,
             "can_contract": can_contract and not current,
             "can_contract_correct": can_contract and contract is not None,
             "can_batch": "analyst" in user_roles
@@ -490,6 +547,8 @@ def observation_new(request, pk):
     back = reverse("analytical:test_detail", args=[test.pk])
     if test.state != "open" or test.lot.state != "quarantine":
         return unavailable(request, "This test is not accepting observations.", back)
+    if refusal := services.supplier_refusal(test):
+        return unavailable(request, refusal, back)
     if test.contract_source() is not None:
         return unavailable(request, services.REPORTED, back)
     if test.spec.method.requires_batch and not test.batch_id:
@@ -592,7 +651,11 @@ def contract_result(request, pk):
     test = get_test(pk)
     back = reverse("analytical:test_detail", args=[test.pk])
     current = list(test.current_observations().order_by("replicate", "pk"))
-    refusal = services.quarantine_refusal(test.lot) or services.contract_refusal(test, current)
+    refusal = (
+        services.quarantine_refusal(test.lot)
+        or services.contract_refusal(test, current)
+        or services.supplier_refusal(test)
+    )
     if refusal:
         return unavailable(request, refusal, back)
     spec = test.spec
@@ -686,7 +749,11 @@ def test_batch(request, pk):
     test = get_test(pk)
     method = test.spec.method
     back = reverse("analytical:test_detail", args=[test.pk])
-    refusal = services.quarantine_refusal(test.lot) or services.batching_refusal(test)
+    refusal = (
+        services.quarantine_refusal(test.lot)
+        or services.batching_refusal(test)
+        or services.supplier_refusal(test)
+    )
     if not refusal and not method.requires_batch:
         refusal = "This test cannot be added to a QC batch."
     if refusal:

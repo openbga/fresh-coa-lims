@@ -244,8 +244,15 @@ def blockers(evidence):
             )
         if not analytical.get("complete") or analytical.get("blockers"):
             problems.append("The analytical evidence at disposition was not complete.")
-        if not analytical.get("results"):
+        relied = analytical.get("supplier_results") or []
+        if not analytical.get("results") and not relied:
             problems.append("No reportable native results are recorded for this lot.")
+        for stated in relied:
+            if not stated.get("signature"):
+                problems.append(
+                    f"The supplier result accepted for {stated['test_code']} has no signed "
+                    "acceptance."
+                )
         for result in analytical.get("results", []):
             label = f"{result['sample']} {result['test_code']}"
             if not result.get("review"):

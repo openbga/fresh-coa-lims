@@ -4,12 +4,12 @@ urls: suppliers:list
 views: suppliers.views.supplier_list
 templates: suppliers/list.html
 models: suppliers.Supplier, quality.LotReceipt
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
 
-The supplier register: the companies that lots are received from. The receipt details of a lot received from a supplier name one supplier from this register. The register records identity only.
+The supplier register: the companies that lots are received from. The receipt details of a lot received from a supplier name one supplier from this register. The register records identity only; a supplier's qualifications are separate signed records on its supplier record.
 
 ## Who can use it
 
@@ -21,7 +21,7 @@ The supplier register: the companies that lots are received from. The receipt de
 
 - **Sidebar**: **Suppliers** is in the **Configuration** section, between Specifications and Rule sets.
 - **Header**: title "Suppliers" and the **New supplier** button for quality, with the introduction below.
-- **Intro**: "Companies that lots are received from. The register records who a supplier is; it does not qualify a supplier or reduce testing."
+- **Intro**: "Companies that lots are received from. The register records who a supplier is; it does not qualify a supplier or reduce testing. A qualification is a separate signed record on the supplier's page."
 - **Filter bar**: **Search** (placeholder "Code, name or location"), **Apply**, **Clear filters** when a search is set.
 - **Table**: Supplier (code), Name, Location, Lots received (count), Created (date). Supplier and Name headers sort.
 - **Footer**: "Showing X–Y of N suppliers", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear.
@@ -55,10 +55,11 @@ The supplier register: the companies that lots are received from. The receipt de
 - **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
 - **Lots received**: counts only current receipt details. A receipt record that a correction replaced is not counted, so a lot corrected to another supplier moves from one count to the other.
 - **Immutable**: a supplier cannot be edited or deleted after creation (database trigger). There is no edit, retire or delete action.
-- **Not enforced by this page**: the register does not record whether a supplier is qualified or approved, and nothing checks it. Naming a supplier on a lot's receipt does not change which tests the lot requires or what its disposition needs.
+- **Qualifications are not shown here**: the list does not say whether a supplier holds a qualification. Open the supplier record to see its qualifications and to record one.
+- **Not enforced by this page**: being in the register does not qualify a supplier. Naming a supplier on a lot's receipt does not by itself change which tests the lot requires or what its disposition needs; a supplier result stands in for a test only under a signed qualification, where the lot's rule set allows it, through an acceptance signed on the lot.
 
 ## Related pages
 
 - New supplier.
-- Supplier record.
+- Supplier record (qualifications are recorded and listed there).
 - [Material lots](/)
