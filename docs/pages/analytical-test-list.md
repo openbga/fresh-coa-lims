@@ -50,7 +50,7 @@ List every analytical test, from assignment through independent review, so work 
 ## Rules and hidden logic
 
 - **Order and paging**: newest first (creation time, then record number); 30 per page; filters are kept across pages.
-- **Not tested · supplier result**: shown instead of Open for an Open test when a supplier result is proposed or accepted in place of that test of the lot and not withdrawn. Such a test is not work waiting to be done: it takes no observation, contract laboratory result or QC batch until that record is withdrawn. The **Open** filter still lists it; there is no separate filter.
+- **Not tested · supplier result**: shown instead of Open for an Open test when a supplier result is proposed or accepted in place of that test of the lot and not withdrawn, also after the lot is released. Such a test is not work waiting to be done: it takes no observation, contract laboratory result, raw-data file or QC batch until that record is withdrawn. The **Open** filter still lists it; there is no separate filter.
 - **Out of specification filter**: tests that did not conform and are not Invalidated.
 - **Unknown status value** in the address is treated as All tests.
 

@@ -383,11 +383,19 @@ def assign_tests(request, lot):
         )
     elif not holds:
         messages.info(request, "Every required test is already assigned to this sample.")
-    if created and relied:
+    untested = sorted(
+        set(relied)
+        - set(
+            AnalyticalTest.objects.filter(sample=sample, kind="original").values_list(
+                "test_code", flat=True
+            )
+        )
+    )
+    if created and untested:
         messages.info(
             request,
-            "No test was assigned for " + ", ".join(sorted(relied)) + ": a supplier's result "
-            "is proposed or accepted in place of it.",
+            "No test was assigned for " + ", ".join(untested) + ": a supplier's result is "
+            "proposed or accepted in place of it.",
         )
     for hold in holds:
         messages.warning(request, f"Held: {hold}")

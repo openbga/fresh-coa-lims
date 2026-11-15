@@ -148,6 +148,14 @@ def _accepted_section(qualification):
     for item in acceptances[:ACCEPTANCES_SHOWN]:
         evidence = item.evidence
         stated = evidence["stated"]
+        state = cell(item.get_state_display())
+        if item.state != "withdrawn" and item.lot.state == "quarantine":
+            # While the lot is in quarantine the record is judged as its own page judges it;
+            # after the disposition it is frozen as it stood.
+            from quality.reliance import standing_problems
+
+            if standing_problems(item, item.lot):
+                state = status("No longer stands", "danger")
         rows.append(
             [
                 cell(item.label, reverse("quality:acceptance_detail", args=[item.pk])),
@@ -157,7 +165,7 @@ def _accepted_section(qualification):
                 f"{stated['result']} {evidence['unit']}".strip(),
                 evidence["certificate"]["number"],
                 evidence["received_on"],
-                item.get_state_display(),
+                state,
                 str(item.proposed_by),
             ]
         )
@@ -224,7 +232,7 @@ def qualification_detail(request, pk):
             "tone": "warning",
             "label": "Assess the results",
             "text": f"{signed} accepted supplier result{'s' if signed != 1 else ''} relied on "
-            "this qualification before it was revoked. Each acceptance stands as signed. "
+            "this qualification before it was revoked. The revocation does not undo them. "
             "Assess them under your procedure: the software records no assessment and holds "
             "no lot by itself. A proposal not yet accepted can no longer be signed.",
         }

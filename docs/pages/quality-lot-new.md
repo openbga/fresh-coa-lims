@@ -4,7 +4,7 @@ urls: quality:lot_new
 views: quality.views.lot_new
 templates: catalog/form.html
 models: quality.Lot, quality.LotReceipt, suppliers.Supplier, core.RuleSet
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -70,7 +70,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 - **All or nothing**: the lot and its receipt details are saved together. If either is refused, neither is created.
 - **Defaults**: state Quarantine, revision 1, received by the signed-in user at the server time.
 - **Audit**: writes `lot.received` with number, material and rule set, and `lot.receipt_recorded` with the receipt details. Both carry your reason.
-- **Independence**: you are stored as the recorder of the receipt details. That makes you an author of the lot's receipt data: you cannot sign this lot's disposition, even with the quality role.
+- **Independence**: you are stored as the recorder of the receipt details. That makes you an author of the lot's receipt data: you cannot sign this lot's disposition, even with the quality role, or accept a supplier result proposed in place of a test of this lot, even with the reviewer role.
 - **Append-only**: the receipt record cannot be edited or deleted. While the lot is in quarantine an analyst can correct it with Correct receipt details on the lot record; the original is kept.
 - **Not enforced by this page**: the supplier is not checked for qualification or approval; the receipt details do not change which tests the lot requires; "Discrepancy found" does not place a hold on the lot. Place a hold from Holds if the lot must not be dispositioned.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept."). Refusals from the server appear beside the field they concern, or in the summary when they concern the whole form.

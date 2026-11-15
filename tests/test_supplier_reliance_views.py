@@ -450,6 +450,35 @@ def test_a_proposal_under_a_revoked_qualification_says_so_before_any_pin(client,
     # The qualification's record counts signed acceptances only: here there is none to assess.
     record = text(client.get(reverse("suppliers:qualification_detail", args=[qualification.pk])))
     assert "Assess the results" not in record and proposal.label in record
+    assert "No longer stands" in record and "Awaiting acceptance" not in record
+
+
+def test_assigning_tests_says_which_requirements_got_none(client, world):
+    from sampling import services as sampling
+
+    people, lot = world["people"], world["lot"]
+    certificate, accepted = accepted_lot(world, codes=["assay", "impurity"])
+    sample = sampling.record_sampling(
+        actor=people["analyst"],
+        lot=lot,
+        reference="SYN-REL-S001",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C001",
+        quantity=10,
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Synthetic controlled sampling",
+    ).sample
+    sign_in(client, world, "analyst")
+    testing = reverse("analytical:lot_testing", args=[lot.pk])
+    page = text(client.post(testing, {"sample": sample.pk, "reason": "Assign"}, follow=True))
+    assert "Assigned 3 test(s) to SYN-REL-S001." in page
+    assert (
+        "No test was assigned for assay, impurity: a supplier&#x27;s result is proposed or "
+        "accepted in place of it." in page
+    )
 
 
 def test_testing_pages_after_release_and_the_raw_data_page(client, world):

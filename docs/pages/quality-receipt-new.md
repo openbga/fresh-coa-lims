@@ -4,7 +4,7 @@ urls: quality:receipt_new
 views: quality.views.receipt_new
 templates: catalog/form.html
 models: quality.LotReceipt, quality.Lot, suppliers.Supplier
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -65,7 +65,7 @@ Adds receipt details to a quarantined lot that has none: a lot received before r
 - **Repeated by the server**: every rule is checked again under the lot lock when saving. For cases the form already stops, the server's own messages are "Choose where the lot came from.", "Enter the date the lot was received.", "Enter the number of containers received, at least one.", "Enter the delivery or batch document.", "Describe the containers." and "A reason is required."
 - **Once, in quarantine**: the lot is locked while saving. "Only quarantined lots accept receipt details." and "Receipt details are already recorded; correct them instead." also apply if the lot changed after the page opened. A released lot without receipt details stays without them.
 - **Effect**: one receipt record is added with you as recorder, the lot's record revision increases by 1, and audit event `lot.receipt_recorded` stores the details and your reason. A disposition signing page opened earlier then fails as stale.
-- **Independence**: recording receipt details makes you an author of the lot's receipt data. You cannot sign this lot's disposition, even with the quality role.
+- **Independence**: recording receipt details makes you an author of the lot's receipt data. You cannot sign this lot's disposition, even with the quality role, or accept a supplier result proposed in place of a test of this lot, even with the reviewer role.
 - **Append-only**: a receipt record cannot be edited or deleted, and the database refuses a receipt record for a lot that is not in quarantine. Later changes go through Correct receipt details.
 - **Not enforced by this page**: the supplier is not checked for qualification or approval; the receipt details do not change which tests the lot requires; "Discrepancy found" does not place a hold on the lot. Place a hold from Holds if the lot must not be dispositioned.
 - Unknown lot: 404.
