@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from core.models import ElectronicSignature
 from quality.models import Sample
 
-from .contracts import bench, canonical_hash, reported_source, resolve
+from .contracts import bench, canonical_hash, reported_source, resolve, supplier_results
 from .models import (
     AnalyticalTest,
     Investigation,
@@ -40,14 +40,39 @@ def _root(test, by_pk):
     return test
 
 
+def tested_here(lot, test_code):
+    """Why a supplier's result cannot stand in for this requirement of the lot, or "": the
+    laboratory has started testing it. A test that is still open, in no QC batch and without
+    any observation (corrected ones included) has not started."""
+    tests = AnalyticalTest.objects.filter(lot_id=lot.pk, test_code=test_code).order_by("pk")
+    for test in tests:
+        if (
+            test.state != STATE.OPEN
+            or test.batch_id is not None
+            or Observation.objects.filter(test=test).exists()
+        ):
+            return (
+                f"{test.label} {test_code} already holds laboratory work (a result, a QC batch "
+                "or a decision). A supplier's result cannot stand in for a requirement the "
+                "laboratory has started testing."
+            )
+    return ""
+
+
 def lot_status(lot):
     """Return (blockers, reportable tests by (sample, code), tests, investigations) for a lot.
 
     Every sample that carries original tests, or no tests at all, must have each required code
     assigned and answered by a reportable result in that sample's own lineage. One sample never
     covers another; samples holding only authorized resample/rerun tests answer for the original
-    sample they replace.
+    sample they replace. A requirement for which a supplier's certificate result was accepted is
+    answered for the whole lot by that acceptance and needs no test.
     """
+    return _status(lot)[:4]
+
+
+def _status(lot):
+    """``lot_status`` plus the supplier results accepted in place of tests, by test code."""
     tests = list(
         AnalyticalTest.objects.filter(lot_id=lot.pk)
         .select_related("sample", "batch")
@@ -65,10 +90,30 @@ def lot_status(lot):
             blockers.append(f"{inv.label} is open: {inv.trigger}.")
         elif inv.outcome == Investigation.Outcome.CONFIRMED:
             blockers.append(f"{inv.label} confirmed an out-of-specification result.")
+    relied = supplier_results(lot)
+    blockers.extend(relied["blockers"])
+    accepted = {}
+    for code, entry in relied["accepted"].items():
+        # The source already withholds an acceptance whose requirement changed; the gate does
+        # not take its word for the hash or the signature.
+        if current.get(code) == entry["requirement_hash"] and entry["signature"]:
+            accepted[code] = entry
+        else:
+            blockers.append(
+                f"{entry['label']}: the accepted supplier result for {code} does not match "
+                "the lot's current requirement or is not signed."
+            )
+    observed = set(
+        Observation.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True)
+    )
     reportable, roots = {}, {}
     for test in tests:
         if test.state == STATE.OPEN:
-            blockers.append(f"{test.label} {test.test_code} is incomplete.")
+            # An untouched test of a requirement the supplier's result answers is not work
+            # left undone; it stays open and takes no result while the acceptance stands.
+            untouched = test.batch_id is None and test.pk not in observed
+            if not (test.test_code in accepted and untouched):
+                blockers.append(f"{test.label} {test.test_code} is incomplete.")
         elif test.state == STATE.SUBMITTED:
             blockers.append(f"{test.label} {test.test_code} awaits independent review.")
         elif test.state == STATE.REVIEWED and not test.conforms:
@@ -91,6 +136,8 @@ def lot_status(lot):
         if sample.pk in sampled and sample.pk not in originals:
             continue  # holds only tests answering for another sample
         for code in required:
+            if code in accepted:
+                continue  # answered for the whole lot by the accepted supplier result
             if (sample.pk, code) not in roots:
                 blockers.append(f"Sample {sample.reference} has no {code} test assigned.")
             elif (sample.pk, code) not in reportable and (sample.pk, code) in stale:
@@ -102,7 +149,13 @@ def lot_status(lot):
                 blockers.append(
                     f"Sample {sample.reference} has no reviewed conforming {code} result."
                 )
-    return blockers, reportable, tests, investigations
+    for code in accepted:
+        if any(key[1] == code for key in reportable):
+            blockers.append(
+                f"{code} has both a laboratory result and an accepted supplier result "
+                f"({accepted[code]['label']}); withdraw the acceptance."
+            )
+    return blockers, reportable, tests, investigations, accepted, relied["author_ids"]
 
 
 def _authors(tests):
@@ -215,9 +268,11 @@ def lot_evidence(lot):
 
     Replicate values are the text as recorded ("99.80", "<10", "Absent"); ``mean`` is null when
     the result has none (qualitative, or a replicate reported as less than a value). A result
-    reported by a contract laboratory names it under ``contract_laboratory``.
+    reported by a contract laboratory names it under ``contract_laboratory``. Supplier
+    certificate results accepted in place of a test are listed apart, under
+    ``supplier_results``: they are the supplier's results, not tests of this laboratory.
     """
-    blockers, reportable, tests, investigations = lot_status(lot)
+    blockers, reportable, tests, investigations, accepted, supplier_authors = _status(lot)
     results = []
     references = {t.sample_id: t.sample.reference for t in tests}
     for sample_id, code in sorted(reportable, key=lambda k: (references[k[0]], k[1])):
@@ -272,8 +327,11 @@ def lot_evidence(lot):
         "lot_revision": lot.revision,
         "complete": not blockers,
         "blockers": blockers,
-        "author_ids": sorted(lot_author_ids(lot)),
+        "author_ids": sorted(lot_author_ids(lot) | set(supplier_authors)),
         "results": results,
+        # Present only when a supplier's result was accepted in place of a test, so evidence
+        # of lots tested in full keeps the shape it always had.
+        **({"supplier_results": [accepted[code] for code in sorted(accepted)]} if accepted else {}),
         "excluded_tests": [
             {"test": t.pk, "test_code": t.test_code, "kind": t.kind, "state": t.state}
             for t in tests

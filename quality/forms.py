@@ -364,6 +364,17 @@ class CertificateWithdrawalForm(GroupedForm):
     groups = [("Change control", ["reason"])]
 
 
+class AcceptanceProposalForm(GroupedForm):
+    reason = reason_field("Reason for relying on the supplier's result")
+    groups = [("Change control", ["reason"])]
+
+
+class AcceptanceWithdrawalForm(GroupedForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    reason = reason_field("Reason for withdrawal")
+    groups = [("Change control", ["reason"])]
+
+
 class SampleForm(StyledForm):
     reference = forms.CharField(max_length=80)
     collected_at = forms.DateTimeField(initial=timezone.now)

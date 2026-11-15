@@ -162,9 +162,18 @@ def validate_rules(rule, at=None):
     validate_policy(rule.policy)
 
 
+POLICY_KEYS = frozenset({"required_tests", "review_meaning", "disposition_meaning"})
+# Optional. A rule set that carries it lets a qualified supplier's certificate result stand in
+# for a test, except for the tests it lists under ``own_tests``, which the laboratory always
+# performs itself. A rule set without it allows no such reliance.
+SUPPLIER_RESULTS = "supplier_results"
+OWN_TESTS = "own_tests"
+
+
 def validate_policy(policy):
-    allowed = {"required_tests", "review_meaning", "disposition_meaning"}
-    if not isinstance(policy, dict) or set(policy) != allowed:
+    if not isinstance(policy, dict) or not POLICY_KEYS <= set(policy) <= POLICY_KEYS | {
+        SUPPLIER_RESULTS
+    }:
         raise ValidationError("Unsupported or missing rule policy keys.")
     tests = policy["required_tests"]
     if (
@@ -175,6 +184,49 @@ def validate_policy(policy):
         raise ValidationError("At least one required test code is needed.")
     if policy["review_meaning"] != "reviewed" or policy["disposition_meaning"] != "approved":
         raise ValidationError("This foundation supports reviewed and approved signature meanings.")
+    if SUPPLIER_RESULTS in policy:
+        reliance = policy[SUPPLIER_RESULTS]
+        own = reliance.get(OWN_TESTS) if isinstance(reliance, dict) else None
+        if (
+            not isinstance(reliance, dict)
+            or set(reliance) != {OWN_TESTS}
+            or not isinstance(own, list)
+            or any(not isinstance(t, str) or not t.strip() or t != t.strip() for t in own)
+            or len(set(own)) != len(own)
+        ):
+            raise ValidationError(
+                "supplier_results must hold exactly own_tests: a list of the test codes the "
+                "laboratory always performs itself, each listed once (the list may be empty)."
+            )
+
+
+def supplier_reliance_refusal(rule, test_code):
+    """Why this rule revision does not let a supplier's result stand in for the test, or "".
+
+    The rule set decides, never a default: without ``supplier_results`` nothing is relied on,
+    and a test it lists under ``own_tests`` is always performed by the laboratory.
+    """
+    reliance = rule.policy.get(SUPPLIER_RESULTS) if isinstance(rule.policy, dict) else None
+    if not isinstance(reliance, dict):
+        return (
+            f"Rule set {rule} does not allow a supplier's result to stand in for a test. "
+            "Every required test is performed by the laboratory."
+        )
+    if test_code in reliance.get(OWN_TESTS, []):
+        return (
+            f"Rule set {rule} requires the laboratory to perform {test_code} itself; a "
+            "supplier's result cannot stand in for it."
+        )
+    return ""
+
+
+def own_tests(rule):
+    """The tests the rule revision keeps with the laboratory, or None when it allows no
+    reliance on supplier results at all."""
+    reliance = rule.policy.get(SUPPLIER_RESULTS) if isinstance(rule.policy, dict) else None
+    if not isinstance(reliance, dict):
+        return None
+    return list(reliance.get(OWN_TESTS, []))
 
 
 def save_rule(*, actor, code, segment, policy, effective_from, reason, effective_until=None):

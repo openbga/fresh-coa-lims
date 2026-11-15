@@ -92,6 +92,11 @@ def supplier_detail(request, pk):
         .select_related("lot")
         .order_by("-received_on", "-id")
     )
+    from .qualification_views import qualification_rows, tests_text
+
+    qualifications = qualification_rows(supplier)
+    for row in qualifications:
+        row["tests"] = tests_text(row["qualification"])
     return render(
         request,
         "suppliers/detail.html",
@@ -101,5 +106,7 @@ def supplier_detail(request, pk):
             "crumbs": [(SECTION, reverse("suppliers:list")), (supplier.code, None)],
             "page_obj": page(request, receipts),
             "history": history(supplier),
+            "qualifications": qualifications,
+            "can_qualify": can(request.user, services.AUTHOR_ROLE),
         },
     )

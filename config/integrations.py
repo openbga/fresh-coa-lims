@@ -192,6 +192,30 @@ class LaboratoryBench:
         return reliance_notice(evidence)
 
 
+class AcceptedSupplierResults:
+    """Supplier certificate results accepted in place of a test, read from the lot record.
+
+    Testing never imports the lot's supplier records: the gate asks here which requirements a
+    signed acceptance answers, and result entry asks which requirements a proposal or an
+    acceptance currently stands for.
+    """
+
+    def lot(self, lot):
+        from quality.reliance import lot_reliance
+
+        return lot_reliance(lot)
+
+    def standing(self, lot):
+        from quality.reliance import standing_codes
+
+        return standing_codes(lot)
+
+    def standing_by_lot(self, lot_ids):
+        from quality.reliance import standing_by_lot
+
+        return standing_by_lot(lot_ids)
+
+
 def report_holds(lot):
     from stability.gates import lot_hold_evidence
 

@@ -42,7 +42,7 @@
   </div>
   <div class="card-body">
     {% if certificates %}
-    <p>Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests and do not count towards QC disposition.</p>
+    <p>Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests. A stated result counts towards QC disposition only when it is accepted in place of a test; propose one from its certificate.</p>
     <div class="table-responsive">
       <table class="table mb-0" aria-labelledby="certificates-heading">
         <thead><tr><th scope="col">Certificate</th><th scope="col">Issued by</th><th scope="col">Date</th><th scope="col">Lot number on the certificate</th><th scope="col">Results stated</th><th scope="col">Status</th></tr></thead>
@@ -71,6 +71,32 @@
     {% if certificates and receipt and not supplied and lot.state == 'quarantine' %}<p class="mt-3 mb-0">The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies.</p>{% endif %}
   </div>
 </section>
+{% if acceptances %}
+<section class="card mb-4" aria-labelledby="acceptances-heading">
+  <div class="card-header"><h2 class="card-title mb-0" id="acceptances-heading">Supplier results in place of tests</h2></div>
+  <div class="card-body">
+    <p>Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.</p>
+    <div class="table-responsive">
+      <table class="table mb-0" aria-labelledby="acceptances-heading">
+        <thead><tr><th scope="col">Record</th><th scope="col">Test</th><th scope="col">Supplier's result</th><th scope="col">Certificate</th><th scope="col">Qualification</th><th scope="col">Proposed by</th><th scope="col">Status</th></tr></thead>
+        <tbody>
+          {% for item in acceptances %}
+          <tr>
+            <th scope="row"><a href="{% url 'quality:acceptance_detail' item.pk %}">{{ item.label }}</a></th>
+            <td>{{ item.evidence.name }}<div class="vr-muted small">{{ item.test_code }}</div></td>
+            <td>{{ item.evidence.stated.result }}{% if item.evidence.unit %} {{ item.evidence.unit }}{% endif %}{% if item.evidence.stated.wording %}<div class="vr-muted small">Stated as: {{ item.evidence.stated.wording }}</div>{% endif %}</td>
+            <td>{{ item.evidence.certificate.number }}</td>
+            <td>{{ item.evidence.qualification.label }}</td>
+            <td>{{ item.proposed_by.get_full_name|default:item.proposed_by.get_username }}</td>
+            <td>{% if item.state == "withdrawn" %}{% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% elif item.problems %}{% include "includes/status.html" with label="No longer stands" tone="danger" plain=True %}<div class="small">{{ item.problems|join:"; " }}. Withdraw it.</div>{% elif item.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% if item.notice %}<div>{% include "includes/status.html" with label="Qualification revoked since" tone="warning" plain=True %}</div>{% endif %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endif %}
 <h2>Samples and results</h2>
 {% for sample in samples %}<section class="card mb-3"><div class="card-body"><h3>{{ sample.reference }}</h3><p>Collected {{ sample.collected_at }} UTC</p>{% if can_record and lot.state == 'quarantine' %}<a href="{% url 'quality:result_new' sample.pk %}">Record result</a>{% endif %}
 <div class="table-responsive"><table class="table"><thead><tr><th>Test</th><th>Result</th><th>Limits</th><th>Analyst</th><th>Review</th></tr></thead><tbody>{% for result in sample.results.all %}<tr><td>{{ result.test_code }}</td><td>{{ result.value }} {{ result.unit }}{% if not result.conforms %} <strong>Out of specification</strong>{% endif %}</td><td>{{ result.lower_limit }}–{{ result.upper_limit }} {{ result.unit }}</td><td>{{ result.analyst }}</td><td>{% if can_review and result.state == 'recorded' and result.analyst_id != request.user.pk %}<a href="{% url 'quality:review' result.pk %}">Review result</a>{% else %}{{ result.state|capfirst }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No results recorded.</td></tr>{% endfor %}</tbody></table></div></div></section>{% empty %}<p>No samples recorded.</p>{% endfor %}

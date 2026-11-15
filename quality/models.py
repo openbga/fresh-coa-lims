@@ -250,6 +250,98 @@ class SupplierCertificateWithdrawal(models.Model):
         return f"Withdrawal of {self.certificate}"
 
 
+class SupplierResultAcceptance(models.Model):
+    """A result stated on a supplier's certificate, accepted in place of the laboratory's own
+    test of one requirement of the lot.
+
+    An analyst proposes it and a reviewer who authored none of the certificate records signs
+    it. ``evidence`` is what was relied on when it was proposed: the stated result, the
+    certificate, the supplier, the receipt, the supplier qualification and the rule set. The
+    record is never edited: it is accepted or withdrawn, and a withdrawn one is replaced by a
+    new proposal. Only one proposal or acceptance stands for a requirement of a lot at a time.
+    """
+
+    class State(models.TextChoices):
+        PROPOSED = "proposed", "Awaiting acceptance"
+        ACCEPTED = "accepted", "Accepted"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="supplier_acceptances")
+    test_code = models.CharField(max_length=80)
+    result = models.ForeignKey(
+        SupplierCertificateResult, on_delete=models.PROTECT, related_name="acceptances"
+    )
+    qualification = models.ForeignKey(
+        "suppliers.SupplierQualification", on_delete=models.PROTECT, related_name="acceptances"
+    )
+    requirement_hash = models.CharField(max_length=64)
+    evidence = models.JSONField()
+    state = models.CharField(max_length=12, choices=State, default=State.PROPOSED)
+    reason = models.TextField()
+    proposed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    proposed_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    withdrawn_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawal_reason = models.TextField(blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["proposed_at", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["lot", "test_code"],
+                condition=Q(state__in=["proposed", "accepted"]),
+                name="supplier_acceptance_one_standing",
+            ),
+            models.CheckConstraint(
+                condition=~Q(test_code="") & ~Q(requirement_hash="") & ~Q(reason__regex=r"^\s*$"),
+                name="supplier_acceptance_stated",
+            ),
+            # Each state carries exactly the marks of the steps behind it.
+            models.CheckConstraint(
+                condition=Q(
+                    state="proposed",
+                    accepted_at__isnull=True,
+                    withdrawn_at__isnull=True,
+                    withdrawn_by__isnull=True,
+                    withdrawal_reason="",
+                )
+                | Q(
+                    state="accepted",
+                    accepted_at__isnull=False,
+                    withdrawn_at__isnull=True,
+                    withdrawn_by__isnull=True,
+                    withdrawal_reason="",
+                )
+                | (
+                    Q(state="withdrawn", withdrawn_at__isnull=False, withdrawn_by__isnull=False)
+                    & ~Q(withdrawal_reason__regex=r"^\s*$")
+                ),
+                name="supplier_acceptance_steps",
+            ),
+        ]
+
+    @property
+    def label(self):
+        return f"SRA-{self.pk}"
+
+    @property
+    def stands(self):
+        return self.state != self.State.WITHDRAWN
+
+    def __str__(self):
+        return f"{self.label} {self.test_code} of {self.lot}"
+
+
 class Sample(models.Model):
     lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="samples")
     reference = models.CharField(max_length=80, unique=True)
