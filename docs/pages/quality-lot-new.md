@@ -56,7 +56,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 ## Rules and hidden logic
 
 - **Not the release requirements**: choosing a rule set does not assign approved specification or sampling requirements and does not show the lot is ready for testing. Requirements are assigned afterwards on Lot requirements and sampling; the rule set's required-test list is only part of the foundation path, not the whole native release gate.
-- **Rule choices**: only rule revisions with status approved are offered. The chosen revision must also be effective now, else "An approved, effective rule revision is required."
+- **Rule choices**: only approved rule revisions that are in force now are offered (inside their effective period and not retired by a later version). The service checks the chosen revision again, else "An approved, effective rule revision is required."
 - **Lot number**: "This lot number already exists." when the number is taken (exact match). If another request saves the same lot number at the same moment (for example a double submission), the page shows "Another request saved a conflicting record at the same time. Reload and try again." and nothing is created.
 - **Supplier source**: "Select the supplier the lot was received from." when Source is "Received from a supplier" and no supplier is chosen.
 - **Made on site**: "Material made on site has no supplier, supplier lot or outside manufacturer." when Source is "Made on site" and Supplier, Supplier lot number, Manufacturer, Manufacturer location or Manufacturer lot number is filled in.
