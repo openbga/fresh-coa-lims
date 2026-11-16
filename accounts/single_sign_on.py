@@ -61,7 +61,8 @@ EXPIRED = "The sign-in with your organization expired or was already used. Try a
 REFUSED = "The answer from your organization's sign-in service was not accepted. Try again."
 NOT_LINKED = (
     "This organization account is not linked to a laboratory account. Sign in with your "
-    "password, then link it on Organization sign-in under Account access."
+    "password, then link it on Organization sign-in under Account access (unlink an earlier "
+    "link there first)."
 )
 CANNOT_SIGN_IN = (
     "The laboratory account linked to this organization account cannot sign in. Ask your "
@@ -153,6 +154,27 @@ def client():
     return app
 
 
+def form_action_policy():
+    """The site's Content-Security-Policy with the provider's authorization endpoint added to
+    form-action, for the page whose form leaves for the provider: browsers apply form-action to
+    the redirects that follow a form's submission. The site's policy when the provider cannot
+    be reached (the form then shows that instead of leaving)."""
+    from urllib.parse import urlsplit
+
+    policy = settings.CONTENT_SECURITY_POLICY
+    try:
+        endpoint = urlsplit(client().server_metadata["authorization_endpoint"])
+    except ProviderUnavailable, KeyError, ValueError:
+        return policy
+    loopback = endpoint.scheme == "http" and endpoint.hostname in {"localhost", "127.0.0.1"}
+    if not (endpoint.scheme == "https" or loopback) or not endpoint.netloc:
+        return policy
+    if any(c in endpoint.netloc for c in " ;,'\""):
+        return policy
+    origin = f"{endpoint.scheme}://{endpoint.netloc}"
+    return policy.replace("form-action 'self'", f"form-action 'self' {origin}")
+
+
 def begin(purpose, redirect_uri, **context):
     """Start a sign-in or a link at the provider; returns (provider URL, pending state).
 
@@ -198,6 +220,16 @@ def identity(pending, params):
 
     Raises Refused with a message to show, or ProviderUnavailable.
     """
+    app = client()
+    # RFC 9207 section 2.4: an iss parameter in the answer must name this provider, and a
+    # provider that says it sends one must send it.
+    issuer = params.get("iss")
+    if issuer is None and app.server_metadata.get("authorization_response_iss_parameter_supported"):
+        logger.warning("Single sign-on answer lacks the issuer the provider says it sends.")
+        raise Refused(REFUSED)
+    if issuer is not None and issuer != settings.OIDC_ISSUER:
+        logger.warning("Single sign-on answer names another issuer.")
+        raise Refused(REFUSED)
     error = params.get("error")
     if error:
         code = error if ERROR_CODE.fullmatch(error) else "invalid"
@@ -205,15 +237,9 @@ def identity(pending, params):
         if code in {"access_denied", "login_required", "interaction_required"}:
             raise Refused("Sign-in at your organization was cancelled or not completed.")
         raise Refused(REFUSED)
-    # RFC 9207: when the provider names itself in the answer, it must be this provider.
-    issuer = params.get("iss")
-    if issuer is not None and issuer != settings.OIDC_ISSUER:
-        logger.warning("Single sign-on answer names another issuer.")
-        raise Refused(REFUSED)
     code = params.get("code")
     if not isinstance(code, str) or not code or len(code) > 4096:
         raise Refused(REFUSED)
-    app = client()
     try:
         token = app.fetch_access_token(
             redirect_uri=pending["redirect_uri"],
@@ -232,7 +258,13 @@ def identity(pending, params):
             nonce=pending["nonce"],
             claims_options={
                 "iss": {"essential": True, "value": settings.OIDC_ISSUER},
-                "aud": {"essential": True, "value": settings.OIDC_CLIENT_ID},
+                # This client alone: a token that also names other audiences is refused
+                # (OpenID Connect Core 1.0 section 3.1.3.7, step 3).
+                "aud": {
+                    "essential": True,
+                    "value": settings.OIDC_CLIENT_ID,
+                    "validate": _only_this_client,
+                },
                 "sub": {"essential": True},
                 "exp": {"essential": True},
                 "iat": {"essential": True},
@@ -251,6 +283,10 @@ def identity(pending, params):
         subject,
     )
     return Identity(settings.OIDC_ISSUER, subject, label.strip()[:LABEL_LIMIT])
+
+
+def _only_this_client(claims, value):
+    return value == settings.OIDC_CLIENT_ID or value == [settings.OIDC_CLIENT_ID]
 
 
 def link_of(user):

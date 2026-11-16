@@ -13,7 +13,7 @@ Finish signing in to an account with two-factor sign-in: use a security key or p
 
 ## Who can use it
 
-Only someone whose password was just accepted on Sign in for an account with two-factor sign-in. Without such a pending sign-in the page redirects to Sign in. The page is outside the signed-in workspace and does not show the documentation panel.
+Only someone whose password was just accepted on Sign in, or whom the organization's identity provider just signed in, for an account with two-factor sign-in. Without such a pending sign-in the page redirects to Sign in. The page is outside the signed-in workspace and does not show the documentation panel.
 
 ## Layout
 
@@ -26,6 +26,8 @@ The brand, the heading **Two-factor sign-in** and a lead that depends on the acc
 | Keys only | **Your password was accepted. Use your security key or passkey.** | **Use your security key**, the field labelled **Recovery code**, **Verify the code and sign in** |
 
 Help text explains that each code works once and gives **Start again**; without an app it says **No access to your key? Enter one of your recovery codes instead; each works once.** A second note states the time allowed and that repeated wrong codes or refused keys pause sign-in. When the account has keys that cannot be used at this address, **Your security keys cannot be used at this address. Enter a code instead.** appears. Notices **This browser cannot use security keys here. Enter a code** (adding **: one of your recovery codes** without an app) and, without JavaScript, **Security keys need JavaScript. Enter a code instead.** The **Theme** menu is at the upper right.
+
+After the provider, the lead starts with **Your organization signed you in.** instead of **Your password was accepted.**; the rest of each lead is unchanged.
 
 ## Actions
 
@@ -44,15 +46,16 @@ Help text explains that each code works once and gives **Start again**; without 
 
 ## Rules and hidden logic
 
-- **Time limit**: enter the code or use the key within 5 minutes of the password. After that, or when the account's password, sessions or activation changed meanwhile, you are returned to Sign in with **Sign in again: enter your password, then a new code.**
+- **Time limit**: enter the code or use the key within 5 minutes of the password. After that, or when the account's password, sessions or activation changed meanwhile, you are returned to Sign in with **Sign in again: enter your password, then a new code.** (after the provider: **Sign in again with your organization, then enter a new code.**)
 - **One use**: an app code is accepted once; the same or an earlier 30-second step is refused. A recovery code is spent when used and the event **account.recovery_code_used** is audited.
 - **Validation**: an empty field with no key answer shows **Use your security key, or enter a code.** (with keys) or the message below (without); text of neither shape shows **Enter the 6-digit code from your authenticator app, or a recovery code.** A wrong code shows **The code was not accepted.** and a refused key answer **The security key was not accepted.**, both with status 422. A key answer to a request older than the time limit, or to a request the page has since replaced (another tab, a reload, the same answer sent twice), shows **The security key request expired. Try again.** and is not counted: a key's answer cannot be guessed. Wrong codes and refused keys count toward the same consecutive-failure limit and lock as wrong passwords (default five failures, 15 minutes); during the lock even a correct code is refused. The count resets only when sign-in completes, not when the password alone is accepted. After 100 consecutive wrong codes or refused keys, counted across locks and cleared by any accepted code, no code is accepted and the page shows **Two-factor sign-in is stopped for this account after too many wrong codes or refused security keys. Ask an administrator to reset it.** until an administrator resets two-factor sign-in.
 - **Keys**: a key request is made for each visit and answered once; a refused or repeated answer needs the page again. While the browser asks the key, the page's buttons are disabled, and the answer is sent once. Pressing Enter in an empty code field asks the key too. Only keys registered at the host name you are using are offered, so a key registered at another address is not (**Your security keys cannot be used at this address.**). An answer for another account, another site, a replay, or a signature count that did not increase is refused.
-- **Session**: the session records how you signed in (password and totp, password and recovery_code, or password and security_key; a sign-in with a key alone on Sign in with a passkey records passkey only); the record is kept in each electronic signature's authentication context. After a recovery code you see a warning with the number of unused recovery codes left and advice for a lost second factor on Two-factor sign-in: set up a new authenticator app (an account with one), or remove the lost key and add another (an account with keys only).
+- **Session**: the session records how you signed in (password or identity_provider as the first factor, with totp, password and recovery_code, or password and security_key; a sign-in with a key alone on Sign in with a passkey records passkey only); the record is kept in each electronic signature's authentication context. After a recovery code you see a warning with the number of unused recovery codes left and advice for a lost second factor on Two-factor sign-in: set up a new authenticator app (an account with one), or remove the lost key and add another (an account with keys only).
 - **Logging**: `signin.second_factor_failed` for a refused code, then the usual `signin.success` on completion. Codes are never logged.
 
 ## Related pages
 
 - [Sign in](/accounts/login/)
+- [Organization sign-in](/accounts/single-sign-on/)
 - [Sign in with a passkey](/accounts/login/passkey/), the way to sign in with a key without the password.
 - [Two-factor sign-in settings](/accounts/two-factor/)

@@ -278,7 +278,8 @@ def test_wrong_state_and_late_answer_are_refused(client, provider, analyst):
     "change",
     [
         {"override": {"aud": "another-client"}},
-        {"override": {"aud": ["another-client", CLIENT_ID]}},  # azp missing for a shared token.
+        {"override": {"aud": ["another-client", CLIENT_ID]}},
+        {"override": {"aud": ["another-client", CLIENT_ID], "azp": CLIENT_ID}},
         {"override": {"iss": "https://elsewhere.synthetic.example"}},
         {"override": {"exp": 1_000_000_000}},
         {"override": {"iat": None}},
@@ -307,6 +308,16 @@ def test_answers_that_do_not_validate_are_refused(client, provider, analyst, cha
         single_sign_on.REFUSED in shown or "cancelled or not completed" in shown[0]
     ), shown
     assert not SingleSignOnLink.objects.filter(last_used_at__isnull=False).exists()
+
+
+def test_issuer_parameter_is_required_when_the_provider_announces_it(client, provider, analyst):
+    link(analyst)
+    provider.metadata_override = {"authorization_response_iss_parameter_supported": True}
+    response = sign_in(client, provider, "sub-analyst")
+    assert not signed_in_as(client) and single_sign_on.REFUSED in messages_of(response)
+    provider.answer_iss = provider.issuer
+    sign_in(client, provider, "sub-analyst")
+    assert signed_in_as(client) == str(analyst.pk)
 
 
 def test_token_signed_by_an_unpublished_key_is_refused(client, provider, analyst):
@@ -364,6 +375,10 @@ def test_owner_links_after_confirming_the_password(provider, analyst):
     elsewhere.force_login(analyst)
     page = owner.get(PAGE)
     assert page.status_code == 200 and b"Not linked" in page.content
+    # The form leaves for the provider through a redirect, which form-action also governs.
+    origin = provider.issuer.removesuffix("/realm")
+    assert f"form-action 'self' {origin};" in page["Content-Security-Policy"]
+    assert "form-action 'self';" in owner.get(reverse("accounts:access"))["Content-Security-Policy"]
     assert b"Organization sign-in" in owner.get(reverse("accounts:access")).content
     refused = start_link(owner, {"current_password": "wrong-synthetic"})
     assert refused.status_code == 422 and LoginThrottle.objects.get(user=analyst).failures == 1
@@ -475,6 +490,10 @@ def test_link_from_another_provider_is_shown_and_does_not_sign_in(provider, anal
     owner = Client()
     owner.force_login(analyst)
     assert b"made with another identity provider" in owner.get(PAGE).content
+    admin = Client()
+    admin.force_login(make_user("admin.sso", ["admin"]))
+    detail = admin.get(reverse("accounts:user_detail", args=[analyst.pk]))
+    assert b"so it no longer signs in" in detail.content
     response = sign_in(Client(), provider, "sub-analyst")
     assert single_sign_on.NOT_LINKED in messages_of(response)
 

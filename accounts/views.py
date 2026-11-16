@@ -730,12 +730,15 @@ def single_sign_on_page(request):
         ceremony = security_keys.begin(rp, "confirm", user.pk)
         request.session[CONFIRM_CEREMONY] = ceremony
         context["key_options"] = security_keys.request_options(user, ceremony)
-    return render(
+    response = render(
         request,
         "accounts/single_sign_on.html",
         context,
         status=422 if request.method == "POST" else 200,
     )
+    if settings.CONTENT_SECURITY_POLICY:
+        response["Content-Security-Policy"] = single_sign_on.form_action_policy()
+    return response
 
 
 @login_required
@@ -883,6 +886,7 @@ def user_detail(request, pk):
             "two_factor": two_factor.status(target),
             "single_sign_on": SingleSignOnLink.objects.filter(user_id=target.pk).first(),
             "single_sign_on_configured": settings.SINGLE_SIGN_ON,
+            "single_sign_on_issuer": settings.OIDC_ISSUER,
             "actions": [
                 (ACTIONS[a], reverse("accounts:user_action", args=[pk, a])) for a in actions
             ],
