@@ -1,7 +1,5 @@
 """Record what the database holds when a backup is taken (see core.recovery)."""
 
-import hashlib
-
 from django.core.management.base import BaseCommand, CommandError
 
 from core import recovery
@@ -38,22 +36,16 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         output, archive = options["output"], options["dump"]
         try:
-            if archive is not None and archive == output:
-                raise recovery.RecoveryError("The manifest and the archive need two files.")
-            to_stdout = output == "-"
-            recovery.refuse_existing(None if to_stdout else output, archive)
-            manifest = recovery.build_manifest(
-                operator=options["operator"], archive=archive, pg_dump=options["pg_dump"]
+            manifest, digest = recovery.take_backup(
+                output=output,
+                archive=archive,
+                operator=options["operator"],
+                pg_dump=options["pg_dump"],
+                stdout=self.stdout,
             )
-            if to_stdout:
-                data = recovery.evidence_bytes(manifest)
-                self.stdout.write(data.decode(), ending="")
-                digest = hashlib.sha256(data).hexdigest()
-            else:
-                digest = recovery.write_evidence(output, manifest)
         except (recovery.RecoveryError, OSError) as error:
             raise CommandError(str(error)) from error
-        out = self.stderr if to_stdout else self.stdout
+        out = self.stderr if output == "-" else self.stdout
         for line in recovery.summary_lines(manifest["checks"]):
             out.write(line)
         tables = manifest["tables"]
@@ -67,7 +59,7 @@ class Command(BaseCommand):
                 f"Archive {archive}: SHA-256 {manifest['archive']['sha256']}, "
                 f"{manifest['archive']['size']} bytes ({manifest['pg_dump']})."
             )
-        out.write(f"Manifest {'(standard output)' if to_stdout else output}: SHA-256 {digest}.")
+        out.write(f"Manifest {'(standard output)' if output == '-' else output}: SHA-256 {digest}.")
         if manifest["result"] == recovery.FAILED:
             raise CommandError(
                 "The manifest is written, but the database failed a check of its stored "

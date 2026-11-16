@@ -16,14 +16,18 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from decimal import Decimal
+from io import StringIO
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import quote
 
+import psycopg
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.db import connection, transaction
+from psycopg import conninfo
 
 from analytical import services as analytical
 from analytical.models import RawDataFile
@@ -289,21 +293,30 @@ def test_sequences_must_lie_beyond_stored_identifiers_unless_the_source_did_not(
 
 
 def test_the_source_itself_is_not_a_restored_copy():
-    source = {
-        "name": "open_qual",
-        "oid": 16384,
-        "system_identifier": "7306",
-        "server_address": "10.0.0.1",
-        "server_port": 5432,
-    }
+    source = {"name": "open_qual", "oid": 16384, "system_identifier": "7306"}
+    # The source, reached by any address, and a physical copy of it are refused.
     assert recovery.check_not_source(source, dict(source))["status"] == recovery.FAILED
     for change in ({"name": "restore"}, {"oid": 99}, {"system_identifier": "8000"}):
         assert recovery.check_not_source(source, {**source, **change})["status"] == "passed"
-    # Without the server's identifier (no privilege), the server address decides.
+    # Without the server's identifier, the same name and database identifier are refused.
     hidden = {**source, "system_identifier": None}
     assert recovery.check_not_source(hidden, dict(hidden))["status"] == recovery.FAILED
-    moved = {**hidden, "server_address": "10.0.0.2"}
-    assert recovery.check_not_source(hidden, moved)["status"] == recovery.PASSED
+    assert recovery.check_not_source(source, hidden)["status"] == recovery.FAILED
+    assert recovery.check_not_source(hidden, {**hidden, "oid": 99})["status"] == recovery.PASSED
+
+
+def test_only_triggers_that_fire_in_normal_sessions_count_as_enabled():
+    def state(**enabled):
+        return {"schema": {"triggers": {name: {"enabled": e} for name, e in enabled.items()}}}
+
+    check = recovery.check_triggers(state(a="O", b="A", c="D", d="R"))
+    assert check["status"] == recovery.FAILED
+    assert check["summary"] == "2 of 4 triggers enabled"
+    assert check["problems"] == [
+        "Trigger c is disabled",
+        "Trigger d fires only in replica sessions, not in normal use",
+    ]
+    assert recovery.check_triggers(state(a="O", b="A"))["status"] == recovery.PASSED
 
 
 def test_archive_checksum_is_compared_when_both_are_known(tmp_path):
@@ -343,8 +356,32 @@ def test_backup_manifest_writes_an_owner_only_file_and_changes_nothing(integrate
     assert manifest["tables"]["core_auditevent"]["rows"] == events
     with pytest.raises(CommandError, match="already exists"):
         call_command("backup_manifest", output=str(output))
-    with pytest.raises(CommandError, match="two files"):
-        call_command("backup_manifest", output=str(tmp_path / "m"), dump=str(tmp_path / "m"))
+    for spelled in ("m", "./m"):
+        with pytest.raises(CommandError, match="two files"):
+            call_command(
+                "backup_manifest", output=str(tmp_path / "m"), dump=f"{tmp_path}/{spelled}"
+            )
+    assert not (tmp_path / "m").exists()
+
+
+@TX
+def test_backup_manifest_to_standard_output(integrated):
+    out, err = StringIO(), StringIO()
+    call_command("backup_manifest", output="-", stdout=out, stderr=err)
+    manifest = json.loads(out.getvalue())
+    assert manifest["format"] == recovery.MANIFEST_FORMAT and manifest["result"] == "passed"
+    assert "Manifest (standard output): SHA-256 " in err.getvalue()
+    assert "[ok] signatures" in err.getvalue()
+
+
+@TX
+def test_no_archive_is_kept_when_the_manifest_cannot_be_written(integrated, tmp_path):
+    archive = tmp_path / "backup.dump"
+    with pytest.raises(CommandError, match="Cannot create"):
+        call_command(
+            "backup_manifest", output=str(tmp_path / "missing" / "m.json"), dump=str(archive)
+        )
+    assert not archive.exists()
 
 
 @TX
@@ -380,27 +417,99 @@ def test_backup_manifest_refuses_an_unusable_pg_dump_and_leaves_no_files(integra
 
 
 @TX
-def test_backup_manifest_never_puts_the_password_on_the_command_line(integrated, tmp_path):
+def test_backup_manifest_never_puts_the_password_on_the_command_line(
+    integrated, tmp_path, monkeypatch
+):
     log = tmp_path / "invocation"
     recording = fake_pg_dump(
         tmp_path,
         'case "$1" in --version) echo "pg_dump (PostgreSQL) 99.0";; '
-        f'*) echo "$@" > {log}; env | grep "^PG" | cut -d= -f1 | sort >> {log}; '
-        'for arg in "$@"; do case "$arg" in --file=*) printf x > "${arg#--file=}";; esac; done;; '
+        f'*) for arg in "$@"; do echo "$arg"; done > {log}; '
+        f'env | grep "^PG" | sort >> {log}; '
+        'for arg in "$@"; do case "$arg" in --file=*) printf archive > "${arg#--file=}";; '
+        "esac; done;; "
         "esac\n",
     )
+    # A libpq setting of the environment applies to pg_dump as it does to Django.
+    monkeypatch.setenv("PGCONNECT_TIMEOUT", "17")
     output, archive = tmp_path / "manifest.json", tmp_path / "backup.dump"
     call_command("backup_manifest", output=str(output), dump=str(archive), pg_dump=recording)
-    invocation = log.read_text()
-    password = connection.settings_dict["PASSWORD"]
-    assert password and password not in invocation
-    assert "PGPASSWORD" in invocation.split()
-    assert re.search(r"--snapshot=\S+", invocation)
-    assert "--format=custom --no-owner --no-acl" in invocation
+    lines = log.read_text().splitlines()
+    arguments = [line for line in lines if line.startswith("--")]
+    assert arguments[:3] == ["--format=custom", "--no-owner", "--no-acl"]
+    assert re.fullmatch(r"--snapshot=\S+", arguments[3])
+    assert re.fullmatch(r"--file=/dev/fd/\d+", arguments[4])
+    target = conninfo.conninfo_to_dict(arguments[5].removeprefix("--dbname="))
+    assert target["dbname"] == connection.settings_dict["NAME"]
+    assert "password" not in target
+    environment = dict(line.split("=", 1) for line in lines if line.startswith("PG"))
+    assert environment["PGPASSWORD"] == connection.settings_dict["PASSWORD"]
+    assert environment["PGCONNECT_TIMEOUT"] == "17"
+    assert archive.read_bytes() == b"archive"
     manifest = json.loads(output.read_text())
     assert manifest["archive"]["sha256"] == recovery.file_digest(archive)[0]
+    assert manifest["archive"]["size"] == len(b"archive")
     assert manifest["pg_dump"] == "pg_dump (PostgreSQL) 99.0"
     assert stat.S_IMODE(archive.stat().st_mode) == 0o600
+
+
+@TX
+def test_an_archive_name_replaced_while_pg_dump_writes_sends_it_nowhere(
+    integrated, tmp_path, monkeypatch
+):
+    output, archive = tmp_path / "manifest.json", tmp_path / "backup.dump"
+    elsewhere = tmp_path / "elsewhere"
+    monkeypatch.setenv("SWAPPED", str(archive))
+    swapping = fake_pg_dump(
+        tmp_path,
+        'case "$1" in --version) echo "pg_dump (PostgreSQL) 99.0";; '
+        f'*) rm "$SWAPPED"; ln -s {elsewhere} "$SWAPPED"; '
+        'for arg in "$@"; do case "$arg" in --file=*) printf secret > "${arg#--file=}";; '
+        "esac; done;; esac\n",
+    )
+    with pytest.raises(CommandError, match="was replaced while pg_dump wrote the archive"):
+        call_command("backup_manifest", output=str(output), dump=str(archive), pg_dump=swapping)
+    assert not elsewhere.exists()
+    assert not output.exists() and not os.path.lexists(archive)
+
+
+@TX
+def test_a_full_disk_leaves_neither_file(integrated, tmp_path, monkeypatch):
+    def full(descriptor):
+        raise OSError(28, "No space left on device")
+
+    writing = fake_pg_dump(
+        tmp_path,
+        'case "$1" in --version) echo "pg_dump (PostgreSQL) 99.0";; '
+        '*) for arg in "$@"; do case "$arg" in --file=*) printf archive > "${arg#--file=}";; '
+        "esac; done;; esac\n",
+    )
+    monkeypatch.setattr(recovery.os, "fsync", full)
+    output, archive = tmp_path / "manifest.json", tmp_path / "backup.dump"
+    with pytest.raises(CommandError, match="No space left on device"):
+        call_command("backup_manifest", output=str(output), dump=str(archive), pg_dump=writing)
+    assert not output.exists() and not archive.exists()
+
+
+@TX
+def test_secret_connection_settings_other_than_the_password_are_refused(monkeypatch):
+    params = connection.get_connection_params()
+
+    def connected(**extra):
+        monkeypatch.setattr(
+            recovery,
+            "connection",
+            SimpleNamespace(get_connection_params=lambda: {**params, **extra}),
+        )
+
+    connected(sslpassword="secret")
+    with pytest.raises(recovery.RecoveryError, match="sets sslpassword"):
+        recovery.libpq_arguments()
+    # Settings Django holds as paths reach pg_dump; Django's own objects do not.
+    connected(sslrootcert=Path("/synthetic/ca.pem"), cursor_factory=object)
+    target = conninfo.conninfo_to_dict(recovery.libpq_arguments()[0])
+    assert target["sslrootcert"] == "/synthetic/ca.pem"
+    assert "cursor_factory" not in target and "password" not in target
 
 
 @TX
@@ -503,6 +612,40 @@ def test_backup_restore_and_verify_round_trip(integrated, tmp_path):
         assert report["manifest"]["sha256"] == recovery.file_digest(manifest_path)[0]
         assert report["checked_by"]["operator"] == "Synthetic Operator"
         assert stat.S_IMODE(report_path.stat().st_mode) == 0o600
+
+        # The same copy, altered behind its history trigger, fails and says where.
+        with psycopg.connect(database_url(target), autocommit=True) as copy:
+            copy.execute("ALTER TABLE core_auditevent DISABLE TRIGGER history_immutable")
+            copy.execute(
+                "UPDATE core_auditevent SET reason = 'rewritten' "
+                "WHERE id = (SELECT id FROM core_auditevent ORDER BY id LIMIT 1)"
+            )
+        damaged_path = tmp_path / "damaged-report.json"
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "manage.py",
+                "verify_restore",
+                f"--manifest={manifest_path}",
+                f"--report={damaged_path}",
+            ],
+            cwd=ROOT,
+            env={**environment, "DATABASE_URL": database_url(target), "DEBUG": "true"},
+            capture_output=True,
+            text=True,
+        )
+        assert completed.returncode == 1, completed.stdout + completed.stderr
+        assert "Do not rely on this copy." in completed.stderr
+        damaged = json.loads(damaged_path.read_text())
+        assert damaged["result"] == recovery.FAILED
+        assert [c["check"] for c in damaged["checks"] if c["status"] == recovery.FAILED] == [
+            "tables",
+            "triggers",
+            "triggers enabled",
+        ]
+        assert problems(damaged["checks"], "tables") == [
+            "Table core_auditevent has the same number of rows, but their content differs"
+        ]
     finally:
         with connection.cursor() as cursor:
             cursor.execute(f"DROP DATABASE IF EXISTS {quoted} WITH (FORCE)")

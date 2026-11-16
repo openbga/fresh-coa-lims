@@ -218,6 +218,8 @@ jobs:
             echo "::error::The restore check passed on the source database itself."
             exit 1
           fi
+          # It must fail for being the source and for nothing else.
+          image fresh-coa-lims:ci python -c 'import json; report = json.load(open("/backup/source-report.json")); failed = [c["check"] for c in report["checks"] if c["status"] == "failed"]; assert failed == ["restored copy"], failed'
       - name: Verify non-root Render SSH prerequisites
         run: |
           docker run --rm fresh-coa-lims:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'

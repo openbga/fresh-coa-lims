@@ -23,7 +23,7 @@ import platform
 import re
 import shutil
 import subprocess
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import UTC
 from pathlib import Path
 
@@ -48,27 +48,6 @@ OUTPUT_SETTINGS = {
     "bytea_output": "hex",
     "extra_float_digits": "1",
 }
-
-# libpq connection parameters passed on to pg_dump. The password goes in the environment, never
-# on the command line, where other users of the machine could read it.
-LIBPQ_PARAMETERS = (
-    "dbname",
-    "user",
-    "host",
-    "port",
-    "sslmode",
-    "sslrootcert",
-    "sslcert",
-    "sslkey",
-    "sslcrl",
-    "options",
-    "connect_timeout",
-    "target_session_attrs",
-    "service",
-    "passfile",
-    "gssencmode",
-    "channel_binding",
-)
 
 
 class RecoveryError(Exception):
@@ -169,9 +148,10 @@ def table_fingerprints(cursor):
         digest = hashlib.sha256()
         rows = 0
         with connection.chunked_cursor() as stream:
+            # ROW(alias.*) is the whole row even when a column is named like the alias.
             stream.execute(
-                f"SELECT sha256(convert_to(t::text, 'UTF8')) AS d "
-                f"FROM {connection.ops.quote_name(name)} AS t ORDER BY d"
+                f"SELECT sha256(convert_to(ROW(oq_row.*)::text, 'UTF8')) AS d "
+                f"FROM {connection.ops.quote_name(name)} AS oq_row ORDER BY d"
             )
             while chunk := stream.fetchmany(2000):
                 for (row,) in chunk:
@@ -382,12 +362,19 @@ def check_raw_files():
 
 
 def check_triggers(state):
+    """Every trigger fires in normal sessions: enabled (``O``) or always (``A``). A disabled
+    trigger (``D``) and one that fires only in replica sessions (``R``) protect nothing."""
     triggers = state["schema"]["triggers"]
-    disabled = [name for name, trigger in triggers.items() if trigger["enabled"] == "D"]
+    problems = []
+    for name, trigger in triggers.items():
+        if trigger["enabled"] == "D":
+            problems.append(f"Trigger {name} is disabled")
+        elif trigger["enabled"] not in ("O", "A"):
+            problems.append(f"Trigger {name} fires only in replica sessions, not in normal use")
     return result(
         "triggers enabled",
-        (f"Trigger {name} is disabled" for name in disabled),
-        f"{len(triggers) - len(disabled)} of {len(triggers)} triggers enabled",
+        problems,
+        f"{len(triggers) - len(problems)} of {len(triggers)} triggers enabled",
     )
 
 
@@ -532,20 +519,25 @@ def compare(manifest, state):
 
 
 def check_not_source(manifest_database, database):
-    """The copy checked must not be the database the manifest was taken from."""
-    same_cluster = (
-        manifest_database["system_identifier"] == database["system_identifier"]
-        if manifest_database["system_identifier"] and database["system_identifier"]
-        else (manifest_database["server_address"], manifest_database["server_port"])
-        == (database["server_address"], database["server_port"])
-    )
+    """The copy checked must not be the database the manifest was taken from.
+
+    The same database name and database identifier on the same server (its system identifier)
+    are taken for the source. Without the system identifier on either side, the same name and
+    identifier are. A physical copy or a point-in-time recovery keeps all three, so it is
+    refused too: its moment has no manifest, and ``backup_manifest`` run on it checks its
+    evidence instead.
+    """
+    known = manifest_database["system_identifier"] and database["system_identifier"]
     same = (
-        same_cluster
-        and manifest_database["name"] == database["name"]
+        manifest_database["name"] == database["name"]
         and manifest_database["oid"] == database["oid"]
+        and (not known or manifest_database["system_identifier"] == database["system_identifier"])
     )
     problems = (
-        ["This is the database the manifest was taken from. Check the restored copy instead."]
+        [
+            "This is the database the manifest was taken from, or a physical copy of it. "
+            "Check a database restored from the manifest's archive instead."
+        ]
         if same
         else []
     )
@@ -614,17 +606,38 @@ def refuse_existing(*paths):
             )
 
 
+@contextmanager
+def new_file(path):
+    """A new file readable by its owner only, opened for reading and writing; it is removed
+    again if the block fails or the file cannot be written out, so a failed run leaves no
+    partial file behind."""
+    try:
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    except OSError as error:
+        raise RecoveryError(f"Cannot create {path}: {error.strerror}.") from error
+    stream = os.fdopen(descriptor, "w+b")
+    try:
+        yield stream
+        finish(stream)
+        stream.close()
+    except BaseException:
+        stream.close()
+        Path(path).unlink(missing_ok=True)
+        raise
+
+
+def finish(stream):
+    """Write ``stream`` out to disk, so that a full disk fails the run while it can still
+    remove its files."""
+    try:
+        stream.flush()
+        os.fsync(stream.fileno())
+    except OSError as error:
+        raise RecoveryError(f"Cannot write {stream.name}: {error.strerror}.") from error
+
+
 def evidence_bytes(document):
     return (json.dumps(document, indent=2) + "\n").encode()
-
-
-def write_evidence(path, document):
-    """Write ``document`` as JSON to a new file readable by its owner only; return its SHA-256."""
-    data = evidence_bytes(document)
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "wb") as stream:
-        stream.write(data)
-    return hashlib.sha256(data).hexdigest()
 
 
 def read_manifest(path):
@@ -681,92 +694,119 @@ def find_pg_dump(executable, server_version_num):
     return path, version
 
 
-def libpq_environment():
+# Connection settings that are secrets: pg_dump could receive them only on its command line,
+# except the password, which goes in its environment.
+SECRET_PARAMETERS = frozenset(
+    {"password", "sslpassword", "oauth_client_secret", "scram_client_key", "scram_server_key"}
+)
+
+
+def libpq_arguments():
+    """The connection string and environment for pg_dump to reach the database Django uses.
+
+    The environment is passed on unchanged (``PGSSLMODE`` and the like apply to pg_dump as they
+    do to Django) and the connection settings Django uses take precedence over it. The password
+    goes in the environment, never on the command line, where other users could read it.
+    """
+    from psycopg import conninfo, pq
+
     params = connection.get_connection_params()
-    environment = {key: value for key, value in os.environ.items() if not key.startswith("PG")}
-    environment["PGAPPNAME"] = "fresh-coa-lims backup_manifest"
-    names = {
-        "dbname": "PGDATABASE",
-        "user": "PGUSER",
-        "host": "PGHOST",
-        "port": "PGPORT",
-        "sslmode": "PGSSLMODE",
-        "sslrootcert": "PGSSLROOTCERT",
-        "sslcert": "PGSSLCERT",
-        "sslkey": "PGSSLKEY",
-        "sslcrl": "PGSSLCRL",
-        "options": "PGOPTIONS",
-        "connect_timeout": "PGCONNECT_TIMEOUT",
-        "target_session_attrs": "PGTARGETSESSIONATTRS",
-        "service": "PGSERVICE",
-        "passfile": "PGPASSFILE",
-        "gssencmode": "PGGSSENCMODE",
-        "channel_binding": "PGCHANNELBINDING",
+    secrets = sorted(key for key in SECRET_PARAMETERS - {"password"} if params.get(key))
+    if secrets:
+        raise RecoveryError(
+            f"The database connection sets {', '.join(secrets)}, which pg_dump could only "
+            "receive on its command line. Make the archive yourself and take the manifest "
+            "without --dump while nothing writes to the database."
+        )
+    keywords = {default.keyword.decode() for default in pq.Conninfo.get_defaults()}
+    settings = {
+        key: str(value)
+        for key, value in params.items()
+        if key in keywords and key not in SECRET_PARAMETERS and value not in (None, "")
     }
-    for key in LIBPQ_PARAMETERS:
-        value = params.get(key)
-        if value not in (None, ""):
-            environment[names[key]] = str(value)
+    settings.setdefault("application_name", "fresh-coa-lims backup_manifest")
+    environment = dict(os.environ)
     if params.get("password"):
         environment["PGPASSWORD"] = str(params["password"])
-    return environment
+    return conninfo.make_conninfo(**settings), environment
 
 
-def dump(cursor, executable, archive):
-    """Run pg_dump into ``archive`` from the snapshot of the open transaction of ``cursor``."""
+def dump(cursor, executable, archive, stream):
+    """Run pg_dump into ``archive``, the new file open as ``stream``, from the snapshot of the
+    transaction open on ``cursor``, and return the archive's checksum read from ``stream``.
+
+    pg_dump writes to the file through ``/dev/fd``, never through its name, so a name replaced
+    meanwhile (by a link, in a directory others can write to) cannot send the archive anywhere
+    else. As a file of its own, the archive is seekable and pg_dump writes it complete with its
+    data offsets, as with a path (to an inherited standard output, pg_dump on Linux appends a
+    second table of contents instead).
+    """
+    descriptor = stream.fileno()
+    if not os.path.exists(f"/dev/fd/{descriptor}"):
+        raise RecoveryError(
+            "This system has no /dev/fd: run pg_dump yourself and take the "
+            "manifest without --dump while nothing writes to the database."
+        )
     cursor.execute("SELECT pg_export_snapshot()")
     snapshot_id = cursor.fetchone()[0]
-    descriptor = os.open(archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    os.close(descriptor)
-    completed = None
-    try:
-        completed = subprocess.run(
-            [
-                executable,
-                "--format=custom",
-                "--no-owner",
-                "--no-acl",
-                f"--snapshot={snapshot_id}",
-                f"--file={archive}",
-            ],
-            env=libpq_environment(),
-            capture_output=True,
-            text=True,
-        )
-    finally:
-        if completed is None or completed.returncode != 0:
-            Path(archive).unlink(missing_ok=True)
+    dbname, environment = libpq_arguments()
+    completed = subprocess.run(
+        [
+            executable,
+            "--format=custom",
+            "--no-owner",
+            "--no-acl",
+            f"--snapshot={snapshot_id}",
+            f"--file=/dev/fd/{descriptor}",
+            f"--dbname={dbname}",
+        ],
+        env=environment,
+        pass_fds=(descriptor,),
+        capture_output=True,
+        text=True,
+    )
     if completed.returncode != 0:
         detail = (completed.stderr or "").strip()[-2000:]
         raise RecoveryError(
             f"pg_dump failed with exit status {completed.returncode}; no archive or manifest "
             f"was kept. {detail}"
         )
-    digest, size = file_digest(archive)
-    return {"file": os.path.basename(archive), "format": "custom", "sha256": digest, "size": size}
+    created, named = os.fstat(descriptor), os.lstat(archive)
+    if (created.st_dev, created.st_ino) != (named.st_dev, named.st_ino):
+        raise RecoveryError(
+            f"{archive} was replaced while pg_dump wrote the archive, which was not kept. Write "
+            "backups to a directory only the operator can write to."
+        )
+    stream.seek(0)
+    digest = hashlib.sha256()
+    size = 0
+    while block := stream.read(1 << 20):
+        digest.update(block)
+        size += len(block)
+    return {
+        "file": os.path.basename(archive),
+        "format": "custom",
+        "sha256": digest.hexdigest(),
+        "size": size,
+    }
 
 
 # The two documents
 
 
-def build_manifest(*, operator=None, archive=None, pg_dump=None):
-    """Read the database once and return the manifest (writing the archive when asked)."""
+def build_manifest(*, operator=None, archive=None, archive_stream=None, pg_dump=None):
+    """Read the database once and return the manifest, running pg_dump into ``archive_stream``
+    from the same snapshot when one is given."""
     with read_snapshot() as cursor:
         dumped = None
         dumped_with = None
-        if archive is not None:
+        if archive_stream is not None:
             identity = database_identity(cursor)
             executable, dumped_with = find_pg_dump(pg_dump, identity["server_version_num"])
-            dumped = dump(cursor, executable, archive)
-        try:
-            state = collect(cursor)
-            checks = evidence_checks(state)
-        except BaseException:
-            # An archive without its manifest is not kept: the two describe one instant.
-            if dumped is not None:
-                Path(archive).unlink(missing_ok=True)
-            raise
-    manifest = {
+            dumped = dump(cursor, executable, archive, archive_stream)
+        state = collect(cursor)
+        checks = evidence_checks(state)
+    return {
         "format": MANIFEST_FORMAT,
         "taken_at": state["database"]["snapshot_at"],
         "taken_by": run_context(operator),
@@ -776,7 +816,34 @@ def build_manifest(*, operator=None, archive=None, pg_dump=None):
         "checks": checks,
         "result": overall(checks),
     }
-    return manifest
+
+
+def take_backup(*, output, archive=None, operator=None, pg_dump=None, stdout=None):
+    """Write the manifest to ``output`` (or ``stdout`` for ``-``) and, when ``archive`` is
+    given, the archive of the same snapshot. Both files are created before the database is
+    read, and neither is kept unless both are complete. Returns the manifest and its SHA-256."""
+    to_stdout = output == "-"
+    if archive is not None and (
+        archive == "-" or (not to_stdout and os.path.realpath(archive) == os.path.realpath(output))
+    ):
+        raise RecoveryError("The manifest and the archive need two files.")
+    refuse_existing(None if to_stdout else output, archive)
+    with ExitStack() as files:
+        manifest_stream = None if to_stdout else files.enter_context(new_file(output))
+        archive_stream = files.enter_context(new_file(archive)) if archive else None
+        manifest = build_manifest(
+            operator=operator, archive=archive, archive_stream=archive_stream, pg_dump=pg_dump
+        )
+        data = evidence_bytes(manifest)
+        # Both files are written out before either is closed: a failure removes both.
+        if archive_stream is not None:
+            finish(archive_stream)
+        if to_stdout:
+            stdout.write(data.decode(), ending="")
+        else:
+            manifest_stream.write(data)
+            finish(manifest_stream)
+    return manifest, hashlib.sha256(data).hexdigest()
 
 
 def build_report(manifest, manifest_sha256, *, operator=None, archive=None):

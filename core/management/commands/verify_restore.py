@@ -1,5 +1,7 @@
 """Check a restored copy of the database against its backup manifest (see core.recovery)."""
 
+import hashlib
+
 from django.core.management.base import BaseCommand, CommandError
 
 from core import recovery
@@ -27,13 +29,16 @@ class Command(BaseCommand):
         try:
             recovery.refuse_existing(report_path)
             manifest, manifest_sha256 = recovery.read_manifest(options["manifest"])
-            report = recovery.build_report(
-                manifest,
-                manifest_sha256,
-                operator=options["operator"],
-                archive=options["archive"],
-            )
-            digest = recovery.write_evidence(report_path, report)
+            with recovery.new_file(report_path) as stream:
+                report = recovery.build_report(
+                    manifest,
+                    manifest_sha256,
+                    operator=options["operator"],
+                    archive=options["archive"],
+                )
+                data = recovery.evidence_bytes(report)
+                stream.write(data)
+            digest = hashlib.sha256(data).hexdigest()
         except (recovery.RecoveryError, OSError) as error:
             raise CommandError(str(error)) from error
         for line in recovery.summary_lines(report["checks"]):
