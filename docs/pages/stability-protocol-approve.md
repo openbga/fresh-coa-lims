@@ -4,7 +4,7 @@ urls: stability:protocol_approve
 views: stability.views.protocol_approve
 templates: ops/sign.html
 models: stability.Protocol, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 ## Who can use it
 
 - Sign-in required. Role: Quality.
-- Other roles receive 403. A Quality user who is not permitted sees the reason and no PIN control (403): "You authored this protocol, so you cannot approve it." (checked first) or "Only a draft protocol can be approved."
+- Other roles receive 403. A Quality user who is not permitted sees the reason and no PIN control (403): "You authored this protocol, so you cannot approve it." (checked first) "Only a draft protocol can be approved.", or, when the protocol names a specification that cannot state every test, the reasons for each such test (see Rules).
 - An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
@@ -32,7 +32,7 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Product / Conditions / Timepoints / Author / Content digest | — | Display (counts; first 12 characters of the digest) | — | What you are approving |
+| Product / Conditions / Timepoints / Acceptance criteria / Author / Content digest | — | Display (counts; Acceptance criteria shows "<specification code>, v<n> in force now", "<code>, no version in force" or "Not in the system"; first 12 characters of the digest) | — | What you are approving |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Reason for signing | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |
@@ -41,7 +41,8 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 ## Rules and hidden logic
 
 - **Preconditions**: draft ("Only a draft protocol can be approved."); you are not the author ("The protocol author cannot approve it."); at least one condition ("The protocol has no storage conditions.") each with a timepoint ("Every storage condition needs at least one timepoint."); content unchanged since the digest ("Protocol content changed. Reload and review before signing.").
-- Meaning text: "You approve the complete protocol: its conditions, timepoints and tests. Earlier approved versions of this code are superseded." Success message "Protocol approved."; returns to the protocol record, which records the approval time.
+- **Specification check**: a protocol that names a specification is approved only while the specification's approved version in force states every test of every timepoint with a method in force. Otherwise the page is denied (403, no PIN control), and a sign attempt is refused, with one reason for each test, such as "Specification <code> v<n> does not state <test>. The protocol tests it at <timepoint>.", "Method <method> of <test> has no approved version effective now. …" or "Specification <code> has no approved version effective now." A protocol with no specification is not checked.
+- Meaning text: "You approve the complete protocol: its conditions, timepoints and tests, and the specification that states their acceptance criteria where one is named. Earlier approved versions of this code are superseded." Success message "Protocol approved."; returns to the protocol record, which records the approval time.
 - Approving sets state Approved, then every earlier Approved version of the same code becomes Superseded (done under a lock so two approvals cannot both stay current). Superseded versions get event `protocol.superseded`; their studies continue, but new studies need the current approved version.
 - **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).
 - **Stale page**: if the record changed after the page opened: "Record changed. Reload and review before signing."

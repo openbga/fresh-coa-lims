@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sign in with a passkey · OpenBGA QM LIMS{% endblock %}
+{% block body_class %}vr-app vr-entrance-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
+{% block body %}
+<div class="vr-login">
+  <div class="vr-login-scene" aria-hidden="true">
+    <div class="vr-login-caption">
+      <p class="vr-login-title">Manufacturing quality control</p>
+      <p class="vr-login-description">From raw materials to finished product.</p>
+    </div>
+  </div>
+  <div class="vr-login-workspace">
+    <div class="vr-entrance-theme">{% include "includes/theme_menu.html" %}</div>
+    <main id="main" class="vr-login-main" tabindex="-1">
+      {% include "includes/brand.html" with variant="entrance" %}
+      <div class="vr-entrance-panel">
+        <h1>Sign in with a passkey</h1>
+        <p class="vr-entrance-lead">Use a passkey or security key you added to your account. Your browser asks which one, then the key checks your PIN, fingerprint or face.</p>
+        {% include "includes/messages.html" %}
+        <form method="post" autocomplete="off" novalidate data-security-key="get" data-security-key-options="security-key-options" data-security-key-fallback="sign in with your password">
+          {% csrf_token %}
+          {% include "includes/form_errors.html" with form=form %}
+          {{ form.security_key_response }}
+          <input type="hidden" name="next" value="{{ next }}">
+          <p class="alert alert-info" data-security-key-unsupported hidden>This browser cannot use passkeys here. Sign in with your password.</p>
+          <noscript><p class="alert alert-info">Passkeys need JavaScript. Sign in with your password.</p></noscript>
+          <button class="btn btn-primary vr-login-submit" type="submit" data-security-key-required>Use your passkey</button>
+          <p class="vr-login-help" role="status" data-security-key-status></p>
+        </form>
+        <p class="vr-login-help">A key that does not check your PIN, fingerprint or face works only after your password. <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Sign in with your password</a></p>
+      </div>
+      <p class="vr-login-help">Use the key within {{ pending_seconds|floatformat:0 }} seconds, or start again. While sign-in to an account is paused after failed attempts, its keys are refused here too. Your signature PIN is still entered for every signature.</p>
+    </main>
+    {% include "includes/app_footer.html" with centered=True %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}{{ key_options|json_script:"security-key-options" }}<script src="{% static 'js/security-keys.js' %}" defer></script>{% endblock %}

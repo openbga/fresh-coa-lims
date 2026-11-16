@@ -1,0 +1,8 @@
+{% comment %}Recorded values and signature for one announcement audit event (history_item extra).{% endcomment %}
+<details class="vr-timeline-body"><summary>Inspect recorded values</summary>
+  <dl class="vr-announcement-evidence">
+    <dt>Before</dt><dd>{{ event.before.published|yesno:"Published,Not published" }}{% if event.before.title %} · {{ event.before.title }}{% endif %}<pre>{{ event.before.body|default:"No text" }}</pre></dd>
+    <dt>After</dt><dd>{{ event.after.published|yesno:"Published,Not published" }}{% if event.after.title %} · {{ event.after.title }}{% endif %}<pre>{{ event.after.body|default:"No text" }}</pre></dd>
+  </dl>
+</details>
+{% if event.electronicsignature %}<p class="vr-timeline-meta">Signed by {{ event.electronicsignature.signer_name }} · {{ event.electronicsignature.meaning }} · {{ event.electronicsignature.signed_at|date:"c" }} · revision {{ event.electronicsignature.revision }}</p>{% endif %}

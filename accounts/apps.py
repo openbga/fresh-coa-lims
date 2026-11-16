@@ -8,4 +8,4 @@ class AccountsConfig(AppConfig):
     def ready(self):
         from core import session_control  # noqa: F401
 
-        from . import authentication  # noqa: F401
+        from . import authentication, signin_log  # noqa: F401

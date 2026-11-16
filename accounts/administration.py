@@ -19,6 +19,7 @@ from core.models import ElectronicSignature, PINCredential
 from core.services import require_role, verify_pin
 from core.session_control import signing_context
 
+from .models import SingleSignOnLink
 from .services import ROLES
 
 ACCOUNT_LOCK = 681241
@@ -30,7 +31,15 @@ ACTIONS = {
     "unlock_pin": "Clear PIN lockout",
     "reenroll_pin": "Require PIN re-enrollment",
     "reset_password": "Force password reset",
+    "reset_two_factor": "Reset two-factor sign-in",
+    "remove_single_sign_on": "Remove organization sign-in link",
 }
+
+
+CREDENTIALS_LOCKED = (
+    "This is a shared demonstration account. Its password and signature PIN are published on "
+    "the sign-in page and cannot be changed here."
+)
 
 
 def account_lock():
@@ -80,6 +89,8 @@ def check_role_change(actor, user, roles, *, bootstrap=False):
 
 
 def safe_snapshot(user):
+    from .two_factor import snapshot as two_factor_snapshot
+
     credential = PINCredential.objects.filter(user=user).first()
     return {
         "id": user.pk,
@@ -91,13 +102,25 @@ def safe_snapshot(user):
         "roles": sorted(role_names(user)),
         "revision": user.management_revision,
         "password_change_required": user.password_change_required,
+        "credentials_locked": user.credentials_locked,
         "session_epoch": user.session_epoch,
         "pin_enrolled": credential is not None,
         "pin_failures": credential.failures if credential else 0,
         "pin_locked_until": credential.locked_until.isoformat()
         if credential and credential.locked_until
         else None,
+        **two_factor_snapshot(user),
+        # The organization account linked for single sign-on; its subject is not personal data,
+        # the label is what the owner saw when linking.
+        "single_sign_on": _single_sign_on_snapshot(user),
     }
+
+
+def _single_sign_on_snapshot(user):
+    link = SingleSignOnLink.objects.filter(user_id=user.pk).first()
+    if link is None:
+        return None
+    return {"issuer": link.issuer, "subject": link.subject, "label": link.label}
 
 
 def _signer(actor, encoded):
@@ -247,6 +270,34 @@ def change_account(
                 )
             user.password_change_required = True
             changed.append("password_change_required")
+            # Whoever knew the old password could have linked their own organization account;
+            # after a reset the owner links again.
+            SingleSignOnLink.objects.filter(user_id=user.pk).delete()
+        elif action == "reset_two_factor":
+            from . import two_factor
+
+            if actor.pk == user.pk:
+                raise PermissionDenied(
+                    "Change your own two-factor sign-in on the Two-factor sign-in page."
+                )
+            if not two_factor.set_up_anything(user):
+                raise ValidationError("This account has not set up two-factor sign-in.")
+            two_factor.reset(user)
+        elif action == "remove_single_sign_on":
+            from . import single_sign_on
+
+            if actor.pk == user.pk:
+                raise PermissionDenied(
+                    "Unlink your own organization account on the Organization sign-in page."
+                )
+            if not SingleSignOnLink.objects.select_for_update().filter(user_id=user.pk).exists():
+                raise ValidationError("This account is not linked to an organization account.")
+            single_sign_on.remove(user)
+        if action in {"reenroll_pin", "reset_password"} and user.credentials_locked:
+            # The administrator replaces a published credential, so the owner must be able to
+            # set the next one; the account stops being a shared demonstration account.
+            user.credentials_locked = False
+            changed.append("credentials_locked")
         user.management_revision += 1
         user.session_epoch += 1
         user.full_clean()
@@ -268,6 +319,8 @@ def change_own_password(*, actor, current_password, password, reason):
         user = get_user_model().objects.select_for_update().get(pk=actor.pk)
         if not user.is_active or user.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Current password was not accepted.")
+        if user.credentials_locked:
+            raise PermissionDenied(CREDENTIALS_LOCKED)
         validate_password(password, user)
         if user.check_password(password):
             raise ValidationError("Choose a different password.")
@@ -293,3 +346,34 @@ def change_own_password(*, actor, current_password, password, reason):
             reason=reason,
         )
     return user
+
+
+@transaction.atomic
+def lock_credentials(*, actor, users, reason):
+    """Stop shared demonstration accounts changing their own password and PIN.
+
+    For accounts whose credentials are about to be published in the sign-in announcement. An
+    administrator's forced password reset or PIN re-enrollment ends the lock.
+    """
+    require_role(actor, "admin")
+    reason_required(reason)
+    account_lock()
+    locked = (
+        get_user_model()
+        .objects.select_for_update()
+        .filter(pk__in=[user.pk for user in users], credentials_locked=False)
+        .order_by("pk")
+    )
+    for user in locked:
+        before = safe_snapshot(user)
+        user.credentials_locked = True
+        user.management_revision += 1
+        user.save(update_fields=["credentials_locked", "management_revision"])
+        record_event(
+            actor=actor,
+            obj=user,
+            action="account.credentials_locked",
+            before=before,
+            after=safe_snapshot(user),
+            reason=reason,
+        )

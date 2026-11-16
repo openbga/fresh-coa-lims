@@ -109,13 +109,34 @@ class AssignmentStatus(models.TextChoices):
     HOLD = "hold", "Applicability hold"
 
 
+class AssignmentOrigin(models.TextChoices):
+    ASSIGNED = "assigned", "Assigned"
+    REPLACED = "replaced", "Replaced during testing"
+    DECIDED = "decided", "Conflict decided by quality"
+
+
 class LotAssignment(models.Model):
-    """Frozen requirements applied to a lot, or an explicit hold. Append-only; latest is current."""
+    """Frozen requirements applied to a lot, or an explicit hold. Append-only; latest is current.
+
+    Before testing starts an analyst or quality assigns requirements, and assigns them again
+    when needed. Once testing has started only a signed replacement adds an assignment
+    (``origin`` replaced): ``replacement`` keeps what it changed, which tests carried over and
+    which were superseded, and the lot revision its signature is bound to.
+
+    A lot is assigned under one or more scopes (``scopes``; ``scope`` is the first, and the
+    only one on rows written before several could be named). When the specifications that
+    apply state a test differently the assignment is a hold, and quality's signed decision
+    adds the next one (``origin`` decided): ``decision`` keeps what was chosen for each test,
+    what it was chosen over, and the lot revision its signature is bound to.
+    """
 
     lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="qc_assignments")
     material = models.ForeignKey("catalog.Material", on_delete=models.PROTECT, related_name="+")
     stage = models.CharField(max_length=16, choices=Stage.choices)
     scope = models.SlugField(max_length=60, default="general")
+    # The database keeps the default, so a release that does not know the column can still
+    # insert while both are running.
+    scopes = models.JSONField(default=list, db_default=[], blank=True)
     status = models.CharField(max_length=8, choices=AssignmentStatus.choices)
     hold_reasons = models.JSONField(default=list, blank=True)
     specification_revision = models.ForeignKey(
@@ -133,6 +154,11 @@ class LotAssignment(models.Model):
     supersedes = models.OneToOneField(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="superseded_by"
     )
+    origin = models.CharField(
+        max_length=10, choices=AssignmentOrigin.choices, default=AssignmentOrigin.ASSIGNED
+    )
+    replacement = models.JSONField(null=True, blank=True)
+    decision = models.JSONField(null=True, blank=True)
     reason = models.TextField()
     assigned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
@@ -151,8 +177,42 @@ class LotAssignment(models.Model):
                 )
                 | (Q(status="hold") & Q(payload__isnull=True)),
                 name="lot_assignment_shape",
-            )
+            ),
+            # A replacement and a decided conflict always yield complete requirements, follow
+            # an assignment and keep their own evidence; an ordinary assignment carries none.
+            models.CheckConstraint(
+                condition=Q(origin="assigned", replacement__isnull=True, decision__isnull=True)
+                | Q(
+                    origin="replaced",
+                    replacement__isnull=False,
+                    decision__isnull=True,
+                    status="ready",
+                    supersedes__isnull=False,
+                )
+                | Q(
+                    origin="decided",
+                    replacement__isnull=True,
+                    decision__isnull=False,
+                    status="ready",
+                    supersedes__isnull=False,
+                ),
+                name="lot_assignment_origin",
+            ),
         ]
+
+    @property
+    def is_replacement(self):
+        return self.origin == AssignmentOrigin.REPLACED
+
+    @property
+    def is_decision(self):
+        return self.origin == AssignmentOrigin.DECIDED
+
+    @property
+    def scope_list(self):
+        """The scopes the lot was assigned under; rows written before several could be named
+        hold one."""
+        return list(self.scopes) or [self.scope]
 
     def __str__(self):
         return f"{self.lot} requirements #{self.pk}"

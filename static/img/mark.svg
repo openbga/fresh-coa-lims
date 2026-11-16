@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <title>Fresh CoA LIMS</title>
+  <title>OpenBGA QM LIMS</title>
   <path d="M11 4h14v11a5 5 0 0 0 5 5h9v20a4 4 0 0 1-4 4H11a4 4 0 0 1-4-4V8a4 4 0 0 1 4-4Z" fill="#155e63"/>
   <path d="M29 16C28 8 33 3 43 3c0 9-5 14-14 13Z" fill="#7dbb87"/>
   <path d="m29 16 8-8" fill="none" stroke="#155e63" stroke-width="2" stroke-linecap="round"/>

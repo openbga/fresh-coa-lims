@@ -23,8 +23,8 @@ def footer_source_url(response):
 def test_login_page_links_to_source_code(client):
     response = client.get("/accounts/login/")
     assert response.status_code == 200
-    assert footer_source_url(response) == "https://github.com/openbga/fresh-coa-lims"
-    assert "<title>Sign in · OpenBGA Fresh CoA LIMS</title>" in response.content.decode()
+    assert footer_source_url(response) == "https://github.com/openbga/qm-lims"
+    assert "<title>Sign in · OpenBGA QM LIMS</title>" in response.content.decode()
 
 
 def test_workspace_page_shows_brand_and_source_link_outside_main(client, django_user_model):
@@ -34,8 +34,11 @@ def test_workspace_page_shows_brand_and_source_link_outside_main(client, django_
     response = client.get("/audit/")
     assert response.status_code == 200
     body = response.content.decode()
-    assert footer_source_url(response) == "https://github.com/openbga/fresh-coa-lims"
-    assert "OpenBGA Fresh CoA LIMS" in body
+    assert footer_source_url(response) == "https://github.com/openbga/qm-lims"
+    assert "OpenBGA QM LIMS" in body
+    # The workspace top bar carries the full product name (its prefix is only visually hidden on a
+    # phone), as do the title and the footer.
+    assert '<span><span class="vr-brand-prefix">OpenBGA </span>QM LIMS</span>' in body
     # The footer must stay outside <main>.
     assert body.index('class="vr-app-footer"') > body.index("</main>")
 

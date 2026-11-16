@@ -226,8 +226,81 @@
     }
   });
 
+  // File size limit: <input type="file" data-vr-max-bytes="1048576" data-vr-max-label="1.0 MiB">
+  // refuses larger files when they are chosen and again on submit, so they are never sent.
+  // The server enforces the same limit; this saves the upload. Registered before the
+  // double-submission guard below, which skips a submission that was prevented.
+  function withinFileLimit(input) {
+    var limit = parseInt(input.getAttribute("data-vr-max-bytes"), 10);
+    var total = Array.from(input.files || []).reduce(function (sum, file) { return sum + file.size; }, 0);
+    var errorId = input.id + "_limit_error";
+    var shown = document.getElementById(errorId);
+    var described = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(function (id) {
+      return id && id !== errorId;
+    });
+    var within = isNaN(limit) || total <= limit;
+    if (within && shown) {
+      shown.remove();
+      if (input.hasAttribute("data-vr-limit-invalid")) {
+        input.removeAttribute("data-vr-limit-invalid");
+        input.removeAttribute("aria-invalid");
+      }
+    }
+    if (!within && !shown) {
+      var list = document.createElement("ul");
+      list.className = "vr-field-errors";
+      list.id = errorId;
+      list.setAttribute("role", "alert");
+      var item = document.createElement("li");
+      item.textContent = "The file is larger than the limit of " + input.getAttribute("data-vr-max-label") +
+        " and was not sent. Choose a smaller file.";
+      list.append(item);
+      (input.closest(".vr-field") || input.parentNode).append(list);
+      if (input.getAttribute("aria-invalid") !== "true") {
+        input.setAttribute("data-vr-limit-invalid", "");
+        input.setAttribute("aria-invalid", "true");
+      }
+    }
+    if (!within) {
+      described.push(errorId);
+    }
+    if (described.length) {
+      input.setAttribute("aria-describedby", described.join(" "));
+    } else {
+      input.removeAttribute("aria-describedby");
+    }
+    return within;
+  }
+  document.addEventListener("change", function (event) {
+    if (event.target.matches("input[type=file][data-vr-max-bytes]")) {
+      withinFileLimit(event.target);
+    }
+  });
+  document.addEventListener("submit", function (event) {
+    var blocked = Array.from(event.target.querySelectorAll("input[type=file][data-vr-max-bytes]")).filter(function (input) {
+      return !withinFileLimit(input);
+    });
+    if (blocked.length) {
+      event.preventDefault();
+      blocked[0].focus();
+    }
+  });
+
   // Native POST forms: block double submission while the request is in flight.
   // Buttons are disabled after the submit event so their name/value is still sent.
+  function releaseForm(form) {
+    delete form.dataset.vrSubmitting;
+    form.removeAttribute("aria-busy");
+    form.querySelectorAll(".vr-busy-mark").forEach(function (mark) { mark.remove(); });
+    form.querySelectorAll("button[type=submit], button:not([type])").forEach(function (button) {
+      button.disabled = false;
+    });
+  }
+
+  // A form answered by a file download (data-vr-download) stays on its page: it is released
+  // once the download has had time to start, and the browser shows the download's progress.
+  var DOWNLOAD_RELEASE_MS = 4000;
+
   document.addEventListener("submit", function (event) {
     var form = event.target;
     var method = (form.getAttribute("method") || "get").toLowerCase();
@@ -259,6 +332,9 @@
         form.append(status);
       }
     }, 0);
+    if (form.hasAttribute("data-vr-download")) {
+      window.setTimeout(function () { releaseForm(form); }, DOWNLOAD_RELEASE_MS);
+    }
   });
 
   // Back/forward cache restores the disabled state; re-enable on return.
@@ -266,14 +342,7 @@
     if (!event.persisted) {
       return;
     }
-    document.querySelectorAll("form[data-vr-submitting]").forEach(function (form) {
-      delete form.dataset.vrSubmitting;
-      form.removeAttribute("aria-busy");
-      document.querySelectorAll(".vr-busy-mark").forEach(function (mark) { mark.remove(); });
-      form.querySelectorAll("button[type=submit], button:not([type])").forEach(function (button) {
-        button.disabled = false;
-      });
-    });
+    document.querySelectorAll("form[data-vr-submitting]").forEach(releaseForm);
   });
 
   // Django formsets: a button[data-formset-add="<prefix>"] appends a copy of

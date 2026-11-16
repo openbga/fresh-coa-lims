@@ -153,13 +153,15 @@ def test_success_resets_consecutive_failures_and_unknown_names_store_nothing(cli
     assert LoginThrottle.objects.get(user=member).failures == 0
 
 
-def test_admin_login_shares_the_lock(client, member, settings):
+def test_admin_login_only_leads_to_the_application_sign_in(client, member):
+    # One sign-in for the whole site, so its lock and two-factor step always apply.
     member.is_staff = True
     member.save(update_fields=["is_staff"])
-    for _ in range(settings.LOGIN_FAILURE_LIMIT):
-        sign_in(client, WRONG, path="/admin/login/")
-    response = sign_in(client, PASSWORD, path="/admin/login/")
-    assert response.status_code == 200 and not signed_in(client)
+    for password in (WRONG, PASSWORD):
+        response = sign_in(client, password, path="/admin/login/")
+        assert response.status_code == 302 and response["Location"].startswith("/accounts/login/")
+        assert not signed_in(client)
+    assert not LoginThrottle.objects.filter(user=member, failures__gt=0).exists()
 
 
 def test_signed_in_password_confirmations_count_and_honor_the_lock(member, settings):
@@ -258,17 +260,20 @@ def test_audit_export_escapes_tab_and_carriage_return_formulas(client, member):
     assert "'\t=1+1" in body and "'\r=1+1" in body
 
 
-def production_settings(**overrides):
+PRODUCTION_SETTINGS_REPORT = (
+    "import config.settings as s; print(s.DEBUG, s.SECURE_HSTS_SECONDS, "
+    "s.SESSION_COOKIE_SECURE, s.CSRF_COOKIE_SECURE, s.SECURE_SSL_REDIRECT)"
+)
+
+
+def production_settings(code=PRODUCTION_SETTINGS_REPORT, **overrides):
+    """Run code in a fresh interpreter with production settings (DEBUG unset)."""
     env = {
         key: value
         for key, value in os.environ.items()
         if key not in {"DEBUG", "SECRET_KEY", "SECURE_HSTS_SECONDS"}
     }
     env.update(overrides)
-    code = (
-        "import config.settings as s; print(s.DEBUG, s.SECURE_HSTS_SECONDS, "
-        "s.SESSION_COOKIE_SECURE, s.CSRF_COOKIE_SECURE, s.SECURE_SSL_REDIRECT)"
-    )
     return subprocess.run(
         [sys.executable, "-I", "-c", f"import sys; sys.path.insert(0, {str(ROOT)!r}); {code}"],
         env=env,
@@ -286,6 +291,22 @@ def test_production_settings_fail_closed_and_enable_transport_security():
     configured = production_settings(SECRET_KEY="synthetic-" + "k" * 50)
     assert configured.returncode == 0, configured.stderr
     assert configured.stdout.split() == ["False", "31536000", "True", "True", "True"]
+
+
+@pytest.mark.django_db(transaction=False)
+def test_deployments_hash_passwords_and_pins_at_the_full_pbkdf2_work_factor():
+    # conftest.py lowers the work factor in this test process only, and keeps the algorithm.
+    assert make_password(PIN).startswith("pbkdf2_sha256$")
+    deployed = production_settings(
+        "from django.contrib.auth.hashers import get_hasher; hasher = get_hasher(); "
+        "print(type(hasher).__module__, type(hasher).__name__, getattr(hasher, 'iterations', 0))",
+        SECRET_KEY="synthetic-" + "k" * 50,
+        DJANGO_SETTINGS_MODULE="config.settings",
+    )
+    assert deployed.returncode == 0, deployed.stderr
+    module, name, iterations = deployed.stdout.split()
+    assert (module, name) == ("django.contrib.auth.hashers", "PBKDF2PasswordHasher")
+    assert int(iterations) >= 1_000_000
 
 
 def test_signing_failure_report_hides_pin_and_pin_hash(

@@ -4,7 +4,7 @@ urls: analytical:test_return
 views: analytical.views.test_return
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -20,7 +20,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 ## Layout
 
 - Heading "Return T-n for correction".
-- Summary card: test facts and Reportable value.
+- Summary card: test facts (Specification with its acceptance) and the Reportable result with unit, e.g. "99.8 %", "<10 CFU/g" or "Absent".
 - Form: **Reason**, hidden revision, **Cancel**, **Return test**.
 
 ## Actions
@@ -39,10 +39,10 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 
 ## Rules and hidden logic
 
-- **Checked before the form opens** (on opening and on submitting, with the same rules the return uses): redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "Only submitted tests can be returned."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC); "Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid.". The return itself rechecks all of these under lock, plus the record revision.
-- **Preconditions**: test Submitted ("Only submitted tests can be returned."); not your own ("You cannot review your own test."); conforming ("Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid."); lot in quarantine.
+- **Checked before the form opens** (on opening and on submitting, with the same rules the return uses): redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine." (for a stability test the pull's reason: it must be pulled and not yet accepted and its study active); "Only submitted tests can be returned."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC); "Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid.". The return itself rechecks all of these under lock, plus the record revision.
+- **Preconditions**: test Submitted ("Only submitted tests can be returned."); not your own ("You cannot review your own test."); conforming ("Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid."); lot in quarantine (or, for a stability test, the pull open for testing).
 - **Stale page**: "Record changed. Reload and review before continuing."
-- **Effect**: mean, reportable value, conformance and submitter are cleared; test and lot revisions rise by 1; `test.returned` is audited with the previous values. Observations remain.
+- **Effect**: mean, reportable value, reportable text, conformance and submitter are cleared; test revision and the revision of the lot (or, for a stability test, the pull) rise by 1; `test.returned` is audited with the previous values. Observations remain.
 - The link on the test record shows only for submitted conforming tests.
 
 ## Related pages

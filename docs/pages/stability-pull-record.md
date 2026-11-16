@@ -4,7 +4,7 @@ urls: stability:pull_record
 views: stability.views.pull_record
 templates: ops/form.html
 models: stability.Pull, stability.ProtocolTimepoint, laboratory.ResourceUse, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -24,7 +24,7 @@ Record that a scheduled pull was collected.
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Record pull** | Always | Role: Analyst only; others receive 403 | Saves, shows "Pull recorded; link its testing evidence." and returns to the pull record; refusals appear as an error summary and your entries are kept (status 422) |
+| **Record pull** | Always | Role: Analyst only; others receive 403 | Saves, shows "Pull recorded; assign its tests or link its evidence." and returns to the pull record; refusals appear as an error summary and your entries are kept (status 422) |
 | **Cancel** | Always | Any | Returns without saving |
 
 ## Fields
@@ -42,9 +42,9 @@ Record that a scheduled pull was collected.
 
 - Messages: "A pull cannot be dated in the future."; "The pull is outside its window (… to …); record the deviation reason."; "This pull is not awaiting collection."; "The study is no longer active."; an unfit chamber is refused as "<asset ID>: <reasons>".
 - Allowed only while the pull is Scheduled and the study is Active. The window is the due date minus and plus the timepoint's window days, inclusive.
-- Sets the pull to Pulled, records you as the puller (you cannot later accept it), raises the revision by 1; event `pull.recorded`. Pulled data cannot be re-recorded; link testing evidence next.
+- Sets the pull to Pulled, records you as the puller (you cannot later accept it), raises the revision by 1; event `pull.recorded`. Pulled data cannot be re-recorded; assign the pull's tests or link evidence next.
 
 ## Related pages
 
 - Pull record
-- Link pull evidence (next step)
+- Assign pull tests and Link pull evidence (next step; use one, never both)

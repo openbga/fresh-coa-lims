@@ -1,7 +1,7 @@
 [project]
-name = "openbga-fresh-coa-lims"
+name = "openbga-qm-lims"
 version = "0.1.0"
-description = "OpenBGA Fresh CoA LIMS: open-source software for manufacturing quality-control laboratories"
+description = "OpenBGA QM LIMS: open-source software for manufacturing quality-control laboratories"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
 license = "AGPL-3.0-only"
@@ -14,18 +14,28 @@ dependencies = [
   "whitenoise>=6.12,<7",
   "dj-database-url>=3,<4",
   "weasyprint>=70,<71",
+  "django-otp>=1.7.5,<2",
+  "segno>=1.6.6,<2",
+  "webauthn>=3.0.1,<4",
+  "authlib>=1.9.8,<2",
+  "requests>=2.32.4,<3",
 ]
 
 [project.urls]
-Homepage = "https://openbga.github.io/fresh-coa-lims/"
-Repository = "https://github.com/openbga/fresh-coa-lims"
-Documentation = "https://github.com/openbga/fresh-coa-lims/tree/main/docs"
-Issues = "https://github.com/openbga/fresh-coa-lims/issues"
-Changelog = "https://github.com/openbga/fresh-coa-lims/blob/main/CHANGELOG.md"
+Homepage = "https://openbga.github.io/qm-lims/"
+Repository = "https://github.com/openbga/qm-lims"
+Documentation = "https://github.com/openbga/qm-lims/tree/main/docs"
+Issues = "https://github.com/openbga/qm-lims/issues"
+Changelog = "https://github.com/openbga/qm-lims/blob/main/CHANGELOG.md"
 Support = "https://bgasoft.com"
 
 [dependency-groups]
-dev = ["pytest>=9,<10", "pytest-django>=4.14,<5", "ruff>=0.17.4,<0.18"]
+dev = [
+    "pytest>=9,<10",
+    "pytest-django>=4.14,<5",
+    "pytest-xdist>=3.8,<4",
+    "ruff>=0.17.4,<0.18",
+]
 e2e = [
     "pytest-playwright>=0.10,<0.11",
 ]
@@ -33,7 +43,7 @@ e2e = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py"]
-testpaths = ["tests", "accounts/tests", "catalog/tests", "sampling/tests", "analytical/tests", "laboratory/tests", "stability/tests", "reporting/tests", "pagedocs/tests"]
+testpaths = ["tests", "accounts/tests", "catalog/tests", "suppliers/tests", "sampling/tests", "analytical/tests", "laboratory/tests", "stability/tests", "reporting/tests", "pagedocs/tests"]
 
 
 [tool.ruff]

@@ -259,3 +259,123 @@ class ResourceUse(models.Model):
     @property
     def resource(self):
         return self.equipment or self.reagent_lot
+
+
+class ContractLaboratory(models.Model):
+    """Identity of an outside laboratory that tests for this one. Immutable once created.
+
+    The register says who the laboratory is. Whether its results may be relied on for a method
+    is a separate approved record (`ContractApproval`), never a flag here.
+    """
+
+    code = models.SlugField(max_length=60, unique=True)
+    name = models.CharField(max_length=160)
+    location = models.CharField(
+        max_length=160, help_text="Site that performs the testing: town and country."
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["code"]
+        verbose_name_plural = "contract laboratories"
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
+
+class ContractApproval(models.Model):
+    """Approved evidence that a contract laboratory may perform one method for this laboratory.
+
+    Recorded by one quality person and approved by another with a signature. A result reported
+    by the laboratory is accepted only under an approval whose dates include the date of its
+    report; a revoked approval is relied on no further.
+    """
+
+    class State(models.TextChoices):
+        RECORDED = "recorded", "Awaiting approval"
+        APPROVED = "approved", "Approved"
+        REVOKED = "revoked", "Revoked"
+
+    laboratory = models.ForeignKey(
+        ContractLaboratory, on_delete=models.PROTECT, related_name="approvals"
+    )
+    method_code = models.CharField(
+        max_length=80, help_text="Code of the test method the laboratory is approved to perform."
+    )
+    scope_note = models.TextField(blank=True)
+    evidence_ref = models.CharField(
+        max_length=200,
+        help_text="Quality agreement, audit report or accreditation certificate, with its "
+        "revision.",
+    )
+    evidence_url = evidence_url()
+    valid_from = models.DateField()
+    valid_until = models.DateField(help_text="Last day of validity (inclusive).")
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=12, choices=State, default=State.RECORDED)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-recorded_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(valid_until__gte=models.F("valid_from")),
+                name="contract_approval_interval_ordered",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(method_code__regex=r"^\s*$")
+                & ~models.Q(evidence_ref__regex=r"^\s*$"),
+                name="contract_approval_stated",
+            ),
+            # Each state carries exactly the timestamps of the signatures behind it.
+            models.CheckConstraint(
+                condition=models.Q(
+                    state="recorded", approved_at__isnull=True, revoked_at__isnull=True
+                )
+                | models.Q(state="approved", approved_at__isnull=False, revoked_at__isnull=True)
+                | models.Q(state="revoked", approved_at__isnull=False, revoked_at__isnull=False),
+                name="contract_approval_signed",
+            ),
+        ]
+
+    @property
+    def label(self):
+        return f"CLA-{self.pk}"
+
+    def __str__(self):
+        return f"{self.laboratory.code} · {self.method_code}"
+
+
+class ContractUse(models.Model):
+    """Append-only evidence that a contract laboratory's report was accepted for a piece of work,
+    and under which approval."""
+
+    approval = models.ForeignKey(ContractApproval, on_delete=models.PROTECT, related_name="uses")
+    context_type = models.CharField(max_length=60, help_text="analytical.analyticaltest.")
+    context_id = models.CharField(max_length=64)
+    method_code = models.CharField(max_length=80)
+    test_code = models.CharField(max_length=80, blank=True)
+    report_number = models.CharField(max_length=120)
+    report_date = models.DateField()
+    used_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    used_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-used_at", "-id"]
+        indexes = [models.Index(fields=["context_type", "context_id"], name="contract_use_context")]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(report_number__regex=r"^\s*$"),
+                name="contract_use_report_stated",
+            ),
+        ]

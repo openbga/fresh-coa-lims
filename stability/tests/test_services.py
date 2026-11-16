@@ -269,7 +269,7 @@ def test_chamber_must_be_fit_and_use_is_recorded(people):
 def test_evidence_link_rules(people):
     study = started_study(people)
     pull = record(people, pull_for(study, 100))
-    with pytest.raises(ValidationError, match="Link a sample"):
+    with pytest.raises(ValidationError, match="(?i)link a sample"):
         services.attach_pull_evidence(actor=people["analyst2"], pull=pull, reason="None")
     other = sample_with_result(
         people,
@@ -304,7 +304,7 @@ def test_accept_requires_independent_reviewer_and_complete_reviewed_testing(peop
     study = started_study(people)
     pull = record(people, pull_for(study, 100))
     people["analyst2"].groups.add(people["reviewer"].groups.get())
-    with pytest.raises(ValidationError, match="Link a sample"):
+    with pytest.raises(ValidationError, match="(?i)link a sample"):
         accept(people, pull)
     sample = sample_with_result(people, study, state="submitted")
     services.attach_pull_evidence(

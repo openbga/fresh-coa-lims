@@ -6,21 +6,28 @@ import pytest
 from django.contrib.auth.models import Group
 from django.utils import timezone
 
-from analytical import services
+from analytical import fixtures, services
 from core.models import RuleSet
 from core.services import set_pin
 from quality.services import add_sample, receive_lot
+from tests.receipts import on_site_receipt
 
 PIN = "24681357"
 PASSWORD = "synthetic-pass-2026"
 FIXTURES = "analytical.fixtures.FixtureProvider"
+BENCH = "analytical.fixtures.SyntheticBench"
 
 
 @pytest.fixture(autouse=True)
 def fixture_provider(settings):
-    """Synthetic requirements are an explicit test override, never a deployment default."""
+    """Synthetic requirements and bench are explicit test overrides, never deployment defaults."""
     settings.ANALYTICAL_REQUIREMENT_PROVIDER = FIXTURES
-    settings.ANALYTICAL_ELIGIBILITY_CHECK = "analytical.fixtures.synthetic_eligibility"
+    settings.ANALYTICAL_BENCH = BENCH
+    fixtures.BENCH_LOG.clear()
+    fixtures.UNQUALIFIED.clear()
+    yield
+    fixtures.BENCH_LOG.clear()
+    fixtures.UNQUALIFIED.clear()
 
 
 @pytest.fixture
@@ -68,6 +75,7 @@ def make_lot(people):
             material="Synthetic powder",
             rules=rules,
             reason="Synthetic receipt",
+            receipt=on_site_receipt(),
         )
         sample = add_sample(
             actor=people["analyst"],

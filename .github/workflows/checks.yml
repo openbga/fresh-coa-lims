@@ -2,13 +2,22 @@ name: checks
 
 # Pull requests, including those from forks, run with a read-only token and no secrets.
 # Keep the `pull_request` trigger (never `pull_request_target`) so untrusted code never
-# receives write access or secrets. Pushes are checked only on the two long-lived branches
-# (develop for integration, main for released state), so a pull-request branch is not
-# tested twice for the same commit.
+# receives write access or secrets.
+#
+# Each commit is tested once and then promoted:
+# - A pull request into develop runs every job on its merge result.
+# - A push to develop runs every job on the integrated branch.
+# - A release pull request (develop into main) starts no run. Its head is the develop commit
+#   the push run already tests, and that run's results are what the main ruleset requires.
+#   Keep this a trigger filter: a job skipped with `if:` reports success and would satisfy
+#   the required checks without testing anything.
+# - A push to main is a merge of develop with the same tree, so only the container smoke
+#   job runs there.
 on:
   push:
     branches: [main, develop]
   pull_request:
+    branches-ignore: [main]
 
 permissions:
   contents: read
@@ -27,9 +36,12 @@ defaults:
 # GitHub's rollouts, which changes preinstalled libraries and package names.
 jobs:
   application:
-    # Integrated PostgreSQL suites retain real password/PIN hashers.
+    # Not on main: the same tree passed on develop before the release merge.
+    if: github.ref != 'refs/heads/main'
+    # The PostgreSQL suite hashes with the deployed PBKDF2 hasher at a reduced work factor
+    # (conftest.py); the browser job keeps the work factor of a deployment.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:17
@@ -85,13 +97,30 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run python manage.py check
+      # pytest applies every migration to its test databases, and the container smoke job
+      # migrates an empty database with the application image.
       - run: uv run python manage.py makemigrations --check --dry-run
-      - run: uv run python manage.py migrate --noinput
       - name: Collect static assets for template-serving tests
         run: uv run python manage.py collectstatic --noinput
-      - run: uv run pytest
+      # One worker per runner core, each with its own test database. The results and the
+      # environment they ran in go into the validation pack.
+      - run: uv run pytest -n auto --junitxml=build/validation/application/junit.xml
+      - name: Record the environment of the application suite
+        run: >-
+          uv run python scripts/validation_pack.py environment --suite application
+          --command "pytest -n auto" --output build/validation/application/environment.json
+      - &upload-validation-results
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validation-results-${{ github.job }}
+          path: build/validation/${{ github.job }}/
+          if-no-files-found: error
+          overwrite: true # a re-run job replaces its results
+          retention-days: 7 # the validation pack keeps them
 
   browser:
+    # Not on main: the same tree passed on develop before the release merge.
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     services:
@@ -133,7 +162,51 @@ jobs:
       - name: Collect assets with strict production manifest storage
         run: uv run --group e2e python manage.py collectstatic --noinput
       - name: Isolated browser journeys (one worker, disposable test database)
-        run: uv run --group e2e pytest -c e2e/pytest.ini e2e
+        run: uv run --group e2e pytest -c e2e/pytest.ini e2e --junitxml=build/validation/browser/junit.xml
+      - name: Record the environment of the browser suite
+        run: >-
+          uv run --group e2e python scripts/validation_pack.py environment --suite browser
+          --root e2e --browser --command "pytest -c e2e/pytest.ini e2e"
+          --output build/validation/browser/environment.json
+      - *upload-validation-results
+
+  validation-pack:
+    # The requirements, the tests traced to each one (docs/traceability.toml), both suites'
+    # results with their environment and the release notes of this commit, with checksums.
+    # A release keeps the pack of the develop commit it releases (docs/operations.md). It also
+    # waits for the container smoke job, whose backup cycle stands in for a test the
+    # application job skips. Not on main, where no suite runs.
+    if: github.ref != 'refs/heads/main'
+    needs: [application, browser, container-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.7" # Keep in step with the uv image in Dockerfile.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: validation-results-*
+          path: build/validation
+      # The builder needs only the standard library of the project's Python.
+      - name: Build the validation pack
+        run: >-
+          uv run --no-project --python 3.14 python scripts/validation_pack.py build
+          --results build/validation/validation-results-application
+          --results build/validation/validation-results-browser
+          --output build/validation-pack
+      # An incomplete pack is kept too: its pack.json and index.html say why. The job fails.
+      - if: ${{ !cancelled() && hashFiles('build/validation-pack/pack.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: validation-pack-${{ github.sha }}
+          path: build/validation-pack/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
 
   container-smoke:
     runs-on: ubuntu-24.04
@@ -152,10 +225,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Build application image (no push)
-        run: docker build --tag fresh-coa-lims:ci .
+        run: docker build --tag qm-lims:ci .
       - name: Configure disposable smoke environment
         run: |
-          cat > "$RUNNER_TEMP/fresh-coa-lims-smoke.env" <<'ENV'
+          cat > "$RUNNER_TEMP/qm-lims-smoke.env" <<'ENV'
           DEBUG=false
           SECRET_KEY=disposable-ci-only-key-never-for-a-real-deployment-2026
           DATABASE_URL=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432/open_qual_container_smoke
@@ -166,19 +239,55 @@ jobs:
           ENV
       - name: Migrate empty smoke database and check Django
         run: |
-          docker run --rm --network host --env-file "$RUNNER_TEMP/fresh-coa-lims-smoke.env" fresh-coa-lims:ci python manage.py migrate --noinput
-          docker run --rm --network host --env-file "$RUNNER_TEMP/fresh-coa-lims-smoke.env" fresh-coa-lims:ci python manage.py check
+          docker run --rm --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" qm-lims:ci python manage.py migrate --noinput
+          docker run --rm --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" qm-lims:ci python manage.py check
+      - name: Back up, restore and check a seeded copy with the image
+        # The cycle in docs/operations.md: a manifest and an archive of one snapshot, a restore
+        # into a new database and the restore check, which must pass on the copy and fail on
+        # the source. The seeded copy holds accounts, a signed announcement and draft rules.
+        run: |
+          backup_dir="$RUNNER_TEMP/backup"
+          install -d -m 0777 "$backup_dir"
+          server=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432
+          source_url="$server/open_qual_backup_source"
+          copy_url="$server/open_qual_backup_copy"
+          image() {
+            docker run --rm --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" \
+              --volume "$backup_dir:/backup" "$@"
+          }
+          image qm-lims:ci pg_dump --version | grep -E '\(PostgreSQL\) 17\.'
+          image qm-lims:ci psql "$server/open_qual_container_smoke" -X -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE open_qual_backup_source' -c 'CREATE DATABASE open_qual_backup_copy'
+          image -e DATABASE_URL="$source_url" qm-lims:ci python manage.py migrate --noinput
+          image -e DATABASE_URL="$source_url" -e ALLOW_DEMO_RESET=true \
+            -e DEMO_PASSWORD=disposable-ci-demo-password-2026 -e DEMO_PIN=13572468 \
+            -e DEMO_ADMIN_PASSWORD=disposable-ci-admin-password-2026 -e DEMO_ADMIN_PIN=86427531 \
+            qm-lims:ci python manage.py reset_demo --noinput --publish-accounts
+          image -e DATABASE_URL="$source_url" qm-lims:ci python manage.py backup_manifest \
+            --output /backup/manifest.json --dump /backup/backup.dump --operator ci
+          image qm-lims:ci pg_restore --dbname="$copy_url" --no-owner --no-acl \
+            --single-transaction --exit-on-error /backup/backup.dump
+          image -e DATABASE_URL="$copy_url" qm-lims:ci python manage.py verify_restore \
+            --manifest /backup/manifest.json --archive /backup/backup.dump \
+            --report /backup/copy-report.json --operator ci
+          if image -e DATABASE_URL="$source_url" qm-lims:ci python manage.py verify_restore \
+            --manifest /backup/manifest.json --report /backup/source-report.json; then
+            echo "::error::The restore check passed on the source database itself."
+            exit 1
+          fi
+          # It must fail for being the source and for nothing else.
+          image qm-lims:ci python -c 'import json; report = json.load(open("/backup/source-report.json")); failed = [c["check"] for c in report["checks"] if c["status"] == "failed"]; assert failed == ["restored copy"], failed'
       - name: Verify non-root Render SSH prerequisites
         run: |
-          docker run --rm fresh-coa-lims:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
+          docker run --rm qm-lims:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
       - name: Verify image contents
         # In-app documentation is read from docs/pages at runtime; application files are
         # read-only for the runtime user; build tooling and local state stay out.
         run: |
-          docker run --rm fresh-coa-lims:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests"))'
+          docker run --rm qm-lims:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests", "conftest.py"))'
       - name: Start production server and check HTTP endpoints
         run: |
-          docker run --detach --name fresh-coa-lims-smoke --network host --env-file "$RUNNER_TEMP/fresh-coa-lims-smoke.env" fresh-coa-lims:ci
+          docker run --detach --name qm-lims-smoke --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" qm-lims:ci
           for _ in $(seq 1 30); do
             if curl --fail --silent -H 'X-Forwarded-Proto: https' http://127.0.0.1:8000/ready/; then break; fi
             sleep 2
@@ -190,6 +299,6 @@ jobs:
       - name: Logs and cleanup
         if: always()
         run: |
-          docker logs fresh-coa-lims-smoke || true
-          docker rm -f fresh-coa-lims-smoke || true
-          rm -f "$RUNNER_TEMP/fresh-coa-lims-smoke.env"
+          docker logs qm-lims-smoke || true
+          docker rm -f qm-lims-smoke || true
+          rm -f "$RUNNER_TEMP/qm-lims-smoke.env"

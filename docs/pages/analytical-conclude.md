@@ -4,7 +4,7 @@ urls: analytical:conclude
 views: analytical.views.conclude
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.Investigation, analytical.AnalyticalTest, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Quality signs the conclusion that closes an investigation: the original result i
 ## Who can use it
 
 - Sign-in required. **Quality** only; others receive 403.
-- Never the user who opened the investigation, who generated data for the original or any linked test (observation recorders including superseded ones, submitters, batch QC recorders), or who authored an assessment, hypothesis, evidence or impact entry. Escalation and authorized-retest entries are not counted. This is the same set that is barred from signing the lot's QC disposition.
+- Never the user who opened the investigation, who generated data for the original or any linked test (observation recorders including superseded ones, submitters, batch QC recorders), or who authored an assessment, hypothesis, evidence or impact entry. Escalation and authorized-retest entries are not counted. These people are also barred from signing the lot's QC disposition, which additionally excludes whoever recorded or corrected the lot's receipt details, whoever recorded, corrected or withdrew a supplier certificate of the lot, and whoever sampled or recorded its sampling records.
 - Requires an enrolled signature PIN.
 - **Admin** alone, or a superuser without a lab role, receives 403 when opening the page or posting it; admin is not a scientific role. Admin together with the required role may act, subject to the same independence rules.
 
@@ -42,10 +42,10 @@ Quality signs the conclusion that closes an investigation: the original result i
 
 ## Rules and hidden logic
 
-- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): no PIN field is shown and no PIN checked when a conclusion is impossible. Redirects to the investigation with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This investigation is already closed."; "You cannot conclude an investigation of your own work."; "Record the laboratory assessment first."; "The original result needs independent data review first."; "Authorized retests or resamples are still incomplete.". Outcome-specific rules (assignable cause, conforming reviewed retest) are checked on signing.
-- **Preconditions**: investigation open ("This investigation is already closed."); not your own work, as defined above ("You cannot conclude an investigation of your own work."); assessment recorded ("Record the laboratory assessment first."); original Reviewed or Invalidated ("The original result needs independent data review first."); no authorized retest still open or awaiting review ("Authorized retests or resamples are still incomplete."); lot in quarantine.
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): no PIN field is shown and no PIN checked when a conclusion is impossible. Redirects to the investigation with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine." (for a stability test the pull's reason instead); "This investigation is already closed."; "You cannot conclude an investigation of your own work."; "Record the laboratory assessment first."; "The original result needs independent data review first."; "Authorized retests or resamples are still incomplete.". Outcome-specific rules (assignable cause, conforming reviewed retest) are checked on signing.
+- **Preconditions**: investigation open ("This investigation is already closed."); not your own work, as defined above ("You cannot conclude an investigation of your own work."); assessment recorded ("Record the laboratory assessment first."); original Reviewed or Invalidated ("The original result needs independent data review first."); no authorized retest still open or awaiting review ("Authorized retests or resamples are still incomplete."); lot in quarantine (or, for a stability test, the pull open for testing: pulled, not accepted, study active; once the study is closed its pulls take no more testing).
 - **Invalidation** also needs: a cause ("Invalidation requires a documented assignable cause."); no reviewed retest out of specification ("A retest or resample is also out of specification; the result cannot be invalidated."); at least one reviewed retest ("Invalidation requires a reviewed retest or resample result to report.").
-- **Effect**: phase becomes Closed with time; a reviewed original becomes Invalidated on invalidation; lot revision rises by 1; `signed.concluded` and an immutable signature are stored. A confirmed result keeps blocking disposition.
+- **Effect**: phase becomes Closed with time; a reviewed original becomes Invalidated on invalidation; lot revision (for a stability test the pull revision, never the lot) rises by 1; `signed.concluded` and an immutable signature are stored. A confirmed result keeps blocking disposition of a lot; a confirmed result of a stability test is an outcome of the pull's study and does not stop the pull from being accepted.
 - **Stale page, identity, session and PIN** messages as for other signings: "Record changed. Reload and review before signing."; "Enter your own signing username and PIN."; "Session expired. Sign in again before signing."; "Signature PIN was not accepted."; five failures lock for 15 minutes.
 
 ## Related pages

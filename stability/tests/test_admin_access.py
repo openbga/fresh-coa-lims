@@ -16,7 +16,8 @@ from stability.models import (
     Study,
 )
 
-from .helpers import PIN, approved_protocol, make_lot, started_study
+from .helpers import PIN, approved_protocol, make_lot, specified_study, started_study
+from .helpers import pulled as record_pulled
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
@@ -38,10 +39,12 @@ MUTATION_ROUTES = {
     "stability:condition_new",
     "stability:timepoint_new",
     "stability:protocol_approve",
+    "stability:protocol_withdraw",
     "stability:study_new",
     "stability:study_close",
     "stability:pull_record",
     "stability:pull_evidence",
+    "stability:pull_tests",
     "stability:pull_missed",
     "stability:pull_accept",
     "stability:reserve_new",
@@ -140,6 +143,9 @@ def world(people, django_user_model):
     hold = services.place_hold(
         actor=author, lot=make_lot(people, "HOLD-LOT"), kind="quality", reason="Review"
     )
+    # A pull of a protocol that names a specification: its tests can be assigned.
+    tested, _ = specified_study(people)
+    testable = record_pulled(people, tested)
     users = dict(people)
     for name, roles in {
         "admin_analyst": ["admin", "analyst"],
@@ -153,6 +159,7 @@ def world(people, django_user_model):
         "study": study,
         "pulls": pulls,
         "pulled": pulled,
+        "testable": testable,
         "reserve": reserve,
         "obligation": obligation,
         "hold": hold,
@@ -180,10 +187,12 @@ def routes(world):
         ("stability:condition_new", [draft.pk], "analyst"),
         ("stability:timepoint_new", [draft.pk], "analyst"),
         ("stability:protocol_approve", [draft.pk], "quality"),
+        ("stability:protocol_withdraw", [draft.pk], "analyst"),
         ("stability:study_new", [], "analyst"),
         ("stability:study_close", [study.pk], "quality"),
         ("stability:pull_record", [pulls[180].pk], "analyst"),
         ("stability:pull_evidence", [world["pulled"].pk], "analyst"),
+        ("stability:pull_tests", [world["testable"].pk], "analyst"),
         ("stability:pull_missed", [pulls[30].pk], "analyst"),
         ("stability:pull_accept", [world["pulled"].pk], "reviewer"),
         ("stability:reserve_new", [], "analyst"),

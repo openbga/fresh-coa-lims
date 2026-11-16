@@ -14,6 +14,10 @@ EXEMPT_NAMES = {
     "health": "JSON process health probe for the platform.",
     "ready": "JSON database readiness probe for the platform.",
     "login": "Entrance page outside the signed-in shell; the panel is not shown before sign-in.",
+    "login_verify": "Second sign-in step, outside the signed-in shell like the entrance page.",
+    "login_passkey": "Sign-in with a key alone, outside the signed-in shell like Sign in.",
+    "login_sso": "Redirect to the organization's identity provider; renders no page.",
+    "login_sso_callback": "Return from the identity provider; redirects without rendering a page.",
     "logout": "POST-only sign-out action; redirects without rendering a page.",
     "pagedocs:doc": "The documentation endpoint itself.",
 }

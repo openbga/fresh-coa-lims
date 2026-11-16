@@ -1,0 +1,242 @@
+# Product requirements (docs/product.md, "Requirements and traceability") and the automated
+# tests that give evidence for them. Entries are paths relative to the repository root: a test
+# directory ending in "/", a module, or a module and test name as `path.py::test_name` or
+# `path.py::TestClass`. A test may serve several requirements. Every test must be traced, under
+# a requirement or under [project]; [skips] lists the tests that may be skipped, with the reason.
+# The validation pack of a release is built from this map (docs/operations.md).
+
+[requirements]
+"OQ-001" = [
+    "analytical/tests/test_replacement.py",
+    "catalog/tests/test_supersession.py",
+    "e2e/test_requirement_applicability_journey.py",
+    "e2e/test_requirement_replacement_journey.py",
+    "sampling/tests/test_requirement_translation.py",
+    "sampling/tests/test_services.py",
+    "tests/test_core.py",
+    "tests/test_report_binding.py",
+    "tests/test_requirement_applicability.py",
+    "tests/test_requirement_applicability_views.py",
+    "tests/test_requirement_replacement.py",
+    "tests/test_requirement_replacement_views.py",
+    "tests/test_revised_versions_in_progress.py",
+    "tests/test_rule_approval_views.py",
+]
+"OQ-002" = [
+    "accounts/tests/test_roles.py",
+    "accounts/tests/test_signin_log.py",
+    "e2e/test_lot_record_journey.py",
+    "tests/test_admin_read.py",
+    "tests/test_audit_ui.py",
+    "tests/test_core.py",
+    "tests/test_lot_record_export.py",
+]
+"OQ-003" = [
+    "accounts/tests/test_administration.py",
+    "accounts/tests/test_announcement.py",
+    "e2e/test_login_announcement.py",
+    "e2e/test_signature_dialog.py",
+    "e2e/test_user_management.py",
+    "e2e/test_workflow_guards.py",
+    "tests/test_core.py",
+    "tests/test_journey.py",
+    "tests/test_security_hardening.py",
+    "tests/test_session_controls.py",
+]
+"OQ-004" = [
+    "accounts/tests/test_access.py",
+    "accounts/tests/test_admin_password.py",
+    "accounts/tests/test_administration.py",
+    "accounts/tests/test_announcement.py",
+    "accounts/tests/test_management_views.py",
+    "accounts/tests/test_navigation.py",
+    "accounts/tests/test_passkey_sign_in.py",
+    "accounts/tests/test_roles.py",
+    "accounts/tests/test_security_keys.py",
+    "accounts/tests/test_single_sign_on.py",
+    "accounts/tests/test_two_factor.py",
+    "analytical/tests/test_admin_access.py",
+    "analytical/tests/test_calculations_bench.py",
+    "e2e/test_account_access.py",
+    "e2e/test_login_announcement.py",
+    "e2e/test_passkey_sign_in_journey.py",
+    "e2e/test_role_navigation.py",
+    "e2e/test_security_key_journey.py",
+    "e2e/test_single_sign_on_journey.py",
+    "e2e/test_two_factor_journey.py",
+    "e2e/test_user_management.py",
+    "laboratory/tests/test_admin_access.py",
+    "laboratory/tests/test_contract.py",
+    "reporting/tests/test_admin_access.py",
+    "sampling/tests/test_admin_access.py",
+    "stability/tests/test_admin_access.py",
+    "suppliers/tests/test_suppliers.py",
+    "tests/test_admin_read.py",
+    "tests/test_calculation_bench_journey.py",
+    "tests/test_core.py",
+    "tests/test_journey.py",
+    "tests/test_security_hardening.py",
+]
+"OQ-005" = [
+    "catalog/tests/",
+    "e2e/test_calculation_bench_journey.py",
+    "sampling/tests/test_services.py",
+    "sampling/tests/test_views.py",
+    "tests/test_formulas.py",
+]
+"OQ-006" = [
+    "analytical/tests/test_contract_results.py",
+    "e2e/test_contract_laboratory_journey.py",
+    "e2e/test_receipt_journey.py",
+    "e2e/test_supplier_certificate_journey.py",
+    "e2e/test_supplier_reliance_journey.py",
+    "laboratory/tests/test_contract.py",
+    "sampling/tests/test_gate.py",
+    "sampling/tests/test_preflight.py",
+    "sampling/tests/test_services.py",
+    "sampling/tests/test_views.py",
+    "suppliers/tests/test_suppliers.py",
+    "tests/test_contract_laboratory_journey.py",
+    "tests/test_lot_receipt.py",
+    "tests/test_lot_receipt_views.py",
+    "tests/test_supplier_certificate_views.py",
+    "tests/test_supplier_certificates.py",
+    "tests/test_supplier_reliance.py",
+    "tests/test_supplier_reliance_views.py",
+]
+"OQ-007" = [
+    "analytical/tests/test_calculations_bench.py",
+    "analytical/tests/test_contracts.py",
+    "analytical/tests/test_rawdata.py",
+    "analytical/tests/test_result_types.py",
+    "analytical/tests/test_services.py",
+    "analytical/tests/test_views.py",
+    "catalog/tests/test_calculations.py",
+    "e2e/test_calculation_bench_journey.py",
+    "e2e/test_native_journey.py",
+    "e2e/test_result_types_journey.py",
+    "tests/test_calculation_bench_journey.py",
+    "tests/test_formulas.py",
+    "tests/test_integrated_journey.py",
+    "tests/test_result_types_journey.py",
+    "tests/test_uploads.py",
+]
+"OQ-008" = [
+    "analytical/tests/test_contract_results.py",
+    "analytical/tests/test_replacement.py",
+    "analytical/tests/test_result_types.py",
+    "analytical/tests/test_services.py",
+    "analytical/tests/test_views.py",
+    "e2e/test_stability_testing_journey.py",
+    "stability/tests/test_testing.py",
+    "tests/test_integrated_journey.py",
+    "tests/test_journey.py",
+    "tests/test_result_types_journey.py",
+    "tests/test_revised_versions_in_progress.py",
+    "tests/test_stability_testing.py",
+]
+"OQ-009" = [
+    "analytical/tests/test_replacement.py",
+    "analytical/tests/test_services.py",
+    "e2e/test_journey.py",
+    "e2e/test_requirement_applicability_journey.py",
+    "e2e/test_requirement_replacement_journey.py",
+    "e2e/test_workflow_guards.py",
+    "reporting/tests/test_evidence.py",
+    "sampling/tests/test_gate.py",
+    "tests/test_integrated_journey.py",
+    "tests/test_journey.py",
+    "tests/test_requirement_applicability.py",
+    "tests/test_requirement_applicability_views.py",
+    "tests/test_requirement_replacement.py",
+]
+"OQ-010" = [
+    "e2e/test_contract_laboratory_journey.py",
+    "e2e/test_journey.py",
+    "e2e/test_native_journey.py",
+    "e2e/test_supplier_reliance_journey.py",
+    "reporting/tests/test_admin_access.py",
+    "reporting/tests/test_evidence.py",
+    "reporting/tests/test_native.py",
+    "reporting/tests/test_services.py",
+    "reporting/tests/test_views.py",
+    "tests/test_integrated_journey.py",
+    "tests/test_report_binding.py",
+]
+"OQ-011" = [
+    "analytical/tests/test_calculations_bench.py",
+    "e2e/test_calculation_bench_journey.py",
+    "laboratory/tests/test_bench.py",
+    "laboratory/tests/test_services.py",
+    "laboratory/tests/test_views.py",
+    "tests/test_calculation_bench_journey.py",
+]
+"OQ-012" = [
+    "e2e/test_stability_testing_journey.py",
+    "stability/tests/test_admin_access.py",
+    "stability/tests/test_services.py",
+    "stability/tests/test_testing.py",
+    "stability/tests/test_views.py",
+    "tests/test_stability_testing.py",
+]
+"OQ-013" = [
+    "stability/tests/test_services.py::test_every_obligation_and_hold_must_clear_before_disposal",
+    "stability/tests/test_services.py::test_obligation_must_match_the_reserve_lot",
+    "stability/tests/test_services.py::test_reserve_quantity_check_and_immutability",
+    "stability/tests/test_views.py::test_reserve_and_obligation_pages",
+]
+"OQ-014" = [
+    "stability/tests/test_services.py::test_evidence_link_rules",
+    "stability/tests/test_services.py::test_external_evidence_path_and_stale_signature",
+]
+"OQ-015" = [
+    "e2e/test_requirement_applicability_journey.py",
+    "tests/test_requirement_applicability.py",
+    "tests/test_requirement_applicability_views.py",
+]
+"OQ-016" = [
+    "accounts/tests/test_database_defaults.py",
+    "accounts/tests/test_passkey_sign_in.py",
+    "accounts/tests/test_security_keys.py",
+    "accounts/tests/test_signin_log.py",
+    "accounts/tests/test_single_sign_on.py",
+    "accounts/tests/test_two_factor.py",
+    "e2e/test_hash_work_factor.py",
+    "e2e/test_lot_record_journey.py",
+    "e2e/test_passkey_sign_in_journey.py",
+    "e2e/test_security_key_journey.py",
+    "e2e/test_single_sign_on_journey.py",
+    "e2e/test_two_factor_journey.py",
+    "e2e/test_workflow_guards.py",
+    "tests/test_backup_restore_checks.py",
+    "tests/test_lot_record_export.py",
+    "tests/test_security_hardening.py",
+    "tests/test_session_controls.py",
+    "tests/test_validation_pack.py",
+]
+"OQ-017" = [
+    "e2e/test_pagedocs.py",
+    "pagedocs/tests/",
+]
+
+[project]
+# Tests of project obligations that no product requirement states, each under a short name.
+"Product name, licence notice and source code link" = [
+    "tests/test_branding.py",
+]
+"Synthetic demonstration seed and reset" = [
+    "sampling/tests/test_seed.py",
+    "tests/test_demo_reset.py",
+    "tests/test_seed_demo.py",
+]
+"Interface layout and navigation" = [
+    "e2e/test_login_layout.py",
+    "e2e/test_section_navigation.py",
+    "e2e/test_shell_layout.py",
+]
+
+[skips]
+# Single tests that may skip where a pack is built, and why. Any other skip leaves the pack
+# incomplete.
+"reporting/tests/test_services.py::test_write_review_pdfs" = "Writes certificates to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."
+"tests/test_backup_restore_checks.py::test_backup_restore_and_verify_round_trip" = "Needs pg_dump and pg_restore of the server's major version or newer, which CI's application job lacks; CI's container-smoke job runs the same backup, restore and check cycle with the application image."

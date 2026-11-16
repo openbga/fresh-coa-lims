@@ -2,6 +2,7 @@ from io import StringIO
 
 import pytest
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
@@ -9,7 +10,10 @@ from catalog.models import Material, MethodRevision, SpecificationRevision
 from catalog.services import create_material
 from core.models import AuditEvent, ElectronicSignature, PINCredential, RuleSet
 from quality.models import Lot, Result, Sample
+from quality.services import current_receipt
 from sampling.models import SamplingPlanRevision
+from suppliers.models import Supplier
+from suppliers.services import create_supplier
 
 pytestmark = pytest.mark.django_db(transaction=True)
 PASSWORD = "Synthetic-seed-password-2026!"
@@ -52,6 +56,13 @@ def test_demo_uses_services_and_is_idempotent(demo_env, django_user_model, monke
     assert signature.meaning == "approved" and signature.audit_event_id
     assert Result.objects.get().state == "recorded"
     assert Lot.objects.get().state == "quarantine"
+    # The register names two synthetic suppliers, and the journey's lot came from the first.
+    assert list(Supplier.objects.values_list("code", "created_by__username")) == [
+        ("sup-syn-001", "demo_config_author"),
+        ("sup-syn-002", "demo_config_author"),
+    ]
+    receipt = current_receipt(Lot.objects.get())
+    assert (receipt.supplier.code, receipt.recorded_by.username) == ("sup-syn-001", "demo_analyst")
     quality_user = django_user_model.objects.get(username="demo_quality")
     unrelated = create_material(
         actor=quality_user,
@@ -78,8 +89,28 @@ def test_demo_uses_services_and_is_idempotent(demo_env, django_user_model, monke
         SamplingPlanRevision.objects.count(),
     )
     assert (Lot.objects.count(), Sample.objects.count(), Result.objects.count()) == (1, 1, 1)
+    assert Supplier.objects.count() == 2 and Lot.objects.get().receipts.count() == 1
     for user in django_user_model.objects.filter(username__startswith="demo_"):
         assert hashes[user.pk] == (user.password, PINCredential.objects.get(user=user).encoded)
+
+
+def test_demo_refuses_a_supplier_it_did_not_seed(demo_env, django_user_model):
+    # A laboratory's own supplier under a seed code is never adopted or overwritten.
+    owner = django_user_model.objects.create_user("lab_quality", password=PASSWORD)
+    owner.groups.add(Group.objects.get_or_create(name="quality")[0])
+    own = create_supplier(
+        actor=owner,
+        code="sup-syn-001",
+        name="Unrelated synthetic supplier",
+        location="Elsewhere, Exampleland",
+        reason="Existing unrelated configuration",
+    )
+    before = AuditEvent.objects.count()
+    with pytest.raises(CommandError, match="non-demo supplier collision: sup-syn-001"):
+        call_command("seed_demo", actor=demo_env.username, stdout=StringIO(), stderr=StringIO())
+    assert list(Supplier.objects.values_list("pk", "name")) == [(own.pk, own.name)]
+    assert AuditEvent.objects.count() == before
+    assert not django_user_model.objects.filter(username__startswith="demo_").exists()
 
 
 def test_demo_refuses_production_and_non_demo_accounts(demo_env, settings, django_user_model):
@@ -178,3 +209,115 @@ def test_legacy_demo_rule_author_is_preserved_without_admin_role_escalation(
     before = AuditEvent.objects.count()
     call_command("seed_demo", actor=demo_env.username, stdout=StringIO(), stderr=StringIO())
     assert AuditEvent.objects.count() == before
+
+
+ADMIN_PASSWORD = "Synthetic-seed-admin-password-2026!"
+ADMIN_PIN = "51739264"
+
+
+def test_publish_accounts_announces_only_accounts_without_announcement_authority(
+    demo_env, django_user_model, monkeypatch, client
+):
+    from accounts.announcements import MEANING, change_announcement, current_announcement
+    from accounts.models import LoginAnnouncement
+
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", ADMIN_PASSWORD)
+    monkeypatch.setenv("DEMO_ADMIN_PIN", ADMIN_PIN)
+    output = StringIO()
+    call_command(
+        "seed_demo",
+        actor=demo_env.username,
+        publish_accounts=True,
+        stdout=output,
+        stderr=StringIO(),
+    )
+    printed = output.getvalue()
+    for secret in (PASSWORD, PIN, ADMIN_PASSWORD, ADMIN_PIN):
+        assert secret not in printed
+    listed = ["demo_analyst", "demo_auditor", "demo_config_author", "demo_quality", "demo_reviewer"]
+    assert "Sign-in announcement published for: " + ", ".join(listed) in printed
+
+    announcement = LoginAnnouncement.objects.get()
+    assert announcement.published and announcement.title == "Demonstration accounts"
+    for username in listed:
+        assert f"`{username}`" in announcement.body
+    assert "demo_admin" not in announcement.body and "bootstrap" not in announcement.body
+    assert PASSWORD in announcement.body and PIN in announcement.body
+    assert ADMIN_PASSWORD not in announcement.body and ADMIN_PIN not in announcement.body
+
+    admin = django_user_model.objects.get(username="demo_admin")
+    assert admin.check_password(ADMIN_PASSWORD) and not admin.check_password(PASSWORD)
+    admin_pin = PINCredential.objects.get(user=admin).encoded
+    assert check_password(ADMIN_PIN, admin_pin) and not check_password(PIN, admin_pin)
+    signature = ElectronicSignature.objects.get(meaning=MEANING)
+    assert signature.signer == admin and signature.revision == announcement.revision == 2
+
+    page = client.get("/accounts/login/").content.decode()
+    assert "<td><code>demo_reviewer</code></td><td>Reviewer</td>" in page
+    assert "<td><code>demo_config_author</code></td><td>Quality</td>" in page
+    assert (
+        f"<pre><code>{PASSWORD}</code></pre>" in page and f"<pre><code>{PIN}</code></pre>" in page
+    )
+    assert "demo_admin" not in page
+    # A published account signs in with the announced password and cannot change the notice.
+    assert client.login(username="demo_quality", password=PASSWORD)
+    assert client.get("/accounts/announcement/").status_code == 403
+
+    # An administrator's later text is kept: a rerun neither replaces it nor asks for credentials.
+    change_announcement(
+        actor=admin,
+        pin=ADMIN_PIN,
+        expected_revision=announcement.revision,
+        title="Edited",
+        body="Edited by the administrator.",
+        published=True,
+        reason="Synthetic administrator edit",
+    )
+    for name in ("DEMO_PASSWORD", "DEMO_PIN", "DEMO_ADMIN_PASSWORD", "DEMO_ADMIN_PIN"):
+        monkeypatch.delenv(name)
+    before = AuditEvent.objects.count()
+    output = StringIO()
+    call_command("seed_demo", actor=demo_env.username, publish_accounts=True, stdout=output)
+    assert "already has text; it was left unchanged" in output.getvalue()
+    assert current_announcement().body == "Edited by the administrator."
+    assert AuditEvent.objects.count() == before
+
+
+def test_publish_accounts_refuses_credentials_that_open_an_announcement_manager(
+    demo_env, django_user_model, monkeypatch
+):
+    from accounts.models import LoginAnnouncement
+
+    monkeypatch.setenv("DEMO_ADMIN_PASSWORD", ADMIN_PASSWORD)
+    monkeypatch.setenv("DEMO_ADMIN_PIN", PIN)
+    with pytest.raises(CommandError, match="different from the published accounts"):
+        call_command("seed_demo", actor=demo_env.username, publish_accounts=True)
+    monkeypatch.setenv("DEMO_ADMIN_PIN", ADMIN_PIN)
+    for unshowable in (PASSWORD + " ", "```" + PASSWORD, PASSWORD + "\nsecond line"):
+        monkeypatch.setenv("DEMO_PASSWORD", unshowable)
+        with pytest.raises(CommandError, match="cannot be shown exactly"):
+            call_command("seed_demo", actor=demo_env.username, publish_accounts=True)
+    monkeypatch.setenv("DEMO_PASSWORD", PASSWORD)
+    assert not django_user_model.objects.filter(username__startswith="demo_").exists()
+
+    # Seeded without publication, demo_admin shares the demo password and PIN.
+    monkeypatch.delenv("DEMO_ADMIN_PASSWORD")
+    monkeypatch.delenv("DEMO_ADMIN_PIN")
+    call_command("seed_demo", actor=demo_env.username, stdout=StringIO(), stderr=StringIO())
+    assert not LoginAnnouncement.objects.exists()
+    monkeypatch.setenv("DEMO_ADMIN_PIN", ADMIN_PIN)
+    with pytest.raises(CommandError, match="demo_admin is an administrator and accepts"):
+        call_command("seed_demo", actor=demo_env.username, publish_accounts=True, stdout=StringIO())
+
+    # A listed account whose password was changed would be announced with a wrong credential.
+    admin = django_user_model.objects.get(username="demo_admin")
+    admin.set_password(ADMIN_PASSWORD)
+    admin.save()
+    PINCredential.objects.filter(user=admin).delete()
+    reviewer = django_user_model.objects.get(username="demo_reviewer")
+    reviewer.set_password("Changed-by-a-visitor-2026!")
+    reviewer.save()
+    with pytest.raises(CommandError, match="demo_reviewer does not accept"):
+        call_command("seed_demo", actor=demo_env.username, publish_accounts=True, stdout=StringIO())
+    assert not LoginAnnouncement.objects.filter(published=True).exists()
+    assert not ElectronicSignature.objects.exists()

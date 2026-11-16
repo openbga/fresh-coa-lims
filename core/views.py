@@ -1,5 +1,6 @@
 import csv
 
+from django.apps import apps
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -10,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 from .forms import PINForm, RuleForm, SignForm
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
+    AUDIT_READ_ROLES,
     approve_rule,
     check_rule_approval,
     require_role,
@@ -22,6 +24,15 @@ from .services import (
 @login_required
 @require_http_methods(["GET", "POST"])
 def pin(request):
+    if request.user.credentials_locked:
+        from accounts.administration import CREDENTIALS_LOCKED
+
+        return render(
+            request,
+            "core/form.html",
+            {"heading": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
+            status=403 if request.method == "POST" else 200,
+        )
     form = PINForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
@@ -47,7 +58,7 @@ def rules(request):
             return redirect("core:rules")
         except ValidationError as exc:
             form.add_error(None, exc)
-    revisions = list(RuleSet.objects.all())
+    revisions = list(RuleSet.objects.select_related("superseded_by"))
     signatures = ElectronicSignature.objects.filter(object_type="core.ruleset")
     by_record = {}
     for signature in signatures:
@@ -61,18 +72,44 @@ def rules(request):
     )
 
 
+def _quarantined_lots(rule):
+    """How many lots in quarantine are under this rule version: received under it, or with
+    current requirements it applies to in addition to their own rule set. Read through the
+    app registry: rule sets do not depend on the lot modules."""
+    if not apps.is_installed("quality"):
+        return 0
+    own = apps.get_model("quality", "Lot").objects.filter(rules=rule, state="quarantine").count()
+    if not apps.is_installed("sampling"):
+        return own
+    current = apps.get_model("sampling", "LotAssignment").objects.filter(
+        superseded_by__isnull=True, status="ready", lot__state="quarantine"
+    )
+    return own + current.filter(payload__additional_rules__contains=[{"id": rule.pk}]).count()
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def rule_approve(request, pk):
     require_role(request.user, "quality")
     rule = get_object_or_404(RuleSet, pk=pk)
-    if request.method == "GET":
-        try:
-            check_rule_approval(actor=request.user, rule=rule)
-        except (PermissionDenied, ValidationError) as exc:
+    retires = []
+    try:
+        plan = check_rule_approval(actor=request.user, rule=rule)
+    except (PermissionDenied, ValidationError) as exc:
+        if request.method == "GET":
             reason = "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
             messages.warning(request, reason)
             return redirect("core:rules")
+        plan = []  # signing repeats the check and reports the refusal on the form
+    for other, moment in plan:
+        retires.append(
+            {
+                "rule": other,
+                "moment": moment,
+                "never": moment <= other.effective_from,
+                "lots": _quarantined_lots(other),
+            }
+        )
     form = SignForm(request.POST or None, initial={"revision": rule.revision})
     if request.method == "POST" and form.is_valid():
         try:
@@ -89,7 +126,13 @@ def rule_approve(request, pk):
     return render(
         request,
         "core/form.html",
-        {"form": form, "heading": f"Approve {rule}", "signing": True, "record": rule},
+        {
+            "form": form,
+            "heading": f"Approve {rule}",
+            "signing": True,
+            "record": rule,
+            "retires": retires,
+        },
     )
 
 
@@ -107,7 +150,7 @@ def audit(request):
 
     from .models import AuditReview
 
-    require_role(request.user, "admin", "quality", "auditor")
+    require_role(request.user, *AUDIT_READ_ROLES)
     can_review = request.user.groups.filter(name__in=["quality", "auditor"]).exists()
     if request.method == "POST":
         require_role(request.user, "quality", "auditor")

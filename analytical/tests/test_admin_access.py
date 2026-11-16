@@ -10,10 +10,11 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
-from analytical import services, urls
+from analytical import rawdata, services, urls
 from analytical.models import (
     AnalyticalTest,
     Investigation,
@@ -39,10 +40,12 @@ READ = {
     "test_detail",
     "batch_detail",
     "investigation_detail",
+    "raw_file_download",
 }
 MUTATION_PAGES = {
     "observation_new",
     "observation_correct",
+    "contract_result",
     "test_batch",
     "test_return",
     "test_review",
@@ -54,6 +57,7 @@ MUTATION_PAGES = {
     "escalate",
     "authorize",
     "conclude",
+    "raw_file_new",
 }
 # Read pages that also accept a scientific POST (assign tests, submit results).
 POST_ON_READ = {"lot_testing", "test_detail"}
@@ -105,6 +109,12 @@ def world(people, assigned, batch, make_lot, django_user_model):
         collected_at=timezone.now(),
         reason="Synthetic sample",
     )
+    raw = rawdata.attach_raw_file(
+        actor=people["analyst"],
+        test=tests2["assay"],
+        upload=SimpleUploadedFile("export.csv", b"synthetic"),
+        description="Export",
+    )
     obs = Observation.objects.filter(test=assay).first()
     blank = QCResult.objects.get(batch=batch, check_code="blank")
     inv = investigation.pk
@@ -129,6 +139,7 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "test_detail": reverse("analytical:test_detail", args=[assay.pk]),
         "batch_detail": reverse("analytical:batch_detail", args=[batch.pk]),
         "investigation_detail": reverse("analytical:investigation_detail", args=[inv]),
+        "raw_file_download": reverse("analytical:raw_file_download", args=[raw.pk]),
     }
     review_post = {"signature_username": "admin.only", "pin": PIN, "reason": "Checked"}
     w["mutations"] = {
@@ -139,6 +150,17 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "observation_correct": (
             reverse("analytical:observation_correct", args=[obs.pk]),
             {"value": "100.1", "raw_reference": "NB-9", "reason": "Typo"},
+        ),
+        "contract_result": (
+            reverse("analytical:contract_result", args=[tests2["identity"].pk]),
+            {
+                "laboratory_id": "1",
+                "report_number": "CLR-SYN-9",
+                "report_date": timezone.localdate().isoformat(),
+                "raw_reference": "DMS-SYN-9",
+                "value_1": "1.00",
+                "expected_revision": tests2["identity"].revision,
+            },
         ),
         "test_batch": (
             reverse("analytical:test_batch", args=[tests2["assay"].pk]),
@@ -151,6 +173,10 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "test_review": (
             reverse("analytical:test_review", args=[identity.pk]),
             {**review_post, "expected_revision": fresh(identity).revision},
+        ),
+        "raw_file_new": (
+            reverse("analytical:raw_file_new", args=[tests2["assay"].pk]),
+            {"file": SimpleUploadedFile("again.csv", b"other"), "description": "Export"},
         ),
         "batch_new": (
             reverse("analytical:batch_new"),
@@ -270,7 +296,10 @@ def _action_markers(w):
         ],
         "identity": [reverse("analytical:test_review", args=[w["identity"].pk])],
         "unbatched": [reverse("analytical:test_batch", args=[w["unbatched"].pk])],
-        "unrecorded": [reverse("analytical:observation_new", args=[w["unrecorded"].pk])],
+        "unrecorded": [
+            reverse("analytical:observation_new", args=[w["unrecorded"].pk]),
+            reverse("analytical:contract_result", args=[w["unrecorded"].pk]),
+        ],
         "batch_detail": [
             reverse(
                 "analytical:qc_correct",

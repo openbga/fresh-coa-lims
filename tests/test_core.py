@@ -215,10 +215,141 @@ def test_rule_revisions_and_effective_interval(rule, people):
         reason="Revised test panel",
     )
     assert next_rule.version == 2
-    with pytest.raises(ValidationError, match="overlap"):
-        approve(next_rule, people[1])
     with pytest.raises(ValidationError, match="approved, effective"):
         validate_rules(next_rule)
+    # Approving the overlapping version retires the earlier one from the moment of approval
+    # (the new version's start had already passed), with its own audit event.
+    approved = approve(next_rule, people[1])
+    rule.refresh_from_db()
+    signed = ElectronicSignature.objects.get(object_id=str(approved.pk), revision=approved.revision)
+    assert rule.status == "approved" and rule.superseded_by == approved
+    assert rule.superseded_from == signed.signed_at
+    assert rule.applies_until == signed.signed_at
+    validate_rules(approved)
+    with pytest.raises(ValidationError, match="approved, effective"):
+        validate_rules(rule)
+    validate_rules(rule, at=signed.signed_at - timedelta(microseconds=1))  # it applied until then
+    event = AuditEvent.objects.get(action="rule.superseded")
+    assert event.object_id == str(rule.pk) and event.actor == people[1]
+    assert event.before == {"superseded_from": None, "superseded_by": None}
+    assert event.after == {
+        "superseded_from": signed.signed_at.isoformat(),
+        "superseded_by": approved.pk,
+    }
+
+
+def future_rule(rule, people, start_days, end_days=900):
+    return save_rule(
+        actor=people[0],
+        code=rule.code,
+        segment=rule.segment,
+        policy=rule.policy,
+        effective_from=timezone.now() + timedelta(days=start_days),
+        effective_until=timezone.now() + timedelta(days=end_days),
+        reason="Revised test panel",
+    )
+
+
+def test_a_rule_version_that_starts_later_retires_the_earlier_one_from_its_start(rule, people):
+    approve(rule, people[1])
+    second = approve(future_rule(rule, people, 30), people[1])
+    rule.refresh_from_db()
+    assert rule.superseded_from == second.effective_from and rule.superseded_by == second
+    validate_rules(rule)  # still in force until the new version starts
+    with pytest.raises(ValidationError, match="approved, effective"):
+        validate_rules(second)
+    validate_rules(second, at=second.effective_from)
+    with pytest.raises(ValidationError, match="approved, effective"):
+        validate_rules(rule, at=second.effective_from)
+    # A third version that starts before the second one takes over from both: the first is
+    # retired earlier, and the second never applies.
+    third = approve(future_rule(rule, people, 10), people[1])
+    rule.refresh_from_db()
+    second.refresh_from_db()
+    assert rule.superseded_from == third.effective_from and rule.superseded_by == third
+    assert second.superseded_from == second.effective_from and second.superseded_by == third
+    with pytest.raises(ValidationError, match="approved, effective"):
+        validate_rules(second, at=second.effective_from)
+    validate_rules(third, at=second.effective_from)
+
+
+def test_a_version_that_already_never_applies_is_left_as_it_is(rule, people):
+    """Bringing a change forward twice: the version that was retired before it started is not
+    retired again at the same moment (the guard refuses that, and signing used to fail)."""
+    approve(rule, people[1])
+    second = approve(future_rule(rule, people, 30), people[1])
+    third = approve(future_rule(rule, people, 10), people[1])
+    draft = future_rule(rule, people, 5)
+    from core.services import check_rule_approval
+
+    plan = check_rule_approval(actor=people[1], rule=draft)
+    assert [str(other) for other, _ in plan] == [str(rule), str(third)]
+    fourth = approve(draft, people[1])
+    rule.refresh_from_db()
+    second.refresh_from_db()
+    third.refresh_from_db()
+    assert (rule.superseded_from, rule.superseded_by) == (fourth.effective_from, fourth)
+    assert (second.superseded_from, second.superseded_by) == (second.effective_from, third)
+    assert (third.superseded_from, third.superseded_by) == (third.effective_from, fourth)
+    validate_rules(fourth, at=fourth.effective_from)
+
+
+def test_a_draft_cannot_retire_a_later_approved_rule_version(rule, people):
+    approve(rule, people[1])
+    stale = future_rule(rule, people, 10)
+    newer = approve(future_rule(rule, people, 20), people[1])
+    assert newer.version == 3
+    with pytest.raises(ValidationError, match="Version 3 is already approved for these dates"):
+        approve(stale, people[1])
+    stale.refresh_from_db()
+    newer.refresh_from_db()
+    assert stale.status == "draft" and newer.superseded_from is None
+
+
+def test_database_lets_a_supersession_only_be_set_or_brought_forward(rule, people):
+    approve(rule, people[1])
+    second = approve(future_rule(rule, people, 30), people[1])
+    rule.refresh_from_db()
+    retired = rule.superseded_from
+    table = RuleSet.objects.filter(pk=rule.pk)
+    for change in (
+        {"superseded_from": None, "superseded_by": None},  # cleared
+        {"superseded_from": retired + timedelta(days=1)},  # delayed
+        {"superseded_from": retired - timedelta(days=1), "policy": {}},  # with another change
+        {"policy": {}},
+        {"status": "draft"},
+    ):
+        with pytest.raises(DatabaseError, match="Approved rules cannot be updated"):
+            with transaction.atomic():
+                table.update(**change)
+    other = RuleSet.objects.create(
+        code="synthetic-other",
+        segment="chemical",
+        author=people[0],
+        status="approved",
+        version=9,
+        effective_from=timezone.now(),
+        effective_until=timezone.now() + timedelta(days=30),
+        policy=rule.policy,
+    )
+    for successor in (other, rule):  # another rule set; the version itself
+        with pytest.raises(DatabaseError, match="Approved rules cannot be updated"):
+            with transaction.atomic():
+                table.update(superseded_from=retired - timedelta(days=1), superseded_by=successor)
+    with transaction.atomic():
+        table.update(superseded_from=retired - timedelta(days=1))  # brought forward
+    draft = future_rule(rule, people, 60)
+    for change in ({}, {"status": "approved"}):  # a draft, also when approved in the same write
+        with pytest.raises(DatabaseError, match="Only an approved rule version is superseded"):
+            with transaction.atomic():
+                RuleSet.objects.filter(pk=draft.pk).update(
+                    superseded_from=draft.effective_from, superseded_by=second, **change
+                )
+    with pytest.raises(DatabaseError, match="rule_superseded"):
+        with transaction.atomic():
+            RuleSet.objects.filter(pk=second.pk).update(  # before its own start
+                superseded_from=second.effective_from - timedelta(days=1), superseded_by=draft
+            )
 
 
 def test_approval_requires_finite_effective_interval(rule, people):

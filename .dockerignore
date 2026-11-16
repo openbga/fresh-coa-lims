@@ -34,7 +34,9 @@ node_modules
 e2e
 tests
 **/tests
+conftest.py
 scripts
 website
 compose.yaml
 render.yaml
+render.demo.yaml

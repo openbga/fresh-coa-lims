@@ -29,8 +29,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.forms",
+    # Ahead of accounts, whose admin module unregisters the authenticator model (secrets).
+    "django_otp",
+    "django_otp.plugins.otp_totp",
     "accounts",
     "core",
+    "suppliers",
     "quality",
     "catalog",
     "sampling",
@@ -46,6 +50,8 @@ MIDDLEWARE = [
     "config.security.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Ahead of the CSRF check, which is the first code to read a submitted form.
+    "core.uploads.UploadSizeMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -91,12 +97,87 @@ LOGIN_FAILURE_LIMIT = int(os.environ.get("LOGIN_FAILURE_LIMIT", "5"))
 LOGIN_LOCK_SECONDS = int(os.environ.get("LOGIN_LOCK_SECONDS", "900"))
 if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCK_SECONDS < 60:
     raise RuntimeError("Sign-in throttling needs LOGIN_FAILURE_LIMIT >= 1, LOCK_SECONDS >= 60.")
+# Two-factor sign-in (accounts.two_factor). Members of these laboratory roles must set up an
+# authenticator app before they can use the workspace: a comma-separated list of roles, "all"
+# for every account, or empty for none (each account may still set it up). Shared demonstration
+# accounts, whose credentials are published, cannot set it up and are not required to.
+MFA_REQUIRED_ROLES = frozenset(
+    role.strip().lower()
+    for role in os.environ.get("MFA_REQUIRED_ROLES", "").split(",")
+    if role.strip()
+)
+if not MFA_REQUIRED_ROLES <= {"all", "admin", "analyst", "auditor", "quality", "reviewer"}:
+    raise RuntimeError(
+        "MFA_REQUIRED_ROLES must list laboratory roles (admin, analyst, auditor, quality, "
+        "reviewer) or be all."
+    )
+# Seconds allowed between an accepted password and the authenticator code.
+MFA_PENDING_SECONDS = 300
+# Sign-in with a security key or passkey alone, without the password (accounts.views.
+# login_passkey). The key must verify its holder with its own PIN, fingerprint or face. Set to
+# false to ask every account for its password first.
+PASSKEY_SIGN_IN = os.environ.get("PASSKEY_SIGN_IN", "true").lower() == "true"
+# Single sign-on with the organization's identity provider (OpenID Connect, accounts.
+# single_sign_on). Off unless the issuer, client ID and client secret are all set. Only accounts
+# whose owner linked an account at the provider sign in this way; none are created from it.
+OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "").strip()
+OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "").strip()
+OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "")
+# The name on the sign-in button: "Sign in with <name>".
+OIDC_PROVIDER_NAME = os.environ.get("OIDC_PROVIDER_NAME", "").strip() or "your organization"
+OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid email profile").split()
+# How the client authenticates to the token endpoint: client_secret_basic or client_secret_post.
+OIDC_TOKEN_AUTH_METHOD = os.environ.get("OIDC_TOKEN_AUTH_METHOD", "client_secret_basic").strip()
+# Sent as the prompt parameter. "login" asks the provider to authenticate the person at every
+# sign-in, so that a session someone else left open at the provider is not used; empty leaves
+# it to the provider.
+OIDC_PROMPT = os.environ.get("OIDC_PROMPT", "login").strip()
+OIDC_TIMEOUT_SECONDS = 10
+SINGLE_SIGN_ON = bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)
+if SINGLE_SIGN_ON:
+    from urllib.parse import urlsplit
+
+    _issuer = urlsplit(OIDC_ISSUER)
+    if not (
+        _issuer.scheme == "https"
+        or (_issuer.scheme == "http" and _issuer.hostname in {"localhost", "127.0.0.1"})
+    ) or (_issuer.query or _issuer.fragment):
+        raise RuntimeError(
+            "OIDC_ISSUER must be an https URL without query or fragment (http only on localhost)."
+        )
+    if "openid" not in OIDC_SCOPES:
+        raise RuntimeError("OIDC_SCOPES must include openid.")
+    if OIDC_TOKEN_AUTH_METHOD not in {"client_secret_basic", "client_secret_post"}:
+        raise RuntimeError(
+            "OIDC_TOKEN_AUTH_METHOD must be client_secret_basic or client_secret_post."
+        )
+elif OIDC_ISSUER or OIDC_CLIENT_ID or OIDC_CLIENT_SECRET:
+    raise RuntimeError("Single sign-on needs OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET.")
+OTP_TOTP_ISSUER = "OpenBGA QM LIMS"
+# Failed codes count toward the account's sign-in failure limit and lock (LOGIN_FAILURE_LIMIT),
+# like a wrong password, so the library's own per-device delay is switched off.
+OTP_TOTP_THROTTLE_FACTOR = 0
+OTP_ADMIN_HIDE_SENSITIVE_DATA = True
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
+# Sign-in events go to standard output so they survive database resets (accounts.signin_log).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"masked": {"()": "config.security.CredentialLogFormatter"}},
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "masked",
+        }
+    },
+    "loggers": {"openbga.signin": {"handlers": ["stdout"], "level": "INFO", "propagate": False}},
+}
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
@@ -146,12 +227,19 @@ DEFAULT_EXCEPTION_REPORTER = "config.security.CredentialExceptionReporter"
 DEFAULT_EXCEPTION_REPORTER_FILTER = "config.security.CredentialExceptionReporterFilter"
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+# core.uploads.UploadSizeMiddleware refuses an upload that declares too large a body before it
+# is read; the first handler stops a file that exceeds RAW_DATA_MAX_BYTES while it is received.
+FILE_UPLOAD_HANDLERS = [
+    "core.uploads.BoundedUploadHandler",
+    "django.core.files.uploadhandler.MemoryFileUploadHandler",
+    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
+]
 
 FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 # AGPL-3.0 section 13: link users to the source of the running version. Point this at your own
 # repository when you deploy a modified version.
-SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/fresh-coa-lims")
+SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/qm-lims")
 
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"
@@ -168,4 +256,28 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 FORMS_URLFIELD_ASSUME_HTTPS = True
 
 ANALYTICAL_REQUIREMENT_PROVIDER = "config.integrations.CatalogRequirementProvider"
-ANALYTICAL_ELIGIBILITY_CHECK = "config.integrations.require_qualified_analyst"
+# Result entry asks the laboratory module whether the analyst is qualified for the method and
+# whether each selected instrument and reagent or standard lot is fit for use. Without this
+# setting results are held.
+ANALYTICAL_BENCH = "config.integrations.LaboratoryBench"
+# The testing gate asks the lot record which supplier certificate results were accepted in place
+# of a test. Without this setting no supplier result answers a requirement.
+ANALYTICAL_SUPPLIER_RESULTS = "config.integrations.AcceptedSupplierResults"
+# A test belongs to the testing of a lot or to a stability pull. For a pull's tests the testing
+# module asks the stability module for the acceptance criteria of the protocol, whether the pull
+# still takes testing, and for the lock every evidence change takes. Without this setting no
+# pull is tested in the system.
+ANALYTICAL_STABILITY_PULLS = "config.integrations.StabilityPulls"
+# Replacing a lot's requirements during testing asks the testing module which of the lot's tests
+# carry over and which are superseded. Without this setting requirements cannot be replaced
+# once testing has started.
+REQUIREMENT_REPLACEMENT_TESTING = "config.integrations.TestingUnderReplacement"
+# Raw-data files are stored in PostgreSQL with their test. This is the largest file accepted,
+# in bytes; each upload is held in memory while its checksum is calculated.
+RAW_DATA_MAX_BYTES = int(os.environ.get("RAW_DATA_MAX_BYTES", str(10 * 1024 * 1024)))
+if not 1 <= RAW_DATA_MAX_BYTES <= 50 * 1024 * 1024:
+    raise RuntimeError("RAW_DATA_MAX_BYTES must be from 1 to 52428800 (50 MiB).")
+# Optional ceiling on all raw-data files of the deployment together, in bytes; 0 sets none.
+RAW_DATA_TOTAL_MAX_BYTES = int(os.environ.get("RAW_DATA_TOTAL_MAX_BYTES", "0"))
+if RAW_DATA_TOTAL_MAX_BYTES < 0:
+    raise RuntimeError("RAW_DATA_TOTAL_MAX_BYTES must be 0 (no ceiling) or a positive size.")

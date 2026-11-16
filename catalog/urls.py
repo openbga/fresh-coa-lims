@@ -44,6 +44,26 @@ urlpatterns = [
         views.qc_check_remove,
         name="qc_check_remove",
     ),
+    path(
+        "method-versions/<int:pk>/calculation/",
+        views.calculation_set,
+        name="calculation_set",
+    ),
+    path(
+        "method-versions/<int:pk>/calculation/clear/",
+        views.calculation_clear,
+        name="calculation_clear",
+    ),
+    path(
+        "method-versions/<int:pk>/calculation-inputs/new/",
+        views.calculation_input_new,
+        name="calculation_input_new",
+    ),
+    path(
+        "method-versions/<int:pk>/calculation-inputs/<int:input_pk>/remove/",
+        views.calculation_input_remove,
+        name="calculation_input_remove",
+    ),
     path("method-versions/<int:pk>/withdraw/", views.method_withdraw, name="method_withdraw"),
     path("materials/", views.material_list, name="materials"),
     path("materials/new/", views.material_new, name="material_new"),

@@ -1,0 +1,10 @@
+{% comment %}
+The sign-in announcement, drawn the same way on the sign-in page and in the administrator's
+preview. Context: announcement (accounts.LoginAnnouncement) and announcement_html, its text
+already rendered by accounts.announcements.announcement_html (escaped, then the documented subset).
+The title names the region and is not a heading: on the sign-in page it precedes the page's h1.
+{% endcomment %}
+<section class="vr-announcement"{% if announcement.title %} aria-labelledby="vr-announcement-title"{% else %} aria-label="Announcement"{% endif %}>
+  {% if announcement.title %}<p class="vr-announcement-title" id="vr-announcement-title">{{ announcement.title }}</p>{% endif %}
+  <div class="vr-announcement-body">{{ announcement_html }}</div>
+</section>

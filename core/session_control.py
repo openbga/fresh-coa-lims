@@ -23,9 +23,16 @@ def session_started(sender, request, user, **kwargs):
     now = timezone.now().timestamp()
     request.session["authenticated_at"] = now
     request.session["last_activity_at"] = now
+    # The generation read when the credentials were checked, when the sign-in view supplies it,
+    # so a security change committed in between ends this session too.
+    epoch = getattr(user, "authenticated_epoch", None)
     request.session["account_epoch"] = (
-        get_user_model().objects.values_list("session_epoch", flat=True).get(pk=user.pk)
+        epoch
+        if epoch is not None
+        else get_user_model().objects.values_list("session_epoch", flat=True).get(pk=user.pk)
     )
+    # What this sign-in proved; accounts.views.login_verify sets it after the second factor.
+    request.session["sign_in_factors"] = list(getattr(user, "sign_in_factors", ["password"]))
 
 
 class ControlledSessionMiddleware:
@@ -79,6 +86,24 @@ class ControlledSessionMiddleware:
                 }
             ):
                 response = redirect("accounts:password_change")
+            elif (
+                request.user.is_authenticated
+                and settings.MFA_REQUIRED_ROLES
+                and request.path
+                not in {
+                    reverse("accounts:two_factor"),
+                    reverse("accounts:two_factor_setup"),
+                    reverse("accounts:security_key_add"),
+                    reverse("accounts:password_change"),
+                    reverse("logout"),
+                    reverse("pagedocs:doc"),
+                    "/health/",
+                    "/ready/",
+                }
+                and two_factor_missing(request.user)
+            ):
+                # The deployment requires a second factor for this account and it has none yet.
+                response = redirect("accounts:two_factor")
             else:
                 response = self.get_response(request)
             if request.user.is_authenticated:
@@ -86,6 +111,12 @@ class ControlledSessionMiddleware:
             return response
         finally:
             current_request.reset(token)
+
+
+def two_factor_missing(user):
+    from accounts.two_factor import missing
+
+    return missing(user)
 
 
 def signing_context(actor):
@@ -118,4 +149,9 @@ def signing_context(actor):
         or now - last >= settings.SESSION_IDLE_SECONDS
     ):
         raise ValidationError("Session expired. Sign in again before signing.")
-    return {"channel": "web", "components": ["username", "pin"], "authenticated_at": started}
+    return {
+        "channel": "web",
+        "components": ["username", "pin"],
+        "authenticated_at": started,
+        "sign_in_factors": request.session.get("sign_in_factors", ["password"]),
+    }

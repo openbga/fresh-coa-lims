@@ -844,7 +844,7 @@ def test_use_search_finds_every_displayed_sample_reference_without_a_cap(client,
     client.force_login(people["quality"])
     url = reverse("laboratory:use_list")
     body = client.get(url, {"q": "ANALYTIC-SMP"}).content.decode()
-    assert f"T-{test.pk} · sample ANALYTIC-SMP-5" in body
+    assert f"T-{test.pk} · lot {lot.number} · sample ANALYTIC-SMP-5" in body
     assert newest.reference in client.get(url, {"q": "BULK-"}).content.decode()
 
 

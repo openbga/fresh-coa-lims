@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}<a href="{% url 'accounts:two_factor' %}">Two-factor sign-in</a>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="two-factor-scan"><div class="card-header"><h2 class="card-title" id="two-factor-scan">1. Add this account to your authenticator app</h2></div><div class="card-body vr-two-factor-key">
+<div class="vr-qr-frame" role="img" aria-label="QR code with the key for your authenticator app">{{ qr_svg }}</div>
+<div>
+<p>Scan the QR code with the app, or choose to enter a key in the app and type this key. The key is time-based and the app shows a 6-digit code that changes every 30 seconds.</p>
+<dl class="vr-facts mb-3"><div><dt>Account</dt><dd>{{ user.get_username }}</dd></div><div><dt>Key</dt><dd><code class="vr-secret-key">{{ secret_key }}</code></dd></div></dl>
+<p>Keep the key private: anyone who has it can produce your codes. It is shown only while you set up.</p>
+</div>
+</div></section>
+<section class="card" aria-labelledby="two-factor-confirm"><div class="card-header"><h2 class="card-title" id="two-factor-confirm">2. Confirm with a code from the app</h2></div><div class="card-body">
+{% if replacing %}<p>Your current authenticator app keeps working until you confirm the new one here.</p>{% endif %}
+<p>Finish within {{ setup_minutes }} minutes of starting, or start again. Wrong codes count toward the sign-in failure limit.</p>
+<form class="vr-form" method="post" autocomplete="off" novalidate>
+{% csrf_token %}{% include "includes/form_errors.html" with form=form %}
+{{ form.otp_code.as_field_group }}
+<div class="vr-form-actions"><a class="btn btn-link" href="{% url 'accounts:two_factor' %}">Cancel</a><button class="btn btn-primary" type="submit">Confirm and turn on</button></div>
+</form>
+</div></section>
+{% endblock %}

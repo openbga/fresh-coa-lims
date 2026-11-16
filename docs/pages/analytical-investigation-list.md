@@ -4,12 +4,12 @@ urls: analytical:investigation_list
 views: analytical.views.investigation_list
 templates: analytical/investigation_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_investigation_status.html
 models: analytical.Investigation
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
 
-List out-of-specification investigations. An open investigation holds its lot until quality signs a conclusion.
+List out-of-specification investigations. An open investigation holds its lot, or for a stability test its pull, until quality signs a conclusion.
 
 ## Who can use it
 
@@ -23,22 +23,23 @@ List out-of-specification investigations. An open investigation holds its lot un
 - **Header**: title "Testing", followed by the introduction.
 - **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Show open** when a search is entered or Status is not Open.
 - **Table** (caption "Investigations, newest first"): Investigation, Status, Lot, Test, Trigger, Opened. Footer count and pager.
-- **Empty states**: "No open investigations" ("A submitted out-of-specification result opens an investigation automatically.") and "No investigations match".
+- For an investigation of a stability test the Lot column shows the study's lot number as plain text, then a link to the stability pull with the note "stability pull". The investigation belongs to the pull, not to the lot.
+- **Empty states**: "No open investigations" ("A submitted out-of-specification result opens an investigation automatically.") and "No investigations match" ("Search covers lot numbers, stability study identifiers and test codes.").
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Apply** / **Show open** | Always / a search is entered or Status is not Open | Any viewer | Applies the filter or returns to open investigations |
-| Investigation, Lot and Test links | Each row | Any viewer | Open the investigation, the lot's testing page or the test |
+| Investigation, Lot and Test links | Each row | Any viewer | Open the investigation, the lot's testing page (or the stability pull) or the test |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Find | — | Text | No | Matches lot number or test code (case-insensitive) |
+| Find | — | Text | No | Matches lot number, stability study identifier, the lot number of a stability study, or test code (case-insensitive). Placeholder "Lot, study or test code" |
 | Status (filter) | `Investigation.phase` | Open, Closed, All investigations | No | Open means not closed |
-| Status (column) | `Investigation.phase`, `outcome` | Text | — | Phase I open · lot held; Phase II open · lot held; Closed · OOS confirmed; Closed · original invalidated |
+| Status (column) | `Investigation.phase`, `outcome` | Text | — | Phase I open · lot held; Phase II open · lot held ("pull held" instead of "lot held" for a stability test); Closed · OOS confirmed; Closed · original invalidated |
 | Trigger | `Investigation.trigger` | Text | — | Why it was opened |
 | Opened | `Investigation.opened_at` | Date and time | — | When it was opened |
 

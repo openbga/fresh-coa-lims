@@ -4,7 +4,7 @@ urls: laboratory:equipment_return
 views: laboratory.views.equipment_return
 templates: ops/sign.html
 models: laboratory.Equipment, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -20,7 +20,7 @@ Approve returning equipment to service after assessing the impact of its failure
 
 ## Layout
 
-- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts (including one line for each use to assess, up to 50, oldest first, as on the equipment record: the work with its link, test code, state and reportable result, or the number of tests in a QC batch; "More uses" gives the count not listed), signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 
@@ -35,6 +35,7 @@ Approve returning equipment to service after assessing the impact of its failure
 |---|---|---|---|---|
 | Description / Current state | `Equipment.description` and fitness | Display | — | The equipment and its fitness label (not the raw service state) |
 | Impact scope | — | Display | — | How many failed calibrations and recorded uses this return assesses |
+| Affected use 1, 2, … | `ResourceUse` | Text or link | — | The work each counted use was recorded for, with the facts above. Display only: the signature binds the counted uses and failures, not this text |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Impact assessment | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Sign in · OpenBGA Fresh CoA LIMS{% endblock %}
+{% block title %}Sign in · OpenBGA QM LIMS{% endblock %}
 {% block body_class %}vr-app vr-entrance-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
 {% block body %}
@@ -15,6 +15,7 @@
     <div class="vr-entrance-theme">{% include "includes/theme_menu.html" %}</div>
     <main id="main" class="vr-login-main" tabindex="-1">
       {% include "includes/brand.html" with variant="entrance" %}
+      {% if announcement %}{% include "accounts/includes/announcement.html" %}{% endif %}
       <div class="vr-entrance-panel">
         <h1>Sign in</h1>
         <p class="vr-entrance-lead">Use your individual laboratory account.</p>
@@ -25,8 +26,18 @@
           <input type="hidden" name="next" value="{{ next }}">
           <button class="btn btn-primary vr-login-submit" type="submit">Sign in</button>
         </form>
+        {% if single_sign_on %}
+        <a class="btn btn-outline-primary vr-login-submit" href="{% url 'login_sso' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Sign in with {{ single_sign_on }}</a>
+        {% endif %}
+        {% if passkey_sign_in %}
+        <form method="post" action="{% url 'login_passkey' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <button class="btn btn-outline-primary vr-login-submit" type="submit">Sign in with a passkey</button>
+        </form>
+        {% endif %}
       </div>
-      <p class="vr-login-help">Accounts are provisioned by your laboratory administrator. Repeated failed attempts pause password sign-in for that account for a while.</p>
+      <p class="vr-login-help">Accounts are provisioned by your laboratory administrator. Repeated failed attempts pause sign-in for that account for a while.{% if single_sign_on %} Sign in with {{ single_sign_on }} once you have linked your organization account on Organization sign-in under Account access.{% endif %}{% if passkey_sign_in %} A passkey or security key you added on Two-factor sign-in signs you in without your password when it checks your PIN, fingerprint or face.{% endif %}</p>
     </main>
     {% include "includes/app_footer.html" with centered=True %}
   </div>

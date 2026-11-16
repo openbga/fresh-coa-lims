@@ -4,7 +4,7 @@ urls: catalog:specification_version_new
 views: catalog.views.specification_version_new
 templates: catalog/form.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Creates the next draft version of an existing specification, starting from the t
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, the specification code, New version. Title: "New version of" and the code.
-- **Intro**: "The new draft copies the tests of the latest version. Its effective period must not overlap an approved version when it is approved."
+- **Intro**: "The new draft copies the tests of the latest version. When it is approved, an earlier approved version whose effective period it overlaps stops applying from this version's start, or from the moment of approval if that is later."
 - **Form sections**: Basis, Effective period, Change control.
 - **Buttons**: **Cancel** (back to the specification) and **Create draft version**.
 
@@ -36,15 +36,15 @@ Creates the next draft version of an existing specification, starting from the t
 |---|---|---|---|---|
 | Basis | `SpecificationRevision.basis` | Text | Yes | Help: "Scientific, compendial or contractual basis for these limits." Not prefilled from the previous version. |
 | Effective from (time zone) | `SpecificationRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
-| Effective until (time zone) | `SpecificationRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approved versions of one record must not overlap." |
+| Effective until (time zone) | `SpecificationRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approving a later version that overlaps ends this one earlier." |
 | Reason for change | `SpecificationRevision.change_reason` | Text, max 2000 | Yes | Why this change is made; stored on the new record and in its audit event. |
 
 
 ## Rules and hidden logic
 
 - **Numbering**: the new version number is the highest existing number plus one.
-- **Copied tests**: every test line of the highest-numbered version, whatever its status (including Withdrawn), is copied into the new draft with you as creator. You can then add or remove lines.
-- **Interval**: "The effective end must be after the start." The overlap check happens only at approval ("Effective dates overlap an approved version."), not here.
+- **Copied tests**: every test line of the highest-numbered version, whatever its status (including Withdrawn), is copied into the new draft with you as creator. You can then add or remove lines. Lines cannot be edited: a copied qualitative line without an expected outcome (from a version approved before outcomes were recorded), or any copied line that no longer meets the Add test rules, must be removed and added again before the draft can be approved.
+- **Interval**: "The effective end must be after the start." Overlap is worked out only at approval, where this version retires an earlier approved version whose period it overlaps (see Approve specification version), not here.
 - **Several drafts** may exist at once; the page does not prevent it.
 - **Audit**: `specification_revision.created`, recording which version the tests were copied from, with your reason.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.

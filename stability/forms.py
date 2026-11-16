@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
 
+from catalog.models import Specification
 from laboratory.eligibility import equipment_eligibility
 from laboratory.forms import (
     DATE,
@@ -25,7 +26,24 @@ from .models import (
 __all__ = ["ReasonForm", "SigningForm"]
 
 
+class SpecificationChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return (
+            f"{obj.code} · {obj.title} ({obj.material.code}, {obj.get_stage_display()}, "
+            f"scope {obj.scope})"
+        )
+
+
 class ProtocolForm(forms.ModelForm):
+    specification = SpecificationChoiceField(
+        queryset=Specification.objects.none(),
+        required=False,
+        label="Acceptance criteria (specification)",
+        help_text="The specification whose approved version in force states the acceptance "
+        "criterion of each test, for example the shelf-life specification of the product. "
+        "Pulls are then tested in the system. Leave empty to link samples or external "
+        "evidence instead. It cannot be changed later; a new protocol version names another.",
+    )
     reason = reason_field(max_length=2000)
 
     class Meta:
@@ -37,9 +55,16 @@ class ProtocolForm(forms.ModelForm):
             "document_ref",
             "document_url",
             "test_profile_ref",
+            "specification",
             "basis",
         ]
         widgets = {"basis": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["specification"].queryset = Specification.objects.select_related(
+            "material"
+        ).order_by("code")
 
 
 class ConditionForm(forms.ModelForm):
@@ -132,6 +157,17 @@ class PullForm(forms.Form):
             if equipment_eligibility(item).ok
         ]
         self.fields["chamber"].queryset = Equipment.objects.filter(pk__in=fit)
+
+
+class PullTestsForm(ReasonForm):
+    """Assign a pull's tests. ``criteria`` is the token of the acceptance criteria the page
+    shows; the service refuses the assignment when the criteria in force differ from it."""
+
+    criteria = forms.CharField(widget=forms.HiddenInput, max_length=64)
+
+
+class WithdrawProtocolForm(ReasonForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
 
 
 class EvidenceForm(forms.Form):

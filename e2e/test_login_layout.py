@@ -58,7 +58,9 @@ def test_login_themes_layout_and_keyboard_submission(live_server, django_user_mo
         expect(page.get_by_role("alert")).to_contain_text("correct username and password")
         expect(username).to_have_value(user.username)
         expect(secret).to_have_value("")
-        assert page.locator('input[name="next"]').input_value() == "/audit/"
+        # Both the password form and the passkey button keep the requested page.
+        for field in page.locator('input[name="next"]').all():
+            assert field.input_value() == "/audit/"
         expect(page.get_by_role("link", name="Source code")).to_be_visible()
         page.screenshot(path=str(artifacts / "login-error-320.png"), full_page=True)
 

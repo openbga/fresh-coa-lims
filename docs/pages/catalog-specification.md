@@ -4,7 +4,7 @@ urls: catalog:specification
 views: catalog.views.specification_detail
 templates: catalog/specification_detail.html
 models: catalog.Specification, catalog.SpecificationRevision, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -20,7 +20,7 @@ Shows one specification: what it applies to, all of its versions with status, ef
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, the specification code. The specification title is shown under the heading.
-- **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay; never merged with other scopes)".
+- **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them)".
 - **Versions** table, newest version first: Version (link), Status, Effective, Tests, Author, Approval.
 - **Approval column**: each signature as "Signed", signer name, meaning, time, "record revision N" and a shortened content hash; "Not signed." when none.
 - **History**: audit events of the specification and of all its versions (version creation, tests added or removed, approvals, withdrawals), oldest first, or "No recorded history."
@@ -39,19 +39,20 @@ Shows one specification: what it applies to, all of its versions with status, ef
 |---|---|---|---|---|
 | Material | `Specification.material` | "code · name" | — | Material covered. |
 | Stage | `Specification.stage` | Choice label | — | Stage covered. |
-| Scope | `Specification.scope` | Text | — | General or named overlay. |
+| Scope | `Specification.scope` | Text | — | "general", or a named market or customer overlay. A lot is assigned under one or more scopes; the specification of each applies to it in full. |
 | Version | `SpecificationRevision.version` | Integer | — | Version number within this specification. |
 | Status | `SpecificationRevision.status` | Draft, Approved, Withdrawn | — | Only Approved versions can be used for lots. |
-| Effective | `SpecificationRevision.effective_from`, `effective_until` | Date and time range | — | "start to end"; the end is exclusive. |
+| Effective | `SpecificationRevision.effective_from`, `effective_until`, `superseded_from`, `superseded_by` | Date and time range | — | "start to end"; the end is exclusive. When a later version retired it, a second line reads "Superseded by version N from <time>", or "Superseded by version N before it took effect" when it never applied. |
 | Tests | — | Count | — | Number of test lines on the version. |
 | Author | `SpecificationRevision.author` | User | — | Who created the version (full name, else username). |
 
 ## Rules and hidden logic
 
 - **Order**: versions are listed by version number, newest first; the History list is oldest first.
+- **Scope and lots**: when a lot's requirements are assigned under this specification's scope, its version in force applies to the lot in full, beside the specifications of the lot's other scopes. Nothing is merged: a test stated alike is one requirement, and a test stated differently holds the lot until quality signs which requirement applies (Decide conflicting requirements, or Replace lot requirements once testing has started).
 - **History**: includes the events of every version of this specification as well as its own, oldest first.
 - **Immutability**: approved and withdrawn versions cannot be changed at the database level; a draft's header content is fixed at creation.
-- **Effective intervals** are half-open (start inclusive, end exclusive) and approved versions of one specification may not overlap.
+- **Effective intervals** are half-open (start inclusive, end exclusive). The version used for new lots is the approved one that applies now: inside its period and not superseded. Approving a later version whose period overlaps an approved one retires the earlier one from the later of the new version's start and the moment of approval (never retroactively); the earlier version keeps its approved content and signature. Approving a draft that overlaps an approved version numbered after it is refused. Lots keep the versions frozen for them.
 - Audit action names are shown as stored (for example `specification.created`).
 
 ## Related pages

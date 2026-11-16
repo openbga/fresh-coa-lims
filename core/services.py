@@ -1,16 +1,21 @@
 import hashlib
 import json
+import re
 from datetime import timedelta
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_variables
 
 from .audit import record_event, snapshot
 from .models import AuditEvent, AuditReview, ElectronicSignature, PINCredential, RuleSet
+
+AUDIT_READ_ROLES = frozenset({"admin", "quality", "auditor"})
 
 
 def require_role(actor, *roles):
@@ -35,6 +40,10 @@ def set_pin(*, actor, pin, password):
         actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
         if not actor.is_active or actor.password != verified:  # Changed since the confirmation.
             raise PermissionDenied("Password confirmation failed.")
+        if actor.credentials_locked:
+            from accounts.administration import CREDENTIALS_LOCKED
+
+            raise PermissionDenied(CREDENTIALS_LOCKED)
         PINCredential.objects.update_or_create(
             user=actor,
             defaults={"encoded": make_password(pin), "failures": 0, "locked_until": None},
@@ -97,7 +106,16 @@ def lock_signer(actor, permission, encoded):
 
 
 @sensitive_variables("pin", "encoded")
-def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, permission, apply):
+def sign_transition(
+    *, actor, pin, obj, expected_revision, meaning, reason, permission, apply, prepare=None
+):
+    """Sign one record: verify the PIN, lock the signer and the record, recheck its revision,
+    apply the change and commit it with the signature and the audit event, or nothing.
+
+    ``prepare`` runs inside the transaction after the signer is locked and before the record
+    is: a transition that also writes rows which its module locks ahead of this record takes
+    those locks there, so that it never locks out of order.
+    """
     require_role(actor, permission)
     if not reason.strip() or not meaning.strip():
         raise ValidationError("Meaning and reason are required.")
@@ -107,6 +125,8 @@ def sign_transition(*, actor, pin, obj, expected_revision, meaning, reason, perm
     encoded = verify_pin(actor, pin)
     with transaction.atomic():
         actor = lock_signer(actor, permission, encoded)
+        if prepare is not None:
+            prepare()
         locked = type(obj).objects.select_for_update().get(pk=obj.pk)
         if locked.revision != expected_revision:
             raise ValidationError("Record changed. Reload and review before signing.")
@@ -151,14 +171,121 @@ def validate_rules(rule, at=None):
         rule.status != "approved"
         or rule.effective_from > at
         or (rule.effective_until and rule.effective_until <= at)
+        or (rule.superseded_from and rule.superseded_from <= at)
     ):
         raise ValidationError("An approved, effective rule revision is required.")
     validate_policy(rule.policy)
 
 
+def validate_approved_rules(rule):
+    """An approved rule version with a valid policy, whether or not it is still in force.
+
+    For steps that evaluate what was already recorded under it (the review of a result).
+    Assigning tests and the disposition need the version in force (``validate_rules``), so a
+    version retired meanwhile never strands a result awaiting review or an investigation.
+    """
+    if rule.status != "approved":
+        raise ValidationError("An approved rule revision is required.")
+    validate_policy(rule.policy)
+
+
+def applies_at(at):
+    """Filter for approved versions that apply at ``at``: inside their effective period and not
+    yet superseded by a later version. Shared by rule sets and controlled catalog revisions,
+    which name these columns alike."""
+    return (
+        Q(status="approved", effective_from__lte=at)
+        & (Q(effective_until__isnull=True) | Q(effective_until__gt=at))
+        & (Q(superseded_from__isnull=True) | Q(superseded_from__gt=at))
+    )
+
+
+def supersession_plan(siblings, revision, at):
+    """[(earlier version, moment it stops applying)] for approving ``revision`` at ``at``.
+
+    ``siblings`` are the other versions of the same document. An approved version whose
+    remaining period overlaps the new version's is retired when the new one takes over: at the
+    later of the new version's start and ``at``, so never retroactively, or at its own start
+    when it had not begun (it then never applies). A version already retired is only ever
+    retired earlier. A draft cannot retire a version numbered after it.
+    """
+    start = max(revision.effective_from, at)
+    if revision.effective_until is None or revision.effective_until <= start:
+        return []
+    overlapping = siblings.filter(
+        status="approved", effective_from__lt=revision.effective_until
+    ).filter(
+        Q(superseded_from__isnull=True)
+        & (Q(effective_until__isnull=True) | Q(effective_until__gt=start))
+        | Q(superseded_from__gt=start)
+    )
+    plan = []
+    for other in overlapping.order_by("version"):
+        moment = max(other.effective_from, start)
+        if other.superseded_from is not None and other.superseded_from <= moment:
+            continue  # already retired by then (for example a version that never applies)
+        if other.version > revision.version:
+            raise ValidationError(
+                f"Version {other.version} is already approved for these dates, and a version "
+                "cannot retire a later one. Withdraw this draft and create a new version."
+            )
+        plan.append((other, moment))
+    return plan
+
+
+def supersede(*, actor, plan, revision, action, reason):
+    """Retire the planned versions inside the approval's transaction, each with its audit event.
+
+    Only the two supersession columns change; the approved content and its signature stay as
+    they are. The caller holds the lock that serializes approvals of this kind of document.
+    """
+    for other, moment in plan:
+        before = {
+            "superseded_from": other.superseded_from.isoformat() if other.superseded_from else None,
+            "superseded_by": other.superseded_by_id,
+        }
+        other.superseded_from = moment
+        other.superseded_by = revision
+        other.save(update_fields=["superseded_from", "superseded_by"])
+        record_event(
+            actor=actor,
+            action=action,
+            obj=other,
+            before=before,
+            after={"superseded_from": moment.isoformat(), "superseded_by": revision.pk},
+            reason=f"Superseded by the approval of {revision}. {reason}",
+        )
+
+
+POLICY_KEYS = frozenset({"required_tests", "review_meaning", "disposition_meaning"})
+# Optional. A rule set that carries it lets a qualified supplier's certificate result stand in
+# for a test, except for the tests it lists under ``own_tests``, which the laboratory always
+# performs itself. A rule set without it allows no such reliance.
+SUPPLIER_RESULTS = "supplier_results"
+OWN_TESTS = "own_tests"
+# Optional. A rule set that carries it is not chosen when a lot is received: it applies, in
+# addition to the lot's own rule set, to every lot whose material, stage and scopes it names.
+# A dimension it leaves out matches every lot. The site is the deployment.
+APPLIES_TO = "applies_to"
+APPLIES_TO_KEYS = ("materials", "stages", "scopes")
+OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO})
+SCOPE_NAME = re.compile(r"[-a-zA-Z0-9_]+")
+
+
+def _codes(value, *, allow_empty=False):
+    """True for a list of codes: non-empty text without surrounding space, each listed once."""
+    return (
+        isinstance(value, list)
+        and (allow_empty or bool(value))
+        and all(isinstance(t, str) and t.strip() and t == t.strip() for t in value)
+        and len(set(value)) == len(value)
+    )
+
+
 def validate_policy(policy):
-    allowed = {"required_tests", "review_meaning", "disposition_meaning"}
-    if not isinstance(policy, dict) or set(policy) != allowed:
+    if not isinstance(policy, dict) or not POLICY_KEYS <= set(policy) <= (
+        POLICY_KEYS | OPTIONAL_POLICY_KEYS
+    ):
         raise ValidationError("Unsupported or missing rule policy keys.")
     tests = policy["required_tests"]
     if (
@@ -169,6 +296,156 @@ def validate_policy(policy):
         raise ValidationError("At least one required test code is needed.")
     if policy["review_meaning"] != "reviewed" or policy["disposition_meaning"] != "approved":
         raise ValidationError("This foundation supports reviewed and approved signature meanings.")
+    if SUPPLIER_RESULTS in policy:
+        reliance = policy[SUPPLIER_RESULTS]
+        own = reliance.get(OWN_TESTS) if isinstance(reliance, dict) else None
+        if (
+            not isinstance(reliance, dict)
+            or set(reliance) != {OWN_TESTS}
+            or not _codes(own, allow_empty=True)
+        ):
+            raise ValidationError(
+                "supplier_results must hold exactly own_tests: a list of the test codes the "
+                "laboratory always performs itself, each listed once (the list may be empty)."
+            )
+        # A code the rule set does not require could be a slip that leaves the intended test
+        # open to reliance; a required code the specification lacks holds the lot instead.
+        unknown = [t for t in own if t not in tests]
+        if unknown:
+            raise ValidationError(
+                "own_tests must be among required_tests; not required: " + ", ".join(unknown) + "."
+            )
+    if APPLIES_TO in policy:
+        where = policy[APPLIES_TO]
+        if (
+            not isinstance(where, dict)
+            or not where
+            or not set(where) <= set(APPLIES_TO_KEYS)
+            or not all(_codes(value) for value in where.values())
+        ):
+            raise ValidationError(
+                "applies_to must say where the rule set applies with at least one of "
+                "materials, stages and scopes, each a list of codes listed once."
+            )
+        # A scope is matched by its name: one that could never be entered for a lot would
+        # leave the rule set silently without effect.
+        for scope in where.get("scopes", []):
+            if len(scope) > 60 or not SCOPE_NAME.fullmatch(scope):
+                raise ValidationError(
+                    f"applies_to names “{scope}”, which is not a scope name: use letters, "
+                    "digits, - and _, at most 60 characters."
+                )
+
+
+def is_additional(rule):
+    """True for a rule set that applies in addition to a lot's own rule set (``applies_to``)."""
+    return isinstance(rule.policy, dict) and isinstance(rule.policy.get(APPLIES_TO), dict)
+
+
+def rule_applies(rule, *, material, stage, scopes):
+    """Whether an additional rule set version applies to a lot of this material code, at this
+    stage, under these scopes. Every dimension it names must match; one of its scopes is
+    enough. A rule set without ``applies_to`` never applies this way."""
+    if not is_additional(rule):
+        return False
+    where = rule.policy[APPLIES_TO]
+    return (
+        ("materials" not in where or material in where["materials"])
+        and ("stages" not in where or stage in where["stages"])
+        and ("scopes" not in where or bool(set(where["scopes"]) & set(scopes)))
+    )
+
+
+def additional_rules(*, material, stage, scopes, at, exclude_code=None):
+    """The additional rule set versions in force at ``at`` that apply to such a lot, by code.
+
+    One version per rule set: the latest of those that apply at ``at``, as for a lot's own
+    rule set. Nothing is selected by a rule set that states no ``applies_to``.
+    """
+    latest = {}
+    for rule in RuleSet.objects.filter(applies_at(at)).order_by("code", "version"):
+        latest[rule.code] = rule
+    return [
+        rule
+        for code, rule in latest.items()
+        if code != exclude_code
+        and rule_applies(rule, material=material, stage=stage, scopes=scopes)
+    ]
+
+
+def applicability_problems(policy):
+    """Codes under ``applies_to`` that name nothing: an unknown material or stage never
+    matches a lot, so the rule set would silently never apply. Read through the app registry;
+    rule sets do not depend on the catalog."""
+    where = policy.get(APPLIES_TO) if isinstance(policy, dict) else None
+    if not isinstance(where, dict) or not apps.is_installed("catalog"):
+        return []
+    problems = []
+    if "materials" in where:
+        material = apps.get_model("catalog", "Material")
+        known = set(
+            material.objects.filter(code__in=where["materials"]).values_list("code", flat=True)
+        )
+        if unknown := [code for code in where["materials"] if code not in known]:
+            problems.append("applies_to names unknown materials: " + ", ".join(unknown) + ".")
+    if "stages" in where:
+        field = apps.get_model("catalog", "Specification")._meta.get_field("stage")
+        known = {value for value, _ in field.choices}
+        if unknown := [code for code in where["stages"] if code not in known]:
+            problems.append(
+                "applies_to names unknown stages: "
+                + ", ".join(unknown)
+                + ". Use "
+                + ", ".join(sorted(known))
+                + "."
+            )
+    return problems
+
+
+def check_applicability(policy, earlier=None):
+    """Refuse an ``applies_to`` that names nothing known, and a version that changes what kind
+    of rule set this is: a lot's own rule set and an additional one are never the same code."""
+    if problems := applicability_problems(policy):
+        raise ValidationError(problems)
+    if earlier is not None and is_additional(earlier) != (APPLIES_TO in policy):
+        raise ValidationError(
+            f"Rule set {earlier.code} "
+            + (
+                "applies in addition to a lot's own rule set, so every version states applies_to."
+                if is_additional(earlier)
+                else "is chosen when a lot is received, so no version states applies_to. "
+                "Create an additional rule set under another code."
+            )
+        )
+
+
+def supplier_reliance_refusal(rule, test_code):
+    """Why this rule revision does not let a supplier's result stand in for the test, or "".
+
+    The rule set decides, never a default: without ``supplier_results`` nothing is relied on,
+    and a test it lists under ``own_tests`` is always performed by the laboratory.
+    """
+    reliance = rule.policy.get(SUPPLIER_RESULTS) if isinstance(rule.policy, dict) else None
+    if not isinstance(reliance, dict):
+        return (
+            f"Rule set {rule} does not allow a supplier's result to stand in for a test. "
+            "Every required test is performed by the laboratory."
+        )
+    if test_code in reliance.get(OWN_TESTS, []):
+        return (
+            f"Rule set {rule} requires the laboratory to perform {test_code} itself; a "
+            "supplier's result cannot stand in for it."
+        )
+    return ""
+
+
+def own_tests(rule):
+    """The tests the rule revision keeps with the laboratory, or None when it allows no
+    reliance on supplier results at all."""
+    reliance = rule.policy.get(SUPPLIER_RESULTS) if isinstance(rule.policy, dict) else None
+    if not isinstance(reliance, dict):
+        return None
+    return list(reliance.get(OWN_TESTS, []))
 
 
 def save_rule(*, actor, code, segment, policy, effective_from, reason, effective_until=None):
@@ -183,6 +460,7 @@ def save_rule(*, actor, code, segment, policy, effective_from, reason, effective
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(681240)")
         latest = RuleSet.objects.filter(code=code).order_by("-version").first()
+        check_applicability(policy, latest)
         rule = RuleSet.objects.create(
             code=code,
             segment=segment,
@@ -198,10 +476,12 @@ def save_rule(*, actor, code, segment, policy, effective_from, reason, effective
         return rule
 
 
-def check_rule_approval(*, actor, rule):
-    """Read-only preflight; signing repeats it under the record/configuration locks."""
-    from django.db import models
+def check_rule_approval(*, actor, rule, at=None):
+    """Read-only preflight; signing repeats it under the record/configuration locks.
 
+    Returns the approved versions of the rule set this approval retires, each with the moment
+    it stops applying (see ``supersession_plan``).
+    """
     require_role(actor, "quality")
     if rule.author_id == actor.pk:
         raise PermissionDenied("Rule authors cannot approve their own revision.")
@@ -210,23 +490,21 @@ def check_rule_approval(*, actor, rule):
     validate_policy(rule.policy)
     if rule.effective_until is None:
         raise ValidationError("An effective end date is required for approval.")
-    overlaps = RuleSet.objects.filter(
-        code=rule.code, status="approved", effective_from__lt=rule.effective_until
-    ).filter(
-        models.Q(effective_until__isnull=True) | models.Q(effective_until__gt=rule.effective_from)
-    )
-    if overlaps.exists():
-        raise ValidationError("Effective dates overlap an approved revision.")
+    siblings = RuleSet.objects.filter(code=rule.code).exclude(pk=rule.pk)
+    check_applicability(rule.policy, siblings.order_by("version").first())
+    return supersession_plan(siblings, rule, at or timezone.now())
 
 
 @sensitive_variables("pin")
 def approve_rule(*, actor, pin, rule, expected_revision, reason):
     # Credential serialization is not sufficient for approvals by different people.
-    # Callback acquires global configuration lock before overlap check.
+    # The callback takes the global configuration lock before it works out which approved
+    # versions this one retires.
     def serialized(locked):
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(681240)")
-        check_rule_approval(actor=actor, rule=locked)
+        plan = check_rule_approval(actor=actor, rule=locked, at=locked._signing_timestamp)
+        supersede(actor=actor, plan=plan, revision=locked, action="rule.superseded", reason=reason)
         locked.status = "approved"
 
     return sign_transition(

@@ -43,6 +43,19 @@ QUANTITY_UNITS = [
     ("units", "units (items)"),
 ]
 
+# Units of the raw measurements a calculation starts from: every result and quantity unit plus
+# the few that only occur before a calculation (volumes, amounts, instrument responses).
+INPUT_EXTRA_UNITS = [
+    ("µL", "µL"),
+    ("µg", "µg"),
+    ("mmol/L", "mmol/L"),
+    ("mol/L", "mol/L"),
+    ("peak area", "peak area"),
+    ("AU", "AU (absorbance units)"),
+    ("factor", "factor (dimensionless)"),
+]
+INPUT_UNITS = RESULT_UNITS + QUANTITY_UNITS + INPUT_EXTRA_UNITS
+
 
 def plain(value):
     """Exact Decimal as a plain string without exponent or padded scale; None stays None."""

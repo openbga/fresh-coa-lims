@@ -4,7 +4,7 @@ urls: sampling:plan
 views: sampling.views.plan_detail
 templates: sampling/plan_detail.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -41,14 +41,14 @@ Shows a sampling plan with every version, its content, signatures and history. Q
 | Minimum total amount | `SamplingPlanRevision.minimum_quantity`, `quantity_unit` | Decimal with unit | — | Least amount to collect. |
 | Instructions | `SamplingPlanRevision.instructions` | Text | — | Procedure. |
 | Rationale | `SamplingPlanRevision.rationale` | Text | — | Why the plan is representative. |
-| Effective | `SamplingPlanRevision.effective_from`, `effective_until` | Date and time range | — | End exclusive. |
+| Effective | `SamplingPlanRevision.effective_from`, `effective_until`, `superseded_from`, `superseded_by` | Date and time range | — | End exclusive. When a later version retired it, a second line reads "Superseded by version N from <time>", or "Superseded by version N before it took effect" when it never applied. |
 | Record revision | `SamplingPlanRevision.revision` | Integer | — | Increases at approval and withdrawal. |
 | Author | `SamplingPlanRevision.author` | User | — | Who created the version. |
 
 ## Rules and hidden logic
 
 - **Immutability**: approved and withdrawn versions cannot be changed at the database level; draft content is fixed at creation.
-- **Effective intervals** are half-open and approved versions of one plan may not overlap.
+- **Effective intervals** are half-open. The version used for new lots is the approved one that applies now: inside its period and not superseded. Approving a later version whose period overlaps an approved one retires the earlier one from the later of the new version's start and the moment of approval (never retroactively); the earlier version keeps its approved content and signature. Approving a draft that overlaps an approved version numbered after it is refused. Lots keep the versions frozen for them.
 - **Independence**: the author, or anyone who changed the draft, cannot approve it.
 - **Order**: versions newest first; history oldest first.
 - Audit actions are shown as stored, for example `sampling_plan_revision.created`.

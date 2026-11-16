@@ -24,6 +24,22 @@ def test_profiles_are_drafts_idempotent_and_resolve_after_independent_approval(p
     for model in MODELS:
         for revision in model.objects.all():
             approve(revision, people["approver"])
+    # Two methods calculate their result; their specification lines use the calculated unit, so
+    # the independent approvals above accepted them.
+    content = {r.method.code: r.approved_content for r in MethodRevision.objects.all()}
+    water = content["kf-water"]
+    assert water["calculation"]["formula"] == "titrant_volume * titer / sample_mass * 100"
+    assert [i["code"] for i in water["calculation"]["inputs"]] == [
+        "titrant_volume",
+        "titer",
+        "sample_mass",
+    ]
+    assert (water["requires_equipment"], water["requires_reagent"]) == (True, True)
+    drying = content["loss-on-drying"]
+    assert (drying["calculation"]["unit"], drying["calculation"]["decimals"]) == ("%", 2)
+    assert (drying["requires_equipment"], drying["requires_reagent"]) == (True, False)
+    assert content["hplc-assay"]["calculation"] is None
+    assert not content["hplc-assay"]["requires_equipment"]
     rules = approved_rules(people["author"])
     for revision in specs:
         spec = revision.specification

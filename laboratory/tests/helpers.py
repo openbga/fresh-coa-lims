@@ -5,8 +5,9 @@ from datetime import timedelta
 from django.utils import timezone
 
 from core.models import RuleSet
-from laboratory import services
+from laboratory import contract, services
 from quality.services import add_sample, receive_lot
+from tests.receipts import on_site_receipt
 
 PIN = "82519374"
 PASSWORD = "synthetic-test-password-847"
@@ -208,6 +209,7 @@ def make_lot(people, number="SYN-LOT-1"):
         material="Synthetic powder",
         rules=make_rules(people, f"rules-{number}"),
         reason="Synthetic receipt",
+        receipt=on_site_receipt(),
     )
 
 
@@ -220,3 +222,40 @@ def make_sample(people, lot=None, reference="SYN-S-1", collected_at=None):
         collected_at=collected_at or timezone.now(),
         reason="Synthetic sample",
     )
+
+
+def make_contract_laboratory(people, code="cl-syn-001"):
+    return contract.register_contract_laboratory(
+        actor=people["quality"],
+        code=code,
+        name="Synthetic Contract Analytics",
+        location="Synthetic City, Nowhere",
+        reason="Synthetic contract laboratory",
+    )
+
+
+def approve_contract_laboratory(
+    people, laboratory, method_code="HPLC-ASSAY", *, sign=True, days_before=30, days_after=365
+):
+    """Record approval evidence as "quality"; when `sign`, "quality2" approves it."""
+    today = timezone.localdate()
+    approval = contract.record_contract_approval(
+        actor=people["quality"],
+        laboratory=laboratory,
+        method_code=method_code,
+        scope_note="",
+        evidence_ref="QAG-SYN-001 rev 1",
+        evidence_url="",
+        valid_from=today - timedelta(days=days_before),
+        valid_until=today + timedelta(days=days_after),
+        reason="Synthetic quality agreement",
+    )
+    if sign:
+        approval = contract.approve_contract_approval(
+            actor=people["quality2"],
+            pin=PIN,
+            approval=approval,
+            expected_revision=approval.revision,
+            reason="Independent approval",
+        )
+    return approval

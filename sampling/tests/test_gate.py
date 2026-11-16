@@ -16,6 +16,7 @@ from quality.services import add_sample, receive_lot
 from sampling import services
 from sampling.models import DeviationReview, SamplingRecord
 from sampling.services import lot_blockers
+from tests.receipts import on_site_receipt
 
 from .test_services import assign, ready, sample  # noqa: F401
 
@@ -228,6 +229,7 @@ def test_lot_author_ids_cover_every_sample_and_only_this_lot(people, ready):  # 
             material=ready["material"].name,
             rules=ready["rules"],
             reason="Synthetic receipt",
+            receipt=on_site_receipt(),
         ),
     }
     assign(people, other)
@@ -334,9 +336,11 @@ def test_reassignment_refused_once_native_testing_started(client, people, ready)
     url = reverse("sampling:assign", args=[ready["lot"].pk])
     assert client.get(url).status_code == 302
     body = client.get(reverse("sampling:lot", args=[ready["lot"].pk])).content.decode()
-    assert url not in body and "cannot be reassigned" in body
+    assert url not in body and "cannot be assigned again" in body
+    assert reverse("sampling:replace", args=[ready["lot"].pk]) not in body  # analyst, no change
     response = client.post(
-        url, {"material": first.material_id, "stage": "incoming", "scope": "general", "reason": "x"}
+        url,
+        {"material": first.material_id, "stage": "incoming", "scopes": "general", "reason": "x"},
     )
     assert response.status_code == 302
     assert services.current_assignment(ready["lot"]) == first

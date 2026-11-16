@@ -63,9 +63,15 @@ MUTATIONS = {
     "catalog:method_approve": (("method_draft",), "approver"),
     "catalog:qc_check_new": (("method_draft",), "approver"),
     "catalog:qc_check_remove": (("method_draft", "qc_check"), "approver"),
+    "catalog:calculation_set": (("method_draft",), "approver"),
+    "catalog:calculation_clear": (("method_draft",), "approver"),
+    "catalog:calculation_input_new": (("method_draft",), "approver"),
+    "catalog:calculation_input_remove": (("method_draft", "calc_input"), "approver"),
     "catalog:method_withdraw": (("method_draft",), "approver"),
     "catalog:material_new": ((), "approver"),
     "sampling:assign": (("lot",), "analyst"),
+    "sampling:replace": (("lot_testing",), "approver"),
+    "sampling:decide": (("lot_conflict",), "approver"),
     "sampling:sampling_new": (("lot",), "analyst"),
     "sampling:sampling_correct": (("record",), "analyst"),
     "sampling:deviation_assess": (("record",), "approver"),
@@ -85,6 +91,64 @@ PAYLOAD = {
     "title": "Synthetic admin attempt",
     "name": "Synthetic admin attempt",
 }
+
+
+def lot_in_testing(people, ready):  # noqa: F811
+    """A second lot whose testing has started and whose method was revised since: the only
+    state in which its requirements can be replaced."""
+    from analytical.models import AnalyticalTest
+    from quality.services import receive_lot
+    from sampling import services as sampling
+    from tests.receipts import on_site_receipt
+
+    from .test_services import sample
+
+    lot = receive_lot(
+        actor=people["analyst"],
+        number="SYN-LOT-T1",
+        material=ready["material"].name,
+        rules=ready["rules"],
+        reason="Synthetic receipt",
+        receipt=on_site_receipt(),
+    )
+    second = {**ready, "lot": lot}
+    assign(people, second)
+    taken = sample(people, second, reference="SYN-S-T1")
+    AnalyticalTest.objects.create(
+        lot=lot,
+        sample=taken.sample,
+        test_code="assay",
+        requirement=sampling.test_requirements(lot)["assay"],
+        requirement_hash="0" * 64,
+        created_by=people["analyst"],
+    )
+    method = ready["spec"].tests.get(code="assay").method
+    approve(method_revision(people["author"], method=method), people["approver"])
+    return lot
+
+
+def lot_with_conflict(people, ready):  # noqa: F811
+    """A third lot assigned under the general scope and a market scope whose specification
+    states the assay differently: held until quality decides which requirement applies."""
+    from quality.services import receive_lot
+    from tests.receipts import on_site_receipt
+
+    author = people["author"]
+    overlay = specification(author, ready["material"], code="spec-eu", scope="eu-market")[1]
+    method = ready["spec"].tests.get(code="assay").method
+    numeric_line(author, overlay, method, code="assay", low="99.0", high="101.0")
+    approve(overlay, people["approver"])
+    lot = receive_lot(
+        actor=people["analyst"],
+        number="SYN-LOT-C1",
+        material=ready["material"].name,
+        rules=ready["rules"],
+        reason="Synthetic receipt",
+        receipt=on_site_receipt(),
+    )
+    held = assign(people, {**ready, "lot": lot}, scopes=["general", "eu-market"])
+    assert held.status == "hold", held.hold_reasons
+    return lot
 
 
 @pytest.fixture
@@ -123,10 +187,22 @@ def world(people, ready):  # noqa: F811
         unit="%",
         upper_limit=Decimal("0.05"),
     )
+    calc_input = catalog.add_calculation_input(
+        actor=author,
+        revision=method_draft,
+        reason="Input",
+        code="peak_area",
+        name="Peak area",
+        unit="peak area",
+    )
     plan_draft = plan_revision(author, material(author, code="syn-api-002"))
     assign(people, ready)
     record = short(people, ready)
+    testing = lot_in_testing(people, ready)
+    conflict = lot_with_conflict(people, ready)
     return {
+        "lot_testing": testing.pk,
+        "lot_conflict": conflict.pk,
         "spec": ready["spec"].specification.pk,
         "spec_approved": ready["spec"].pk,
         "spec_draft": spec_draft.pk,
@@ -135,6 +211,7 @@ def world(people, ready):  # noqa: F811
         "method_approved": ready["spec"].tests.first().method_id,
         "method_draft": method_draft.pk,
         "qc_check": qc_check.pk,
+        "calc_input": calc_input.pk,
         "plan": plan_draft.plan_id,
         "plan_approved": ready["plan"].plan_id,
         "plan_draft": plan_draft.pk,

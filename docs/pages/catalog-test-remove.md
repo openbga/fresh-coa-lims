@@ -4,7 +4,7 @@ urls: catalog:test_remove
 views: catalog.views.test_remove
 templates: catalog/form.html
 models: catalog.SpecificationTest, catalog.SpecificationRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-12
 ---
 
 ## Purpose
@@ -37,7 +37,7 @@ Removes one test line from a draft specification version, recording why.
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Test | `SpecificationTest.code`, `name` | Text | — | The line being removed. |
-| Criterion | derived from limits | Text | — | Acceptance criterion in words and symbols. |
+| Criterion | derived from limits, or expected outcome and criterion | Text | — | Acceptance criterion in words and symbols, e.g. "> 5 and ≤ 10 mg/g" or "Absent: Not detected in 25 g". |
 | Method | `SpecificationTest.method` | Method code | — | Method of the test. |
 | Reason | audit event reason | Text, max 2000 | Yes | Why the test is removed. |
 | Expected revision | — | Hidden integer | Yes | Record revision when the page opened. |

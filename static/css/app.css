@@ -1,5 +1,5 @@
 /*
- * OpenBGA Fresh CoA LIMS application theme for Bootstrap 5.3: the "field notebook".
+ * OpenBGA QM LIMS application theme for Bootstrap 5.3: the "field notebook".
  *
  * Bootstrap supplies every control, dialog, dropdown, table and form widget; DataTables supplies
  * grid behaviour. This file sets the design tokens for the light and dark colour modes
@@ -946,6 +946,15 @@ s,
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* The product token stays visible; the prefix remains in the accessible name. */
+  .vr-topbar > .vr-brand .vr-brand-prefix {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .vr-topbar > .vr-brand img,
@@ -2308,6 +2317,10 @@ fieldset.vr-field > legend {
   resize: vertical;
 }
 
+.vr-form textarea.vr-announcement-input {
+  height: 14rem;
+}
+
 /* Action row (standard 7.5): Cancel, then the primary action at the end of the row; a destructive
    action, when present, starts the row (.vr-form-actions-start). Sticky at the bottom of the
    viewport on every page-level form and entry grid, so Save stays in reach: a strip of paper
@@ -2396,6 +2409,51 @@ fieldset.vr-field > legend {
   overflow-wrap: anywhere;
 }
 
+/* Two-factor setup: the QR code stays black on white in both themes so cameras read it. */
+.vr-two-factor-key {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 48rem) {
+  .vr-two-factor-key {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.vr-qr-frame {
+  justify-self: start;
+  max-width: 100%;
+  line-height: 0;
+  border: 1px solid var(--vr-border);
+}
+
+.vr-qr-frame .vr-qr {
+  display: block;
+  width: 15rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.vr-secret-key {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.vr-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  padding-left: 1.75rem;
+}
+
+.vr-recovery-codes code {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
 /* Numbered sections: on a record page (marked by its foot line, includes/record_foot.html) each
    panel heading carries 1.0, 2.0 ... in pen, in document order. */
 .vr-main:has(> .vr-record-foot) {
@@ -2475,8 +2533,12 @@ fieldset.vr-field > legend {
   align-items: baseline;
 }
 
+/* An event name can be one long unbroken word (an audit action): it wraps inside the item
+   instead of widening the page on a phone. */
 .vr-timeline-title {
   font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .vr-timeline-meta {
@@ -2609,6 +2671,90 @@ fieldset.vr-field > legend {
 
 .vr-entrance-panel .vr-form-actions {
   justify-content: stretch;
+}
+
+/* Sign-in announcement (accounts/includes/announcement.html): the administrator's notice on the
+   sign-in sheet and its preview on the Sign-in announcement page. Its text is rendered from the
+   page-documentation subset, so tables, lists and code need their own compact rules here: the
+   documentation panel's stylesheet is not loaded before sign-in. */
+.vr-announcement {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--vr-info-border);
+  border-left-width: 3px;
+  border-radius: var(--vr-radius);
+  background: var(--vr-info-bg);
+  color: var(--vr-text);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.vr-announcement-title {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.vr-announcement-body :is(h3, h4, h5, h6) {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.vr-announcement-body :is(p, ul, ol, pre, .table-responsive, .pagedocs-note) {
+  margin: 0 0 0.5rem;
+}
+
+.vr-announcement-body > :last-child {
+  margin-bottom: 0;
+}
+
+.vr-announcement-body .table {
+  --bs-table-bg: transparent;
+  margin: 0;
+  font-size: inherit;
+}
+
+.vr-announcement-body th {
+  color: var(--vr-text-muted);
+  font-weight: 600;
+}
+
+.vr-announcement-body code {
+  color: inherit;
+}
+
+.vr-announcement-body pre {
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--vr-border);
+  border-radius: var(--vr-radius);
+  background: var(--vr-paper);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.vr-announcement-preview {
+  max-width: 28rem;
+  margin-top: 1rem;
+}
+
+.vr-announcement-preview > .vr-announcement {
+  margin-bottom: 0;
+}
+
+.vr-announcement-evidence {
+  margin: 0.5rem 0 0;
+}
+
+.vr-announcement-evidence dd {
+  margin: 0 0 0.5rem;
+}
+
+.vr-announcement-evidence pre {
+  margin: 0.25rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* "or" divider between password sign-in and the alternative methods */

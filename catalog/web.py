@@ -3,6 +3,7 @@
 from functools import reduce
 from operator import or_
 
+from django.apps import apps
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
@@ -22,10 +23,11 @@ READ_ROLES = services.READ_ROLES
 CONFLICT = "Another request saved a conflicting record at the same time. Reload and try again."
 
 # (table, unique constraint) pairs that a concurrent request can legitimately take between this
-# request's own uniqueness check and its insert: codes, applicability keys and sample references,
-# which are created without a parent row lock. Versions, specification tests and QC checks are
-# added under a row lock after their check, so a violation there is a fault, as is one on any
-# other table (audit events, signatures, primary keys). Only these become the conflict message.
+# request's own uniqueness check and its insert: codes, applicability keys, lot numbers and
+# sample references, which are created without a parent row lock. Versions, specification tests
+# and QC checks are added under a row lock after their check, so a violation there is a fault,
+# as is one on any other table (audit events, signatures, primary keys). Only these become the
+# conflict message.
 CONCURRENT_DUPLICATES = frozenset(
     {
         ("catalog_material", "catalog_material_code_key"),
@@ -35,6 +37,8 @@ CONCURRENT_DUPLICATES = frozenset(
         ("sampling_samplingplan", "sampling_samplingplan_code_key"),
         ("sampling_samplingplan", "sampling_plan_unique"),
         ("quality_sample", "quality_sample_reference_key"),
+        ("quality_lot", "quality_lot_number_key"),
+        ("suppliers_supplier", "suppliers_supplier_code_key"),
     }
 )
 
@@ -118,6 +122,28 @@ def status_tone(status):
     return {"draft": "progress", "approved": "success", "withdrawn": "neutral"}.get(status, "info")
 
 
+def tests_in_progress(revision):
+    """How many open or awaiting-review tests of lots in quarantine, or of stability pulls
+    being tested, are frozen to this method version. Read through the app registry: the
+    catalog does not depend on testing. Zero for a specification or a sampling plan, which a
+    lot keeps as a whole."""
+    if revision._meta.label_lower != "catalog.methodrevision" or not apps.is_installed(
+        "analytical"
+    ):
+        return 0
+    in_progress = Q(lot__state="quarantine") | Q(pull__state="pulled", pull__study__state="active")
+    return (
+        apps.get_model("analytical", "AnalyticalTest")
+        .objects.filter(
+            in_progress,
+            state__in=["open", "submitted"],
+            requirement__method__code=revision.method.code,
+            requirement__method__revision=revision.version,
+        )
+        .count()
+    )
+
+
 def approve_page(request, revision, *, kind, crumbs, success_url, detail_template):
     """Full-page signing action for any controlled revision. The service re-checks everything."""
     require_role(request.user, services.AUTHOR_ROLE)
@@ -130,7 +156,23 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
             services.ensure_independent(request.user, revision)
         except PermissionDenied as exc:
             blocked = str(exc)
-    if request.method == "POST" and not blocked and form.is_valid():
+    # What signing now would retire; signing works it out again at the moment of the signature.
+    # A draft overtaken by a later approved version is refused here, before any PIN is asked for.
+    retires, refusal = [], ""
+    if not blocked:
+        try:
+            retires = [
+                {
+                    "revision": other,
+                    "moment": moment,
+                    "never": moment <= other.effective_from,
+                    "tests": tests_in_progress(other),
+                }
+                for other, moment in services.retirements(revision)
+            ]
+        except ValidationError as exc:
+            refusal = " ".join(exc.messages)
+    if request.method == "POST" and not blocked and not refusal and form.is_valid():
         approved = run(
             form,
             lambda: services.approve_revision(
@@ -150,6 +192,8 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
             "revision": revision,
             "form": form,
             "blocked": blocked,
+            "retires": retires,
+            "refusal": refusal,
             "crumbs": crumbs,
             "cancel_url": success_url,
             "detail_template": detail_template,

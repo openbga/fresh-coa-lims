@@ -2,7 +2,9 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
-from .units import RESULT_UNITS, plain
+from core import formulas
+
+from .units import INPUT_UNITS, RESULT_UNITS, plain
 
 
 class Stage(models.TextChoices):
@@ -48,7 +50,10 @@ class ControlledRevision(models.Model):
     """Version of a controlled document: draft until independently signed, then frozen.
 
     ``version`` numbers versions of one parent; ``revision`` is the record revision signed.
-    Approved intervals are finite, half-open [effective_from, effective_until) and never overlap.
+    Approved intervals are finite and half-open, [effective_from, effective_until). Approving a
+    later version whose period overlaps retires this one: ``superseded_from`` is the moment it
+    stops applying and ``superseded_by`` the version that took over. The approved content and
+    its signature are not touched, so the periods in which versions apply never overlap.
     """
 
     PARENT_FIELD = ""
@@ -65,6 +70,10 @@ class ControlledRevision(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_content = models.JSONField(null=True, blank=True)
     approved_hash = models.CharField(max_length=64, blank=True)
+    superseded_from = models.DateTimeField(null=True, blank=True)
+    superseded_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
 
     class Meta:
         abstract = True
@@ -78,6 +87,18 @@ class ControlledRevision(models.Model):
                 condition=~Q(status="approved") | Q(approved_content__isnull=False),
                 name="%(app_label)s_%(class)s_frozen",
             ),
+            # Only an approved version is superseded, by a named version, inside its own period.
+            models.CheckConstraint(
+                condition=Q(superseded_from__isnull=True, superseded_by__isnull=True)
+                | Q(
+                    status="approved",
+                    superseded_from__isnull=False,
+                    superseded_by__isnull=False,
+                    superseded_from__gte=F("effective_from"),
+                    superseded_from__lt=F("effective_until"),
+                ),
+                name="%(app_label)s_%(class)s_superseded",
+            ),
         ]
 
     @property
@@ -88,10 +109,20 @@ class ControlledRevision(models.Model):
     def is_draft(self):
         return self.status == RevisionStatus.DRAFT
 
+    @property
+    def applies_until(self):
+        """The moment this version stops applying: its own end, or an earlier supersession."""
+        return self.superseded_from or self.effective_until
+
+    @property
+    def never_applied(self):
+        """Superseded from its own start: a later version took over before it began."""
+        return self.superseded_from is not None and self.superseded_from <= self.effective_from
+
     def is_effective(self, at):
         return (
             self.status == RevisionStatus.APPROVED
-            and self.effective_from <= at < self.effective_until
+            and self.effective_from <= at < self.applies_until
         )
 
     def content(self):
@@ -142,10 +173,32 @@ class MethodRevision(ControlledRevision):
         default=False,
         help_text="Results must be produced in an analytical batch whose QC checks pass.",
     )
+    requires_equipment = models.BooleanField(
+        "Records an instrument",
+        default=False,
+        help_text="Every result and batch QC entry must record at least one instrument.",
+    )
+    requires_reagent = models.BooleanField(
+        "Records a reagent or standard",
+        default=False,
+        help_text="Every result and batch QC entry must record at least one reagent or "
+        "standard lot.",
+    )
+    # One optional calculation. Formula, unit and decimals are changed on a draft by services
+    # (the database allows only these three columns to change on a draft); its inputs are
+    # MethodCalculationInput rows. A version without a formula and without inputs has none.
+    calculation_formula = models.CharField(max_length=formulas.MAX_LENGTH, blank=True)
+    calculation_unit = models.CharField(max_length=40, blank=True, choices=RESULT_UNITS)
+    calculation_decimals = models.PositiveSmallIntegerField(null=True, blank=True)
 
     class Meta(ControlledRevision.Meta):
         constraints = ControlledRevision.Meta.constraints + [
-            models.UniqueConstraint(fields=["method", "version"], name="method_version_unique")
+            models.UniqueConstraint(fields=["method", "version"], name="method_version_unique"),
+            models.CheckConstraint(
+                condition=Q(calculation_decimals__isnull=True)
+                | Q(calculation_decimals__lte=formulas.MAX_DECIMALS),
+                name="method_calculation_decimals",
+            ),
         ]
 
     def __str__(self):
@@ -162,10 +215,66 @@ class MethodRevision(ControlledRevision):
             "suitability_ref": self.suitability_ref,
             "summary": self.summary,
             "requires_batch": self.requires_batch,
+            "requires_equipment": self.requires_equipment,
+            "requires_reagent": self.requires_reagent,
             "qc_checks": [check.content() for check in self.qc_checks.all()],
+            "calculation": self.calculation(),
             "effective_from": self.effective_from.isoformat(),
             "effective_until": self.effective_until.isoformat(),
         }
+
+    @property
+    def has_calculation(self):
+        return bool(
+            self.calculation_formula.strip()
+            or self.calculation_unit
+            or self.calculation_decimals is not None
+            or (self.pk and self.calculation_inputs.exists())
+        )
+
+    def calculation(self):
+        """The calculation as frozen in the approved content, or None when there is none."""
+        if not self.has_calculation:
+            return None
+        return {
+            "formula": self.calculation_formula.strip(),
+            "inputs": [item.content() for item in self.calculation_inputs.all()],
+            "unit": self.calculation_unit,
+            "decimals": self.calculation_decimals,
+        }
+
+
+class MethodCalculationInput(models.Model):
+    """Named raw input of a method calculation. Editable only while the version is a draft.
+
+    Entry order is the order of creation (``id``).
+    """
+
+    method_revision = models.ForeignKey(
+        MethodRevision, on_delete=models.PROTECT, related_name="calculation_inputs"
+    )
+    code = models.CharField(
+        max_length=40, help_text="Name used in the formula, e.g. peak_area or sample_mass."
+    )
+    name = models.CharField(max_length=160)
+    unit = models.CharField(max_length=24, choices=INPUT_UNITS)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["method_revision", "code"], name="method_calculation_input_unique"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
+    def content(self):
+        return {"code": self.code, "name": self.name, "unit": self.unit}
 
 
 class MethodQCCheck(models.Model):
@@ -280,7 +389,16 @@ class SpecificationRevision(ControlledRevision):
 
 class ResultType(models.TextChoices):
     NUMERIC = "numeric", "Numeric with limits"
-    QUALITATIVE = "qualitative", "Qualitative (expected text)"
+    COUNT = "count", "Count (whole number)"
+    QUALITATIVE = "qualitative", "Qualitative (expected outcome)"
+
+
+class ExpectedResult(models.TextChoices):
+    """Expected outcome of a qualitative test; each has one deviating counterpart."""
+
+    CONFORMS = "conforms", "Conforms"
+    ABSENT = "absent", "Absent"
+    PRESENT = "present", "Present"
 
 
 class SpecificationTest(models.Model):
@@ -305,6 +423,11 @@ class SpecificationTest(models.Model):
         help_text="If set, results are rounded half up to this many decimals before comparison.",
     )
     expected_text = models.CharField(max_length=160, blank=True)
+    # Blank on numeric/count lines and on qualitative lines approved before outcomes existed;
+    # services require it for new qualitative lines and refuse to approve a draft without it.
+    expected_result = models.CharField(
+        max_length=12, choices=ExpectedResult.choices, blank=True, default=""
+    )
     required = models.BooleanField(
         default=True, help_text="Required tests must be complete before QC disposition."
     )
@@ -339,10 +462,11 @@ class SpecificationTest(models.Model):
             ),
             models.CheckConstraint(
                 condition=(
-                    Q(result_type="numeric")
+                    Q(result_type__in=["numeric", "count"])
                     & ~Q(unit="")
                     & (Q(lower_limit__isnull=False) | Q(upper_limit__isnull=False))
                     & Q(expected_text="")
+                    & Q(expected_result="")
                 )
                 | (
                     Q(result_type="qualitative")
@@ -350,6 +474,7 @@ class SpecificationTest(models.Model):
                     & Q(upper_limit__isnull=True)
                     & Q(reporting_decimals__isnull=True)
                     & ~Q(expected_text="")
+                    & Q(expected_result__in=["", "conforms", "absent", "present"])
                 ),
                 name="specification_test_shape",
             ),
@@ -376,6 +501,7 @@ class SpecificationTest(models.Model):
             "upper_inclusive": self.upper_inclusive,
             "reporting_decimals": self.reporting_decimals,
             "expected_text": self.expected_text,
+            "expected_result": self.expected_result,
             "required": self.required,
             "replicates": self.replicates,
             "replicate_limits": self.replicate_limits,

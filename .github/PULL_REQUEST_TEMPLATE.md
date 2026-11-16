@@ -7,7 +7,7 @@ What does this change do, and why? Link the issue it addresses, if any.
 - [ ] This pull request targets `develop`
 - [ ] `uv run ruff check .` and `uv run ruff format --check .` pass
 - [ ] `uv run python manage.py check` and `uv run python manage.py makemigrations --check --dry-run` pass
-- [ ] `uv run pytest` passes on PostgreSQL (and `collectstatic` was run first)
+- [ ] `uv run pytest -n auto` passes on PostgreSQL (and `collectstatic` was run first)
 - [ ] New tests cover the change, including refused, stale or locked paths and role boundaries where relevant
 - [ ] Scientific transitions authorize on the server and commit state, signature and audit together; no self-review
 - [ ] Original records are not overwritten; corrections add linked records

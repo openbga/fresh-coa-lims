@@ -1,0 +1,53 @@
+# DEMONSTRATION ONLY. Never use this file for a laboratory: every run of this job erases the
+# whole database (accounts, records, signatures, audit history and issued reports) and seeds the
+# synthetic demonstration again. It is not part of render.yaml.
+#
+# A separate Blueprint for the workspace that already runs the demonstration from render.yaml:
+# create it with Blueprint Path "render.demo.yaml". It adds one paid cron job and refers to that
+# web service and database by name. Review the estimate before creating it (docs/operations.md).
+#
+# Render asks for four values once, when the Blueprint is created. DEMO_PASSWORD and DEMO_PIN are
+# published on the sign-in page. DEMO_ADMIN_PASSWORD and DEMO_ADMIN_PIN belong to demo_admin, the
+# only administrator after a reset: they must differ from the published pair and stay private.
+services:
+  - type: cron
+    name: fresh-coa-lims-demo-reset
+    runtime: docker
+    # Billed for the seconds it runs.
+    plan: 1c-2g
+    region: virginia
+    # Every day at 08:00 UTC.
+    schedule: "0 8 * * *"
+    # Follows the web service: the job refuses to run against another release's schema.
+    branch: develop
+    autoDeployTrigger: checksPass
+    dockerCommand: python manage.py reset_demo --noinput --publish-accounts
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fresh-coa-lims-db
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: fresh-coa-lims
+          envVarKey: SECRET_KEY
+      - key: DEBUG
+        value: "false"
+      # Keep equal to the web service.
+      - key: TIME_ZONE
+        value: UTC
+      # The reset's opt-in. Set it on this job only, never on a laboratory's deployment.
+      - key: ALLOW_DEMO_RESET
+        value: "true"
+      # Last sentence of the sign-in announcement. Keep it in step with the schedule above.
+      - key: DEMO_RESET_NOTE
+        value: Everything entered here is erased every day at 08:00 UTC.
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: DEMO_PIN
+        sync: false
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false
+      - key: DEMO_ADMIN_PIN
+        sync: false

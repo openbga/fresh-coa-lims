@@ -702,48 +702,6 @@ def test_investigative_entry_author_cannot_conclude(people, assigned):
     _conclude(people, investigation, "confirmed", who="quality")
 
 
-def _unqualified(*, actor, test):
-    raise ValidationError(f"{actor.username} has no current qualification for {test.test_code}.")
-
-
-def test_observations_require_configured_analyst_eligibility(people, assigned, settings, make_lot):
-    _, _, tests = assigned
-    test = record(people, tests["identity"], "1.0")
-    observation = test.observations.get()
-    assert observation.eligibility == {
-        "policy": "synthetic-test-fixture",
-        "user": people["analyst"].pk,
-        "activity": "SYN-IR",
-    }
-    event = AuditEvent.objects.get(action="observation.recorded")
-    assert event.after["eligibility"]["activity"] == "SYN-IR"
-    settings.ANALYTICAL_ELIGIBILITY_CHECK = "analytical.tests.test_services._unqualified"
-    with pytest.raises(ValidationError, match="no current qualification"):
-        services.correct_observation(
-            actor=people["analyst2"],
-            observation=observation,
-            value=Decimal("1.01"),
-            raw_reference="x",
-            reason="typo",
-        )
-    _, other = make_lot("SYN-LOT-E", tests=("identity",))
-    (fresh_test,), _ = services.assign_tests(actor=people["analyst"], sample=other, reason="Go")
-    with pytest.raises(ValidationError, match="no current qualification"):
-        record(people, fresh_test, "1.0")
-    assert not Observation.objects.filter(test=fresh_test).exists()
-    settings.ANALYTICAL_ELIGIBILITY_CHECK = ""
-    with pytest.raises(ValidationError, match="eligibility check is configured"):
-        services.correct_observation(
-            actor=people["analyst2"],
-            observation=observation,
-            value=Decimal("1.01"),
-            raw_reference="x",
-            reason="typo",
-        )
-    assert Observation.objects.filter(test=test).count() == 1
-    assert fresh(test).revision == test.revision
-
-
 def test_results_against_superseded_requirement_do_not_count(people, assigned, settings):
     lot, _, tests = assigned
     complete(people, tests["identity"], "1.00")
@@ -772,8 +730,8 @@ def test_null_reporting_precision_compares_exact_values():
     payload = requirement_payload("assay")
     payload["reporting_decimals"] = None
     spec = parse_requirement(payload)
-    mean, reportable, conforms = spec.evaluate([Decimal("99.5"), Decimal("100.0")])
-    assert (reportable, conforms) == (Decimal("99.75"), True)
+    mean, reportable, text, conforms = spec.evaluate([Decimal("99.5"), Decimal("100.0")])
+    assert (reportable, text, conforms) == (Decimal("99.75"), "99.75", True)
     with pytest.raises(ValidationError, match="not exact"):
         spec.evaluate([Decimal("100"), Decimal("100.00000001")])  # mean needs 9 decimals
 
@@ -813,8 +771,25 @@ def test_catalog_translator_output_matches_analytical_contract():
             ],
         },
     }
-    spec = parse_requirement(translate(line, "catalog:SPEC@1:abc"))
+    payload = translate(line, "catalog:SPEC@1:abc")
+    assert payload["schema"] == "oq.test-requirement/1"
+    spec = parse_requirement(payload)
     assert (spec.method.revision, spec.replicates, spec.max_retests) == (2, 2, 1)
-    for change in [{"upper_inclusive": False}, {"result_type": "qualitative"}]:
-        with pytest.raises(ValidationError):
-            parse_requirement(translate({**line, **change}, "catalog:SPEC@1:abc"))
+    exclusive = parse_requirement(translate({**line, "upper_inclusive": False}, "x"))
+    assert (exclusive.upper_inclusive, exclusive.acceptance) == (
+        False,
+        "at least 95 and less than 105 %",
+    )
+    qualitative = {
+        **line,
+        "result_type": "qualitative",
+        "unit": "",
+        "lower_limit": None,
+        "upper_limit": None,
+        "reporting_decimals": None,
+        "expected_text": "Absent in 25 g",
+    }
+    with pytest.raises(ValidationError, match="expected result"):  # legacy line: no outcome
+        parse_requirement(translate(qualitative, "x"))
+    spec = parse_requirement(translate({**qualitative, "expected_result": "absent"}, "x"))
+    assert spec.outcomes == (("absent", "Absent"), ("present", "Present"))

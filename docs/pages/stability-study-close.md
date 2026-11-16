@@ -4,7 +4,7 @@ urls: stability:study_close
 views: stability.views.study_close
 templates: ops/sign.html
 models: stability.Study, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -14,7 +14,7 @@ Approve closing a study as completed or terminated, with meaning **approved**.
 ## Who can use it
 
 - Sign-in required. Role: Quality; other roles receive 403.
-- A Quality user who started the study sees "You started this study, so you cannot close it.", and for an already closed study "This study is already closed."; no PIN control is shown (403).
+- A Quality user who started the study sees "You started this study, so you cannot close it.", for an already closed study "This study is already closed.", and while testing of the study's pulls is in progress "Testing of the study's pulls is in progress; finish it first: …" with each reason; no PIN control is shown (403).
 - An account holding only the Admin role is refused (403) when it opens or submits this page. Admin plus a role listed here has exactly that role's authority, and independence rules (no self-review) still apply.
 
 ## Layout
@@ -42,6 +42,8 @@ Approve closing a study as completed or terminated, with meaning **approved**.
 ## Rules and hidden logic
 
 - **Preconditions**: still active ("This study is already closed."); you did not start it ("The person who started a study cannot close it."); completion with open pulls is refused ("N pull(s) are not accepted or missed; terminate instead or finish them.").
+- **Testing in progress** blocks closing, as completed or terminated, with "Testing of the study's pulls is in progress; finish it first: …" (also checked when signing). Reasons: a test of one of its pulls awaits independent review ("<test> <code> awaits independent review."); an open test already holds an observation or raw-data file ("<test> <code> holds results or raw data that were not submitted."); or an investigation of one of its tests is open ("<investigation> is open: <trigger>."). An open test that holds nothing does not stop closing and is left as it is, also when it has a place in a QC batch; rejecting that batch later leaves it as it is.
+- Meaning text adds: a closed study's pulls take no more testing, and open tests that hold nothing are left as they are.
 - A closed study and its pulls are immutable. Closing sets the state and the closed time.
 - Open pulls means Scheduled or Pulled pulls; the page shows their count. Accepted and Missed pulls do not count.
 - **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).

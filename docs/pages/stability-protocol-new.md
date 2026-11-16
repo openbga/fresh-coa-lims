@@ -4,7 +4,7 @@ urls: stability:protocol_new
 views: stability.views.protocol_new
 templates: ops/form.html
 models: stability.Protocol, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -35,6 +35,7 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 | Title, Product | `Protocol.title`, `.product` | Text, max 160 | Yes | What the protocol covers (product or material under study) |
 | Document ref / Document url | `Protocol.document_ref`, `.document_url` | Text, max 200; http(s) link | Ref required, URL optional | Approved protocol document and revision in the QMS |
 | Test profile ref | `Protocol.test_profile_ref` | Text, max 200 | No | Stable specification/test-profile revision |
+| Acceptance criteria (specification) | `Protocol.specification` | Choice of specifications, listed by code as "<code> · <title> (<material code>, <stage>, scope <scope>)" | No | The specification whose approved version in force states the acceptance criterion of each test, for example the shelf-life specification of the product. With one, pulls are tested in the system. Empty: pulls link a sample or external evidence. Cannot be changed later; a new protocol version names another |
 | Basis | `Protocol.basis` | Text | Yes | Why these conditions and schedule apply |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
 
@@ -42,6 +43,7 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 
 - The version is the next number for the code. If the latest version is still a draft: "<code> v<n> is still a draft; approve or leave it."
 - The author is you; the author cannot later approve it. A different Quality user must approve.
+- The specification is part of the header and is fixed at creation. Nothing checks it against the protocol's tests at this step; that happens when the protocol is approved.
 - The header cannot be edited after creation; content is added by the author while the protocol is a draft. Event `protocol.created`.
 
 ## Related pages

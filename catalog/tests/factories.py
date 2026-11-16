@@ -97,7 +97,9 @@ def numeric_line(actor, revision, method, code="assay", low="98.0", high="102.0"
     return services.add_test_line(actor=actor, revision=revision, reason="Add test", **fields)
 
 
-def qualitative_line(actor, revision, method, code="identity", expected="Conforms"):
+def qualitative_line(
+    actor, revision, method, code="identity", expected="Conforms", outcome="conforms"
+):
     return services.add_test_line(
         actor=actor,
         revision=revision,
@@ -106,7 +108,15 @@ def qualitative_line(actor, revision, method, code="identity", expected="Conform
         name=code.title(),
         method=method,
         result_type="qualitative",
+        expected_result=outcome,
         expected_text=expected,
+    )
+
+
+def count_line(actor, revision, method, code="tamc", low=None, high="1000", **extra):
+    extra.setdefault("unit", "CFU/g")
+    return numeric_line(
+        actor, revision, method, code=code, low=low, high=high, result_type="count", **extra
     )
 
 

@@ -27,6 +27,34 @@ BATCH_QC = {
     "gc-purity": [("control", "Reference standard purity", "%", "99.0", "101.0")],
 }
 
+# Methods whose result is calculated from raw measurements, and whether each result must record
+# an instrument and a reagent or standard lot. The formulas are synthetic examples.
+CALCULATIONS = {
+    "kf-water": {
+        "inputs": [
+            ("titrant_volume", "Titrant volume", "mL"),
+            ("titer", "Titrant water equivalent", "mg/mL"),
+            ("sample_mass", "Sample mass", "mg"),
+        ],
+        "formula": "titrant_volume * titer / sample_mass * 100",
+        "unit": "% w/w",
+        "decimals": 2,
+        "requires_equipment": True,
+        "requires_reagent": True,
+    },
+    "loss-on-drying": {
+        "inputs": [
+            ("mass_before", "Sample mass before drying", "g"),
+            ("mass_after", "Sample mass after drying", "g"),
+        ],
+        "formula": "(mass_before - mass_after) / mass_before * 100",
+        "unit": "%",
+        "decimals": 2,
+        "requires_equipment": True,
+        "requires_reagent": False,
+    },
+}
+
 REASON = "Synthetic segment profile; quality-owner applicability review required."
 
 METHODS = {
@@ -46,12 +74,12 @@ METHODS = {
 }
 
 
-def numeric(code, name, method, unit, low=None, high=None, decimals=None):
+def numeric(code, name, method, unit, low=None, high=None, decimals=None, result_type="numeric"):
     return {
         "code": code,
         "name": name,
         "method": method,
-        "result_type": "numeric",
+        "result_type": result_type,
         "unit": unit,
         "lower_limit": Decimal(low) if low else None,
         "upper_limit": Decimal(high) if high else None,
@@ -59,13 +87,14 @@ def numeric(code, name, method, unit, low=None, high=None, decimals=None):
     }
 
 
-def qualitative(code, name, method, expected):
+def qualitative(code, name, method, criterion, expected="conforms"):
     return {
         "code": code,
         "name": name,
         "method": method,
         "result_type": "qualitative",
-        "expected_text": expected,
+        "expected_result": expected,
+        "expected_text": criterion,
     }
 
 
@@ -96,7 +125,15 @@ PROFILES = [
                 "identity", "Botanical identity", "hptlc-identity", "Conforms to reference"
             ),
             numeric("lead", "Lead", "icpms-lead", "µg/g", high="1.0", decimals=1),
-            numeric("tamc", "Total aerobic count", "micro-tamc", "CFU/g", high="10000", decimals=0),
+            numeric(
+                "tamc",
+                "Total aerobic count",
+                "micro-tamc",
+                "CFU/g",
+                high="10000",
+                decimals=0,
+                result_type="count",
+            ),
         ],
         "plan": {
             "basis": "fixed",
@@ -111,7 +148,9 @@ PROFILES = [
         "stage": "finished",
         "tests": [
             qualitative("identity", "Appearance and sensory", "organoleptic", "Conforms"),
-            qualitative("salmonella", "Salmonella", "micro-salmonella", "Not detected in 25 g"),
+            qualitative(
+                "salmonella", "Salmonella", "micro-salmonella", "Not detected in 25 g", "absent"
+            ),
             numeric("moisture", "Moisture", "loss-on-drying", "%", high="12.0", decimals=1),
         ],
         "plan": {
@@ -220,6 +259,7 @@ class Command(BaseCommand):
         methods = {}
         for code, (title, technique) in METHODS.items():
             method = Method.objects.filter(code=code).first()
+            calculation = CALCULATIONS.get(code)
             if method is None:
                 method, _ = catalog.create_method(
                     actor=actor,
@@ -231,10 +271,30 @@ class Command(BaseCommand):
                     suitability_ref=f"VAL-SYN-{code.upper()}",
                     summary="Synthetic placeholder procedure.",
                     requires_batch=code in BATCH_QC,
+                    requires_equipment=bool(calculation and calculation["requires_equipment"]),
+                    requires_reagent=bool(calculation and calculation["requires_reagent"]),
                     reason=REASON,
                     **window,
                 )
                 revision = method.revisions.get()
+                if calculation:
+                    for name, label, unit in calculation["inputs"]:
+                        catalog.add_calculation_input(
+                            actor=actor,
+                            revision=revision,
+                            reason=REASON,
+                            code=name,
+                            name=label,
+                            unit=unit,
+                        )
+                    catalog.set_calculation(
+                        actor=actor,
+                        revision=revision,
+                        reason=REASON,
+                        formula=calculation["formula"],
+                        unit=calculation["unit"],
+                        decimals=calculation["decimals"],
+                    )
                 for check, name, unit, low, high in BATCH_QC.get(code, []):
                     catalog.add_qc_check(
                         actor=actor,

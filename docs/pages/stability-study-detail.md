@@ -3,8 +3,8 @@ title: Study record
 urls: stability:study_detail
 views: stability.views.study_detail
 templates: ops/record.html
-models: stability.Study, stability.Pull, core.ElectronicSignature
-reviewed: 2026-11-10
+models: stability.Study, stability.Pull, analytical.AnalyticalTest, core.ElectronicSignature
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -21,7 +21,9 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 - **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons.
 - **Details**: the facts below.
-- **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due, Overdue, Pulled, Accepted, Missed), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
+- **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due, Overdue, Pulled, Accepted, Missed; an accepted pull tested in the system reads "Accepted · meets acceptance criteria" or "Accepted · acceptance criteria not met"), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
+- **Notice** "Criteria not met" (danger), when a pull of the study was accepted with the outcome "does not meet": it lists the time points and says the record of the lot is not changed by a stability result and that any hold or other action is for quality to decide.
+- **Results · <condition>** (one for each storage condition that has a pull tested in the system): rows are the condition's time points by interval, each linking to its pull; columns are the tests, each headed "<name> (<code>): <acceptance criterion>". A cell shows the reviewed result with unit (green), "<result> · out of specification" (red), "<result> · open" or "In testing" while undecided, and for a time point without tests "Missed", "Not pulled yet", "Sample <reference>, tested with the lot", "External evidence" or "No test assigned". Where the criterion changed between time points, the heading names the test only and each result adds "(against <criterion>)". Time points are rows so that the table grows down the page and a phone shows every result. Empty: "No results yet."
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 
@@ -51,6 +53,8 @@ Only one link shows in a pull row: Record pull takes precedence for Analysts. Th
 
 - Windows are the due date plus or minus the timepoint's window days. Status is Upcoming, Due or Overdue while Scheduled (by today's local date), then Pulled, Accepted or Missed.
 - Pulls are listed by due date, then identifier.
+- The Results sections read only pulls with tests of their own; they judge each result against the criterion frozen on its test, not the protocol's current one.
+- **Close study** is refused while testing of the study's pulls is in progress (see Close study). Once a study is closed its pulls take no more testing.
 - A closed study and its pulls are immutable.
 
 ## Related pages

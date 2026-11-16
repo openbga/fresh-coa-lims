@@ -1,9 +1,11 @@
 from django import forms
 from django.conf import settings
 
+from core import formulas
 from core.forms import SignatureIdentityForm
 
 from .models import (
+    ExpectedResult,
     Material,
     MaterialKind,
     Method,
@@ -12,7 +14,7 @@ from .models import (
     Stage,
     SuitabilityKind,
 )
-from .units import RESULT_UNITS
+from .units import INPUT_UNITS, RESULT_UNITS
 
 TZ = settings.TIME_ZONE
 
@@ -32,7 +34,8 @@ def effective_fields():
         "effective_until": forms.DateTimeField(
             label=f"Effective until ({TZ})",
             widget=LocalDateTimeInput(),
-            help_text="Exclusive end. Approved versions of one record must not overlap.",
+            help_text="Exclusive end. Approving a later version that overlaps ends this one "
+            "earlier.",
         ),
     }
 
@@ -90,6 +93,17 @@ class MethodRevisionForm(GroupedForm):
         required=False,
         help_text="If set, add the batch QC checks to the draft before approval.",
     )
+    requires_equipment = forms.BooleanField(
+        label="Records an instrument",
+        required=False,
+        help_text="If set, every result and batch QC entry must record at least one instrument.",
+    )
+    requires_reagent = forms.BooleanField(
+        label="Records a reagent or standard",
+        required=False,
+        help_text="If set, every result and batch QC entry must record at least one reagent "
+        "or standard lot.",
+    )
     reason = reason_field()
 
     def __init__(self, *args, **kwargs):
@@ -98,6 +112,7 @@ class MethodRevisionForm(GroupedForm):
 
     groups = [
         ("Procedure", ["technique", "document_ref", "summary", "requires_batch"]),
+        ("Resources recorded with results", ["requires_equipment", "requires_reagent"]),
         ("Suitability", ["suitability_kind", "suitability_ref"]),
         ("Effective period", ["effective_from", "effective_until"]),
         ("Change control", ["reason"]),
@@ -143,7 +158,9 @@ class SpecificationForm(SpecificationRevisionForm):
     scope = forms.SlugField(
         max_length=60,
         initial="general",
-        help_text="general, or a named market/customer overlay. Overlays are never merged.",
+        help_text="general, or a named market or customer overlay such as eu-market. A lot is "
+        "assigned under every scope it falls under and each specification applies in full; "
+        "where two state a test differently the lot is held for a quality decision.",
     )
     groups = [
         ("Specification", ["code", "title", "material", "stage", "scope"]),
@@ -178,28 +195,57 @@ class TestLineForm(GroupedForm):
     name = forms.CharField(max_length=160)
     method = forms.ModelChoiceField(queryset=Method.objects.all())
     position = forms.IntegerField(min_value=1, max_value=999, initial=1)
-    result_type = forms.ChoiceField(choices=ResultType.choices)
-    unit = forms.ChoiceField(choices=[("", "—")] + RESULT_UNITS, required=False)
-    lower_limit = forms.DecimalField(max_digits=20, decimal_places=8, required=False)
+    result_type = forms.ChoiceField(
+        choices=ResultType.choices,
+        help_text="Numeric and count tests use the unit, limits and rounding fields; count "
+        "results and limits are whole numbers of 0 or more. Qualitative tests use the expected "
+        "outcome and criterion fields instead.",
+    )
+    unit = forms.ChoiceField(
+        choices=[("", "—")] + RESULT_UNITS,
+        required=False,
+        help_text="Numeric and count tests only.",
+    )
+    lower_limit = forms.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        required=False,
+        help_text="Numeric and count tests: enter at least one limit. Equal lower and upper "
+        "limits must both be inclusive.",
+    )
     lower_inclusive = forms.BooleanField(
-        label="Lower limit is inclusive (≥)", required=False, initial=True
+        label="Lower limit is inclusive (≥)",
+        required=False,
+        initial=True,
+        help_text="Clear for a strict limit (>).",
     )
     upper_limit = forms.DecimalField(max_digits=20, decimal_places=8, required=False)
     upper_inclusive = forms.BooleanField(
-        label="Upper limit is inclusive (≤)", required=False, initial=True
+        label="Upper limit is inclusive (≤)",
+        required=False,
+        initial=True,
+        help_text="Clear for a strict limit (<).",
     )
     reporting_decimals = forms.IntegerField(
         label="Round to decimals before comparison",
         min_value=0,
         max_value=8,
         required=False,
-        help_text="Leave blank to compare the exact recorded value.",
+        help_text="Numeric and count tests only. Leave blank to compare the exact recorded value.",
+    )
+    expected_result = forms.ChoiceField(
+        label="Expected outcome",
+        choices=[("", "—")] + ExpectedResult.choices,
+        required=False,
+        help_text="Qualitative tests only: the outcome that conforms. Conforms is recorded "
+        "against Does not conform; Absent or Present against the other.",
     )
     expected_text = forms.CharField(
-        label="Expected result",
+        label="Criterion",
         max_length=160,
         required=False,
-        help_text="Qualitative tests only, e.g. Conforms or Absent in 10 g.",
+        help_text="Qualitative tests only: the approved wording, e.g. White crystalline powder "
+        "or Not detected in 25 g.",
     )
     required = forms.BooleanField(label="Required for QC disposition", required=False, initial=True)
     replicates = forms.IntegerField(
@@ -209,7 +255,11 @@ class TestLineForm(GroupedForm):
         help_text="Determinations averaged into the reportable value.",
     )
     replicate_limits = forms.BooleanField(
-        label="Each replicate must meet the limits", required=False, initial=True
+        label="Each replicate must meet the limits",
+        required=False,
+        initial=True,
+        help_text="Numeric and count tests. Every replicate of a qualitative test must match "
+        "the expected outcome.",
     )
     max_retests = forms.IntegerField(
         label="Maximum retests",
@@ -232,11 +282,20 @@ class TestLineForm(GroupedForm):
                 "upper_limit",
                 "upper_inclusive",
                 "reporting_decimals",
+                "expected_result",
                 "expected_text",
             ],
         ),
         ("Change control", ["reason"]),
     ]
+
+    def clean(self):
+        data = super().clean()
+        if data.get("result_type") == ResultType.QUALITATIVE:
+            # Bound and replicate options do not apply to a qualitative test; they are stored as
+            # set so the line keeps the one shape the analytical contract accepts.
+            data.update(lower_inclusive=True, upper_inclusive=True, replicate_limits=True)
+        return data
 
 
 class QCCheckForm(GroupedForm):
@@ -249,6 +308,52 @@ class QCCheckForm(GroupedForm):
     groups = [
         ("QC check", ["code", "name"]),
         ("Acceptance limits (inclusive)", ["unit", "lower_limit", "upper_limit"]),
+        ("Change control", ["reason"]),
+    ]
+
+
+class CalculationInputForm(GroupedForm):
+    code = forms.CharField(
+        max_length=40,
+        help_text="The name the formula uses: a lower-case letter, then lower-case letters, "
+        "digits or underscores, e.g. peak_area.",
+    )
+    name = forms.CharField(max_length=160, help_text="What the analyst enters, e.g. Sample mass.")
+    unit = forms.ChoiceField(choices=INPUT_UNITS)
+    reason = reason_field()
+    groups = [
+        ("Input", ["code", "name", "unit"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip()
+        if not formulas.is_name(code):
+            raise forms.ValidationError(
+                "Use a lower-case letter followed by lower-case letters, digits or underscores "
+                "(40 at most)."
+            )
+        return code
+
+
+class CalculationForm(GroupedForm):
+    formula = forms.CharField(
+        max_length=formulas.MAX_LENGTH,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Arithmetic over the input codes: + - * / and brackets, e.g. "
+        "(peak_area * standard_mass) / (standard_area * sample_mass) * 100. "
+        "No functions or exponents.",
+    )
+    unit = forms.ChoiceField(label="Unit of the calculated result", choices=RESULT_UNITS)
+    decimals = forms.IntegerField(
+        label="Decimals of the calculated result",
+        min_value=0,
+        max_value=formulas.MAX_DECIMALS,
+        help_text="The result is rounded half up to this many decimals when it is recorded.",
+    )
+    reason = reason_field()
+    groups = [
+        ("Calculation", ["formula", "unit", "decimals"]),
         ("Change control", ["reason"]),
     ]
 

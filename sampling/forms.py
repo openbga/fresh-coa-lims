@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.utils import timezone
 
@@ -8,6 +10,7 @@ from core.forms import SignatureIdentityForm
 from quality.models import Sample
 
 from .models import SamplingBasis, SamplingPlan, SamplingPurpose, SamplingRecord
+from .services import MAX_SCOPES, clean_scopes
 
 
 class PlanRevisionForm(GroupedForm):
@@ -82,11 +85,22 @@ class AssignForm(GroupedForm):
         queryset=Material.objects.all(), help_text="The controlled material this lot is."
     )
     stage = forms.ChoiceField(choices=Stage.choices)
-    scope = forms.SlugField(
-        max_length=60, initial="general", help_text="general, or a named market/customer overlay."
+    scopes = forms.CharField(
+        max_length=64 * MAX_SCOPES,
+        initial="general",
+        help_text="Every scope this lot falls under, separated by commas: general, and the "
+        "named market or customer overlays, for example general, eu-market. The "
+        "specification of each scope applies in full.",
     )
     reason = reason_field("Reason")
-    groups = [("Applicability", ["material", "stage", "scope"]), ("Change control", ["reason"])]
+    groups = [("Applicability", ["material", "stage", "scopes"]), ("Change control", ["reason"])]
+
+    def clean_scopes(self):
+        names = [name for name in self.cleaned_data["scopes"].replace(",", " ").split() if name]
+        try:
+            return clean_scopes(names)
+        except forms.ValidationError as exc:
+            raise forms.ValidationError(exc.messages) from exc
 
 
 class ObservationForm(GroupedForm):
@@ -163,6 +177,65 @@ class CorrectionForm(ObservationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["reason"].label = "Reason for correction"
+
+
+class ReplacementForm(SignatureIdentityForm):
+    """Signature on the replacement of a lot's requirements, as previewed (``basis``)."""
+
+    reason = forms.CharField(
+        label="Reason for the replacement",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Why this lot is tested against the versions now in force, for example the "
+        "change record that requires it.",
+    )
+    pin = forms.CharField(
+        label="Signature PIN",
+        widget=forms.PasswordInput(
+            attrs={"autocomplete": "off", "inputmode": "numeric"}, render_value=False
+        ),
+    )
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    basis = forms.CharField(max_length=64, widget=forms.HiddenInput)
+    field_order = ["reason", "signature_username", "pin", "expected_revision", "basis"]
+
+
+CODE = re.compile(r"[-a-zA-Z0-9_]{1,80}")
+
+
+def chosen_scopes(data):
+    """{test code: scope} from the fields ``choice-<test code>`` of a submitted page: which
+    statement applies where the specifications state a test differently. Only names that
+    could be a test code and a scope are read; the services decide whether they are."""
+    prefix = "choice-"
+    return {
+        key[len(prefix) :]: value
+        for key, value in data.items()
+        if key.startswith(prefix) and CODE.fullmatch(key[len(prefix) :]) and CODE.fullmatch(value)
+    }
+
+
+class DecisionForm(SignatureIdentityForm):
+    """Signature on the decision of a lot's conflicting requirements, as previewed
+    (``basis``). The choices themselves are the ``choice-<test code>`` fields of the page."""
+
+    reason = forms.CharField(
+        label="Reason for the decision",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Why the chosen requirements apply to this lot, for example that a result "
+        "meeting them also meets the others, or the record that says another specification "
+        "does not bind this lot.",
+    )
+    pin = forms.CharField(
+        label="Signature PIN",
+        widget=forms.PasswordInput(
+            attrs={"autocomplete": "off", "inputmode": "numeric"}, render_value=False
+        ),
+    )
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    basis = forms.CharField(max_length=64, widget=forms.HiddenInput)
+    field_order = ["reason", "signature_username", "pin", "expected_revision", "basis"]
 
 
 class DeviationForm(SignatureIdentityForm):

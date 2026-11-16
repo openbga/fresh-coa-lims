@@ -4,7 +4,7 @@ urls: sampling:plan_new
 views: sampling.views.plan_new
 templates: catalog/form.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -46,7 +46,7 @@ Creates a sampling plan for one material at one stage together with its draft ve
 | Instructions | `SamplingPlanRevision.instructions` | Text | Yes | Sampling tools, location, precautions, labelling. |
 | Rationale | `SamplingPlanRevision.rationale` | Text | Yes | Help: "Why the plan is representative. A sampling scheme is a configured choice reviewed by quality, not a legal requirement." |
 | Effective from (time zone) | `SamplingPlanRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
-| Effective until (time zone) | `SamplingPlanRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approved versions of one record must not overlap." |
+| Effective until (time zone) | `SamplingPlanRevision.effective_until` | Date and time | Yes | Exclusive end. Help text: "Exclusive end. Approving a later version that overlaps ends this one earlier." |
 | Reason for change | `SamplingPlanRevision.change_reason` | Text, max 2000 | Yes | Why this change is made; stored on the new record and in its audit event. |
 
 

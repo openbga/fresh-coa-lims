@@ -19,6 +19,7 @@ from quality.models import Lot, Sample
 from quality.services import receive_lot
 from sampling import services
 from sampling.models import LotAssignment, SamplingPlan, SamplingPlanRevision, SamplingRecord
+from tests.receipts import on_site_receipt
 
 from .test_services import plan_revision
 
@@ -33,6 +34,7 @@ def lot(people):
         material="Synthetic syn-api-001",
         rules=approved_rules(people["author"]),
         reason="Synthetic receipt",
+        receipt=on_site_receipt(),
     )
 
 
@@ -78,7 +80,7 @@ def test_assign_hold_then_ready_then_sample_and_correct(client, people, lot):
     form = client.get(assign_url)
     assert f'value="{mat.pk}" selected' in form.content.decode()
     held = client.post(
-        assign_url, {"material": mat.pk, "stage": "incoming", "scope": "general", "reason": "x"}
+        assign_url, {"material": mat.pk, "stage": "incoming", "scopes": "general", "reason": "x"}
     )
     assert held.status_code == 302
     detail = client.get(reverse("sampling:lot", args=[lot.pk])).content.decode()
@@ -88,7 +90,7 @@ def test_assign_hold_then_ready_then_sample_and_correct(client, people, lot):
     approve(plan_revision(people["author"], mat), people["approver"])
     client.post(
         assign_url,
-        {"material": mat.pk, "stage": "incoming", "scope": "general", "reason": "Resolved"},
+        {"material": mat.pk, "stage": "incoming", "scopes": "general", "reason": "Resolved"},
     )
     assert LotAssignment.objects.filter(lot=lot).count() == 2
     detail = client.get(reverse("sampling:lot", args=[lot.pk])).content.decode()
@@ -179,6 +181,7 @@ def test_concurrent_duplicate_is_a_form_error(client, people, lot, monkeypatch, 
             material="Synthetic syn-api-001",
             rules=lot.rules,
             reason="Synthetic receipt",
+            receipt=on_site_receipt(),
         )
         user, model = analyst, Sample
         url, data = reverse("sampling:sampling_new", args=[lot.pk]), sampling_data()
