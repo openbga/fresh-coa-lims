@@ -4,7 +4,7 @@ urls: quality:lot_detail
 views: quality.views.lot_detail
 templates: quality/lot_detail.html
 models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Sample, quality.Result, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
-reviewed: 2026-11-15
+reviewed: 2026-11-16
 ---
 
 ## Purpose
@@ -20,6 +20,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Supplier results in place of tests**: every viewer can open a record from its number. Nothing is proposed, accepted or withdrawn on this page: analysts propose from the supplier certificate record, and reviewers accept on the acceptance record.
 - **Review result**: reviewers only, and never the analyst who recorded that result.
 - **Review disposition** and **Issue certificate of analysis**: quality role only.
+- **Export record**: **admin**, **quality** and **auditor**, the roles that read the audit trail. Analysts and reviewers do not see it and receive 403 if they open that page directly.
 - Scientific action links require their corresponding role as well as the state condition. Admin-only viewers see records and navigation links, without laboratory mutation controls. The server independently checks roles, independence and state.
 
 ## Layout
@@ -27,7 +28,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Back link**: "Material lots".
 - **Facts**: Material, Status, Rule set, Record revision. When the lot's current requirements apply additional rule sets, the Rule set fact adds a second line: "Applied in addition by the lot's requirements: RS-EU v1" (each as "code vN", separated by commas).
 - **Actions row** (Quarantine lots only): **Add sample**, **Review disposition**.
-- **Requirements line**: **Requirements and sampling** with the assignment status ("Requirements assigned", "Applicability hold" or "Not assigned"), and **Testing and investigations**.
+- **Requirements line**: **Requirements and sampling** with the assignment status ("Requirements assigned", "Applicability hold" or "Not assigned"), **Testing and investigations**, and for admin, quality and auditor **Export record**.
 - **Receipt** card, header: for analysts on a Quarantine lot, **Correct receipt details** when the lot has receipt details, otherwise **Record receipt details**.
 - **Receipt** card, details: Source; for a lot received from a supplier also Supplier (code, name and location), Supplier lot number ("Not known" when blank), Manufacturer (name and location, or "Not stated") and Manufacturer lot number (only when recorded); then Delivery or batch document, Date received, Quantity received, Containers (number, then description) and Examination on receipt (the label "No discrepancy found" or "Discrepancy found", with the examination notes below it).
 - **Receipt** card, discrepancy note: when a discrepancy was found, "A discrepancy does not hold the lot by itself. Place a hold from Holds if the lot must not be dispositioned until it is resolved.", with a link to Holds.
@@ -58,6 +59,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 | **Holds** | Receipt details record a discrepancy | Viewers of that page | Opens the Holds list |
 | **Requirements and sampling** | Always | Viewers of that page | Opens the lot's requirement assignment and sampling records |
 | **Testing and investigations** | Always | Viewers of that page | Opens native tests, observations, reviews and investigations |
+| **Export record** | Admin, quality or auditor role, in any lot status | Admin, quality, auditor | Opens Export record, which downloads the lot's complete record as one file |
 | **Record result** | Analyst role and lot is Quarantine | Analyst | Opens the development-only manual result form; saving is refused outside DEBUG or once requirements are assigned |
 | **Review result** | Reviewer role, result is Recorded and not its analyst | Reviewer, not its analyst | Opens Sign result review |
 | **Issue certificate of analysis** | Quality role and lot is Released | Quality | Opens the certificate preview for this lot |
@@ -140,4 +142,5 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - Review certificate; Certificate record.
 - [Suppliers](/suppliers/)
 - [Holds](/stability/holds/)
+- Export record (the lot's complete record as one file).
 - [Audit trail](/audit/)

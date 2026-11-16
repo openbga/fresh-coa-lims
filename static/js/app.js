@@ -288,10 +288,17 @@
 
   // Native POST forms: block double submission while the request is in flight.
   // Buttons are disabled after the submit event so their name/value is still sent.
+  // A form answered by a file download (data-vr-download) stays on its page, so it is left
+  // enabled: the browser shows the download's progress.
   document.addEventListener("submit", function (event) {
     var form = event.target;
     var method = (form.getAttribute("method") || "get").toLowerCase();
-    if (event.defaultPrevented || method !== "post" || form.hasAttribute("hx-post")) {
+    if (
+      event.defaultPrevented ||
+      method !== "post" ||
+      form.hasAttribute("hx-post") ||
+      form.hasAttribute("data-vr-download")
+    ) {
       return;
     }
     if (form.dataset.vrSubmitting === "true") {

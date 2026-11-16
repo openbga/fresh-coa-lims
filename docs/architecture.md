@@ -16,7 +16,7 @@ One Django monolith and PostgreSQL 17 serve one organization/site. Django sessio
 | `catalog`, `sampling` | Approved method/specification/QC/sampling revisions and lot requirement snapshots | Publish bounded requirements; unsupported applicability must hold |
 | `analytical` | Observations/corrections, calculated results, results reported by contract laboratories, raw-data files, replicates, batches/QC, OOS and controlled retests, for a lot's tests and for the tests of a stability pull | Preserve original data and publish lot blockers/evidence under the lot lock; an accepted supplier result is read through an adapter and is never an observation; a stability pull is reached only through the `ANALYTICAL_STABILITY_PULLS` adapter, and a test of a pull names no lot |
 | `laboratory`, `stability` | Resource eligibility/use, qualification, the contract laboratory register and its approvals, protocols/pulls with the acceptance criteria of a pull's tests and its signed outcome, reserves, retention and holds | Publish explicit eligibility and hold/evidence contracts; a contract laboratory's identity is immutable and its approval for a method is a separate signed record; `stability` reads results only through `stability/evidence.py` |
-| `reporting` | Signed CoA issuance/amendments, immutable snapshots and stored PDF bytes | Consume native evidence and recheck hashes/gates under lock |
+| `reporting` | Signed CoA issuance/amendments, immutable snapshots and stored PDF bytes; export of a lot's complete record | Consume native evidence and recheck hashes/gates under lock; read a lot's record by model label in one repeatable-read, read-only transaction |
 
 ## Integrity contracts
 
@@ -30,7 +30,7 @@ A signature stores the individual signer, meaning, server execution time and rec
 
 | Authority | Read access | Mutation authority |
 |---|---|---|
-| Admin | All lab lists/details/history, rule sets, audit filter/export and CoA PDF | Account lifecycle only; scientific actions need the designated additional role |
+| Admin | All lab lists/details/history, rule sets, audit filter/export, lot record export and CoA PDF | Account lifecycle only; scientific actions need the designated additional role |
 | Analyst | Lab records through each module's shared READ roles | Receipt, sampling and analytical entry subject to eligibility and state checks |
 | Reviewer | Lab records through shared READ roles | Independent review within the module's reviewer policy |
 | Quality | Lab records, rules and audit | Configuration, disposition and other explicitly authorized quality actions |
