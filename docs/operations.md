@@ -2,7 +2,7 @@
 
 This runbook covers the PostgreSQL 17 application and its Render deployment configuration. The procedures below are not themselves execution evidence; execute and record them in your own deployment. Keep executed checks, timestamps, operators, source revision, archive checksum and outcomes in restricted operational evidence. Do not place credentials or database archives in Git.
 
-A synthetic restore rehearsal should cover: full migration of every registered app; an isolated PostgreSQL dump and transactional restore; exact table fingerprints; signature and audit binding checks; enabled trigger and function parity; sequence comparison; the Django check and the migration check. Compare any constraint definition that PostgreSQL rewrites on restore and confirm equivalent behavior. Confirm the source fingerprint is unchanged at the end.
+A restore rehearsal takes a backup with its manifest (`backup_manifest`), restores it into a new database and checks the copy against the manifest (`verify_restore`). The check covers table fingerprints, schema parity (columns, constraints, indexes, triggers and functions), sequences, signature and audit binding, stored certificate and raw-data checksums, enabled triggers, the migration state and the Django system checks, and it writes a report to keep as evidence. A full migration of every registered app is covered by a fresh install.
 
 Use a fixture that exercises every populated workflow you rely on: approved native specifications, analytical observations, QC and OOS records, laboratory resources and qualifications, stability records and issued PDFs. Test negative trigger mutations, point-in-time recovery, encrypted off-machine backups, runtime-role separation, identity recovery and file media restoration separately. A rehearsal that uses the trusted service channel does not exercise interactive username/PIN signing. A rehearsal alone does not establish RPO/RTO or production recovery acceptance.
 
@@ -49,38 +49,32 @@ Every administrative web change signs the account revision with meaning `account
 | Security/account owner | Individual identity verification, access review, credential recovery, incident handling and session policy |
 | Backup operator | Approved encrypted backup destination, access, retention, schedule and restore rehearsals |
 
-The organization must set RPO/RTO and retention schedules before relying on this service. A local Docker volume is persistence, not an independent backup. PostgreSQL logical dumps cover one database, not cluster roles or external storage; retain controlled infrastructure/configuration records separately. `pg_dump -Fc` creates a consistent custom-format archive while normal activity continues. Use PostgreSQL 17 tools for this deployment. [PostgreSQL 17 pg_dump documentation](https://www.postgresql.org/docs/17/app-pgdump.html), accessed 2026-11-10.
+The organization must set RPO/RTO and retention schedules before relying on this service. A local Docker volume is persistence, not an independent backup. PostgreSQL logical dumps cover one database, not cluster roles or external storage; retain controlled infrastructure/configuration records separately. `pg_dump -Fc` creates a consistent custom-format archive while normal activity continues. Use PostgreSQL 17 tools for this deployment; the application image includes them. [PostgreSQL 17 pg_dump documentation](https://www.postgresql.org/docs/17/app-pgdump.html), accessed 2026-11-10.
 
-## Local backup
+## Backup with a manifest
 
-Run from the project root against the intended Compose project. Confirm the server/database identity before exporting. These commands use the local Compose container, not a production URL, and make no source database changes.
+`backup_manifest` records what the database holds when a backup is taken; `verify_restore` checks a restored copy against that record. Both only read the database, and both work for a role that may only read it. Run them with the release that serves the database, from its application shell or image, or from a checkout of the same revision. Confirm the server and database identity first. From the project root, against the local Compose database:
 
 ```sh
-docker compose exec -T db psql -U open_qual -d open_qual -X -v ON_ERROR_STOP=1 \
-  -c 'SELECT current_database(), current_user, version();'
 umask 077
 mkdir -p backups
-oq_backup_stamp=$(date -u +%Y%m%dT%H%M%SZ)
-oq_backup_file="./backups/fresh-coa-lims-${oq_backup_stamp}.dump"
-docker compose exec -T db pg_dump -U open_qual -d open_qual \
-  --format=custom --no-owner --no-acl > "$oq_backup_file"
+oq_stamp=$(date -u +%Y%m%dT%H%M%SZ)
+uv run python manage.py backup_manifest --operator "A. Operator" \
+  --output "backups/fresh-coa-lims-${oq_stamp}.manifest.json" \
+  --dump "backups/fresh-coa-lims-${oq_stamp}.dump"
 ```
 
-Stop if the dump exits nonzero; a partial output file is not a backup. Review stderr, then inspect the archive and record a checksum:
+The command opens one read-only snapshot, runs `pg_dump --format=custom --no-owner --no-acl` from it and records, for the same instant: each table's row count and a SHA-256 fingerprint of its rows; the columns, constraints, indexes, triggers and functions; the applied migrations; the sequence positions; and the archive's SHA-256 and size. It also checks the evidence the database holds (the `signatures`, `certificates`, `raw data files` and `triggers enabled` checks below). If one fails, it still writes the manifest and exits nonzero: keep that backup and investigate. It never overwrites a file, removes the partial archive when `pg_dump` fails, and creates both files readable by their owner only. `pg_dump` must be of the server's major version or newer (`--pg-dump` names another one). It writes into the archive file the command has already created, through the open file rather than its name, so a name replaced meanwhile cannot send the archive elsewhere; the run is then refused and nothing is kept. It reaches the database as the application does: libpq settings of the environment such as `PGSSLMODE` apply to it, and the password goes through its environment, never the command line. A connection that needs another secret, such as `sslpassword`, is refused with `--dump`. Record the manifest's SHA-256, which the command prints, in the backup log.
 
-```sh
-docker compose exec -T db pg_restore --list < "$oq_backup_file" \
-  > "${oq_backup_file}.contents"
-shasum -a 256 "$oq_backup_file" > "${oq_backup_file}.sha256"
-```
+Without `--dump` the command writes only the manifest; `--output -` writes it to standard output and the summary to standard error. Use that beside an archive made another way, such as a Render export, taken while nothing writes to the database. Otherwise the archive and the manifest describe different moments, and the restore check reports the tables that changed in between.
 
-The local archive contains account records, PIN/password hashes and sessions, even for a synthetic instance. Keep it restricted and transfer it to the approved encrypted backup destination; an ignored local directory is not encryption or off-machine protection. Keep a source revision/configuration manifest alongside the encrypted artifact, without secret values. The `--no-owner --no-acl` portability choice means role ownership/grants must be re-established explicitly at restoration.
+The manifest holds counts, hashes and schema definitions, not record content or credentials. The archive holds everything, including account records, PIN and password hashes and sessions, even for a synthetic instance. Keep it restricted and transfer it, with its manifest, to the approved encrypted backup destination; an ignored local directory is not encryption or off-machine protection. Keep a source revision and configuration record beside them, without secret values. The `--no-owner --no-acl` choice means role ownership and grants must be re-established explicitly at restoration.
 
-## Restore rehearsal into a new local database
+## Restore check in a new local database
 
-Use an archive created by a trusted operator. Restoration executes database code from the archive, so review provenance and do not restore untrusted uploads. Restore into a **new, isolated database**; do not point these commands at `open_qual`, an active test database or any deployed database. Full schema/data restoration reinstates constraints and triggers; do not pre-run Django migrations into the empty target. `--single-transaction` and `--exit-on-error` prevent accepting a partial restore. [PostgreSQL 17 pg_restore documentation](https://www.postgresql.org/docs/17/app-pgrestore.html), accessed 2026-11-10.
+Use an archive created by a trusted operator, and a server of the same PostgreSQL major version as the source: a newer version describes some schema objects differently, and the comparison then fails. Restoration executes database code from the archive, so review provenance and do not restore untrusted uploads. Restore into a **new, isolated database**; do not point these commands at `open_qual`, an active test database or any deployed database. Full schema/data restoration reinstates constraints and triggers; do not pre-run Django migrations into the empty target. `--single-transaction` makes `pg_restore` stop at the first error and keep nothing of a partial restore. [PostgreSQL 17 pg_restore documentation](https://www.postgresql.org/docs/17/app-pgrestore.html), accessed 2026-11-10.
 
-In the same shell as the backup example, or after explicitly setting `oq_backup_file` to the selected archive:
+In the same shell as the backup example, or after setting `oq_stamp` to the selected backup:
 
 ```sh
 oq_restore_db="oq_restore_$(date -u +%Y%m%d_%H%M%S)"
@@ -91,84 +85,58 @@ Continue only if creation succeeds; an existing target name is a stop condition.
 
 ```sh
 docker compose exec -T db pg_restore -U open_qual --dbname="$oq_restore_db" \
-  --no-owner --no-acl --single-transaction --exit-on-error < "$oq_backup_file"
+  --no-owner --no-acl --single-transaction --exit-on-error \
+  < "backups/fresh-coa-lims-${oq_stamp}.dump"
+DEBUG=true DATABASE_URL="postgresql://open_qual:open_qual@127.0.0.1:55433/${oq_restore_db}" \
+  uv run python manage.py verify_restore --operator "A. Operator" \
+  --manifest "backups/fresh-coa-lims-${oq_stamp}.manifest.json" \
+  --archive "backups/fresh-coa-lims-${oq_stamp}.dump" \
+  --report "backups/fresh-coa-lims-${oq_stamp}.restore-check.json"
 ```
 
-Retain the target for inspection. No cleanup/drop operation is included here. Verify identity and migration state using the matching source revision before testing a newer version:
+The report lists each check with its result:
 
-```sh
-docker compose exec -T db psql -U open_qual -d "$oq_restore_db" -X -v ON_ERROR_STOP=1 \
-  -c 'SELECT current_database(), current_user;'
-DEBUG=true DATABASE_URL="postgresql://open_qual:open_qual@127.0.0.1:55433/${oq_restore_db}" \
-  uv run python manage.py check
-DEBUG=true DATABASE_URL="postgresql://open_qual:open_qual@127.0.0.1:55433/${oq_restore_db}" \
-  uv run python manage.py migrate --check
-```
+| Check | Passes when |
+|---|---|
+| `restored copy` | The database checked is not the one the manifest was taken from: not the same database name and database identifier on the same server (its system identifier). A physical copy or point-in-time recovery of the source keeps all three and is refused as well |
+| `archive` | The archive's SHA-256 and size equal the manifest's. *Not checked* when the manifest records no archive or `--archive` is not given |
+| `migrations`, `tables` | The same migrations are applied and every table has the same rows and fingerprint; a missing or added table fails |
+| `columns`, `constraints`, `indexes`, `triggers`, `functions` | The definitions equal the manifest's. PostgreSQL rewrites an `IN` list over a text column on restore, casting each value in turn instead of the whole list; the two forms compare equal |
+| `sequences` | Each sequence will next give a value beyond those its column holds, unless the source's did not either (the sign-in announcement always uses id 1) |
+| `signatures` | Each signature's content hashes to its stored content hash, and its audit event names the same signer and record and holds the signed content at the signed revision |
+| `certificates` | Each issued certificate version's PDF matches its SHA-256 and size and its evidence snapshot matches its hash; each certificate names its current version's checksums |
+| `raw data files` | Each file's bytes match their SHA-256 and size |
+| `triggers enabled` | Every history and evidence trigger fires in normal sessions: none is disabled or set to fire only in replica sessions |
+| `application` | The release running the check has every migration applied, knows every applied migration and passes its system checks |
 
-`migrate --check` does not apply migrations. Rehearse any new migration only after the restored baseline passes integrity checks, with no application connected to this target. Do not reuse restored sessions or expose the rehearsal server publicly. Do not run scientific test mutations against restored real records; use an independently created synthetic validation database for destructive/negative tests.
+The command exits nonzero when a check fails, and the report says which and why (up to 50 problems per check, with the total). The report records the manifest's SHA-256, both databases' identity, the operator, user, host, release revision (`SOURCE_REVISION` or `RENDER_GIT_COMMIT`, when set) and time. Keep it, with the SHA-256 the command prints, as the evidence of the restore test. Run the check before testing a newer release on the copy; then rehearse any new migration with no application connected to the target.
+
+Retain the target for inspection; no cleanup or drop is included here. Do not reuse restored sessions or expose a rehearsal server publicly. Do not run scientific test mutations against restored real records; use an independently created synthetic validation database for destructive or negative tests.
 
 ## Integrity acceptance
 
-| Check | Required result |
-|---|---|
-| Archive and provenance | Checksum matches stored manifest; source database, dump time and deployed revision are known |
-| Schema | Expected migrations applied; restored foreign keys, uniqueness constraints, functions and enabled triggers match the release migrations |
-| Evidence | Counts and known record IDs/revisions match the backup manifest/snapshot; any intentionally older recovery point has a documented reconciliation |
-| Signature binding | Stored content hashes recompute; signer, meaning, time, record type/ID/revision and linked audit event remain present |
-| Histories | Audit reviews retain selected events; approved rules, samples/results and signed disposition evidence remain retrievable |
-| Application | Matching code passes check/readiness, authorized reads and stored export retrieval; access controls still apply |
-| Operations | Recovery time and lost-work interval measured against approved RTO/RPO; quality owner records acceptance before traffic switch |
+| Check | Required result | Evidence |
+|---|---|---|
+| Archive and provenance | Checksum matches the manifest; source database, snapshot time and deployed revision are known | `archive`, `restored copy`; the manifest |
+| Schema | Expected migrations applied; restored columns, constraints, indexes, functions and enabled triggers match the source | `migrations`, `columns`, `constraints`, `indexes`, `triggers`, `functions`, `triggers enabled`, `application` |
+| Evidence | Every table's rows equal the manifest's; any intentionally older recovery point has a documented reconciliation | `tables`, `sequences` |
+| Signature binding | Stored content hashes recompute; signer, record type/ID/revision and linked audit event remain present | `signatures` |
+| Stored files | Issued certificates and raw-data files match their checksums | `certificates`, `raw data files` |
+| Histories | Audit reviews retain selected events; approved rules, samples/results and signed disposition evidence remain retrievable | `tables`; retrieval by hand on a rehearsal server |
+| Application | Matching code passes check/readiness, authorized reads and stored export retrieval; access controls still apply | `application`; readiness, sign-in and a certificate download by hand |
+| Operations | Recovery time and lost-work interval measured against approved RTO/RPO; quality owner records acceptance before traffic switch | The operator's and quality owner's records |
 
-Counts captured separately on a busy source may differ legitimately from a dump snapshot. For exact comparisons, coordinate a brief write pause or collect the baseline from the restored archive itself and compare against independent known evidence. A matching hash demonstrates consistency with stored content, not resistance to an administrator rewriting both.
-
-List actual user triggers with this read-only query and compare definitions with **all migrations in the deployed revision**, including later domain apps:
-
-```sh
-docker compose exec -T db psql -U open_qual -d "$oq_restore_db" -X -v ON_ERROR_STOP=1 <<'SQL'
-SELECT n.nspname, c.relname, t.tgname, t.tgenabled, pg_get_triggerdef(t.oid)
-FROM pg_trigger t
-JOIN pg_class c ON c.oid = t.tgrelid
-JOIN pg_namespace n ON n.oid = c.relnamespace
-WHERE NOT t.tgisinternal AND n.nspname = 'public'
-ORDER BY c.relname, t.tgname;
-SQL
-```
-
-The foundation includes audit/signature/review history guards, approved-rule guards and lot/sample/result evidence guards. Merely counting triggers is insufficient; inspect their definitions and enabled status. DB owners can disable them, so keep runtime privileges distinct from migration/maintenance privileges before production use.
-
-Recompute all signature hashes without displaying scientific payloads or credential hashes:
-
-```sh
-DEBUG=true DATABASE_URL="postgresql://open_qual:open_qual@127.0.0.1:55433/${oq_restore_db}" \
-  uv run python manage.py shell <<'PY'
-import hashlib
-import json
-from core.models import ElectronicSignature
-
-checked = 0
-for signature in ElectronicSignature.objects.select_related("audit_event").iterator():
-    encoded = json.dumps(signature.content, sort_keys=True, separators=(",", ":")).encode()
-    assert hashlib.sha256(encoded).hexdigest() == signature.content_hash, signature.pk
-    event = signature.audit_event
-    assert event.actor_id == signature.signer_id, signature.pk
-    assert event.object_type == signature.object_type, signature.pk
-    assert event.object_id == signature.object_id, signature.pk
-    assert event.after == signature.content, signature.pk
-    assert signature.content["revision"] == signature.revision, signature.pk
-    checked += 1
-print(f"Verified {checked} stored signature snapshots and audit links.")
-PY
-```
-
-Zero signatures is meaningful only for a genuinely unsigned source database. Check signed fixture/record coverage in the manifest. Historical signatures bind historical snapshots; their revision need not equal a record's latest revision. The script is a targeted integrity check, not a complete restore acceptance suite.
+A matching hash shows consistency with stored content, not resistance to an administrator rewriting both the data and its hashes. Database owners can disable triggers, so keep runtime privileges distinct from migration and maintenance privileges before production use. Zero signatures is meaningful only for a genuinely unsigned source database. Historical signatures bind historical snapshots; their revision need not equal a record's latest revision.
 
 ## Render backup and recovery
 
 The Blueprint names `fresh-coa-lims` and `fresh-coa-lims-db` (database name/user `open_qual`), with database external access closed. Do not change network exposure just to perform a routine export. In the database's **Recovery** page, use **Create export**, then download and protect the archive. Render exports are directory-format `.dir.tar.gz`, not the custom-format local dump above: extract in an isolated restricted directory and give `pg_restore` the extracted directory containing `toc.dat`. Use the same fresh-target and no-overwrite safeguards.
 
+An export is not taken from the manifest's snapshot. Take the manifest in the web service's shell with `python manage.py backup_manifest --output -` (save what it prints) while nothing writes to the database, for example outside working hours, and create the export in the same quiet period. Alternatively run `backup_manifest --dump` in the shell and copy both files off the instance, whose disk is not kept. Then restore the export locally as above and run `verify_restore` with the manifest; without `--archive` the `archive` check reads *not checked*, so record the export's checksum separately.
+
 Paid Render databases provide PITR into a new database instance, allowing validation before switching the web service. Availability depends on the workspace's current recovery window; verify the available point in the dashboard. Managed retention is not the organization's records-retention policy, so retain approved encrypted exports independently. New recovery resources and access changes follow the deployment owner's authorization. [Render recovery and backup procedure](https://render.com/docs/postgresql-backups), accessed 2026-11-10.
 
-For an incident, preserve the original service/database, record the requested recovery time, and restore into a separate instance. Keep it private. Run the integrity acceptance against matching code, reconcile transactions after the recovery point, and obtain quality-owner acceptance. Switch `DATABASE_URL` only as a coordinated cutover with writers stopped; prevent old and recovered databases from both accepting new scientific records. Keep the previous instance until acceptance and retention decisions are recorded.
+For an incident, preserve the original service/database, record the requested recovery time, and restore into a separate instance. Keep it private. Check the recovered instance with matching code. A point-in-time recovery has no manifest of its own moment and is refused by `verify_restore`, so run `backup_manifest --output -` on it for the checks of its stored evidence; a restore of an archive is checked with `verify_restore` and the archive's manifest. Then complete the integrity acceptance, reconcile transactions after the recovery point, and obtain quality-owner acceptance. Switch `DATABASE_URL` only as a coordinated cutover with writers stopped; prevent old and recovered databases from both accepting new scientific records. Keep the previous instance until acceptance and retention decisions are recorded.
 
 ## Demonstration deployment from `develop`
 
