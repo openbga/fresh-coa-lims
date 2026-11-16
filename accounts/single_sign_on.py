@@ -53,6 +53,7 @@ SIGNING_ALGORITHMS = (
     "EdDSA",
 )
 ERROR_CODE = re.compile(r"[a-z_]{1,64}")
+HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 LABEL_CLAIMS = ("preferred_username", "email", "name")
 LABEL_LIMIT = 254
 
@@ -119,38 +120,89 @@ def _client(issuer, client_id, client_secret, scopes, auth_method):
     )
 
 
+# The discovery keys the client uses. Everything else in the document is dropped, so that a key
+# such as scope or code_challenge_method cannot override the client's own settings.
+METADATA_KEYS = (
+    "issuer",
+    "authorization_endpoint",
+    "token_endpoint",
+    "jwks_uri",
+    "id_token_signing_alg_values_supported",
+    "authorization_response_iss_parameter_supported",
+)
+ENDPOINTS = ("authorization_endpoint", "token_endpoint", "jwks_uri")
+# After a failed discovery, requests wait this long before the provider is asked again, so that
+# an unreachable provider does not hold a worker for the full timeout on every request.
+RETRY_SECONDS = 30
+_unavailable_until = {}
+
+
+def _secure_url(value):
+    from urllib.parse import urlsplit
+
+    if not isinstance(value, str):
+        return False
+    try:
+        url = urlsplit(value)
+        url.port  # noqa: B018 - raises ValueError for a port that is not a number.
+    except ValueError:
+        return False
+    loopback = url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1"}
+    return bool(url.hostname) and (url.scheme == "https" or loopback) and not url.fragment
+
+
+def _checked(document):
+    """The document's keys the client uses, checked; None when it does not describe OIDC_ISSUER
+    (OpenID Connect Discovery 1.0 sections 3 and 4.3)."""
+    kept = {key: document[key] for key in METADATA_KEYS if key in document}
+    if kept.get("issuer") != settings.OIDC_ISSUER or not all(
+        _secure_url(kept.get(key)) for key in ENDPOINTS
+    ):
+        return None
+    offered = kept.get("id_token_signing_alg_values_supported")
+    offered = offered if isinstance(offered, list) else ["RS256"]
+    kept["id_token_signing_alg_values_supported"] = [
+        alg for alg in SIGNING_ALGORITHMS if alg in offered
+    ] or ["RS256"]
+    kept["authorization_response_iss_parameter_supported"] = (
+        kept.get("authorization_response_iss_parameter_supported") is True
+    )
+    return kept
+
+
 def client():
-    """The provider's client, with its discovery document loaded and checked (once a process)."""
-    app = _client(
+    """The provider's client with its discovery document loaded and checked (once a process,
+    and again whenever the library loads it anew); raises ProviderUnavailable."""
+    import time
+
+    key = (
         settings.OIDC_ISSUER,
         settings.OIDC_CLIENT_ID,
         settings.OIDC_CLIENT_SECRET,
         tuple(settings.OIDC_SCOPES),
         settings.OIDC_TOKEN_AUTH_METHOD,
     )
+    if _unavailable_until.get(key, 0) > time.monotonic():
+        raise ProviderUnavailable
+    app = _client(*key)
     try:
         metadata = app.load_server_metadata()
+        loaded_at = metadata["_loaded_at"]
     except Exception as exc:
-        # Not cached: the next attempt fetches again.
-        app.server_metadata.pop("_loaded_at", None)
+        app.server_metadata = {}
+        _unavailable_until[key] = time.monotonic() + RETRY_SECONDS
         logger.warning("Single sign-on discovery failed: %s", type(exc).__name__)
         raise ProviderUnavailable from exc
-    if not metadata.get("_checked"):
-        # The document must name the issuer it was fetched for (OpenID Connect Discovery 1.0
-        # section 4.3), and the client uses only the endpoints it needs from it.
-        if (
-            metadata.get("issuer") != settings.OIDC_ISSUER
-            or not isinstance(metadata.get("authorization_endpoint"), str)
-            or not isinstance(metadata.get("token_endpoint"), str)
-            or not isinstance(metadata.get("jwks_uri"), str)
-        ):
-            app.server_metadata.clear()
+    if getattr(app, "checked_at", None) != loaded_at:
+        kept = _checked(metadata)
+        if kept is None:
+            app.server_metadata = {}
+            _unavailable_until[key] = time.monotonic() + RETRY_SECONDS
             logger.warning("Single sign-on discovery document does not match OIDC_ISSUER.")
             raise ProviderUnavailable
-        offered = metadata.get("id_token_signing_alg_values_supported") or ["RS256"]
-        allowed = [alg for alg in SIGNING_ALGORITHMS if alg in offered] or ["RS256"]
-        metadata["id_token_signing_alg_values_supported"] = allowed
-        metadata["_checked"] = True
+        # Bound in one step: another request never sees a half-replaced document.
+        app.server_metadata = {**kept, "_loaded_at": loaded_at}
+        app.checked_at = loaded_at
     return app
 
 
@@ -164,14 +216,13 @@ def form_action_policy():
     policy = settings.CONTENT_SECURITY_POLICY
     try:
         endpoint = urlsplit(client().server_metadata["authorization_endpoint"])
-    except ProviderUnavailable, KeyError, ValueError:
+        host = endpoint.hostname.encode("idna").decode("ascii")
+        port = endpoint.port
+    except ProviderUnavailable, KeyError, ValueError, AttributeError, UnicodeError:
         return policy
-    loopback = endpoint.scheme == "http" and endpoint.hostname in {"localhost", "127.0.0.1"}
-    if not (endpoint.scheme == "https" or loopback) or not endpoint.netloc:
+    if not HOST_NAME.fullmatch(host) or endpoint.username is not None:
         return policy
-    if any(c in endpoint.netloc for c in " ;,'\""):
-        return policy
-    origin = f"{endpoint.scheme}://{endpoint.netloc}"
+    origin = f"{endpoint.scheme}://{host}" + (f":{port}" if port is not None else "")
     return policy.replace("form-action 'self'", f"form-action 'self' {origin}")
 
 
@@ -185,6 +236,9 @@ def begin(purpose, redirect_uri, **context):
     created = app.create_authorization_url(
         redirect_uri, state=secrets.token_urlsafe(32), nonce=secrets.token_urlsafe(32), **extra
     )
+    if "code_challenge_method=S256" not in created["url"] or not created.get("code_verifier"):
+        logger.warning("Single sign-on request would not use PKCE with S256.")
+        raise ProviderUnavailable
     pending = {
         "purpose": purpose,
         "state": created["state"],
@@ -275,11 +329,22 @@ def identity(pending, params):
     except Exception as exc:
         logger.warning("Single sign-on ID token refused: %s", type(exc).__name__)
         raise Refused(REFUSED) from exc
+    # With prompt=login the provider was asked to authenticate the person anew: when the token
+    # says when that happened, it must be after this request started.
+    stated = claims.get("auth_time") if claims else None
+    if (
+        settings.OIDC_PROMPT == "login"
+        and isinstance(stated, (int, float))
+        and stated < float(pending["started"]) - LEEWAY_SECONDS
+    ):
+        logger.warning("Single sign-on ID token reports an earlier authentication.")
+        raise Refused(REFUSED)
     subject = claims.get("sub") if claims else None
     if not isinstance(subject, str) or not subject or len(subject) > 255:
         raise Refused(REFUSED)
+    shown = [c for c in LABEL_CLAIMS if c != "email" or claims.get("email_verified") is True]
     label = next(
-        (claims[c] for c in LABEL_CLAIMS if isinstance(claims.get(c), str) and claims[c].strip()),
+        (claims[c] for c in shown if isinstance(claims.get(c), str) and claims[c].strip()),
         subject,
     )
     return Identity(settings.OIDC_ISSUER, subject, label.strip()[:LABEL_LIMIT])
@@ -433,5 +498,6 @@ def unlink(*, actor, current_password, code=None):
 
 
 def remove(user):
-    """Delete the account's link (an administrator's signed change; caller holds the locks)."""
+    """Delete the account's link (an administrator's signed change, including a forced password
+    reset; caller holds the locks)."""
     SingleSignOnLink.objects.filter(user_id=user.pk).delete()

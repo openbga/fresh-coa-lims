@@ -4,7 +4,7 @@
 {% block page_intro %}<p>Link your account at {{ provider }} to sign in with it instead of your password. Your laboratory account, its roles and its signature PIN stay as they are: the PIN is still entered for every signature{% if two_factor %}, and sign-in still asks for your second factor{% endif %}.</p>{% endblock %}
 {% block content %}
 <section class="card mb-3" aria-labelledby="sso-status"><div class="card-header"><h2 class="card-title" id="sso-status">Status</h2></div><div class="card-body"><dl class="vr-facts">
-<div><dt>Organization account</dt><dd>{% if state.link %}{{ state.link.label|default:state.link.subject }}{% else %}Not linked{% endif %}</dd></div>
+<div><dt>Organization account</dt><dd class="text-break">{% if state.link %}{{ state.link.label|default:state.link.subject }}<br><small>Subject {{ state.link.subject }}</small>{% else %}Not linked{% endif %}</dd></div>
 {% if state.link %}<div><dt>Linked</dt><dd>{{ state.link.created_at|date:"Y-m-d H:i T" }}</dd></div>
 <div><dt>Last sign-in with it</dt><dd>{{ state.link.last_used_at|date:"Y-m-d H:i T"|default:"Not yet" }}</dd></div>{% endif %}
 <div><dt>Identity provider</dt><dd class="text-break">{{ provider }}<br><small>{{ issuer }}</small></dd></div>

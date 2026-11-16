@@ -270,6 +270,9 @@ def change_account(
                 )
             user.password_change_required = True
             changed.append("password_change_required")
+            # Whoever knew the old password could have linked their own organization account;
+            # after a reset the owner links again.
+            SingleSignOnLink.objects.filter(user_id=user.pk).delete()
         elif action == "reset_two_factor":
             from . import two_factor
 

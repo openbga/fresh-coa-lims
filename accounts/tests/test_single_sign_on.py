@@ -57,8 +57,10 @@ def provider(settings):
         settings.OIDC_PROVIDER_NAME = "Synthetic Org"
         settings.SINGLE_SIGN_ON = True
         single_sign_on._client.cache_clear()
+        single_sign_on._unavailable_until.clear()
         yield running
     single_sign_on._client.cache_clear()
+    single_sign_on._unavailable_until.clear()
 
 
 @pytest.fixture
@@ -344,6 +346,9 @@ def test_discovery_for_another_issuer_or_no_provider_is_unavailable(client, prov
     response = client.get(START)
     assert response["Location"] == LOGIN
     assert single_sign_on.UNAVAILABLE in messages_of(response)
+    response = client.get(START)  # Not asked again at once.
+    assert single_sign_on.UNAVAILABLE in messages_of(response)
+    assert provider.discovery_requests == 1
     settings.OIDC_ISSUER = "http://127.0.0.1:9/realm"  # Nothing listens on the discard port.
     single_sign_on._client.cache_clear()
     response = client.get(START)
@@ -567,3 +572,139 @@ def test_sign_in_through_the_provider_is_recorded_on_signatures(provider, manage
     signature = ElectronicSignature.objects.get(audit_event__action="account.remove_single_sign_on")
     assert signature.authentication_context["sign_in_factors"] == ["identity_provider"]
     assert signature.authentication_context["components"] == ["username", "pin"]
+
+
+# --- Review findings ---------------------------------------------------------------------
+
+
+def test_discovery_cannot_switch_off_checks_or_client_settings(client, provider, analyst):
+    link(analyst)
+    provider.metadata_override = {
+        "_checked": True,
+        "scope": "openid",
+        "code_challenge_method": "plain",
+        "id_token_signing_alg_values_supported": ["none", "RS256"],
+    }
+    response = client.get(START)
+    params = parse_qs(urlsplit(response["Location"]).query)
+    assert params["code_challenge_method"] == ["S256"]
+    assert params["scope"] == ["openid email profile"]
+    metadata = single_sign_on.client().server_metadata
+    assert "_checked" not in metadata and "scope" not in metadata
+    client.get(START)  # A new request replaces the pending one.
+    provider.unsigned = True
+    response = sign_in(client, provider, "sub-analyst")
+    assert not signed_in_as(client) and single_sign_on.REFUSED in messages_of(response)
+
+
+def test_reloaded_discovery_is_checked_again(client, provider):
+    assert client.get(START).status_code == 302
+    app = single_sign_on.client()
+    provider.metadata_override = {"issuer": "https://elsewhere.synthetic.example"}
+    app.server_metadata.pop("_loaded_at")  # The library loads the document again.
+    response = client.get(START)
+    assert single_sign_on.UNAVAILABLE in messages_of(response)
+
+
+@pytest.mark.parametrize("key", ["authorization_endpoint", "token_endpoint", "jwks_uri"])
+def test_discovery_endpoints_must_use_https(client, provider, key):
+    provider.metadata_override = {key: "http://idp.synthetic.example/endpoint"}
+    response = client.get(START)
+    assert response["Location"] == LOGIN
+    assert single_sign_on.UNAVAILABLE in messages_of(response)
+
+
+@pytest.mark.parametrize(
+    "endpoint, origin",
+    [
+        ("https://\u0438dp.synthetic.example/authorize", "https://xn--dp-vlc.synthetic.example"),
+        ("https://idp.synthetic.example:8443/authorize", "https://idp.synthetic.example:8443"),
+        ("https://user@idp.synthetic.example/authorize", None),
+        ("https://*.synthetic.example/authorize", None),
+    ],
+)
+def test_form_action_names_only_a_plain_origin(provider, analyst, endpoint, origin):
+    provider.metadata_override = {"authorization_endpoint": endpoint}
+    owner = Client()
+    owner.force_login(analyst)
+    policy = owner.get(PAGE)["Content-Security-Policy"]
+    assert policy.isascii() and policy.startswith("default-src 'self'")
+    expected = f"form-action 'self' {origin};" if origin else "form-action 'self';"
+    assert expected in policy
+
+
+def test_unreachable_provider_spends_no_second_factor(provider, analyst, settings):
+    _device, codes = enable(analyst)
+    settings.OIDC_ISSUER = "http://127.0.0.1:9/realm"
+    single_sign_on._client.cache_clear()
+    owner = Client()
+    owner.force_login(analyst)
+    response = start_link(owner, {"current_password": PASSWORD, "otp_code": codes[0]})
+    assert response.status_code == 422 and b"could not be reached" in response.content
+    assert two_factor_codes_left(analyst) == len(codes)
+
+
+def two_factor_codes_left(user):
+    from accounts.models import RecoveryCode
+
+    return RecoveryCode.objects.filter(user=user, used_at=None).count()
+
+
+def test_earlier_authentication_is_refused_with_prompt_login(client, provider, analyst):
+    link(analyst)
+    provider.override = {"auth_time": int(time.time()) - 3600}
+    response = sign_in(client, provider, "sub-analyst")
+    assert not signed_in_as(client) and single_sign_on.REFUSED in messages_of(response)
+    provider.override = {"auth_time": int(time.time())}
+    sign_in(client, provider, "sub-analyst")
+    assert signed_in_as(client) == str(analyst.pk)
+
+
+def test_unverified_email_is_not_the_label(provider, analyst):
+    owner = Client()
+    owner.force_login(analyst)
+    provider.next_subject = "sub-email"
+    provider.claims = {"sub-email": {"email": "boss@synthetic.example", "email_verified": False}}
+    owner.get(to_provider(start_link(owner, {"current_password": PASSWORD})))
+    found = SingleSignOnLink.objects.get(user=analyst)
+    assert found.label == "sub-email"
+    assert b"Subject sub-email" in owner.get(PAGE).content
+
+
+def test_password_resets_and_changes_do_not_hide_a_link(provider, analyst, manager):
+    link(analyst)
+    owner = Client()
+    owner.force_login(analyst)
+    response = owner.post(
+        reverse("accounts:password_change"),
+        {
+            "current_password": PASSWORD,
+            "password": "Synthetic-new-pass-2026!x",
+            "password_confirmation": "Synthetic-new-pass-2026!x",
+            "reason": "Synthetic rotation",
+        },
+    )
+    assert response.status_code == 302
+    shown = messages_of(response)
+    assert any("still linked to the organization account analyst@synthetic" in m for m in shown)
+    assert SingleSignOnLink.objects.filter(user=analyst).exists()
+
+    admin = Client()
+    admin.force_login(manager)
+    response = admin.post(
+        reverse("accounts:user_action", args=[analyst.pk, "reset_password"]),
+        {
+            "revision": fresh(analyst).management_revision,
+            "reason": "Synthetic: suspected compromise",
+            "signature_username": manager.username,
+            "pin": PIN,
+            "temporary_password": "Synthetic-temp-pass-2026!y",
+            "password_confirmation": "Synthetic-temp-pass-2026!y",
+        },
+    )
+    assert response.status_code == 302, response.content[:300]
+    assert not SingleSignOnLink.objects.filter(user=analyst).exists()
+    event = AuditEvent.objects.get(action="account.reset_password")
+    assert event.before["single_sign_on"] and event.after["single_sign_on"] is None
+    response = sign_in(Client(), provider, "sub-analyst")
+    assert single_sign_on.NOT_LINKED in messages_of(response)

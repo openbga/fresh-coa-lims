@@ -709,6 +709,7 @@ def single_sign_on_page(request):
             )
         try:
             if action == "link":
+                single_sign_on.client()  # Unreachable: refused before a code is spent.
                 confirmed = single_sign_on.begin_link(**data)
                 url, pending = single_sign_on.begin("link", _sso_callback_uri(request), **confirmed)
                 request.session[SSO_PENDING] = pending
@@ -1077,6 +1078,15 @@ def password_change(request):
             request.session["account_epoch"] = user.session_epoch
             request.user = user
             messages.success(request, "Password changed. Other sessions have been signed out.")
+            from .models import SingleSignOnLink
+
+            found = SingleSignOnLink.objects.filter(user_id=user.pk).first()
+            if found is not None:
+                messages.warning(
+                    request,
+                    f"Your account is still linked to the organization account {found} for "
+                    "sign-in. If you do not recognize it, unlink it on Organization sign-in.",
+                )
             return redirect("quality:lot_list")
         except (ValidationError, PermissionDenied) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))

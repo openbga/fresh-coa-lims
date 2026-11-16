@@ -43,6 +43,7 @@ class Provider:
         self.answer_iss = None  # RFC 9207 iss parameter in the authorization response.
         self.metadata_override = {}
         self.authorize_requests = []
+        self.discovery_requests = 0
         self.token_requests = []
         self.codes = {}
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
@@ -119,6 +120,7 @@ class Provider:
                 url = urlsplit(self.path)
                 path = url.path.removeprefix("/realm")
                 if path == "/.well-known/openid-configuration":
+                    provider.discovery_requests += 1
                     return self._json(200, provider.metadata())
                 if path == "/jwks":
                     keys = KeySet(provider.published).as_dict(private=False)
