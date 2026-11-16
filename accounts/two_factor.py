@@ -1,7 +1,9 @@
-"""Two-factor sign-in: an authenticator app (TOTP, RFC 6238) and one-time recovery codes.
+"""Two-factor sign-in: an authenticator app (TOTP, RFC 6238), security keys and passkeys (Web
+Authentication, see accounts.security_keys) and one-time recovery codes.
 
-Once an account has a confirmed authenticator, an accepted password no longer signs it in: the
-sign-in waits for a current code from the app or an unused recovery code. A wrong code counts
+Once an account has a confirmed authenticator or a security key, an accepted password no longer
+signs it in: the sign-in waits for a current code from the app, an answer from one of the
+account's keys or an unused recovery code. A wrong code or a refused key answer counts
 toward the account's consecutive sign-in failures, like a wrong password, and while the account
 is locked even a correct code is refused. A code from the app is accepted once: the device keeps
 the time step of the last code it accepted and refuses that step and earlier ones.
@@ -24,12 +26,15 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.models import Value
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.utils.html import escape
 from django.views.decorators.debug import sensitive_variables
 from django_otp.plugins.otp_totp.models import TOTPDevice
+from webauthn.helpers import bytes_to_base64url
 
 from core.audit import record_event
 
@@ -39,7 +44,8 @@ from .authentication import (
     record_password_failure,
     reset_password_failures,
 )
-from .models import LoginThrottle, RecoveryCode
+from .models import LoginThrottle, RecoveryCode, SecurityKey
+from .security_keys import KEY_LIMIT, KeyAssertion, KeyRefused
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +62,21 @@ SETUP_SECONDS = 600
 CODE_FAILURE_LIMIT = 100
 
 CODE_REFUSED = "The code was not accepted."
+KEY_REFUSED = "The security key was not accepted."
+KEY_EXPIRED = "The security key request expired. Try again."
+NAME_TAKEN = "You already have a key with this name. Choose another name."
 PASSWORD_REFUSED = "Current password was not accepted."
 STOPPED = (
-    "Two-factor sign-in is stopped for this account after too many wrong codes. Ask an "
-    "administrator to reset it."
+    "Two-factor sign-in is stopped for this account after too many wrong codes or refused "
+    "security keys. Ask an administrator to reset it."
 )
 REQUIRED = (
     "Two-factor sign-in is required for your account, so it cannot be turned off. Set up a new "
     "authenticator app instead."
+)
+REQUIRED_LAST = (
+    "Two-factor sign-in is required for your account, and this is its only second factor. Add "
+    "another security key or an authenticator app first."
 )
 
 
@@ -118,8 +131,17 @@ def authenticator(user, *, for_update=False):
     return devices.order_by("pk").first()
 
 
-def enabled(user):
+def has_app(user):
     return TOTPDevice.objects.filter(user_id=user.pk, confirmed=True).exists()
+
+
+def has_keys(user):
+    return SecurityKey.objects.filter(user_id=user.pk).exists()
+
+
+def enabled(user):
+    """A confirmed authenticator app or at least one security key."""
+    return has_app(user) or has_keys(user)
 
 
 def missing(user):
@@ -140,18 +162,27 @@ def snapshot(user):
         "two_factor": enabled(user),
         "two_factor_stopped": stopped(user),
         "recovery_codes_left": RecoveryCode.objects.filter(user_id=user.pk, used_at=None).count(),
+        "authenticator_app": has_app(user),
+        "security_keys": SecurityKey.objects.filter(user_id=user.pk).count(),
     }
 
 
 def status(user):
     device = authenticator(user)
+    keys = list(SecurityKey.objects.filter(user_id=user.pk).order_by("created_at", "pk"))
+    on = device is not None or bool(keys)
+    started = [k.created_at for k in keys] + ([device.created_at] if device else [])
     return {
-        "enabled": device is not None,
-        "since": device.created_at if device else None,
+        "enabled": on,
+        "since": min(started, default=None),
+        "app": device is not None,
+        "app_since": device.created_at if device else None,
         "last_used_at": device.last_used_at if device else None,
+        "keys": keys,
+        "key_limit": KEY_LIMIT,
         "recovery_codes_left": RecoveryCode.objects.filter(user_id=user.pk, used_at=None).count(),
         "required": required(user),
-        "stopped": device is not None and stopped(user),
+        "stopped": on and stopped(user),
     }
 
 
@@ -190,23 +221,54 @@ def _new_recovery_codes(user, now):
 
 
 @sensitive_variables()
-def _accept(user, device, code):
-    """Check a code against the locked device and the account's unused recovery codes.
+def _accept(user, device, code, *, purpose):
+    """Check a code against the locked device and the account's unused recovery codes, or a key's
+    answer (KeyAssertion) against the account's keys.
 
     Runs inside the caller's transaction with the account and the device locked. Returns the
-    factor used ('totp' or 'recovery_code') or None. A used recovery code is marked and recorded.
+    factor used ('totp', 'recovery_code' or 'security_key') or None. A used recovery code is
+    marked and recorded.
     """
-    factor = _match(user, device, code)
+    factor = _match(user, device, code, purpose)
     if factor is not None:
         LoginThrottle.objects.filter(user_id=user.pk, code_failures__gt=0).update(code_failures=0)
     return factor
 
 
+def _expired(code, seconds):
+    """A key's answer to a ceremony older than seconds, or to another challenge than the
+    ceremony's current one (a second tab, a reload, a repeated send): refused without
+    counting, since a key's answer cannot be guessed."""
+    from .security_keys import answers_ceremony
+
+    if not isinstance(code, KeyAssertion):
+        return False
+    if not answers_ceremony(code):
+        return True
+    try:
+        issued = float(code.ceremony["issued"])
+    except KeyError, TypeError, ValueError:
+        return False  # Malformed: refused and counted by the check itself.
+    return timezone.now().timestamp() - issued > seconds
+
+
+def _refused(code):
+    return KEY_REFUSED if isinstance(code, KeyAssertion) else CODE_REFUSED
+
+
 @sensitive_variables()
-def _match(user, device, code):
+def _match(user, device, code, purpose):
+    from .security_keys import verify_assertion
+
+    if isinstance(code, KeyAssertion):
+        try:
+            verify_assertion(user, code, purpose=purpose)
+        except KeyRefused:
+            return None
+        return "security_key"
     kind, value = code_kind(code)
     if kind == "totp":
-        return "totp" if device.verify_token(value) else None
+        return "totp" if device is not None and device.verify_token(value) else None
     if kind == "recovery":
         entry = (
             RecoveryCode.objects.select_for_update()
@@ -297,18 +359,20 @@ def complete_sign_in(pending, code):
         ):
             raise SignInRestart
         device = authenticator(user, for_update=True)
-        if device is None:
+        if device is None and not has_keys(user):
             raise SignInRestart
         if stopped(user):
             raise ValidationError(STOPPED)
         if password_locked(user):
             # Refused without counting, as a password is during a lock.
-            raise ValidationError(CODE_REFUSED)
-        factor = _accept(user, device, code)
+            raise ValidationError(_refused(code))
+        if _expired(code, settings.MFA_PENDING_SECONDS):
+            raise ValidationError(KEY_EXPIRED)
+        factor = _accept(user, device, code, purpose="sign_in")
         if factor is None:
             _count_wrong_code(user)
     if factor is None:
-        raise ValidationError(CODE_REFUSED)
+        raise ValidationError(_refused(code))
     return user, factor
 
 
@@ -331,17 +395,19 @@ def _reauthenticate(actor, current_password, code=None):
     with transaction.atomic():
         user = get_user_model().objects.select_for_update().get(pk=actor.pk)
         device = authenticator(user, for_update=True)
-        if device is None:
+        if device is None and not has_keys(user):
             raise ValidationError("Two-factor sign-in is not set up for your account.")
         if stopped(user):
             raise ValidationError(STOPPED)
         if password_locked(user):
-            raise ValidationError(CODE_REFUSED)
-        factor = _accept(user, device, code)
+            raise ValidationError(_refused(code))
+        if _expired(code, SETUP_SECONDS):
+            raise ValidationError(KEY_EXPIRED)
+        factor = _accept(user, device, code, purpose="confirm")
         if factor is None:
             _count_wrong_code(user)
     if factor is None:
-        raise ValidationError(CODE_REFUSED)
+        raise ValidationError(_refused(code))
     reset_password_failures(user)
     return verified
 
@@ -385,7 +451,7 @@ def begin_setup(*, actor, current_password, code=None):
         raise PermissionDenied(CREDENTIALS_LOCKED)
     replacing = enabled(actor)
     if replacing and not code:
-        raise ValidationError("Enter a code from your authenticator app or a recovery code.")
+        raise ValidationError("Confirm with a code, a recovery code or your security key.")
     verified = _reauthenticate(actor, current_password, code if replacing else None)
     with transaction.atomic():
         user = _lock_owner(actor, verified)
@@ -447,6 +513,9 @@ def confirm_setup(*, actor, device_pk, code):
             raise PermissionDenied(CREDENTIALS_LOCKED)
         if pending_setup(user, device_pk) is None:
             raise ValidationError("Setup expired. Start again.")
+        if stopped(user):
+            # A setup started before the stop must not clear it: only an administrator does.
+            raise ValidationError(STOPPED)
         device = TOTPDevice.objects.select_for_update().get(pk=device_pk)
         if password_locked(user):
             raise ValidationError(CODE_REFUSED)
@@ -457,19 +526,28 @@ def confirm_setup(*, actor, device_pk, code):
         else:
             before = safe_snapshot(user)
             replaced = TOTPDevice.objects.filter(user_id=user.pk, confirmed=True).exists()
+            keys = has_keys(user)
             TOTPDevice.objects.filter(user_id=user.pk).exclude(pk=device.pk).delete()
             device.confirmed = True
             device.save(update_fields=["confirmed"])
             codes = _new_recovery_codes(user, timezone.now())
             LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
-            _record(
-                user,
-                "account.two_factor_replaced" if replaced else "account.two_factor_enabled",
-                before,
-                "The owner set up a new authenticator app."
-                if replaced
-                else "The owner set up two-factor sign-in.",
-            )
+            if replaced:
+                action, reason = (
+                    "account.two_factor_replaced",
+                    "The owner set up a new authenticator app.",
+                )
+            elif keys:
+                action, reason = (
+                    "account.authenticator_added",
+                    "The owner added an authenticator app beside their security keys.",
+                )
+            else:
+                action, reason = (
+                    "account.two_factor_enabled",
+                    "The owner set up two-factor sign-in.",
+                )
+            _record(user, action, before, reason)
     if not accepted:
         raise ValidationError(CODE_REFUSED)
     return user, codes
@@ -520,14 +598,182 @@ def disable(*, actor, current_password, code):
 
 
 def remove(user):
-    """Delete the account's authenticator keys and recovery codes and clear its count of wrong
-    codes (caller holds the locks)."""
+    """Delete the account's authenticator keys, security keys and recovery codes and clear its
+    count of wrong codes (caller holds the locks)."""
     TOTPDevice.objects.filter(user_id=user.pk).delete()
+    SecurityKey.objects.filter(user_id=user.pk).delete()
     RecoveryCode.objects.filter(user_id=user.pk).delete()
     LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
 
 
 def set_up_anything(user):
-    """Whether an administrator reset has anything to remove: a confirmed authenticator or
-    recovery codes (an unconfirmed setup changes nothing for sign-in)."""
+    """Whether an administrator reset has anything to remove: a confirmed authenticator, a
+    security key or recovery codes (an unconfirmed setup changes nothing for sign-in)."""
     return enabled(user) or RecoveryCode.objects.filter(user_id=user.pk).exists() or stopped(user)
+
+
+@sensitive_variables()
+def begin_key_registration(*, actor, current_password, rp, code=None):
+    """Confirm the owner and start registering a security key; returns the ceremony to keep in
+    the session. Once two-factor sign-in is on, this needs a current second factor too."""
+    from .administration import CREDENTIALS_LOCKED
+    from .security_keys import UNAVAILABLE_HOST, begin, user_handle
+
+    if actor.credentials_locked:
+        raise PermissionDenied(CREDENTIALS_LOCKED)
+    if rp is None:
+        raise ValidationError(UNAVAILABLE_HOST)
+    on = enabled(actor)
+    if on and not code:
+        raise ValidationError("Confirm with a code, a recovery code or your security key.")
+    verified = _reauthenticate(actor, current_password, code if on else None)
+    with transaction.atomic():
+        user = _lock_owner(actor, verified)
+        if enabled(user) and not on:
+            raise ValidationError("Two-factor sign-in was set up meanwhile. Start again.")
+        if SecurityKey.objects.filter(user_id=user.pk).count() >= KEY_LIMIT:
+            raise ValidationError(f"An account can have at most {KEY_LIMIT} security keys.")
+        ceremony = begin(rp, "register", user.pk)
+        ceremony["user_handle"] = bytes_to_base64url(user_handle(user))
+        ceremony["epoch"] = user.session_epoch
+        return ceremony
+
+
+def pending_registration(user, ceremony):
+    """The session's registration ceremony for this owner, started less than SETUP_SECONDS ago
+    and for the account as it still is, or None."""
+    if not isinstance(ceremony, dict) or ceremony.get("user") != user.pk:
+        return None
+    try:
+        issued = float(ceremony["issued"])
+    except KeyError, TypeError, ValueError:
+        return None
+    if timezone.now().timestamp() - issued > SETUP_SECONDS:
+        return None
+    if ceremony.get("epoch") != get_user_model().objects.get(pk=user.pk).session_epoch:
+        return None
+    return ceremony
+
+
+@sensitive_variables()
+def register_key(*, actor, ceremony, response, name):
+    """Store the key that answered the registration ceremony; returns (user, key, codes).
+
+    The first second factor of an account turns two-factor sign-in on and comes with a new set
+    of recovery codes (codes); a key added beside others leaves the codes as they are (None).
+    """
+    if connection.in_atomic_block:
+        raise RuntimeError("Register keys outside an enclosing transaction.")
+    from .administration import CREDENTIALS_LOCKED, account_lock, safe_snapshot
+    from .security_keys import verify_registration
+
+    with transaction.atomic():
+        account_lock()
+        user = get_user_model().objects.select_for_update().get(pk=actor.pk)
+        if not user.is_active:
+            raise PermissionDenied("This account is inactive.")
+        if user.credentials_locked:
+            raise PermissionDenied(CREDENTIALS_LOCKED)
+        if pending_registration(user, ceremony) is None:
+            raise ValidationError("Registration expired or your account changed. Start again.")
+        if stopped(user):
+            raise ValidationError(STOPPED)
+        if password_locked(user):
+            raise ValidationError(KEY_REFUSED)
+        keys = SecurityKey.objects.select_for_update().filter(user_id=user.pk)
+        if len(keys) >= KEY_LIMIT:
+            raise ValidationError(f"An account can have at most {KEY_LIMIT} security keys.")
+        # Compared as the database's unique constraint compares, with its lower().
+        if keys.annotate(folded=Lower("name")).filter(folded=Lower(Value(name))).exists():
+            raise ValidationError(NAME_TAKEN)
+        try:
+            fields = verify_registration(user, ceremony, response)
+        except KeyRefused as exc:
+            raise ValidationError(
+                "The key's answer was not accepted. Start again; if it happens again, use "
+                "another key or browser."
+            ) from exc
+        if SecurityKey.objects.filter(credential_id=fields["credential_id"]).exists():
+            raise ValidationError("This key is already registered.")
+        before = safe_snapshot(user)
+        on = enabled(user)
+        now = timezone.now()
+        try:
+            with transaction.atomic():
+                key = SecurityKey.objects.create(user=user, name=name, created_at=now, **fields)
+        except IntegrityError as exc:  # A name or key the checks above did not see.
+            raise ValidationError(NAME_TAKEN) from exc
+        codes = None
+        if not on:
+            codes = _new_recovery_codes(user, now)
+            LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
+        _record(
+            user,
+            "account.security_key_added" if on else "account.two_factor_enabled",
+            before,
+            f"The owner added security key {name!r}."
+            if on
+            else f"The owner set up two-factor sign-in with security key {name!r}.",
+        )
+    return user, key, codes
+
+
+@sensitive_variables()
+def remove_key(*, actor, current_password, code, key_pk):
+    """Remove one of the owner's keys. Removing the last second factor turns two-factor sign-in
+    off, which a deployment that requires it refuses."""
+    from .administration import safe_snapshot
+
+    verified = _reauthenticate(actor, current_password, code)
+    with transaction.atomic():
+        user = _lock_owner(actor, verified)
+        key = SecurityKey.objects.select_for_update().filter(pk=key_pk, user_id=user.pk).first()
+        if key is None:
+            raise ValidationError("That key is no longer registered.")
+        before = safe_snapshot(user)
+        last = not has_app(user) and SecurityKey.objects.filter(user_id=user.pk).count() == 1
+        if last:
+            if required(user):
+                raise PermissionDenied(REQUIRED_LAST)
+            remove(user)
+            _record(
+                user,
+                "account.two_factor_disabled",
+                before,
+                f"The owner removed security key {key.name!r}, their last second factor.",
+            )
+        else:
+            key.delete()
+            _record(
+                user,
+                "account.security_key_removed",
+                before,
+                f"The owner removed security key {key.name!r}.",
+            )
+    return user, last
+
+
+@sensitive_variables()
+def remove_app(*, actor, current_password, code):
+    """Remove the owner's authenticator app while a security key remains."""
+    from .administration import safe_snapshot
+
+    verified = _reauthenticate(actor, current_password, code)
+    with transaction.atomic():
+        user = _lock_owner(actor, verified)
+        if not has_app(user):
+            raise ValidationError("No authenticator app is set up for your account.")
+        if not has_keys(user):
+            raise ValidationError(
+                "The authenticator app is your only second factor. Turn off two-factor sign-in "
+                "instead, or add a security key first."
+            )
+        before = safe_snapshot(user)
+        TOTPDevice.objects.filter(user_id=user.pk).delete()
+        _record(
+            user,
+            "account.authenticator_removed",
+            before,
+            "The owner removed the authenticator app; their security keys remain.",
+        )
+    return user

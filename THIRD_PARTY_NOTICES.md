@@ -17,6 +17,8 @@ version, files and verified tarball integrity.
 | dj-database-url | BSD-3-Clause; https://github.com/jazzband/dj-database-url/blob/master/LICENSE |
 | django-otp | Unlicense (public domain dedication); https://github.com/django-otp/django-otp/blob/master/LICENSE |
 | Segno | BSD-3-Clause; https://github.com/heuer/segno/blob/master/LICENSE |
+| py_webauthn (`webauthn`) | BSD-3-Clause; https://github.com/duo-labs/py_webauthn/blob/master/LICENSE |
+| Installed with py_webauthn: cryptography, pyOpenSSL, cbor2, pyasn1, pyasn1-modules | cryptography Apache-2.0 OR BSD-3-Clause (https://github.com/pyca/cryptography/blob/main/LICENSE); pyOpenSSL Apache-2.0 (https://github.com/pyca/pyopenssl/blob/main/LICENSE); cbor2 MIT (https://github.com/agronholm/cbor2/blob/master/LICENSE.txt); pyasn1 and pyasn1-modules BSD-2-Clause (https://github.com/pyasn1/pyasn1/blob/main/LICENSE.rst, https://github.com/pyasn1/pyasn1-modules/blob/main/LICENSE.txt) |
 | Bootstrap 5.3.8 | MIT; https://github.com/twbs/bootstrap/blob/v5.3.8/LICENSE; retain `static/vendor/bootstrap-5.3.8/LICENSE` and the file headers |
 | Popper (@popperjs/core 2.11.8, compiled into the Bootstrap bundle) | MIT; https://github.com/floating-ui/floating-ui/blob/v2.11.8/LICENSE.md; retain `static/vendor/bootstrap-5.3.8/POPPER-LICENSE.md` |
 | Bootstrap Icons 1.13.2 (subset in `static/img/icons.svg`) | MIT; https://github.com/twbs/icons/blob/v1.13.2/LICENSE; retain `static/img/icons.LICENSE` |

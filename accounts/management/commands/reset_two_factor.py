@@ -7,8 +7,9 @@ from accounts.services import reset_two_factor
 
 class Command(BaseCommand):
     help = (
-        "Remove an account's authenticator app and recovery codes, recording the administrator "
-        "and reason in the audit trail. For recovery when no other administrator can sign in."
+        "Remove an account's authenticator app, security keys and recovery codes, recording the "
+        "administrator and reason in the audit trail. For recovery when no other administrator "
+        "can sign in."
     )
 
     def add_arguments(self, parser):

@@ -71,3 +71,42 @@ class RecoveryCode(models.Model):
     digest = models.CharField(max_length=64, unique=True)
     created_at = models.DateTimeField()
     used_at = models.DateTimeField(null=True, blank=True)
+
+
+class SecurityKey(models.Model):
+    """A security key or passkey (a WebAuthn credential) its owner uses as a sign-in factor.
+
+    Only the public key is stored: the private key never leaves the key, the phone or the
+    password manager that holds the passkey. A key works only at the host name it was registered
+    at (rp_id), so a look-alike site cannot use what it answers. The name is the owner's label.
+    """
+
+    NAME_LIMIT = 60
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="security_keys"
+    )
+    name = models.CharField(max_length=NAME_LIMIT)
+    credential_id = models.BinaryField(max_length=1023, unique=True)
+    # The account's WebAuthn user handle: random, shared by the owner's keys, never personal data.
+    user_handle = models.BinaryField(max_length=64)
+    public_key = models.BinaryField()
+    sign_count = models.PositiveBigIntegerField(default=0)
+    transports = models.JSONField(default=list, blank=True)
+    rp_id = models.CharField(max_length=253)
+    # Set when the credential can be copied to other devices (a synced passkey).
+    backup_eligible = models.BooleanField(default=False)
+    created_at = models.DateTimeField()
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    # SHA-256 of the challenge of the last accepted use: the same response is refused again.
+    last_challenge = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                models.functions.Lower("name"), "user", name="security_key_name_per_user"
+            ),
+        ]
+
+    def __str__(self):
+        return self.name

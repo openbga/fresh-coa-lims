@@ -1,8 +1,10 @@
 """Account-access guidance; laboratory authority remains in the domain services."""
 
+import secrets
 import shlex
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import render
@@ -40,6 +42,8 @@ def access_context(user):
 
 PENDING_SIGN_IN = "two_factor_pending"
 PENDING_SETUP = "two_factor_setup"
+PENDING_KEY = "security_key_registration"
+CONFIRM_CEREMONY = "security_key_confirmation"
 
 
 class SignIn(LoginView):
@@ -93,7 +97,7 @@ def login_verify(request):
     from django.http import HttpResponseNotAllowed
     from django.shortcuts import redirect
 
-    from . import two_factor
+    from . import security_keys, two_factor
     from .forms import SignInCodeForm
     from .signin_log import log_second_factor_failed
 
@@ -102,10 +106,32 @@ def login_verify(request):
     pending = request.session.get(PENDING_SIGN_IN)
     if not isinstance(pending, dict):
         return redirect("login")
-    form = SignInCodeForm(request.POST or None)
+    pending = dict(pending)
+    # The account as the password found it; complete_sign_in rechecks it under the account lock.
+    account = get_user_model().objects.filter(pk=pending.get("user")).first()
+    if account is None:
+        request.session.pop(PENDING_SIGN_IN, None)
+        return redirect("login")
+    rp = security_keys.relying_party(request)
+    keys = rp is not None and security_keys.usable_keys(account, rp.id).exists()
+    form = SignInCodeForm(
+        request.POST if request.method == "POST" else None,
+        keys=keys,
+        app=two_factor.has_app(account),
+    )
+    if request.method == "POST":
+        # Each challenge is answered once: a refused or repeated answer needs a new one.
+        ceremony = pending.pop("key_ceremony", None)
+        request.session[PENDING_SIGN_IN] = pending
     if request.method == "POST" and form.is_valid():
+        answer = form.cleaned_data["security_key_response"]
+        proof = (
+            security_keys.KeyAssertion(answer, ceremony or {})
+            if answer
+            else form.cleaned_data["otp_code"]
+        )
         try:
-            user, factor = two_factor.complete_sign_in(pending, form.cleaned_data["otp_code"])
+            user, factor = two_factor.complete_sign_in(pending, proof)
         except two_factor.SignInRestart:
             request.session.pop(PENDING_SIGN_IN, None)
             messages.info(request, "Sign in again: enter your password, then a new code.")
@@ -120,11 +146,16 @@ def login_verify(request):
             login(request, user, backend=pending["backend"])
             if factor == "recovery_code":
                 left = two_factor.status(user)["recovery_codes_left"]
+                lost = (
+                    "your authenticator app, set up a new one"
+                    if two_factor.has_app(user)
+                    else "your security key, remove it and add another"
+                )
                 messages.warning(
                     request,
                     f"You signed in with a recovery code. {left} unused "
-                    f"recovery code{'' if left == 1 else 's'} left. If you no longer have your "
-                    "authenticator app, set up a new one on Two-factor sign-in.",
+                    f"recovery code{'' if left == 1 else 's'} left. If you no longer have "
+                    f"{lost} on Two-factor sign-in.",
                 )
             return redirect(pending.get("next") or "/")
     elif request.method == "GET" and (
@@ -133,10 +164,22 @@ def login_verify(request):
         request.session.pop(PENDING_SIGN_IN, None)
         messages.info(request, "Sign in again: enter your password, then a new code.")
         return redirect("login")
+    context = {
+        "form": form,
+        "pending_seconds": settings.MFA_PENDING_SECONDS,
+        "keys": keys,
+        "app": two_factor.has_app(account),
+        "keys_elsewhere": not keys and two_factor.has_keys(account),
+    }
+    if keys:
+        ceremony = security_keys.begin(rp, "sign_in", account.pk)
+        pending["key_ceremony"] = ceremony
+        request.session[PENDING_SIGN_IN] = pending
+        context["key_options"] = security_keys.request_options(account, ceremony)
     return render(
         request,
         "registration/login_verify.html",
-        {"form": form, "pending_seconds": settings.MFA_PENDING_SECONDS},
+        context,
         status=422 if request.method == "POST" else 200,
     )
 
@@ -158,7 +201,7 @@ def two_factor_page(request):
     from django.http import HttpResponseNotAllowed
     from django.shortcuts import redirect
 
-    from . import two_factor
+    from . import security_keys, two_factor
     from .administration import CREDENTIALS_LOCKED
     from .forms import TwoFactorChangeForm, TwoFactorStartForm
 
@@ -166,10 +209,16 @@ def two_factor_page(request):
         return HttpResponseNotAllowed(["GET", "POST"])
     user = request.user
     state = two_factor.status(user)
+    rp = security_keys.relying_party(request)
+    keys = rp is not None and security_keys.usable_keys(user, rp.id).exists()
     context = {
         "page_title": "Two-factor sign-in",
         "state": state,
         "code_count": two_factor.RECOVERY_CODE_COUNT,
+        "rp_id": rp.id if rp else None,
+        "keys_available": rp is not None,
+        "keys_here": keys,
+        "unavailable_host": security_keys.UNAVAILABLE_HOST,
     }
     if user.credentials_locked:
         context["unavailable"] = CREDENTIALS_LOCKED
@@ -180,13 +229,48 @@ def two_factor_page(request):
             status=403 if request.method == "POST" else 200,
         )
     form_class = TwoFactorChangeForm if state["enabled"] else TwoFactorStartForm
-    form = form_class(request.POST or None, required=state["required"])
+    form = form_class(
+        request.POST or None,
+        required=state["required"],
+        keys=keys,
+        app=state["app"],
+        key_choices=[(k.pk, k.name) for k in state["keys"]],
+    )
+    ceremony = request.session.pop(CONFIRM_CEREMONY, None) if request.method == "POST" else None
     if request.method == "POST" and form.is_valid():
         action = form.cleaned_data["action"]
         data = {"actor": user, "current_password": form.cleaned_data["current_password"]}
         if state["enabled"]:
-            data["code"] = form.cleaned_data["otp_code"]
+            answer = form.cleaned_data["security_key_response"]
+            data["code"] = (
+                security_keys.KeyAssertion(answer, ceremony or {})
+                if answer
+                else form.cleaned_data["otp_code"]
+            )
         try:
+            if action == "add_key":
+                request.session[PENDING_KEY] = two_factor.begin_key_registration(rp=rp, **data)
+                return redirect("accounts:security_key_add")
+            if action == "remove_app":
+                user = two_factor.remove_app(**data)
+                _keep_session(request, user)
+                messages.success(
+                    request,
+                    "The authenticator app is removed; your security keys remain. Other "
+                    "sessions have been signed out.",
+                )
+                return redirect("accounts:two_factor")
+            if action.startswith("remove_key:"):
+                user, last = two_factor.remove_key(key_pk=int(action.split(":", 1)[1]), **data)
+                _keep_session(request, user)
+                messages.success(
+                    request,
+                    "The key is removed. It was your last second factor, so two-factor sign-in "
+                    "is off and the recovery codes no longer work."
+                    if last
+                    else "The key is removed.",
+                )
+                return redirect("accounts:two_factor")
             if action == "setup":
                 device = two_factor.begin_setup(**data)
                 request.session[PENDING_SETUP] = device.pk
@@ -205,6 +289,10 @@ def two_factor_page(request):
         except (ValidationError, PermissionDenied) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     context["form"] = form
+    if keys and state["enabled"]:
+        ceremony = security_keys.begin(rp, "confirm", user.pk)
+        request.session[CONFIRM_CEREMONY] = ceremony
+        context["key_options"] = security_keys.request_options(user, ceremony)
     return render(
         request,
         "accounts/two_factor.html",
@@ -296,7 +384,66 @@ def two_factor_setup(request):
             # Generated markup: paths only, no supplied text.
             "qr_svg": two_factor.Concealed(mark_safe(qr), html=True),
             "secret_key": two_factor.Concealed(two_factor.secret_key(device)),
-            "replacing": two_factor.enabled(request.user),
+            "replacing": two_factor.has_app(request.user),
+            "setup_minutes": two_factor.SETUP_SECONDS // 60,
+        },
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@login_required
+@sensitive_variables()
+def security_key_add(request):
+    """Register a security key or passkey: name it, then answer the browser's prompts."""
+    from django.contrib import messages
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+    from webauthn.helpers import bytes_to_base64url
+
+    from . import security_keys, two_factor
+    from .forms import SecurityKeyNameForm
+
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    ceremony = two_factor.pending_registration(request.user, request.session.get(PENDING_KEY))
+    if ceremony is None:
+        request.session.pop(PENDING_KEY, None)
+        messages.info(request, "Registration was not started or has expired. Start again.")
+        return redirect("accounts:two_factor")
+    count = len(two_factor.status(request.user)["keys"])
+    form = SecurityKeyNameForm(request.POST or None, initial={"name": f"Security key {count + 1}"})
+    if request.method == "POST" and form.is_valid():
+        try:
+            user, key, codes = two_factor.register_key(
+                actor=request.user,
+                ceremony=ceremony,
+                response=form.cleaned_data["security_key_response"],
+                name=form.cleaned_data["name"],
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
+            # The answer was spent: a new challenge for the next try, same expiry.
+            ceremony = dict(ceremony, challenge=bytes_to_base64url(secrets.token_bytes(32)))
+            request.session[PENDING_KEY] = ceremony
+        else:
+            request.session.pop(PENDING_KEY, None)
+            _keep_session(request, user)
+            if codes is not None:
+                return _show_recovery_codes(request, codes, replaced=False)
+            messages.success(
+                request, f"Security key “{key.name}” added. Other sessions have been signed out."
+            )
+            return redirect("accounts:two_factor")
+    return render(
+        request,
+        "accounts/security_key_add.html",
+        {
+            "page_title": "Add a security key or passkey",
+            "form": form,
+            "key_options": security_keys.creation_options(request.user, ceremony),
+            "first": not two_factor.enabled(request.user),
+            "rp_id": ceremony["rp_id"],
             "setup_minutes": two_factor.SETUP_SECONDS // 60,
         },
         status=422 if request.method == "POST" else 200,
@@ -334,6 +481,8 @@ def user_list(request):
 
     from core.services import require_role
 
+    from .models import SecurityKey
+
     require_role(request.user, "admin")
 
     class Filters(forms.Form):
@@ -360,7 +509,8 @@ def user_list(request):
         get_user_model()
         .objects.prefetch_related("groups")
         .annotate(
-            has_two_factor=Exists(TOTPDevice.objects.filter(user=OuterRef("pk"), confirmed=True))
+            has_app=Exists(TOTPDevice.objects.filter(user=OuterRef("pk"), confirmed=True)),
+            has_key=Exists(SecurityKey.objects.filter(user=OuterRef("pk"))),
         )
         .order_by("username")
     )
@@ -378,8 +528,10 @@ def user_list(request):
             users = users.filter(groups__name=data["role"])
         if data["status"]:
             users = users.filter(is_active=data["status"] == "active")
-        if data["two_factor"]:
-            users = users.filter(has_two_factor=data["two_factor"] == "on")
+        if data["two_factor"] == "on":
+            users = users.filter(Q(has_app=True) | Q(has_key=True))
+        elif data["two_factor"] == "off":
+            users = users.filter(has_app=False, has_key=False)
     else:
         users = users.none()
     params = request.GET.copy()

@@ -46,7 +46,7 @@ The announcement is shown only while it is published; it is public, so it appear
 
 A successful sign-in starts a controlled session. Accounts requiring password replacement go to Change password before entering the workspace. An account without a recognized laboratory role reaches Account access from the workspace entry point. Each destination still checks its own permissions. Signing in does not approve a scientific record or apply an electronic signature.
 
-An account that has set up two-factor sign-in is not signed in by its password alone: an accepted password opens the second step, where you enter a code from your authenticator app or a recovery code (see Two-factor sign-in, second step). The password is not asked again unless the step expires, and opening this page again discards a pending second step. The password check still counts failures as above, and wrong codes count toward the same limit; the count resets only when sign-in completes.
+An account that has set up two-factor sign-in is not signed in by its password alone: an accepted password opens the second step, where you use a security key or passkey, enter a code from your authenticator app, or enter a recovery code (see Two-factor sign-in, second step). The password is not asked again unless the step expires, and opening this page again discards a pending second step. The password check still counts failures as above, and wrong codes count toward the same limit; the count resets only when sign-in completes.
 
 Each successful sign-in, failed attempt and sign-out (including a session ended by expiry or revocation) writes one line to the application log on standard output: `signin.success`, `signin.failed` or `signout`, the username and the platform request ID. For an account with two-factor sign-in, an accepted password writes `signin.second_factor_requested` and a refused code writes `signin.second_factor_failed` (named only when the account exists, otherwise `<unknown>`); `signin.success` follows once the code is accepted. A failed attempt names the account only when it exists; otherwise it shows `<unknown>`. Passwords are never logged. These lines are not audit events and are not stored in the database, so they follow the deployment's log retention rather than database backups or resets.
 
@@ -56,5 +56,5 @@ Each successful sign-in, failed attempt and sign-out (including a session ended 
 - [Account access](/accounts/access/)
 - [Change password](/accounts/password/)
 - [Sign-in announcement](/accounts/announcement/)
-- Two-factor sign-in, second step, reached after an accepted password for an account that uses an authenticator app.
+- Two-factor sign-in, second step, reached after an accepted password for an account with two-factor sign-in.
 - [Two-factor sign-in settings](/accounts/two-factor/)

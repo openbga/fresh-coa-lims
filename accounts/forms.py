@@ -193,47 +193,117 @@ def _code_field(label, help_text):
 
 
 class SignInCodeForm(StyledForm):
-    otp_code = _code_field("Code", CODE_HELP)
+    """A code, or a security key's answer that the page's script puts in security_key_response.
 
-    def clean_otp_code(self):
+    keys: whether the account has security keys usable here; app: whether it has an
+    authenticator app. Without an app only recovery codes are accepted in the code field.
+    """
+
+    otp_code = _code_field("Code", CODE_HELP)
+    security_key_response = forms.CharField(
+        required=False, widget=forms.HiddenInput, max_length=64 * 1024
+    )
+
+    def __init__(self, *args, keys=False, app=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.keys = keys
+        field = self.fields["otp_code"]
+        field.required = False
+        if not app:
+            field.label = "Recovery code"
+            field.help_text = "One of the recovery codes you were given; each works once."
+        if keys:
+            field.help_text += " Leave it empty to use your security key."
+
+    def clean(self):
         from .two_factor import code_kind
 
-        code = self.cleaned_data["otp_code"]
-        if code_kind(code)[0] is None:
-            raise forms.ValidationError(
-                "Enter the 6-digit code from your authenticator app, or a recovery code."
+        values = super().clean()
+        code = values.get("otp_code") or ""
+        if self.keys and values.get("security_key_response"):
+            values["otp_code"] = ""
+            return values
+        values["security_key_response"] = ""
+        if not code.strip():
+            self.add_error(
+                "otp_code",
+                "Use your security key, or enter a code."
+                if self.keys
+                else "Enter the 6-digit code from your authenticator app, or a recovery code.",
             )
-        return code
+        elif code_kind(code)[0] is None:
+            self.add_error(
+                "otp_code",
+                "Enter the 6-digit code from your authenticator app, or a recovery code.",
+            )
+        return values
 
 
 class TwoFactorStartForm(StyledForm):
     current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
-    action = forms.ChoiceField(choices=[("setup", "Set up")])
+    action = forms.ChoiceField(
+        choices=[
+            ("setup", "Set up with an authenticator app"),
+            ("add_key", "Set up with a security key or passkey"),
+        ]
+    )
 
-    def __init__(self, *args, required=False, **kwargs):
+    def __init__(self, *args, required=False, keys=False, app=False, key_choices=(), **kwargs):
         # required only changes what an account with two-factor sign-in on may do.
         super().__init__(*args, **kwargs)
 
 
 class TwoFactorChangeForm(SignInCodeForm):
     current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
-    action = forms.ChoiceField(
-        choices=[
+    action = forms.ChoiceField(choices=[])
+
+    def __init__(self, *args, required=False, keys=False, app=True, key_choices=(), **kwargs):
+        super().__init__(*args, keys=keys, app=app, **kwargs)
+        field = self.fields["otp_code"]
+        field.label = (
+            "Code from your authenticator app or a recovery code" if app else "Recovery code"
+        )
+        field.help_text = "A recovery code used here is spent, as it would be at sign-in." + (
+            " Leave it empty to confirm with your security key." if keys else ""
+        )
+        choices = [
+            ("add_key", "Add a security key or passkey"),
             ("codes", "Make new recovery codes"),
-            ("setup", "Set up a new authenticator app"),
-            ("disable", "Turn off two-factor sign-in"),
+            ("setup", "Set up a new authenticator app" if app else "Add an authenticator app"),
         ]
+        if app and key_choices:
+            choices.append(("remove_app", "Remove the authenticator app"))
+        choices += [(f"remove_key:{pk}", f"Remove {name}") for pk, name in key_choices]
+        if not required:
+            choices.append(("disable", "Turn off two-factor sign-in"))
+        self.fields["action"].choices = choices
+        self.order_fields(["current_password", "otp_code", "action"])
+
+
+class SecurityKeyNameForm(StyledForm):
+    name = forms.CharField(
+        label="Name of the key",
+        max_length=60,
+        help_text="So that you can tell your keys apart, for example where you keep it.",
+    )
+    security_key_response = forms.CharField(
+        required=False, widget=forms.HiddenInput, max_length=64 * 1024
     )
 
-    def __init__(self, *args, required=False, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["otp_code"].label = "Code from your authenticator app or a recovery code"
-        self.fields[
-            "otp_code"
-        ].help_text = "A recovery code used here is spent, as it would be at sign-in."
-        if required:
-            self.fields["action"].choices = self.fields["action"].choices[:2]
-        self.order_fields(["current_password", "otp_code", "action"])
+    def clean_name(self):
+        name = " ".join(self.cleaned_data["name"].split())
+        if not name:
+            raise forms.ValidationError("Enter a name for the key.")
+        return name
+
+    def clean(self):
+        values = super().clean()
+        if not self.errors and not values.get("security_key_response"):
+            raise forms.ValidationError(
+                "Your browser did not return the new key. Choose Register the key and follow "
+                "your browser's prompts."
+            )
+        return values
 
 
 class TwoFactorConfirmForm(StyledForm):

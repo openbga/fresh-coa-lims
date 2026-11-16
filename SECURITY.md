@@ -25,7 +25,7 @@ In scope: this repository's source code, its default configuration, the containe
 
 - bypass of authentication, session limits, role checks or the independent-review rule;
 - signing without a fresh username and PIN, PIN or password disclosure, or lockout bypass;
-- signing in without the second factor of an account that has one, reuse of a code, or disclosure of an authenticator key or a recovery code;
+- signing in without the second factor of an account that has one, reuse of a code or of a security key's answer, an answer accepted from another site, or disclosure of an authenticator key or a recovery code;
 - changing or deleting signed records, audit history or issued reports;
 - injection, cross-site scripting, request forgery, unsafe file or PDF handling, server-side request forgery;
 - exposure of secrets, hashes or other users' data.
@@ -56,8 +56,8 @@ Check these before exposing an instance. They describe software settings, not a 
 4. Serve only over HTTPS through a reverse proxy that overwrites `X-Forwarded-Proto`; the application trusts that header. Never expose the application port directly.
 5. HSTS defaults to one year when `DEBUG` is off. Lower `SECURE_HSTS_SECONDS` while first verifying HTTPS. Enable `SECURE_HSTS_INCLUDE_SUBDOMAINS` or `SECURE_HSTS_PRELOAD` only if every subdomain is HTTPS-only.
 6. Sessions use secure, HttpOnly cookies, end at browser close and expire after 15 minutes idle or 8 hours (`SESSION_IDLE_SECONDS`, `SESSION_ABSOLUTE_SECONDS`).
-7. Password sign-in locks an account for 15 minutes after 5 consecutive failures (`LOGIN_FAILURE_LIMIT`, `LOGIN_LOCK_SECONDS`), wrong two-factor codes included; signature PINs lock in the same way. Anyone who knows a username can trigger a lock, so add per-address rate limiting at the proxy and review repeated locks.
-8. Require two-factor sign-in with `MFA_REQUIRED_ROLES` for the roles your access procedure names (or `all`); we recommend at least `admin`, whose accounts manage every other account. Each person sets up an authenticator app and keeps the recovery codes apart from it. Authenticator keys are stored in the database, so protect backups as you protect the database.
+7. Password sign-in locks an account for 15 minutes after 5 consecutive failures (`LOGIN_FAILURE_LIMIT`, `LOGIN_LOCK_SECONDS`), wrong two-factor codes and refused security keys included; signature PINs lock in the same way. Anyone who knows a username can trigger a lock, so add per-address rate limiting at the proxy and review repeated locks.
+8. Require two-factor sign-in with `MFA_REQUIRED_ROLES` for the roles your access procedure names (or `all`); we recommend at least `admin`, whose accounts manage every other account. Each person sets up a security key or passkey (phishing-resistant, needs HTTPS and the site's host name) or an authenticator app, and keeps the recovery codes apart from them. Authenticator keys are stored in the database, so protect backups as you protect the database.
 9. Responses carry a same-origin Content-Security-Policy, `X-Frame-Options: DENY` and `nosniff`. Update the policy before adding any external script, style, font or analytics.
 10. `/admin/` is a read-only view of account records for staff users and grants no laboratory authority. Its sign-in page leads to the application's sign-in. Keep staff and superuser accounts to a minimum, or block `/admin/` at the proxy if you do not use it.
 11. Create the first administrator with `createsuperuser` and `assign_roles`, add people with `create_staff` or **Users and roles**, and have each person set their own password and PIN. Never run `seed_demo` or set `DEMO_PASSWORD`/`DEMO_PIN` on a real instance. Never set `ALLOW_DEMO_RESET` or create the `render.demo.yaml` job there either: `reset_demo` erases the whole database. The sign-in announcement is readable by anyone who can reach the sign-in page: never put credentials of real accounts in it.
