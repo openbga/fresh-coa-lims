@@ -93,6 +93,7 @@ class ControlledSessionMiddleware:
                 not in {
                     reverse("accounts:two_factor"),
                     reverse("accounts:two_factor_setup"),
+                    reverse("accounts:security_key_add"),
                     reverse("accounts:password_change"),
                     reverse("logout"),
                     reverse("pagedocs:doc"),

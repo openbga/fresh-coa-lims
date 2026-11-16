@@ -1,40 +1,57 @@
 {% extends "base.html" %}
+{% load static %}
 {% block breadcrumbs %}<a href="{% url 'accounts:access' %}">Account access</a>{% endblock %}
-{% block page_intro %}<p>Sign-in asks for a code from an authenticator app on your phone after your password. Use any app that supports time-based codes (TOTP). Your signature PIN is still entered for every signature.</p>{% endblock %}
+{% block page_intro %}<p>After your password, sign-in asks for a second factor: a security key or passkey, or a code from an authenticator app on your phone (any app that supports time-based codes, TOTP). Recovery codes stand in when neither is at hand. Your signature PIN is still entered for every signature.</p>{% endblock %}
 {% block content %}
 <section class="card mb-3" aria-labelledby="two-factor-status"><div class="card-header"><h2 class="card-title" id="two-factor-status">Status</h2></div><div class="card-body"><dl class="vr-facts">
-<div><dt>Two-factor sign-in</dt><dd>{% if state.enabled %}On: authenticator app, set up {{ state.since|date:"Y-m-d" }}{% else %}Off{% endif %}</dd></div>
-{% if state.enabled %}<div><dt>Code last accepted</dt><dd>{{ state.last_used_at|date:"Y-m-d H:i T"|default:"Not yet" }}</dd></div>
-<div><dt>Unused recovery codes</dt><dd>{{ state.recovery_codes_left }} of {{ code_count }}</dd></div>{% endif %}
+<div><dt>Two-factor sign-in</dt><dd>{% if state.enabled %}On since {{ state.since|date:"Y-m-d" }}{% else %}Off{% endif %}</dd></div>
+<div><dt>Security keys and passkeys</dt><dd>{% if state.keys %}{{ state.keys|length }} of at most {{ state.key_limit }}{% else %}None{% endif %}</dd></div>
+<div><dt>Authenticator app</dt><dd>{% if state.app %}Set up {{ state.app_since|date:"Y-m-d" }}{% else %}Not set up{% endif %}</dd></div>
+{% if state.app %}<div><dt>Code last accepted</dt><dd>{{ state.last_used_at|date:"Y-m-d H:i T"|default:"Not yet" }}</dd></div>{% endif %}
+{% if state.enabled %}<div><dt>Unused recovery codes</dt><dd>{{ state.recovery_codes_left }} of {{ code_count }}</dd></div>{% endif %}
 <div><dt>Required for your account</dt><dd>{% if state.required %}Yes, by this deployment's settings{% else %}No{% endif %}</dd></div>
 </dl>
-{% if state.stopped %}<p class="alert alert-warning">Two-factor sign-in is stopped for this account after too many wrong codes. No code is accepted until an administrator resets it; you then set it up again.</p>{% endif %}
+{% if state.stopped %}<p class="alert alert-warning">Two-factor sign-in is stopped for this account after too many wrong codes or refused keys. Nothing is accepted until an administrator resets it; you then set it up again.</p>{% endif %}
 {% if state.required and not state.enabled %}<p class="alert alert-info mb-0">Set up two-factor sign-in before continuing. You can sign out from the top bar.</p>{% endif %}
-{% if state.enabled and state.recovery_codes_left < 3 %}<p class="alert alert-warning mb-0">{% if state.recovery_codes_left %}Only {{ state.recovery_codes_left }} recovery code{{ state.recovery_codes_left|pluralize }} left.{% else %}No recovery codes left.{% endif %} Make new ones so that you can still sign in without the app.</p>{% endif %}
+{% if state.enabled and state.recovery_codes_left < 3 %}<p class="alert alert-warning mb-0">{% if state.recovery_codes_left %}Only {{ state.recovery_codes_left }} recovery code{{ state.recovery_codes_left|pluralize }} left.{% else %}No recovery codes left.{% endif %} Make new ones so that you can still sign in without your key or app.</p>{% endif %}
 </div></section>
+{% if state.keys %}
+<section class="card mb-3" aria-labelledby="security-keys"><div class="card-header"><h2 class="card-title" id="security-keys">Security keys and passkeys</h2></div><div class="card-body">
+<div class="table-responsive"><table class="table mb-0"><thead><tr><th scope="col">Name</th><th scope="col" class="d-none d-md-table-cell">Kind</th><th scope="col" class="d-none d-md-table-cell">Added</th><th scope="col" class="d-none d-md-table-cell">Last used</th>{% if not unavailable %}<th scope="col"><span class="visually-hidden">Action</span></th>{% endif %}</tr></thead><tbody>
+{% for key in state.keys %}<tr><td>{{ key.name }}{% if key.rp_id != rp_id %}<br><small>Works only at {{ key.rp_id }}</small>{% endif %}<small class="d-block d-md-none">{% if key.backup_eligible %}Passkey that can be copied to your other devices{% else %}Kept on one device{% endif %}. Added {{ key.created_at|date:"Y-m-d" }}; last used {{ key.last_used_at|date:"Y-m-d H:i T"|default:"not yet" }}.</small></td><td class="d-none d-md-table-cell">{% if key.backup_eligible %}Passkey that can be copied to your other devices{% else %}Kept on one device{% endif %}</td><td class="d-none d-md-table-cell">{{ key.created_at|date:"Y-m-d" }}</td><td class="d-none d-md-table-cell">{{ key.last_used_at|date:"Y-m-d H:i T"|default:"Not yet" }}</td>{% if not unavailable %}<td class="text-end"><button class="btn btn-sm btn-outline-danger" type="submit" form="two-factor-change" name="action" value="remove_key:{{ key.pk }}" aria-label="Remove {{ key.name }}">Remove</button></td>{% endif %}</tr>{% endfor %}
+</tbody></table></div>
+{% if not unavailable %}<p class="mt-3 mb-0">To remove a key, enter your password and confirm below, then choose Remove beside it. You can confirm with the key you remove.{% if not state.app and state.keys|length == 1 %} This is your only second factor: removing it turns two-factor sign-in off{% if state.required %}, which your account does not allow{% endif %}.{% endif %}</p>{% endif %}
+</div></section>
+{% endif %}
+{% if not keys_available %}<p class="alert alert-info">{{ unavailable_host }}</p>{% endif %}
 {% if unavailable %}<p class="alert alert-info">{{ unavailable }}</p><a class="btn btn-link" href="{% url 'accounts:access' %}">Return without changes</a>
 {% elif state.enabled %}
-<section class="card" aria-labelledby="two-factor-change"><div class="card-header"><h2 class="card-title" id="two-factor-change">Change two-factor sign-in</h2></div><div class="card-body">
-<p>Confirm that it is you with your password and a current code. A new authenticator app replaces the current one only once you confirm it with a code it shows; new recovery codes replace all earlier ones.</p>
-<form class="vr-form" method="post" autocomplete="off" novalidate>
+<section class="card" aria-labelledby="two-factor-change-title"><div class="card-header"><h2 class="card-title" id="two-factor-change-title">Change two-factor sign-in</h2></div><div class="card-body">
+<p>Confirm that it is you with your password and a second factor{% if keys_here %}: leave the code empty and your browser asks for your security key{% endif %}. A new authenticator app replaces the current one only once you confirm it with a code it shows; new recovery codes replace all earlier ones.</p>
+<form class="vr-form" id="two-factor-change" method="post" autocomplete="off" novalidate{% if keys_here %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
 {% csrf_token %}{% include "includes/form_errors.html" with form=form %}
+{{ form.security_key_response }}
 {{ form.current_password.as_field_group }}
 {{ form.otp_code.as_field_group }}
+{% if keys_here %}<p class="alert alert-info" data-security-key-unsupported hidden>This browser cannot use security keys here. Enter a code from your authenticator app or a recovery code.</p><p class="small" role="status" data-security-key-status></p>{% endif %}
 <div class="vr-form-actions"><a class="btn btn-link" href="{% url 'accounts:access' %}">Cancel</a>
+{% if keys_available and state.keys|length < state.key_limit %}<button class="btn btn-outline-secondary" type="submit" name="action" value="add_key">Add a security key or passkey</button>{% endif %}
 <button class="btn btn-outline-secondary" type="submit" name="action" value="codes">Make new recovery codes</button>
-<button class="btn btn-outline-secondary" type="submit" name="action" value="setup">Set up a new authenticator app</button>
+<button class="btn btn-outline-secondary" type="submit" name="action" value="setup">{% if state.app %}Set up a new authenticator app{% else %}Add an authenticator app{% endif %}</button>
+{% if state.app and state.keys %}<button class="btn btn-outline-danger" type="submit" name="action" value="remove_app">Remove the authenticator app</button>{% endif %}
 {% if not state.required %}<button class="btn btn-outline-danger" type="submit" name="action" value="disable">Turn off two-factor sign-in</button>{% endif %}</div>
 </form>
 {% if state.required %}<p class="mt-3 mb-0">Two-factor sign-in is required for your account, so it cannot be turned off here.</p>{% endif %}
 </div></section>
 {% else %}
 <section class="card" aria-labelledby="two-factor-setup"><div class="card-header"><h2 class="card-title" id="two-factor-setup">Set up</h2></div><div class="card-body">
-<p>Have your phone ready with an authenticator app. After you confirm your password, the next page shows a QR code to scan and a key you can type instead.</p>
+<p>Choose a security key or passkey, or an authenticator app on your phone. You can add the other later. After you confirm your password, the next page {% if keys_available %}asks your browser to register the key, or {% endif %}shows a QR code for the app.</p>
 <form class="vr-form" method="post" autocomplete="off" novalidate>
 {% csrf_token %}{% include "includes/form_errors.html" with form=form %}
 {{ form.current_password.as_field_group }}
-<div class="vr-form-actions">{% if not state.required %}<a class="btn btn-link" href="{% url 'accounts:access' %}">Cancel</a>{% endif %}<button class="btn btn-primary" type="submit" name="action" value="setup">Set up two-factor sign-in</button></div>
+<div class="vr-form-actions">{% if not state.required %}<a class="btn btn-link" href="{% url 'accounts:access' %}">Cancel</a>{% endif %}{% if keys_available %}<button class="btn btn-primary" type="submit" name="action" value="add_key">Set up with a security key or passkey</button>{% endif %}<button class="btn {% if keys_available %}btn-outline-primary{% else %}btn-primary{% endif %}" type="submit" name="action" value="setup">Set up with an authenticator app</button></div>
 </form>
 </div></section>
 {% endif %}
 {% endblock %}
+{% block extra_js %}{% if key_options %}{{ key_options|json_script:"security-key-options" }}<script src="{% static 'js/security-keys.js' %}" defer></script>{% endif %}{% endblock %}

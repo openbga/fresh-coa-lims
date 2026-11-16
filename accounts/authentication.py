@@ -56,9 +56,9 @@ def reset_password_failures(user):
 
 
 def _has_second_factor(user):
-    from django_otp.plugins.otp_totp.models import TOTPDevice
+    from .two_factor import enabled
 
-    return TOTPDevice.objects.filter(user_id=user.pk, confirmed=True).exists()
+    return enabled(user)
 
 
 @sensitive_variables()

@@ -17,19 +17,28 @@
       {% include "includes/brand.html" with variant="entrance" %}
       <div class="vr-entrance-panel">
         <h1>Two-factor sign-in</h1>
-        <p class="vr-entrance-lead">Your password was accepted. Enter the code your authenticator app shows for this account.</p>
+        <p class="vr-entrance-lead">Your password was accepted. {% if keys and app %}Use your security key, or enter the code your authenticator app shows for this account.{% elif keys %}Use your security key or passkey.{% else %}Enter the code your authenticator app shows for this account.{% endif %}</p>
         {% include "includes/messages.html" %}
-        <form method="post" autocomplete="off" novalidate>
+        <form method="post" autocomplete="off" novalidate{% if keys %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
           {% csrf_token %}
           {% include "includes/form_errors.html" with form=form %}
+          {% if keys %}
+          {{ form.security_key_response }}
+          <p class="alert alert-info" data-security-key-unsupported hidden>This browser cannot use security keys here. Enter a code{% if not app %}: one of your recovery codes{% endif %}.</p>
+          <noscript><p class="alert alert-info">Security keys need JavaScript. Enter a code instead.</p></noscript>
+          <button class="btn btn-primary vr-login-submit mb-2" type="button" data-security-key-button>Use your security key</button>
+          <p class="vr-login-help" role="status" data-security-key-status></p>
+          {% endif %}
           {{ form.otp_code.as_field_group }}
-          <button class="btn btn-primary vr-login-submit" type="submit">Verify and sign in</button>
+          <button class="btn {% if keys %}btn-outline-primary{% else %}btn-primary{% endif %} vr-login-submit" type="submit">{% if keys %}Verify the code and sign in{% else %}Verify and sign in{% endif %}</button>
         </form>
-        <p class="vr-login-help">Each code works once: if you have just used the one shown, wait for the next. No access to the app? Enter one of your recovery codes instead; each works once. <a href="{% url 'login' %}">Start again</a></p>
+        {% if keys_elsewhere %}<p class="vr-login-help">Your security keys cannot be used at this address. Enter a code instead.</p>{% endif %}
+        <p class="vr-login-help">{% if app %}Each code works once: if you have just used the one shown, wait for the next. No access to the app? Enter one of your recovery codes instead; each works once.{% else %}No access to your key? Enter one of your recovery codes instead; each works once.{% endif %} <a href="{% url 'login' %}">Start again</a></p>
       </div>
-      <p class="vr-login-help">Enter the code within {{ pending_seconds|floatformat:0 }} seconds of your password, or start again. Repeated wrong codes pause sign-in for this account for a while, as wrong passwords do.</p>
+      <p class="vr-login-help">Finish within {{ pending_seconds|floatformat:0 }} seconds of your password, or start again. Repeated wrong codes or refused keys pause sign-in for this account for a while, as wrong passwords do.</p>
     </main>
     {% include "includes/app_footer.html" with centered=True %}
   </div>
 </div>
 {% endblock %}
+{% block extra_js %}{% if keys %}{{ key_options|json_script:"security-key-options" }}<script src="{% static 'js/security-keys.js' %}" defer></script>{% endif %}{% endblock %}

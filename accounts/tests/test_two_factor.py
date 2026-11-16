@@ -109,7 +109,7 @@ def test_setup_turns_on_two_factor_and_shows_recovery_codes_once(analyst):
     other.force_login(analyst)
     page = client.get(PAGE)
     assert page.status_code == 200 and page.context["state"]["enabled"] is False
-    assert b"Set up two-factor sign-in" in page.content
+    assert b"Set up with an authenticator app" in page.content
 
     refused = client.post(PAGE, {"current_password": "wrong-password", "action": "setup"})
     assert refused.status_code == 422

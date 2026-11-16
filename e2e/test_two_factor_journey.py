@@ -71,7 +71,7 @@ def test_two_factor_sign_in_journey(live_server, django_user_model, settings, ar
             page.get_by_role("link", name="Two-factor sign-in", exact=True).click()
             expect(page.get_by_text("Off", exact=True)).to_be_visible()
             page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
-            page.get_by_role("button", name="Set up two-factor sign-in", exact=True).click()
+            page.get_by_role("button", name="Set up with an authenticator app", exact=True).click()
             expect(page.locator("svg.vr-qr")).to_be_visible()
             key = page.locator("code.vr-secret-key").inner_text()
             assert re.fullmatch(r"[A-Z2-7 ]{16,}", key.strip()), key

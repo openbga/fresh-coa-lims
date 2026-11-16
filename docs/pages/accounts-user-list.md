@@ -3,7 +3,7 @@ title: Users and roles
 urls: accounts:user_list
 views: accounts.views.user_list
 templates: accounts/users.html
-models: accounts.User, auth.Group
+models: accounts.User, accounts.SecurityKey, auth.Group
 reviewed: 2026-11-16
 ---
 
@@ -36,12 +36,12 @@ The header has **Create account**. A filter card is followed by the matching-acc
 | Find account (`q`) | `User.username`, `first_name`, `last_name`, `email` | Text, max 150 | No | Case-insensitive substring search across these four fields |
 | Role (`role`) | `User.groups` | All roles, Admin, Analyst, Auditor, Quality, Reviewer | No | Requires membership of the selected role |
 | Status (`status`) | `User.is_active` | Any status, Active, Inactive | No | Filters account activation, not qualification or PIN status |
-| Two-factor sign-in (`two_factor`) | authenticator device | On or off, On, Off | No | Filters accounts with a confirmed authenticator app (On) or without (Off) |
+| Two-factor sign-in (`two_factor`) | authenticator device, `SecurityKey` | On or off, On, Off | No | On: a confirmed authenticator app or at least one security key. Off: neither |
 | Account | `User.username` | Text/link | — | Individual login identifier |
 | Identity | `User.first_name`, `last_name`, `email` | Text | — | Full name and email; missing name shows Not supplied |
 | Roles | `User.groups` | Group names | — | Displays current groups, or No role assigned |
 | Status | `User.is_active`, `password_change_required` | Text | — | Active/Inactive plus Password change required when applicable |
-| Two-factor sign-in | authenticator device | On/Off | — | Whether the account has a confirmed authenticator app |
+| Two-factor sign-in | authenticator device, `SecurityKey` | Text | — | **On: app**, **On: security key**, **On: app and security key**, or **Off** |
 | Last sign-in | `User.last_login` | Date/time and zone | — | Last login, or Never signed in |
 | Matching accounts | — | Count | — | Count after filtering, across all pages |
 | Page (`page`) | — | Integer | No | 30 accounts per page; defaults to page 1 |
