@@ -45,6 +45,7 @@ KEY_LIMIT = 10
 # How long the browser waits for the key; the ceremony itself expires with its sign-in or setup.
 BROWSER_TIMEOUT_MS = 120_000
 RESPONSE_LIMIT = 64 * 1024
+CREDENTIAL_ID_LIMIT = 1023
 TRANSPORTS = frozenset(t.value for t in AuthenticatorTransport)
 UNAVAILABLE_HOST = (
     "Security keys work only when this site is opened by its host name over HTTPS, not by an IP "
@@ -152,6 +153,28 @@ def _challenge_digest(ceremony):
     return hashlib.sha256(ceremony["challenge"].encode()).hexdigest()
 
 
+def answers_ceremony(assertion):
+    """Whether the answer was given to this ceremony's challenge, as the browser reports it.
+
+    An answer to an earlier or replaced challenge (a second tab, a reload, a repeated send) is
+    stale rather than wrong: it is refused without counting, which is safe because a key's
+    answer cannot be guessed. So is an answer when the session holds no challenge (sent twice).
+    An unreadable answer, or one whose challenge is not text, returns True, so the check
+    refuses and counts it.
+    """
+    ceremony = assertion.ceremony
+    expected = ceremony.get("challenge") if isinstance(ceremony, dict) else None
+    try:
+        data = json.loads(assertion.response)
+        client = json.loads(base64url_to_bytes(data["response"]["clientDataJSON"]))
+        given = client["challenge"]
+    except ValueError, TypeError, KeyError, AttributeError:
+        return True
+    if not isinstance(given, str):
+        return True  # Not an answer a browser gives: refused and counted by the check.
+    return bool(expected) and given == expected
+
+
 def _parse(response):
     if not isinstance(response, str) or not response or len(response) > RESPONSE_LIMIT:
         raise KeyRefused
@@ -231,6 +254,8 @@ def verify_registration(user, ceremony, response):
         )
     except WebAuthnException as exc:
         raise KeyRefused from exc
+    if len(verified.credential_id) > CREDENTIAL_ID_LIMIT:
+        raise KeyRefused  # Web Authentication Level 3, section 7.1: at most 1023 bytes.
     transports = data.get("response", {}).get("transports") or []
     if not isinstance(transports, list):
         transports = []

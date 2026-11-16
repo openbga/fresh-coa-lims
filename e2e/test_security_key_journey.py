@@ -175,8 +175,18 @@ def test_security_key_journey(live_server, django_user_model, artifacts):
         expect(keys_table(page)).to_have_count(2)
         expect(page.get_by_text("2 of at most", exact=False)).to_be_visible()
         assert len(s.credentials(second)) == 1
-        # Remove Desk key, confirmed with the password and a key (the second one answers).
+        # Enter in the form presses no action: never the first Remove button, and no prompt.
+        posts = []
+        page.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
+        page.get_by_label(re.compile(r"^Current password\b")).press("Enter")
+        page.get_by_label(re.compile(r"^Recovery code\b")).fill(codes[1])
+        page.get_by_label(re.compile(r"^Recovery code\b")).press("Enter")
+        page.wait_for_timeout(500)
+        assert posts == [], posts
+        expect(keys_table(page)).to_have_count(2)
+        page.get_by_label(re.compile(r"^Recovery code\b")).fill("")
+        # Remove Desk key, confirmed with the password and a key (the second one answers).
         page.get_by_role("button", name="Remove Desk key").click()
         expect(keys_table(page)).to_have_count(1)
         expect(keys_table(page).first).to_contain_text("Spare key")

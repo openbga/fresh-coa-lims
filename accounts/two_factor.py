@@ -26,7 +26,9 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.models import Value
+from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.utils.html import escape
@@ -62,6 +64,7 @@ CODE_FAILURE_LIMIT = 100
 CODE_REFUSED = "The code was not accepted."
 KEY_REFUSED = "The security key was not accepted."
 KEY_EXPIRED = "The security key request expired. Try again."
+NAME_TAKEN = "You already have a key with this name. Choose another name."
 PASSWORD_REFUSED = "Current password was not accepted."
 STOPPED = (
     "Two-factor sign-in is stopped for this account after too many wrong codes or refused "
@@ -233,9 +236,15 @@ def _accept(user, device, code, *, purpose):
 
 
 def _expired(code, seconds):
-    """A key's answer to a ceremony older than seconds: refused without counting."""
+    """A key's answer to a ceremony older than seconds, or to another challenge than the
+    ceremony's current one (a second tab, a reload, a repeated send): refused without
+    counting, since a key's answer cannot be guessed."""
+    from .security_keys import answers_ceremony
+
     if not isinstance(code, KeyAssertion):
         return False
+    if not answers_ceremony(code):
+        return True
     try:
         issued = float(code.ceremony["issued"])
     except KeyError, TypeError, ValueError:
@@ -504,6 +513,9 @@ def confirm_setup(*, actor, device_pk, code):
             raise PermissionDenied(CREDENTIALS_LOCKED)
         if pending_setup(user, device_pk) is None:
             raise ValidationError("Setup expired. Start again.")
+        if stopped(user):
+            # A setup started before the stop must not clear it: only an administrator does.
+            raise ValidationError(STOPPED)
         device = TOTPDevice.objects.select_for_update().get(pk=device_pk)
         if password_locked(user):
             raise ValidationError(CODE_REFUSED)
@@ -664,13 +676,16 @@ def register_key(*, actor, ceremony, response, name):
             raise PermissionDenied(CREDENTIALS_LOCKED)
         if pending_registration(user, ceremony) is None:
             raise ValidationError("Registration expired or your account changed. Start again.")
+        if stopped(user):
+            raise ValidationError(STOPPED)
         if password_locked(user):
             raise ValidationError(KEY_REFUSED)
         keys = SecurityKey.objects.select_for_update().filter(user_id=user.pk)
         if len(keys) >= KEY_LIMIT:
             raise ValidationError(f"An account can have at most {KEY_LIMIT} security keys.")
-        if any(k.name.lower() == name.lower() for k in keys):
-            raise ValidationError("You already have a key with this name. Choose another name.")
+        # Compared as the database's unique constraint compares, with its lower().
+        if keys.annotate(folded=Lower("name")).filter(folded=Lower(Value(name))).exists():
+            raise ValidationError(NAME_TAKEN)
         try:
             fields = verify_registration(user, ceremony, response)
         except KeyRefused as exc:
@@ -683,7 +698,11 @@ def register_key(*, actor, ceremony, response, name):
         before = safe_snapshot(user)
         on = enabled(user)
         now = timezone.now()
-        key = SecurityKey.objects.create(user=user, name=name, created_at=now, **fields)
+        try:
+            with transaction.atomic():
+                key = SecurityKey.objects.create(user=user, name=name, created_at=now, **fields)
+        except IntegrityError as exc:  # A name or key the checks above did not see.
+            raise ValidationError(NAME_TAKEN) from exc
         codes = None
         if not on:
             codes = _new_recovery_codes(user, now)

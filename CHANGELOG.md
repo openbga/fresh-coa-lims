@@ -55,6 +55,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Fixed
 
+- Confirming a new authenticator app after 100 wrong codes stopped two-factor sign-in no longer clears the stop; a setup started before the stop is refused, and only an administrator's reset clears it.
 - Recording sampling now locks the analyst's account before the lot, the order every other change to a lot uses. An analyst who recorded sampling and another record of the same lot at the same moment could meet a database deadlock and an error page; nothing wrong was saved.
 
 ### Added

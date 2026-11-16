@@ -15,6 +15,7 @@
 {% if state.required and not state.enabled %}<p class="alert alert-info mb-0">Set up two-factor sign-in before continuing. You can sign out from the top bar.</p>{% endif %}
 {% if state.enabled and state.recovery_codes_left < 3 %}<p class="alert alert-warning mb-0">{% if state.recovery_codes_left %}Only {{ state.recovery_codes_left }} recovery code{{ state.recovery_codes_left|pluralize }} left.{% else %}No recovery codes left.{% endif %} Make new ones so that you can still sign in without your key or app.</p>{% endif %}
 </div></section>
+{% if state.enabled and not unavailable %}{# The form's default button, first in page order: Enter presses it, and it is disabled, so Enter never presses Remove. #}<button type="submit" form="two-factor-change" class="d-none" disabled hidden aria-hidden="true" tabindex="-1" data-default-guard></button>{% endif %}
 {% if state.keys %}
 <section class="card mb-3" aria-labelledby="security-keys"><div class="card-header"><h2 class="card-title" id="security-keys">Security keys and passkeys</h2></div><div class="card-body">
 <div class="table-responsive"><table class="table mb-0"><thead><tr><th scope="col">Name</th><th scope="col" class="d-none d-md-table-cell">Kind</th><th scope="col" class="d-none d-md-table-cell">Added</th><th scope="col" class="d-none d-md-table-cell">Last used</th>{% if not unavailable %}<th scope="col"><span class="visually-hidden">Action</span></th>{% endif %}</tr></thead><tbody>

@@ -9,7 +9,7 @@ from threading import Barrier
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.db import close_old_connections, connections, transaction
+from django.db import close_old_connections, connection, connections, transaction
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -207,6 +207,8 @@ def test_another_accounts_key_and_replayed_answers_are_refused(analyst):
     client.get(VERIFY)
     response = client.post(VERIFY, {"security_key_response": spent})
     assert response.status_code == 422 and not signed_in(client)
+    # Stale, not wrong: an answer cannot be guessed, so it is not counted.
+    assert b"request expired" in response.content and counts(analyst) == (0, 0)
 
 
 def test_same_answer_twice_at_once_is_accepted_once(analyst):
@@ -321,9 +323,8 @@ def test_owner_changes_can_be_confirmed_with_a_key(analyst):
     assert client.post(PAGE, data).status_code == 200
     assert CONFIRM_CEREMONY not in client.session or client.session[CONFIRM_CEREMONY]
     response = client.post(PAGE, data)
-    assert response.status_code == 422 and b"The security key was not accepted." in (
-        response.content
-    )
+    assert response.status_code == 422 and b"request expired" in response.content
+    assert counts(analyst) == (0, 0)
     # A wrong password with a good key changes nothing and counts the password.
     data = {
         "current_password": "wrong",
@@ -624,3 +625,126 @@ def test_verify_assertion_needs_the_account_lock_transaction(analyst):
     with transaction.atomic():
         assert security_keys.verify_assertion(user, assertion, purpose="confirm").pk
     assert repr(assertion) == "<KeyAssertion>"
+
+
+def test_answers_to_a_replaced_challenge_are_refused_without_counting(analyst):
+    """A second tab or a reload replaces the challenge; the genuine key's answer to the earlier
+    page is refused as expired and not counted, and the current page still works."""
+    key, _codes = enable_with_key(analyst)
+    client = Client()
+    password_step(client, analyst.username)
+    first = client.get(VERIFY).context["key_options"]
+    second = client.get(VERIFY).context["key_options"]
+    response = client.post(VERIFY, {"security_key_response": key.answer(first)})
+    assert response.status_code == 422 and b"request expired" in response.content
+    assert counts(analyst) == (0, 0) and not signed_in(client)
+    # The same answer sent twice: the second finds no challenge; nothing is counted.
+    owner = owner_client(analyst)
+    answer = confirm_with(owner, key)
+    data = {"current_password": PASSWORD, "action": "codes", "security_key_response": answer}
+    assert owner.post(PAGE, data).status_code == 200
+    response = owner.post(PAGE, data)
+    assert response.status_code == 422 and counts(analyst) == (0, 0)
+    assert second["challenge"] != first["challenge"]
+    assert key_step(client, key).status_code == 302  # A fresh page signs in.
+
+
+def test_registration_refuses_an_oversized_credential_id(analyst):
+    client = owner_client(analyst)
+    client.post(PAGE, {"current_password": PASSWORD, "action": "add_key"})
+    options = client.get(ADD).context["key_options"]
+    key = SoftKey()
+    key.credential_id = bytes(1100)
+    response = client.post(
+        ADD, {"name": "Synthetic", "security_key_response": key.register(options)}
+    )
+    assert response.status_code == 422 and b"was not accepted" in response.content
+    assert not SecurityKey.objects.exists()
+
+
+def test_names_are_compared_as_the_database_compares_them(analyst):
+    """Python and PostgreSQL fold some letters differently ("İ"); the database decides."""
+    key, _codes = enable_with_key(analyst, name="Synthetic key i")
+    client = owner_client(analyst)
+    proof = {"security_key_response": confirm_with(client, key)}
+    client.post(PAGE, {"current_password": PASSWORD, "action": "add_key", **proof})
+    options = client.get(ADD).context["key_options"]
+    response = client.post(
+        ADD, {"name": "Synthetic key İ", "security_key_response": SoftKey().register(options)}
+    )
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT lower(%s) = lower(%s)", ["Synthetic key i", "Synthetic key İ"])
+        folded_equal = cursor.fetchone()[0]
+    if folded_equal:
+        assert response.status_code == 422 and b"already have a key with this name" in (
+            response.content
+        )
+    else:
+        assert response.status_code == 302
+
+
+def test_registration_is_refused_once_the_second_factor_stopped(analyst):
+    key, _codes = enable_with_key(analyst)
+    client = owner_client(analyst)
+    proof = {"security_key_response": confirm_with(client, key)}
+    client.post(PAGE, {"current_password": PASSWORD, "action": "add_key", **proof})
+    options = client.get(ADD).context["key_options"]
+    LoginThrottle.objects.update_or_create(
+        user=analyst, defaults={"code_failures": two_factor.CODE_FAILURE_LIMIT}
+    )
+    response = client.post(
+        ADD, {"name": "Synthetic key B", "security_key_response": SoftKey().register(options)}
+    )
+    assert response.status_code == 422 and b"stopped for this account" in response.content
+    assert SecurityKey.objects.filter(user=analyst).count() == 1
+
+
+def test_enter_on_the_owner_page_presses_no_action(analyst):
+    """The disabled guard is the change form's first submit button in page order, so the
+    browser's implicit submission (Enter) presses nothing, never Remove."""
+    enable_with_key(analyst)
+    html = owner_client(analyst).get(PAGE).content.decode()
+    buttons = re.findall(r"<button\b[^>]*>", html)
+    for_form = [
+        b
+        for b in buttons
+        if 'type="submit"' in b and ('form="two-factor-change"' in b or 'name="action"' in b)
+    ]
+    assert "data-default-guard" in for_form[0] and "disabled" in for_form[0]
+    assert html.index("data-default-guard") < html.index('id="two-factor-change"')
+
+
+def test_an_app_setup_confirmed_after_the_stop_does_not_clear_it(analyst):
+    """A setup started before 100 failures stopped the second factor cannot finish after it:
+    only an administrator's reset clears the stop."""
+    from accounts.tests.test_two_factor import code
+
+    key, _codes = enable_with_key(analyst)
+    client = owner_client(analyst)
+    proof = {"security_key_response": confirm_with(client, key)}
+    response = client.post(PAGE, {"current_password": PASSWORD, "action": "setup", **proof})
+    assert response.status_code == 302 and response["Location"] == SETUP
+    device = TOTPDevice.objects.get(user=analyst, confirmed=False)
+    LoginThrottle.objects.update_or_create(
+        user=analyst, defaults={"code_failures": two_factor.CODE_FAILURE_LIMIT}
+    )
+    response = client.post(SETUP, {"otp_code": code(device)})
+    assert response.status_code == 422 and b"stopped for this account" in response.content
+    assert two_factor.stopped(analyst) and not two_factor.has_app(analyst)
+
+
+def test_an_answer_whose_challenge_is_not_text_is_refused_and_counted(analyst):
+    key, _codes = enable_with_key(analyst)
+    client = Client()
+    password_step(client, analyst.username)
+    options = client.get(VERIFY).context["key_options"]
+    answer = json.loads(key.answer(options))
+    client_data = {"type": "webauthn.get", "challenge": 12, "origin": "http://testserver"}
+    answer["response"]["clientDataJSON"] = security_keys.bytes_to_base64url(
+        json.dumps(client_data).encode()
+    )
+    response = client.post(VERIFY, {"security_key_response": json.dumps(answer)})
+    assert response.status_code == 422 and b"The security key was not accepted." in (
+        response.content
+    )
+    assert counts(analyst) == (1, 1)

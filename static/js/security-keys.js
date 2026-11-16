@@ -71,14 +71,33 @@
       });
       return;
     }
-    const submits = [...form.elements].filter((e) => e.type === 'submit');
+    // The guard is a disabled default button that keeps Enter from pressing any other one.
+    const submits = [...form.elements].filter(
+      (e) => e.type === 'submit' && !e.matches('[data-default-guard]'),
+    );
+    const controls = [...submits, ...buttons];
     const busy = (value) => {
-      submits.forEach((button) => {
+      controls.forEach((button) => {
         button.disabled = value;
       });
     };
+    let asking = false;
     let answered = false;
+    let sent = false;
+    // A page restored from the browser's back-forward cache starts over: its challenge was
+    // spent, and the server refuses a resent answer without counting it.
+    window.addEventListener('pageshow', (event) => {
+      if (!event.persisted) return;
+      asking = false;
+      answered = false;
+      sent = false;
+      field.value = '';
+      busy(false);
+      if (status) status.textContent = '';
+    });
     const ask = async (submitter) => {
+      if (asking || answered || sent) return;
+      asking = true;
       const code = form.elements.namedItem('otp_code');
       busy(true);
       if (status) {
@@ -103,18 +122,22 @@
         if (code) code.value = '';
         if (status) status.textContent = 'Checking…';
         answered = true;
-        busy(false);
-        form.requestSubmit(submitter && submitter.form === form ? submitter : undefined);
+        // Every other control stays disabled: the answer is sent once, with this button.
+        const chosen = submitter && submitter.form === form ? submitter : undefined;
+        if (chosen) chosen.disabled = false;
+        form.requestSubmit(chosen);
       } catch (error) {
         busy(false);
         if (status) {
           status.textContent =
             refusal[error.name] || 'The security key could not be used. Try again, or use a code.';
         }
+      } finally {
+        asking = false;
       }
     };
     // A button that always uses the key (type="button", so Enter in the code field never
-    // starts it).
+    // presses it).
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
         field.value = '';
@@ -122,15 +145,30 @@
       });
     });
     form.addEventListener('submit', (event) => {
-      if (answered) return;
+      if (answered) {
+        // The answer goes once; a second press while the page loads sends nothing.
+        if (sent) event.preventDefault();
+        sent = true;
+        return;
+      }
+      if (asking || sent) {
+        // One submission per page: a second press while it loads sends nothing.
+        event.preventDefault();
+        return;
+      }
       field.value = '';
       const code = form.elements.namedItem('otp_code');
       const password = form.elements.namedItem('current_password');
-      // A typed code is used as typed; a missing password is for the server to report.
-      if (mode === 'get' && code && code.value.trim()) return;
       const name = form.elements.namedItem('name');
-      if (password && !password.value) return;
-      if (mode === 'create' && name && !name.value.trim()) return;
+      // A typed code is used as typed; a missing password or name is for the server to report.
+      if (
+        (mode === 'get' && code && code.value.trim()) ||
+        (password && !password.value) ||
+        (mode === 'create' && name && !name.value.trim())
+      ) {
+        sent = true;
+        return;
+      }
       event.preventDefault();
       ask(event.submitter || null);
     });
