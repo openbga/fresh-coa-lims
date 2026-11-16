@@ -153,7 +153,7 @@ if SINGLE_SIGN_ON:
         )
 elif OIDC_ISSUER or OIDC_CLIENT_ID or OIDC_CLIENT_SECRET:
     raise RuntimeError("Single sign-on needs OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET.")
-OTP_TOTP_ISSUER = "OpenBGA Fresh CoA LIMS"
+OTP_TOTP_ISSUER = "OpenBGA QM LIMS"
 # Failed codes count toward the account's sign-in failure limit and lock (LOGIN_FAILURE_LIMIT),
 # like a wrong password, so the library's own per-device delay is switched off.
 OTP_TOTP_THROTTLE_FACTOR = 0
@@ -239,7 +239,7 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 # AGPL-3.0 section 13: link users to the source of the running version. Point this at your own
 # repository when you deploy a modified version.
-SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/fresh-coa-lims")
+SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/qm-lims")
 
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"

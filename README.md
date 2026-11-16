@@ -1,12 +1,12 @@
-# OpenBGA Fresh CoA LIMS
+# OpenBGA QM LIMS
 
-[![checks](https://github.com/openbga/fresh-coa-lims/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/fresh-coa-lims/actions/workflows/checks.yml)
+[![checks](https://github.com/openbga/qm-lims/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/qm-lims/actions/workflows/checks.yml)
 
-OpenBGA Fresh CoA LIMS is an open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/fresh-coa-lims/>.
+OpenBGA QM LIMS (QM for quality management) is an open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/qm-lims/>.
 
 > **Status: early development (version 0.1.0).** This is not a completed MVP and has not been validated for production or regulated use. Use synthetic data only. No regulatory compliance is claimed.
 
-**Hosted demo:** [OpenBGA Fresh CoA LIMS on Render](https://fresh-coa-lims.onrender.com/). Sign in with an assigned demo account; there is no public signup. Use synthetic data only.
+**Hosted demo:** [OpenBGA QM LIMS on Render](https://fresh-coa-lims.onrender.com/). Sign in with an assigned demo account; there is no public signup. Use synthetic data only.
 
 ## What is implemented
 
@@ -24,7 +24,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | Read | Purpose |
 |---|---|
 | [Product](docs/product.md) | Scope, roles, journeys and product requirements |
-| [Roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) | What is done, what comes next and what is planned for later, by capability area |
+| [Roadmap](https://openbga.github.io/qm-lims/roadmap.html) | What is done, what comes next and what is planned for later, by capability area |
 | [Architecture](docs/architecture.md) | Shared integrity contracts and operational boundaries |
 | [Operations](docs/operations.md) | Backup/restore, deployment, the validation pack of a release and identity/signing procedures |
 | [UI standards](docs/ui-standards.md) | Components, accessibility and signing interaction |
@@ -123,7 +123,7 @@ uv run pytest -n auto
 
 ## Presentation website
 
-The presentation is published at <https://openbga.github.io/fresh-coa-lims/>. Its source is the static pages in `website/`: the home page, which introduces OpenBGA Fresh CoA LIMS and links to the repository, documentation and support, and the [roadmap](https://openbga.github.io/fresh-coa-lims/roadmap.html) (`website/roadmap.html`). Both use the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
+The presentation is published at <https://openbga.github.io/qm-lims/>. Its source is the static pages in `website/`: the home page, which introduces OpenBGA QM LIMS and links to the repository, documentation and support, and the [roadmap](https://openbga.github.io/qm-lims/roadmap.html) (`website/roadmap.html`). Both use the application's shared Bootstrap assets and theme. The **Publish presentation** workflow builds it and deploys it to GitHub Pages whenever its sources change on `main`. Build and preview it locally:
 
 ```sh
 python3 scripts/build_website.py
@@ -146,7 +146,7 @@ Issues and pull requests are welcome; pull requests target the `develop` branch 
 
 ## Project and support
 
-OpenBGA Fresh CoA LIMS is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
+OpenBGA QM LIMS is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
 
 **Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
 
@@ -156,7 +156,7 @@ OpenBGA Fresh CoA LIMS is an open-source project of [BGASoft](https://bgasoft.co
 
 Copyright (C) 2026 BGASoft Inc. and OpenBGA contributors.
 
-OpenBGA Fresh CoA LIMS is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
+OpenBGA QM LIMS is free software under the GNU Affero General Public License, version 3 only (AGPL-3.0-only); see [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party notices](THIRD_PARTY_NOTICES.md). If you let users interact with a modified version over a network, offer them its source (section 13).
 
 OpenBGA and the OpenBGA product names and logos are trademarks of BGASoft Inc. The licence does not grant permission to use them (AGPL-3.0 section 7(e)), except as needed to describe the origin of the software.
 

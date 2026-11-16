@@ -4,7 +4,7 @@ urls: quality:lot_list
 views: quality.views.lot_list
 templates: quality/lot_list.html
 models: quality.Lot, quality.LotReceipt, suppliers.Supplier, core.RuleSet
-reviewed: 2026-11-14
+reviewed: 2026-11-16
 ---
 
 ## Purpose
@@ -19,12 +19,12 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 
 ## Layout
 
-- **Shared top bar**: the certificate-and-leaf mark and **Fresh COA** label link to Material lots. Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. The brand text may shorten visually on a narrow screen.
+- **Shared top bar**: the certificate-and-leaf mark and **OpenBGA QM LIMS** name link to Material lots. Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. On a phone the brand text shortens visually to **QM LIMS**.
 - **Header**: title "Material lots" and the **New material lot** button for analysts, with a short description below.
 - **Search**: the labelled **Find lot** box (placeholder "Lot, supplier lot or manufacturer lot"), **Search**, and **Clear filters** when a search is set.
 - **Lots table**: columns Lot, Status, Material, Supplier, Supplier lot, Received, Rule set. Lot numbers link to the lot record; status has a text label and indicator. A lot without receipt details shows "Receipt not recorded" across the Supplier, Supplier lot and Received columns.
 - **Empty states**: "No material lots yet" with "Receive a lot to start the quality journey." Analysts also see **New material lot**. A search with no matches shows "No material lots match these filters", "Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or clear the filters." and **Clear filters**.
-- **Source code**: the shared application footer links to the source repository configured for this deployment, [openbga/fresh-coa-lims](https://github.com/openbga/fresh-coa-lims) by default.
+- **Source code**: the shared application footer links to the source repository configured for this deployment, [openbga/qm-lims](https://github.com/openbga/qm-lims) by default.
 - **Footer**: "Showing X–Y of N material lots", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear; unavailable directions are disabled.
 
 ## Actions

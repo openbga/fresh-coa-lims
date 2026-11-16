@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project is pre-1.0 and does not yet promise a stable interface.
+All notable changes to OpenBGA QM LIMS (named OpenBGA Fresh CoA LIMS until 2026-11-16) are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project is pre-1.0 and does not yet promise a stable interface.
 
 ## [Unreleased]
 
@@ -10,6 +10,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Changed
 
+- Renamed the product to **OpenBGA QM LIMS** and the repository to `openbga/qm-lims` (the former `openbga/fresh-coa-lims` address redirects): application name, titles, top bar, footer, certificate and record PDFs, passkey and authenticator-app names, README, documentation, presentation and project links. The presentation moves to <https://openbga.github.io/qm-lims/> (the old address no longer serves it). The Python package is `openbga-qm-lims`, backup file names in the runbook start with `qm-lims-`, and the CI image tag is `qm-lims:ci`. Unchanged on purpose: the database name and user `open_qual`, the Render resources `fresh-coa-lims`, `fresh-coa-lims-db` and `fresh-coa-lims-demo-reset` and the demo at `fresh-coa-lims.onrender.com`, the backup manifest and restore report format identifiers (`fresh-coa-lims.backup-manifest/1`, `fresh-coa-lims.restore-check/1`, so existing backups still verify) and the `freshcoa-pagedocs-*` browser storage keys. Issued PDFs keep their original bytes.
 - `sign_in_factors` can be `["identity_provider"]` or `["identity_provider", <second factor>]`. Account audit values gain `single_sign_on` (the linked issuer, subject and label, or null); new audit actions `account.single_sign_on_linked`, `account.single_sign_on_unlinked` and `account.remove_single_sign_on`. New table `accounts.SingleSignOnLink` (migration `accounts.0009_single_sign_on_link`). The sign-in log gains `signin.single_sign_on_failed`. New dependencies `authlib` (with `joserfc`) and `requests` (with `urllib3`, `idna`, `charset-normalizer` and `certifi`).
 - Expanded the roadmap and product delivery notes with planned lot rejection and reassessment, cross-record impact assessment and certificate withdrawal, intended-use acceptance evidence, sample handling, continuing analytical assurance, periodic review and archive/retirement assurance. No features are implemented by this documentation update; no data import or export scope is added.
 - Signing in with a key alone: `sign_in_factors` can be `["passkey"]`. The new setting `PASSKEY_SIGN_IN` (default `true`) offers it; set it to `false` to ask every account for its password first. `accounts.security_keys.verify_assertion` takes the purpose `passkey`, for which the ceremony names no account, and then requires the user handle and user verification. When a key cannot be used, the message of `static/js/security-keys.js` ends with the form's `data-security-key-fallback` (default "use a code"). The sign-in log gains `signin.passkey_failed`.

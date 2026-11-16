@@ -254,7 +254,7 @@ def safe_name(text, fallback, limit=80, uploaded=False):
 
 @cache
 def application():
-    found = {"name": "OpenBGA Fresh CoA LIMS", "version": "unknown"}
+    found = {"name": "OpenBGA QM LIMS", "version": "unknown"}
     try:
         with open(Path(settings.BASE_DIR) / "pyproject.toml", "rb") as handle:
             found["version"] = str(tomllib.load(handle)["project"]["version"])

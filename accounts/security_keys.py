@@ -43,7 +43,7 @@ from .models import SecurityKey
 
 logger = logging.getLogger(__name__)
 
-RP_NAME = "OpenBGA Fresh CoA LIMS"
+RP_NAME = "OpenBGA QM LIMS"
 # The ceremony of a sign-in with a key alone, without the password.
 PASSKEY = "passkey"
 KEY_LIMIT = 10

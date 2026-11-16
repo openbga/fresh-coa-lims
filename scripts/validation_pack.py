@@ -38,7 +38,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCT = "OpenBGA Fresh CoA LIMS"
+PRODUCT = "OpenBGA QM LIMS"
 MAP = "docs/traceability.toml"
 REQUIREMENTS = "docs/product.md"
 BROWSER_SUITE = "e2e"

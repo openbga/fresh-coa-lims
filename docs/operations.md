@@ -60,8 +60,8 @@ umask 077
 mkdir -p backups
 oq_stamp=$(date -u +%Y%m%dT%H%M%SZ)
 uv run python manage.py backup_manifest --operator "A. Operator" \
-  --output "backups/fresh-coa-lims-${oq_stamp}.manifest.json" \
-  --dump "backups/fresh-coa-lims-${oq_stamp}.dump"
+  --output "backups/qm-lims-${oq_stamp}.manifest.json" \
+  --dump "backups/qm-lims-${oq_stamp}.dump"
 ```
 
 The command opens one read-only snapshot, runs `pg_dump --format=custom --no-owner --no-acl` from it and records, for the same instant: each table's row count and a SHA-256 fingerprint of its rows; the columns, constraints, indexes, triggers and functions; the applied migrations; the sequence positions; and the archive's SHA-256 and size. It also checks the evidence the database holds (the `signatures`, `certificates`, `raw data files` and `triggers enabled` checks below). If one fails, it still writes the manifest and exits nonzero: keep that backup and investigate. It never overwrites a file, removes the partial archive when `pg_dump` fails, and creates both files readable by their owner only. `pg_dump` must be of the server's major version or newer (`--pg-dump` names another one). It writes into the archive file the command has already created, through the open file rather than its name, so a name replaced meanwhile cannot send the archive elsewhere; the run is then refused and nothing is kept. It reaches the database as the application does: libpq settings of the environment such as `PGSSLMODE` apply to it, and the password goes through its environment, never the command line. A connection that needs another secret, such as `sslpassword`, is refused with `--dump`. Record the manifest's SHA-256, which the command prints, in the backup log.
@@ -86,12 +86,12 @@ Continue only if creation succeeds; an existing target name is a stop condition.
 ```sh
 docker compose exec -T db pg_restore -U open_qual --dbname="$oq_restore_db" \
   --no-owner --no-acl --single-transaction --exit-on-error \
-  < "backups/fresh-coa-lims-${oq_stamp}.dump"
+  < "backups/qm-lims-${oq_stamp}.dump"
 DEBUG=true DATABASE_URL="postgresql://open_qual:open_qual@127.0.0.1:55433/${oq_restore_db}" \
   uv run python manage.py verify_restore --operator "A. Operator" \
-  --manifest "backups/fresh-coa-lims-${oq_stamp}.manifest.json" \
-  --archive "backups/fresh-coa-lims-${oq_stamp}.dump" \
-  --report "backups/fresh-coa-lims-${oq_stamp}.restore-check.json"
+  --manifest "backups/qm-lims-${oq_stamp}.manifest.json" \
+  --archive "backups/qm-lims-${oq_stamp}.dump" \
+  --report "backups/qm-lims-${oq_stamp}.restore-check.json"
 ```
 
 The report lists each check with its result:
@@ -180,10 +180,10 @@ Render bills a cron job by the second of running time, with a minimum monthly ch
 
 ## Manual deployment and migrations
 
-The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
+The repository is <https://github.com/openbga/qm-lims>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 
 1. Select the reviewed commit whose checks all passed. Record its identifier, keep its [validation pack](#validation-pack-of-a-release) and record a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
-2. Verify that the OpenBGA Fresh CoA LIMS web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
+2. Verify that the OpenBGA QM LIMS web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
 3. The configured pre-deploy command is `python manage.py migrate --noinput`. Allow this single serialized migration owner to run; do not launch a second migration from a shell. A failed pre-deploy requires inspection, not bypassing the migration gate.
 4. Inspect deploy/migration logs, then verify `/health/`, `/ready/`, login and authorized read/signing flows using controlled synthetic records. Record outcomes and operator/time.
 5. If code is rolled back, first verify compatibility with the already-migrated schema. Code rollback does not reverse migrations. For incompatible/destructive changes, use the separately rehearsed recovery plan and reconcile lost work.
