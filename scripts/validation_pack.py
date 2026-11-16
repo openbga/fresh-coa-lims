@@ -672,9 +672,11 @@ th, td {{ border: 1px solid #c8ccd1; padding: .3rem .5rem; text-align: left;
   vertical-align: top; }}
 th {{ background: #eef0f2; }}
 code {{ font-size: .85em; overflow-wrap: anywhere; }}
+td:first-child a {{ white-space: nowrap; }}
+@media (max-width: 40rem) {{ table {{ display: block; overflow-x: auto; }} }}
 .passed {{ color: #146c2e; font-weight: 600; }}
 .failed, .error {{ color: #a4161a; font-weight: 600; }}
-.skipped, .not-run {{ color: #6b4e00; font-weight: 600; }}
+.skipped, .not-run, .incomplete {{ color: #6b4e00; font-weight: 600; }}
 .statement {{ border-left: 4px solid #6b4e00; padding: .5rem 1rem; background: #fbf6e9; }}
 section {{ margin-bottom: 1.5rem; }}
 @media print {{ details > table {{ display: table; }} }}
