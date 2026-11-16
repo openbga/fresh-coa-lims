@@ -182,7 +182,7 @@ Render bills a cron job by the second of running time, with a minimum monthly ch
 
 The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE_URL` pointing at the source of the deployed version.
 
-1. Select the reviewed commit whose checks all passed. Record its identifier and a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
+1. Select the reviewed commit whose checks all passed. Record its identifier, keep its [validation pack](#validation-pack-of-a-release) and record a verified backup/recovery point. Inspect pending migrations and compatibility with the currently running version.
 2. Verify that the OpenBGA Fresh CoA LIMS web service targets its own database and that auto-deploy remains off. In Render's Manual Deploy menu choose the exact reviewed commit. Avoid “latest” when it may have advanced beyond the tested revision.
 3. The configured pre-deploy command is `python manage.py migrate --noinput`. Allow this single serialized migration owner to run; do not launch a second migration from a shell. A failed pre-deploy requires inspection, not bypassing the migration gate.
 4. Inspect deploy/migration logs, then verify `/health/`, `/ready/`, login and authorized read/signing flows using controlled synthetic records. Record outcomes and operator/time.
@@ -191,6 +191,42 @@ The repository is <https://github.com/openbga/fresh-coa-lims>. Keep `SOURCE_CODE
 Render supports automatic deployment after CI checks, manual deployment of a selected commit and a pre-deploy stage. Current service configuration remains the source of truth. [Render deployment documentation](https://render.com/docs/deploys), accessed 2026-11-12.
 
 For an exceptional operator-run migration, stop competing deployment attempts first, confirm the shell contains the intended application revision and database, and run `python manage.py showmigrations --plan`, then the reviewed `python manage.py migrate --noinput`, followed by `python manage.py migrate --check` and `python manage.py check`. Never run `makemigrations` on a deployed instance or edit historical migrations to resolve a failure. Do not run seed/reset commands during routine deployment.
+
+## Validation pack of a release
+
+Each laboratory validates the system for its own intended use. The validation pack is supplier evidence for that work: it shows which automated tests give evidence for each product requirement and how they ended on one commit. It does not validate the system for a laboratory's intended use, configuration or infrastructure, and it does not state compliance with any regulation.
+
+CI builds a pack for every pull request and every push to `develop`, after the application suite, the browser suite and the container smoke test pass, and keeps it as the workflow artifact `validation-pack-<commit>` for 90 days. The `validation-pack` job is a check of the commit like the others: an incomplete pack fails it (and is kept, with its reasons), and the demonstration deploys a `develop` commit only after all of its checks pass. A release merges a `develop` commit into `main` with the same tree, so the pack of a release is the one of that `develop` commit: download it from the commit's `checks` run on `develop` and keep it with the release record before the artifact expires.
+
+| File | Holds |
+|---|---|
+| `index.html` | Status, commit, test run, each suite's environment and counts, every requirement with its status, and per requirement the tests traced to it with their outcomes and descriptions. Readable offline and printable |
+| `requirements.csv`, `traceability.csv` | The same tables for a spreadsheet: one row per requirement; one row per requirement and test |
+| `pack.json` | The summary, the tests that failed, did not run or were skipped (with the reason the map allows, or none), and results traced to no requirement |
+| `results/application/`, `results/browser/` | Each suite's JUnit file as pytest wrote it, with the commit the tests ran on and whether the checkout had uncommitted changes, recorded when the tests started; and `environment.json`: commit, run, runner, Python, the PostgreSQL server version, every installed package with its version, and Chromium's version for the browser suite |
+| `documents/` | `product.md` (the requirements), `regulations.md` (the regulatory rows they cite) and `traceability.toml` (the map from requirements to tests), as of the commit |
+| `release-notes.md` | The changelog section of the version in `pyproject.toml`, or the unreleased changes while the changelog has none |
+| `SHA256SUMS` | The SHA-256 of every other file. Check with `sha256sum -c SHA256SUMS` |
+
+A requirement **passed** when at least one test traced to it passed, none failed, every traced test ran and none was skipped without a reason the map allows. The pack **passed** only when every requirement and project check passed, no test failed, every result is traced and the tests ran on the commit without uncommitted changes; otherwise it is **failed** (a test failed) or **incomplete**, and the command exits nonzero. A passing test shows that the behaviour it checks worked as tested; it does not show that the requirement is met in full. The requirement's delivery column states what is not implemented.
+
+The map in `docs/traceability.toml` names, for each requirement in [product.md](product.md#requirements-and-traceability), the test directories, modules or single tests that give evidence for it; a project check that states no product requirement, such as the licence notice, is listed under `[project]`. `[skips]` names the tests that may be skipped where a pack is built, each with the reason; today a test that only writes certificates for a person to look at, and the backup round trip, which needs `pg_dump` of the server's major version or newer and is run with the application image by CI's container smoke job, which the pack's job waits for. The application suite refuses a map in which a requirement has no test, an entry does not exist or a test is not traced (`python scripts/validation_pack.py check` runs the same check).
+
+To produce the pack in the laboratory's own environment, run both suites from a checkout of the release, against its own PostgreSQL server, and build it there:
+
+```sh
+export UV_ENV_FILE=.env
+uv run pytest -n auto --junitxml=build/validation/application/junit.xml
+uv run python scripts/validation_pack.py environment --suite application \
+  --command "pytest -n auto" --output build/validation/application/environment.json
+uv run --group e2e pytest -c e2e/pytest.ini e2e --junitxml=build/validation/browser/junit.xml
+uv run --group e2e python scripts/validation_pack.py environment --suite browser --root e2e \
+  --browser --command "pytest -c e2e/pytest.ini e2e" --output build/validation/browser/environment.json
+uv run python scripts/validation_pack.py build --results build/validation/application \
+  --results build/validation/browser --output build/validation-pack
+```
+
+Each suite's conftest writes the commit into the JUnit file when the tests start. The build refuses a JUnit file without it, results whose environment was recorded at another commit than the tests ran on, results of another commit than the checkout, results of two commits, a suite given twice and an existing output directory. A pack built on, or from tests run on, a checkout with uncommitted changes is incomplete and says so. These tests run against a disposable test database. They do not test the deployment's own configuration, data, rule sets or infrastructure; the laboratory's acceptance of those remains its own work.
 
 ## Bench checks at result entry
 
