@@ -1,3 +1,4 @@
+import logging
 import re
 
 from django.contrib import messages
@@ -5,7 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
@@ -14,9 +15,12 @@ from core.models import AuditEvent
 from quality.models import Lot
 
 from . import evidence as ev
-from . import services
-from .forms import AmendForm, IssueForm, LotPickForm
+from . import lot_record, services
+from .forms import AmendForm, IssueForm, LotPickForm, LotRecordForm
 from .models import Report
+from .render import RenderError
+
+logger = logging.getLogger(__name__)
 
 SORTS = {
     "number": "number",
@@ -349,3 +353,48 @@ def version_pdf(request, pk, number):
     response["Cache-Control"] = "no-store, private"
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def lot_record_export(request, pk):
+    """Offer, then download, the lot's complete record as one package."""
+    lot_record.require_exporter(request.user)
+    lot = get_object_or_404(Lot, pk=pk)
+    form = LotRecordForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            package = lot_record.export_lot_record(
+                actor=request.user, lot_pk=lot.pk, purpose=form.cleaned_data["purpose"]
+            )
+        except lot_record.ExportError as exc:
+            form.add_error(None, f"The record could not be exported: {exc}")
+        except RenderError:
+            logger.exception("The printed copy of lot %s could not be rendered", lot.pk)
+            form.add_error(
+                None,
+                "The record could not be exported: its printed copy could not be produced. "
+                "Nothing was recorded. Try again; if it fails again, tell your administrator.",
+            )
+        else:
+            response = FileResponse(
+                package.file,
+                as_attachment=True,
+                filename=package.filename,
+                content_type="application/zip",
+            )
+            response["Content-Length"] = str(package.size)
+            response["Cache-Control"] = "no-store, private"
+            response["X-Content-Type-Options"] = "nosniff"
+            return response
+    return render(
+        request,
+        "reporting/lot_record.html",
+        {
+            "page_title": f"Export record · {lot.number}",
+            "lot": lot,
+            "form": form,
+            "summary": lot_record.summarize(lot),
+        },
+        status=422 if form.errors else 200,
+    )

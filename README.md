@@ -17,7 +17,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | Native analytical testing | Numeric, count and qualitative results; limits that include or exclude their boundary; results reported as less than a value kept as recorded. Approved precision rounds half-up, null precision compares the exact mean. Nonterminating or more-than-eight-decimal exact means fail submission. A method version can define one calculation from named inputs; the result keeps the inputs and the formula. Raw-data files are stored with a checksum. Greater-than results and non-numeric batch QC checks are not supported |
 | Laboratory operations | Recording a result or a batch QC check requires a current analyst qualification for the method and checks the instruments and reagent or standard lots selected; a method states that an instrument or a lot is required, not which one |
 | Stability | Protocols, scheduled pulls and each pull tested against the protocol's acceptance criteria with independent review and a signed outcome, without changing the lot's record; results by condition and time point. Trend rules, shelf-life evaluation and reports to authorities are not implemented |
-| Reporting | Signed issuance/amendments with stored PDF bytes, snapshots and checksums; manufacturer batch release remains a separate decision |
+| Reporting | Signed issuance/amendments with stored PDF bytes, snapshots and checksums; manufacturer batch release remains a separate decision. A lot's complete record exports as one package (printed copy, electronic copy, stored files and checksums) for admin, quality and auditor; whether it serves as a true copy is the deploying laboratory's validation |
 
 ## Documentation
 

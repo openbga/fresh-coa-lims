@@ -80,3 +80,15 @@ class AmendForm(SignReportForm):
         self.fields[
             "reason"
         ].help_text = "Printed on the amended certificate and kept in the audit trail."
+
+
+class LotRecordForm(StyledForm):
+    purpose = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        max_length=500,
+        label="Purpose of the export",
+        help_text=(
+            "For example an inspection request, an annual product review or a customer "
+            "complaint. It is printed in the record and kept with the export in the audit trail."
+        ),
+    )

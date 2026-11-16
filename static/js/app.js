@@ -288,6 +288,19 @@
 
   // Native POST forms: block double submission while the request is in flight.
   // Buttons are disabled after the submit event so their name/value is still sent.
+  function releaseForm(form) {
+    delete form.dataset.vrSubmitting;
+    form.removeAttribute("aria-busy");
+    form.querySelectorAll(".vr-busy-mark").forEach(function (mark) { mark.remove(); });
+    form.querySelectorAll("button[type=submit], button:not([type])").forEach(function (button) {
+      button.disabled = false;
+    });
+  }
+
+  // A form answered by a file download (data-vr-download) stays on its page: it is released
+  // once the download has had time to start, and the browser shows the download's progress.
+  var DOWNLOAD_RELEASE_MS = 4000;
+
   document.addEventListener("submit", function (event) {
     var form = event.target;
     var method = (form.getAttribute("method") || "get").toLowerCase();
@@ -319,6 +332,9 @@
         form.append(status);
       }
     }, 0);
+    if (form.hasAttribute("data-vr-download")) {
+      window.setTimeout(function () { releaseForm(form); }, DOWNLOAD_RELEASE_MS);
+    }
   });
 
   // Back/forward cache restores the disabled state; re-enable on return.
@@ -326,14 +342,7 @@
     if (!event.persisted) {
       return;
     }
-    document.querySelectorAll("form[data-vr-submitting]").forEach(function (form) {
-      delete form.dataset.vrSubmitting;
-      form.removeAttribute("aria-busy");
-      document.querySelectorAll(".vr-busy-mark").forEach(function (mark) { mark.remove(); });
-      form.querySelectorAll("button[type=submit], button:not([type])").forEach(function (button) {
-        button.disabled = false;
-      });
-    });
+    document.querySelectorAll("form[data-vr-submitting]").forEach(releaseForm);
   });
 
   // Django formsets: a button[data-formset-add="<prefix>"] appends a copy of

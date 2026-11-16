@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% url 'quality:lot_detail' lot.pk as lot_url %}{% include "includes/breadcrumbs.html" with section="Material lots" section_url=list_url record=lot.number record_url=lot_url current="Export record" %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">One file holding the lot's complete record, to keep or hand over for an inspection or a review. Exporting changes nothing in the record.</p>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="contents-heading">
+  <div class="card-header"><h2 class="card-title" id="contents-heading">What the record holds now</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      <div><dt>Lot</dt><dd><a href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a> · {{ lot.material }}</dd></div>
+      <div><dt>Status</dt><dd>{{ lot.state|capfirst }}</dd></div>
+      <div><dt>Record revision</dt><dd>{{ lot.revision }}</dd></div>
+    </dl>
+    <div class="table-responsive mt-3">
+      <table class="table mb-0" aria-labelledby="contents-heading">
+        <thead><tr><th scope="col">Records</th><th scope="col" class="text-end">Number</th></tr></thead>
+        <tbody>
+          {% for section in summary.sections %}<tr><th scope="row" class="fw-normal">{{ section.title }}</th><td class="text-end">{{ section.count }}</td></tr>{% endfor %}
+          <tr><th scope="row" class="fw-normal">Configuration these records name</th><td class="text-end">{{ summary.referenced }}</td></tr>
+          <tr><th scope="row" class="fw-normal">Audit trail events</th><td class="text-end">{{ summary.events }}</td></tr>
+          <tr><th scope="row" class="fw-normal">Electronic signatures</th><td class="text-end">{{ summary.signatures }}</td></tr>
+          <tr><th scope="row" class="fw-normal">Files (raw data and issued certificates)</th><td class="text-end">{{ summary.files }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section class="card mb-3" aria-labelledby="package-heading">
+  <div class="card-header"><h2 class="card-title" id="package-heading">The package</h2></div>
+  <div class="card-body">
+    <p>A ZIP file with one folder, read from the database at one instant:</p>
+    <ul>
+      <li><strong>record.pdf</strong>: the printed copy. Every field of every record, each signature with the signer's name, the date and time and its meaning, and the audit trail with what each change replaced.</li>
+      <li><strong>record.json</strong>: the electronic copy. Every stored field with its label and meaning, the signatures with what they signed, the audit trail and its reviews.</li>
+      <li><strong>files</strong>: the raw-data files and the issued certificates of analysis, exactly as stored.</li>
+      <li><strong>manifest.json</strong> and <strong>SHA256SUMS</strong>: the size and SHA-256 of every file, to check the copy with standard tools.</li>
+    </ul>
+    <p class="mb-0">The stored checksums of signatures, files, certificates and requirements are recomputed. The first page of the printed copy says whether they all match. Configuration the lot's records name, such as rule sets, specifications, suppliers and instruments, is included as it stands at the export.</p>
+  </div>
+</section>
+<form class="vr-form" method="post" novalidate data-vr-download>
+  {% csrf_token %}
+  {% include "includes/form_errors.html" with form=form %}
+  <p class="vr-form-note">Fields marked <span class="vr-req" aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. The export is recorded in the lot's audit trail with your name, the purpose and the package's SHA-256.</p>
+  {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+  <div class="vr-form-actions">
+    <a class="btn btn-link" href="{% url 'quality:lot_detail' lot.pk %}">Cancel</a>
+    <button class="btn btn-primary" type="submit">{% include "includes/icon.html" with name="download" %} Download the record</button>
+  </div>
+</form>
+{% endblock %}

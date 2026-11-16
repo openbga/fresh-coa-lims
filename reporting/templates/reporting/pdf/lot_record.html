@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Record of lot {{ meta.lot.number }}</title>
+<meta name="author" content="{{ meta.exported_by.name }}">
+<meta name="description" content="Complete record of lot {{ meta.lot.number }}, export {{ meta.id }}">
+<meta name="dcterms.created" content="{{ meta.exported_at }}">
+<style>
+  @page {
+    size: A4;
+    margin: 14mm 13mm 18mm;
+    @bottom-left { content: string(docid); font-size: 7.5pt; color: #444; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 7.5pt; color: #444; }
+  }
+  html { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; font-size: 8.5pt; color: #000; background: #fff; line-height: 1.35; }
+  .docid { string-set: docid content(); }
+  .brand { font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; color: #444; font-weight: bold; margin: 0; }
+  .ids { font-size: 7.5pt; color: #444; margin: 0 0 2mm; }
+  h1 { font-size: 17pt; margin: 1mm 0 3mm; }
+  h2 { font-size: 12pt; margin: 6mm 0 2mm; border-bottom: 0.75pt solid #000; padding-bottom: 1mm; break-after: avoid; }
+  h3 { font-size: 9.5pt; margin: 4mm 0 1mm; break-after: avoid; }
+  .notice { border: 0.75pt solid #444; padding: 1.5mm 2.5mm; margin: 2mm 0; font-weight: bold; }
+  .differs { border: 1.25pt solid #000; padding: 1.5mm 2.5mm; margin: 2mm 0; }
+  dl.facts { margin: 0 0 2mm; }
+  dl.facts > div { display: flex; gap: 3mm; margin-bottom: 0.8mm; }
+  dl.facts dt { width: 34mm; flex: none; font-weight: bold; font-size: 7.5pt; color: #333; }
+  dl.facts dd { margin: 0; flex: 1; overflow-wrap: anywhere; }
+  table { width: 100%; border-collapse: collapse; margin: 1mm 0 2mm; table-layout: fixed; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; }
+  th, td { text-align: left; vertical-align: top; padding: 0.8mm 1.2mm; border-bottom: 0.4pt solid #999; font-size: 7.5pt; overflow-wrap: anywhere; }
+  thead th { background: #e6e6e6; border-top: 0.5pt solid #000; border-bottom: 0.5pt solid #000; }
+  table.fields th { width: 30%; font-weight: normal; color: #333; }
+  .num { text-align: right; }
+  .w9 { width: 9%; }
+  .w12 { width: 12%; }
+  .w13 { width: 13%; }
+  .w14 { width: 14%; }
+  .w16 { width: 16%; }
+  .w17 { width: 17%; }
+  .w18 { width: 18%; }
+  .w20 { width: 20%; }
+  .w22 { width: 22%; }
+  .w38 { width: 38%; }
+  .id { font-family: "DejaVu Sans Mono", monospace; font-size: 6.5pt; overflow-wrap: anywhere; }
+  pre { font-family: "DejaVu Sans Mono", monospace; font-size: 6.5pt; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .text { white-space: pre-wrap; }
+  .record { margin-bottom: 3mm; }
+  .muted { color: #444; }
+  p { margin: 1mm 0 2mm; }
+  ul { margin: 1mm 0 2mm; padding-left: 5mm; }
+</style>
+</head>
+<body>
+<p class="brand">OpenBGA Fresh CoA LIMS</p>
+<p class="ids"><span class="docid">Record of lot {{ meta.lot.number }} · exported {{ exported }} · export {{ meta.id }}</span></p>
+{% if synthetic_notice %}<p class="notice">Synthetic demonstration data. This document has no regulatory or commercial standing.</p>{% endif %}
+<h1>Record of lot {{ meta.lot.number }}</h1>
+<dl class="facts">
+  <div><dt>Material</dt><dd>{{ meta.lot.material }}</dd></div>
+  <div><dt>Status</dt><dd>{{ meta.lot.state|capfirst }}</dd></div>
+  <div><dt>Record revision</dt><dd>{{ meta.lot.revision }}</dd></div>
+  <div><dt>Exported</dt><dd>{{ exported }}</dd></div>
+  <div><dt>Exported by</dt><dd>{{ meta.exported_by.name }} ({{ meta.exported_by.username }})</dd></div>
+  <div><dt>Purpose</dt><dd class="text">{{ meta.purpose }}</dd></div>
+  <div><dt>Export</dt><dd class="id">{{ meta.id }}</dd></div>
+  <div><dt>Produced by</dt><dd>{{ meta.application.name }} {{ meta.application.version }}</dd></div>
+</dl>
+{% if differs %}
+<div class="differs">
+  <p><strong>{{ differs|length }} of {{ checks|length }} checks do not match.</strong> The record is copied as it is stored; the checks that differ are listed under Checks.</p>
+</div>
+{% else %}
+<p><strong>All {{ checks|length }} checks match.</strong> See Checks for what was recomputed.</p>
+{% endif %}
+
+<h2>How to read this record</h2>
+<ul>
+  <li>This is the printed copy. The electronic copy, record.json in the same package, holds every stored field with its label and meaning. manifest.json and SHA256SUMS give the size and SHA-256 of every file in the package.</li>
+  <li>Everything was read from the database at one instant, the export time above. Configuration the lot's records name is shown as it stood then.</li>
+  <li>Times are in UTC. Numbers are printed exactly as recorded. A dash means the field is blank.</li>
+  <li>A field naming another record shows its name and number (#). A field naming a person shows the name and username.</li>
+  <li>Each of the lot's records states whether the audit trail shows it being entered and how many events acted on it later. The Audit trail section lists every event: what each change replaced, or what an event recorded.</li>
+  <li>The checks recompute the SHA-256 of every file in the package, and the hash stored with each signature's content, certificate content, requirement assignment and approved specification, method and sampling plan version. Other hashes the records hold are copied, not recomputed.</li>
+  <li>Structured values longer than {{ print_json_limit }} characters, and values in the audit trail longer than {{ print_change_limit }} characters, are shortened here and kept in full in record.json.</li>
+</ul>
+
+<h2>Contents</h2>
+<table>
+  <thead><tr><th scope="col">Part</th><th scope="col" class="num w18">Records</th></tr></thead>
+  <tbody>
+    {% for part in lot_parts %}<tr><td>{{ part.title }}</td><td class="num">{{ part.records|length }}</td></tr>{% endfor %}
+    {% for part in referenced_parts %}<tr><td>Configuration: {{ part.title }}</td><td class="num">{{ part.records|length }}</td></tr>{% endfor %}
+    <tr><td>Audit trail events</td><td class="num">{{ trail|length }}</td></tr>
+    <tr><td>Audit trail reviews</td><td class="num">{{ reviews|length }}</td></tr>
+    <tr><td>Files</td><td class="num">{{ files|length }}</td></tr>
+    <tr><td>Checks</td><td class="num">{{ checks|length }}</td></tr>
+  </tbody>
+</table>
+
+{% for part in lot_parts %}
+<h2>{{ part.title }}</h2>
+{% for record in part.records %}{% include "reporting/pdf/_lot_record_entry.html" %}{% endfor %}
+{% endfor %}
+
+{% if referenced_parts %}
+<h2>Configuration the records name</h2>
+<p>As it stood at the export. Its own history is on its pages in the application and is not part of this record; its signatures are listed with it.</p>
+{% for part in referenced_parts %}
+<h2>Configuration: {{ part.title }}</h2>
+{% for record in part.records %}{% include "reporting/pdf/_lot_record_entry.html" %}{% endfor %}
+{% endfor %}
+{% endif %}
+
+<h2>Audit trail</h2>
+{% if trail %}
+<p>Every event on the lot's records, oldest first.</p>
+<table>
+  <thead><tr><th scope="col" class="w13">Time (UTC)</th><th scope="col" class="w12">Person</th><th scope="col" class="w14">Action</th><th scope="col" class="w16">Record</th><th scope="col" class="w17">Reason</th><th scope="col">Changes</th></tr></thead>
+  <tbody>
+    {% for event in trail %}
+    <tr>
+      <td>{{ event.at }}</td>
+      <td>{{ event.person }}</td>
+      <td>{{ event.action }}</td>
+      <td>{{ event.record|default:"—" }}<br><span class="id">{{ event.record_ref }}</span></td>
+      <td class="text">{{ event.reason|default:"—" }}</td>
+      <td>{% if event.entered %}Entered{% elif event.changes %}{% for change in event.changes %}<div><strong>{{ change.field }}</strong>: {{ change.before }} → {{ change.after }}</div>{% endfor %}{% elif event.recorded %}Recorded:{% for item in event.recorded %}<div><strong>{{ item.field }}</strong>: {{ item.value }}</div>{% endfor %}{% else %}No field changed{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No audit trail event.</p>
+{% endif %}
+
+<h2>Audit trail reviews</h2>
+{% if reviews %}
+<table>
+  <thead><tr><th scope="col" class="w18">Reviewed by</th><th scope="col" class="w16">Time (UTC)</th><th scope="col">Conclusion</th><th scope="col" class="w20">Events of this record</th></tr></thead>
+  <tbody>
+    {% for review in reviews %}<tr><td>{{ review.reviewer }}</td><td>{{ review.at }}</td><td class="text">{{ review.conclusion }}</td><td>{{ review.covered }} of the {{ review.total }} the review covered</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No recorded review covers these events.</p>
+{% endif %}
+
+<h2>Files</h2>
+{% if files %}
+<table>
+  <thead><tr><th scope="col" class="w38">Path in the package</th><th scope="col" class="w18">Record</th><th scope="col" class="num w12">Bytes</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>
+    {% for file in files %}<tr><td class="id">{{ file.path }}</td><td class="id">{{ file.record }}</td><td class="num">{{ file.size }}</td><td class="id">{{ file.sha256 }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>The record holds no file.</p>
+{% endif %}
+
+<h2>Checks</h2>
+{% if checks %}
+<p>Each checksum or hash recomputed from what is stored with it.</p>
+<table>
+  <thead><tr><th scope="col" class="w16">Check</th><th scope="col" class="w22">Record</th><th scope="col">What</th><th scope="col" class="w12">Outcome</th></tr></thead>
+  <tbody>
+    {% for check in checks %}<tr><td>{{ check.check }}</td><td class="id">{{ check.record }}</td><td>{{ check.describes }}{% if check.outcome != "intact" %}<br>Stored: <span class="id">{{ check.stored }}</span><br>Computed: <span class="id">{{ check.computed }}</span>{% endif %}</td><td>{% if check.outcome == "intact" %}Matches{% else %}<strong>Does not match</strong>{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>The record holds no stored checksum or hash.</p>
+{% endif %}
+</body>
+</html>

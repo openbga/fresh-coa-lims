@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 from accounts.services import ROLES
 from catalog.web import form_status, run
 from core.models import ElectronicSignature
-from core.services import require_role
+from core.services import AUDIT_READ_ROLES, require_role
 
 from . import certificates, reliance, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
@@ -104,6 +104,8 @@ def lot_detail(request, pk):
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
+            # The exported record includes the audit trail, so it needs a role that reads it.
+            "can_export": request.user.groups.filter(name__in=AUDIT_READ_ROLES).exists(),
             "reports": lot.reports.all(),
             "assignment": assignment,
             "samples": lot.samples.prefetch_related("results__analyst"),
