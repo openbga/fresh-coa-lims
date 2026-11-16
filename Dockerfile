@@ -22,9 +22,12 @@ LABEL org.opencontainers.image.title="OpenBGA Fresh CoA LIMS" \
       org.opencontainers.image.source="https://github.com/openbga/fresh-coa-lims" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# postgresql-client-17 gives operators pg_dump, pg_restore and psql of the database's major
+# version, for backup_manifest --dump and restore checks run with the application image.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+        postgresql-client-17 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 10001 --create-home --shell /bin/bash app \
     && install -d -m 0700 -o app -g app /home/app/.ssh
