@@ -1,6 +1,6 @@
 # OpenBGA QM LIMS application image. Base images are pinned by tag and digest; Dependabot
 # proposes updates to both.
-FROM ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 AS uv
 
 # Build stage: install locked dependencies with the image's own Python and collect static
 # assets. uv and its cache stay out of the runtime image.
