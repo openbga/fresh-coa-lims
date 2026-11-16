@@ -267,7 +267,8 @@ class StabilityPulls:
     A test belongs to the testing of a lot or to a stability pull. For a pull's test the pull
     stands where the lot stands: ``requirements`` are the acceptance criteria of its protocol,
     ``refusal`` says why it takes no more testing, and ``lock`` locks the pulls a transition
-    changes, refusing one that takes none, so that the transition can advance their revision.
+    changes, refusing one that takes none (or, with ``refuse`` false, marking it ``closed``),
+    so that the transition can advance their revision.
     """
 
     def requirements(self, pull):
@@ -280,10 +281,10 @@ class StabilityPulls:
 
         return testing.refusal(pull)
 
-    def lock(self, pull_ids):
+    def lock(self, pull_ids, refuse=True):
         from stability import testing
 
-        return testing.lock(pull_ids)
+        return testing.lock(pull_ids, refuse=refuse)
 
 
 def report_holds(lot):

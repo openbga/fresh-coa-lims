@@ -675,24 +675,25 @@ def test_a_pulled_pull_that_cannot_be_tested_is_missed_and_the_study_completed(p
     observe(people, water, "99.0")
     with pytest.raises(ValidationError, match="holds results"):
         services.mark_pull_missed(actor=people["analyst"], pull=lost, reason="Material lost")
-    # Water was spilled before submission: a correction cannot bring it back, so the lab
-    # submits what it has and reviews it, then records the pull as missed.
+    # Water could not be completed: the analyst records what is left as it is, and the pull
+    # cannot be accepted, so it is recorded as missed. Here: the recorded water replicate is
+    # submitted and reviewed, which makes the pull ready for acceptance instead.
     submit(people, water)
     review(people, water)
-    missed = services.mark_pull_missed(
-        actor=people["analyst"], pull=lost, reason="Retained material lost; see DEV-SYN-1"
-    )
-    assert (missed.state, missed.missed_reason) == (
-        "missed",
-        "Retained material lost; see DEV-SYN-1",
-    )
-    assert AnalyticalTest.objects.filter(pull=lost, state="reviewed").count() == 2
+    with pytest.raises(ValidationError, match="a reviewer accepts the pull"):
+        services.mark_pull_missed(actor=people["analyst"], pull=lost, reason="Material lost")
+    accept(people, lost)
+    # The other pull: its water test was never started when the material ran out.
     first = pulled(people, study, 30)
+    assay, water = sorted(assign(people, first), key=lambda t: t.test_code)
+    reviewed(people, assay)
+    missed = services.mark_pull_missed(
+        actor=people["analyst2"], pull=first, reason="Retained material lost; see DEV-SYN-1"
+    )
+    assert missed.state == "missed" and missed.outcome == ""
+    assert AnalyticalTest.objects.get(pk=assay.pk).state == "reviewed"  # stays in the record
     with pytest.raises(ValidationError, match="Only a scheduled or pulled pull"):
         services.mark_pull_missed(actor=people["analyst"], pull=missed, reason="Again")
-    for test in assign(people, first):
-        reviewed(people, test)
-    accept(people, first)
     study.refresh_from_db()
     closed = services.close_study(
         actor=people["quality"],
@@ -703,6 +704,50 @@ def test_a_pulled_pull_that_cannot_be_tested_is_missed_and_the_study_completed(p
         reason="Every pull accepted or missed",
     )
     assert closed.state == "completed"
+
+
+def test_a_pull_with_a_failing_result_is_not_recorded_as_missed(people):
+    study, _ = specified_study(people, codes=("assay", "water"))
+    pull = pulled(people, study)
+    assay, water = sorted(assign(people, pull), key=lambda t: t.test_code)
+    _, investigation = reviewed(people, assay, "91.0")
+    with pytest.raises(ValidationError, match=f"{investigation.label} is open"):
+        services.mark_pull_missed(actor=people["analyst2"], pull=pull, reason="Material lost")
+    analytical.add_entry(
+        actor=people["analyst2"],
+        investigation=investigation,
+        kind="assessment",
+        text="Synthetic assessment: no laboratory error found",
+    )
+    investigation.refresh_from_db()
+    analytical.conclude(
+        actor=people["quality2"],
+        pin=PIN,
+        investigation=investigation,
+        expected_revision=investigation.revision,
+        outcome="confirmed",
+        assignable_cause="",
+        reason="Out-of-specification result confirmed",
+    )
+    # The water test is untouched and the pull cannot be accepted, but the confirmed failure
+    # is never hidden behind a missed pull; its author cannot do it either.
+    with pytest.raises(ValidationError, match="did not meet the acceptance criteria"):
+        services.mark_pull_missed(actor=people["analyst2"], pull=pull, reason="Material lost")
+    pull.refresh_from_db()
+    assert pull.state == "pulled"
+    # The way forward when the water test cannot be done: terminate the study.
+    study.refresh_from_db()
+    assert (
+        services.close_study(
+            actor=people["quality"],
+            pin=PIN,
+            study=study,
+            expected_revision=study.revision,
+            outcome="terminated",
+            reason="Retained material exhausted",
+        ).state
+        == "terminated"
+    )
 
 
 def test_untouched_tests_of_a_missed_pull_take_no_more_work(people):

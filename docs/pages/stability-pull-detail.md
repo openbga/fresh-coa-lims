@@ -32,7 +32,7 @@ One scheduled pull: timing, collection details, its own tests, a linked sample o
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record pull** | Scheduled and study active | Analyst | Opens the form |
-| **Mark missed** | Study active and either Scheduled with its window closed, or Pulled with nothing of its testing in progress (no test awaiting review, no open test holding results, raw data or a QC batch, no open investigation) | Analyst, Quality | Opens the reason form |
+| **Mark missed** | Study active and either Scheduled with its window closed, or Pulled with nothing of its testing in progress (no test awaiting review, no open test holding results or raw data, no open investigation), not ready for acceptance and with no failing result | Analyst, Quality | Opens the reason form |
 | **Assign tests** | An Analyst, the pull is Pulled and its study Active, the protocol names a specification, no sample or external evidence is linked, the specification can state every test of the time point (primary button while the pull has no tests; shown again while a test of the time point is still missing) | Analyst | Opens the Assign pull tests page |
 | **Link evidence** | Pulled, and the pull has no tests | Analyst | Opens the evidence form; a pull with tests never shows it |
 | **Accept pull** | Pulled; for a pull tested in the system, only once every test has a reviewed result and no investigation is open; you are a Reviewer and are not the puller, anyone who ever linked its evidence, (for a linked sample) the sample's creator or a data or investigation author of its tests, or a data or investigation author of the pull's own tests | Reviewer | Opens the signing page |
@@ -59,7 +59,7 @@ For a pull tested in the system the button is hidden while testing is incomplete
 - A pull's tests belong to the pull and name no lot: assigning, recording and reviewing them does not change the study's lot.
 - A test code counts as conforming when a reviewed conforming result stands (an investigation of it, if any, was invalidated) and as failing when an investigation confirmed an out-of-specification result. The outcome is set only when every test of the time point is decided and nothing blocks; one failing test makes the pull "does not meet".
 - History shortens a long structured value (such as the results frozen with an acceptance) to "structured record with N entries, kept in full in the audit trail".
-- **State**: Scheduled (Upcoming, Due or Overdue by window) -> Pulled -> Accepted, or Scheduled -> Missed. Accepted and Missed are final.
+- **State**: Scheduled (Upcoming, Due or Overdue by window) -> Pulled -> Accepted, Scheduled -> Missed, or Pulled -> Missed when its material cannot be tested. Accepted and Missed are final.
 - **Independence**: the Reviewer who accepts must not be the user who recorded the pull, anyone who ever linked its evidence (from the audit history, so re-linking does not clear an earlier recorder), for a linked sample its creator or a data or investigation author of its tests, or a data or investigation author of the pull's own tests (including their investigations).
 - **Audit**: events `pull.recorded`, `pull.evidence_linked`, `pull.missed` and the signed acceptance appear in History and Signatures. Assigning tests records `test.assigned` on each test (see the test's History), not on the pull; long structured values, such as the results frozen with the acceptance, are named in History rather than printed, and the audit trail keeps them in full.
 

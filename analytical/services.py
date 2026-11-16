@@ -1384,9 +1384,16 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
         if actor.pk in recorders:
             raise ValidationError("You cannot reject a batch containing your own work.")
         # A superseded test is closed and stays as it is: it is not invalidated or rerun,
-        # though whoever worked on it is still an author of the batch.
+        # though whoever worked on it is still an author of the batch. So is an open test of a
+        # stability pull that takes no more testing (missed, or its study closed): it held
+        # nothing but its place in the batch, which must not keep the batch from rejection.
         tests = [t for t in members if t.state != AnalyticalTest.State.SUPERSEDED]
-        subjects = _lock_subjects(*tests)
+        lots = _lock_lots(*(t.lot_id for t in tests if t.lot_id is not None))
+        pull_ids = {t.pull_id for t in tests if t.pull_id is not None}
+        pulls = stability_pulls().lock(pull_ids, refuse=False) if pull_ids else []
+        closed = {pull.pk for pull in pulls if pull.closed}
+        tests = [t for t in tests if t.pull_id not in closed]
+        subjects = [*lots, *(pull for pull in pulls if pull.pk not in closed)]
         for test in tests:
             if test.state not in OPEN_STATES:
                 raise ValidationError(

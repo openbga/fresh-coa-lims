@@ -313,7 +313,7 @@ def protocol_detail(request, pk):
     version, criteria = testing.criteria_now(p)
     problems = [row["problem"] for row in criteria if row["problem"]]
     notice = None
-    if problems and p.state != Protocol.State.SUPERSEDED:
+    if problems and p.state in (Protocol.State.DRAFT, Protocol.State.APPROVED):
         consequence = (
             "The protocol cannot be approved until this is resolved in the specification."
             if draft
@@ -1337,16 +1337,29 @@ def pull_tests(request, pk):
                 criteria_hash=form.cleaned_data["criteria"],
             ),
         )
-        if created is not None:
+        if created:
             messages.success(request, f"Assigned {len(created)} test(s) to the pull.")
             return redirect(detail)
-        if form.cleaned_data["criteria"] != shown:
-            # Refused because the criteria changed: the page now shows the criteria in force
-            # and carries their token, so it can be submitted after review without reopening.
-            refusal = " ".join(form.non_field_errors())
-            form = PullTestsForm({**form.data.dict(), "criteria": shown})
+        if created is not None:  # another analyst assigned them meanwhile
+            messages.info(request, "Every test of this time point is already assigned.")
+            return redirect(detail)
+    if form.is_bound:
+        # Show the criteria in force now, read after the refusal, with their token, so the
+        # page can be submitted after review without being opened again.
+        accepted, holds = resolve_pull(pull)
+        if holds:
+            messages.warning(request, "Tests cannot be assigned: " + " ".join(holds))
+            return redirect(detail)
+        current = analytical.pull_criteria_hash(accepted)
+        if form.data.get("criteria") != current:
+            errors = list(form.non_field_errors())
+            if analytical.CRITERIA_CHANGED not in errors:
+                errors.append(analytical.CRITERIA_CHANGED)
+            form = PullTestsForm({**form.data.dict(), "criteria": current})
             form.is_valid()
-            form.add_error(None, refusal)
+            for error in errors:
+                form.add_error(None, error)
+        existing = set(pull.tests.values_list("test_code", flat=True))
     criteria = []
     for code, payload in accepted.items():
         spec = parse_requirement(payload)

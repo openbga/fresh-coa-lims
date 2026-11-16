@@ -18,7 +18,7 @@ Record that a pull was not collected before its window closed, or that a pull th
 
 ## Layout
 
-- Breadcrumbs (Studies, study, pull), title "Mark missed" with the timepoint, the introduction (a missed pull stays on the study record and cannot be rescheduled silently; a pull taken but not testable is recorded as missed once nothing of its testing is in progress, its reviewed results stay and its untouched tests take no more work), the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Studies, study, pull), title "Mark missed" with the timepoint, the introduction (a missed pull stays on the study record and cannot be rescheduled silently; a pull taken but not testable is recorded as missed too, once nothing of its testing is in progress; its reviewed results stay in the record and its untouched tests take no more work), the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 
@@ -36,7 +36,7 @@ Record that a pull was not collected before its window closed, or that a pull th
 ## Rules and hidden logic
 
 - Messages: "Only a pull of an active study can be marked missed."; "The pull window has not closed yet."; "Testing of this pull is in progress; finish it first: …"; "Only a scheduled or pulled pull can be marked missed."
-- The study must be Active. A **Scheduled** pull is missed once today (local date) is after the window's last day. A **Pulled** pull can be missed at any time, provided nothing of its testing is in progress: no test of it awaits review, no open test holds results, raw-data files or a QC batch, and no investigation of its tests is open. Its reviewed results stay in the record; its untouched tests then take no more work ("This pull is missed; its tests take no more work."). The pull page shows **Mark missed** only when these hold; the server checks them again under the pull and study locks.
+- The study must be Active. A **Scheduled** pull is missed once today (local date) is after the window's last day. A **Pulled** pull can be missed at any time, provided nothing of its testing is in progress (no test of it awaits review, no open test holds results or raw-data files, and no investigation of its tests is open; a place in a QC batch does not count), it is not ready for acceptance ("Every test of this pull has a decided result: a reviewer accepts the pull with its outcome instead.") and no result of it failed ("A result of this pull did not meet the acceptance criteria (T-n); it is not recorded as missed. Complete its tests and have a reviewer accept the pull, or terminate the study."). Its reviewed results stay in the record; its untouched tests then take no more work ("This pull is missed; its tests take no more work."). The pull page shows **Mark missed** only when these hold; the server checks them again under the pull and study locks.
 - Sets the pull to Missed and raises the revision by 1. Missed pulls are final and cannot be rescheduled. Event `pull.missed`.
 - A missed pull counts as finished when a study is closed as Completed.
 

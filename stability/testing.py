@@ -40,10 +40,11 @@ def refusal(pull, study=None):
     return None
 
 
-def lock(pull_ids):
+def lock(pull_ids, refuse=True):
     """Lock the pulls, then their studies, each in key order, and refuse a pull that takes no
     more testing. The caller advances each returned pull's revision with the evidence change,
-    so an acceptance opened earlier goes stale."""
+    so an acceptance opened earlier goes stale. With ``refuse`` false nothing is refused and
+    each returned pull carries ``closed``: why it takes no more testing, or None."""
     pulls = list(Pull.objects.select_for_update().filter(pk__in=set(pull_ids)).order_by("pk"))
     studies = {
         study.pk: study
@@ -52,8 +53,9 @@ def lock(pull_ids):
         .order_by("pk")
     }
     for pull in pulls:
-        if reason := refusal(pull, studies[pull.study_id]):
-            raise ValidationError(reason)
+        pull.closed = refusal(pull, studies[pull.study_id])
+        if refuse and pull.closed:
+            raise ValidationError(pull.closed)
     return pulls
 
 

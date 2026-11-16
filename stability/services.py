@@ -18,6 +18,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from analytical.models import AnalyticalTest
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import require_role, sign_transition
@@ -481,8 +482,10 @@ def attach_pull_evidence(
 def missed_refusal(pull, study=None):
     """Why the pull cannot be recorded as missed now, or None. A scheduled pull is missed
     once its window has closed. A pulled pull is missed when its material cannot be tested
-    (lost or insufficient), provided nothing of its testing is in progress: its reviewed
-    results stay in the record and its untouched tests take no more work."""
+    (lost or insufficient): nothing of its testing may be in progress, it may not be ready for
+    acceptance (missing it would skip the reviewer's signed outcome), and no result of it may
+    have failed (a failure is recorded through acceptance). Its conforming reviewed results
+    stay in the record and its untouched tests take no more work."""
     study = study or pull.study
     if study.state != Study.State.ACTIVE:
         return "Only a pull of an active study can be marked missed."
@@ -493,6 +496,24 @@ def missed_refusal(pull, study=None):
     if pull.state == Pull.State.PULLED:
         if reasons := pull_testing_in_progress(pull):
             return "Testing of this pull is in progress; finish it first: " + " ".join(reasons)
+        _, rows, outcome = pull_results(pull)
+        if outcome:
+            return (
+                "Every test of this pull has a decided result: a reviewer accepts the pull "
+                "with its outcome instead."
+            )
+        failing = [
+            test.label
+            for row in rows
+            for test in row["lineage"]
+            if test.state == AnalyticalTest.State.REVIEWED and test.conforms is False
+        ]
+        if failing or any(row["outcome"] == "fails" for row in rows):
+            return (
+                f"A result of this pull did not meet the acceptance criteria "
+                f"({', '.join(failing)}); it is not recorded as missed. Complete its tests "
+                "and have a reviewer accept the pull, or terminate the study."
+            )
         return None
     return "Only a scheduled or pulled pull can be marked missed."
 

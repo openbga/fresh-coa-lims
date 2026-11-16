@@ -268,8 +268,9 @@ def frozen_results(pull, results):
 
 def _work_in_progress(tests, investigations):
     """Why the tests' evidence is still in progress, one reason each, or []: a test awaits
-    review, an open one already holds an observation, a raw-data file or a QC batch, or an
-    investigation is open. An open test that holds nothing is not work in progress."""
+    review, an open one already holds an observation or a raw-data file, or an investigation is
+    open. An open test that holds nothing is not work in progress, also when it has a place in
+    a QC batch: batch rejection leaves such a test of a closed pull as it is."""
     tests = list(tests.order_by("pk"))
     worked = set(
         Observation.objects.filter(test__in=tests).values_list("test_id", flat=True)
@@ -278,10 +279,9 @@ def _work_in_progress(tests, investigations):
     for test in tests:
         if test.state == STATE.SUBMITTED:
             reasons.append(f"{test.label} {test.test_code} awaits independent review.")
-        elif test.state == STATE.OPEN and (test.pk in worked or test.batch_id is not None):
+        elif test.state == STATE.OPEN and test.pk in worked:
             reasons.append(
-                f"{test.label} {test.test_code} holds results, raw data or a QC batch that "
-                "were not submitted."
+                f"{test.label} {test.test_code} holds results or raw data that were not submitted."
             )
     open_investigations = investigations.filter(
         phase__in=[Investigation.Phase.LABORATORY, Investigation.Phase.FULL]

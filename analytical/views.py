@@ -1123,7 +1123,13 @@ def batch_reject(request, pk):
         summary=[
             ("Batch", batch.number),
             ("QC status", status.capitalize()),
-            ("Tests invalidated", batch.tests.exclude(state="superseded").count()),
+            (
+                "Tests invalidated",
+                batch.tests.exclude(state="superseded")
+                .exclude(pull__state="missed")
+                .exclude(pull__study__state__in=["completed", "terminated"])
+                .count(),
+            ),
             (
                 "Effect",
                 "Each test is invalidated with a linked rerun; any out-of-limit "

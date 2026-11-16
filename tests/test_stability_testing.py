@@ -508,3 +508,47 @@ def test_accepting_a_pull_and_recording_on_it_do_not_deadlock(people, monkeypatc
     assert isinstance(outcome["second"], ValidationError), outcome
     pull.refresh_from_db()
     assert pull.revision == shown + 1 and pull.outcome == "conforms"
+
+
+def test_batch_rejection_leaves_the_test_of_a_missed_pull_as_it_is(people):  # noqa: F811
+    study, config = specified_study(people, requires_batch=True, intervals=(30, 100))
+    lost, tested = pulled(people, study, 30), pulled(people, study, 100)
+    (left,) = assign(people, lost)
+    (worked,) = assign(people, tested)
+    batch = analytical.create_batch(
+        actor=people["analyst2"],
+        number="SYN-STB-QC-MIX",
+        method_code=config["method"].code,
+        reason="Synthetic run",
+    )
+    for test in (left, worked):
+        analytical.assign_to_batch(
+            actor=people["analyst2"], test=test, batch=batch, reason="Synthetic run"
+        )
+    # The material of the first pull is lost: a place in a batch is not work in progress.
+    missed = stability.mark_pull_missed(
+        actor=people["analyst"], pull=lost, reason="Retained material lost"
+    )
+    analytical.record_qc(
+        actor=people["analyst2"],
+        batch=batch,
+        check_code="control",
+        value=Decimal("90.0"),
+        raw_reference="NB-STB-QC p3",
+    )
+    observe(people, worked, "100.0")
+    batch.refresh_from_db()
+    analytical.reject_batch(
+        actor=people["reviewer2"],
+        pin=LAB_PIN,
+        batch=batch,
+        expected_revision=batch.revision,
+        reason="Control out of limits",
+    )
+    assert AnalyticalTest.objects.get(pk=worked.pk).state == "invalidated"
+    assert AnalyticalTest.objects.filter(parent=worked, pull=tested, kind="rerun").exists()
+    assert AnalyticalTest.objects.get(pk=left.pk).state == "open"  # left as it was
+    assert not AnalyticalTest.objects.filter(parent=left).exists()
+    missed.refresh_from_db()
+    assert (missed.state, missed.revision) == ("missed", missed.revision)
+    assert Pull.objects.get(pk=lost.pk).revision == missed.revision
