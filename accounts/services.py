@@ -69,3 +69,41 @@ def provision_account(*, actor, username, password, first_name, last_name, roles
         reason=reason,
     )
     return user
+
+
+@transaction.atomic
+def reset_two_factor(*, actor, user, reason):
+    """Operator recovery: remove an account's second factor, attributed to a named administrator.
+
+    The in-app action (Reset two-factor sign-in) is signed by another administrator; this command
+    runs in the controlled operator shell, for example when the only administrator has lost the
+    authenticator app and the recovery codes.
+    """
+    from .administration import account_lock, reason_required, safe_snapshot
+    from .two_factor import remove, set_up_anything
+
+    reason_required(reason)
+    account_lock()
+    users = get_user_model().objects.select_for_update().filter(pk__in=[actor.pk, user.pk])
+    locked = {entry.pk: entry for entry in users.order_by("pk")}
+    actor, user = locked[actor.pk], locked[user.pk]
+    if not actor.is_active or not (
+        actor.is_superuser or actor.groups.filter(name="admin").exists()
+    ):
+        raise PermissionDenied("Only active account administrators can reset two-factor sign-in.")
+    if not set_up_anything(user):
+        raise ValidationError("This account has not set up two-factor sign-in.")
+    before = safe_snapshot(user)
+    remove(user)
+    user.management_revision += 1
+    user.session_epoch += 1
+    user.save(update_fields=["management_revision", "session_epoch"])
+    record_event(
+        actor=actor,
+        action="account.reset_two_factor",
+        obj=user,
+        before=before,
+        after=safe_snapshot(user),
+        reason=reason,
+    )
+    return user

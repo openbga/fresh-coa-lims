@@ -153,13 +153,15 @@ def test_success_resets_consecutive_failures_and_unknown_names_store_nothing(cli
     assert LoginThrottle.objects.get(user=member).failures == 0
 
 
-def test_admin_login_shares_the_lock(client, member, settings):
+def test_admin_login_only_leads_to_the_application_sign_in(client, member):
+    # One sign-in for the whole site, so its lock and two-factor step always apply.
     member.is_staff = True
     member.save(update_fields=["is_staff"])
-    for _ in range(settings.LOGIN_FAILURE_LIMIT):
-        sign_in(client, WRONG, path="/admin/login/")
-    response = sign_in(client, PASSWORD, path="/admin/login/")
-    assert response.status_code == 200 and not signed_in(client)
+    for password in (WRONG, PASSWORD):
+        response = sign_in(client, password, path="/admin/login/")
+        assert response.status_code == 302 and response["Location"].startswith("/accounts/login/")
+        assert not signed_in(client)
+    assert not LoginThrottle.objects.filter(user=member, failures__gt=0).exists()
 
 
 def test_signed_in_password_confirmations_count_and_honor_the_lock(member, settings):

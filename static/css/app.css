@@ -2400,6 +2400,51 @@ fieldset.vr-field > legend {
   overflow-wrap: anywhere;
 }
 
+/* Two-factor setup: the QR code stays black on white in both themes so cameras read it. */
+.vr-two-factor-key {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (min-width: 48rem) {
+  .vr-two-factor-key {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.vr-qr-frame {
+  justify-self: start;
+  max-width: 100%;
+  line-height: 0;
+  border: 1px solid var(--vr-border);
+}
+
+.vr-qr-frame .vr-qr {
+  display: block;
+  width: 15rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.vr-secret-key {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.vr-recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.5rem 1.5rem;
+  padding-left: 1.75rem;
+}
+
+.vr-recovery-codes code {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
 /* Numbered sections: on a record page (marked by its foot line, includes/record_foot.html) each
    panel heading carries 1.0, 2.0 ... in pen, in document order. */
 .vr-main:has(> .vr-record-foot) {

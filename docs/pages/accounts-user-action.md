@@ -4,7 +4,7 @@ urls: accounts:user_action
 views: accounts.views.user_action
 templates: accounts/form.html
 models: accounts.User, auth.Group, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-16
 ---
 
 ## Purpose
@@ -34,6 +34,7 @@ Submit buttons and editable fields below appear only when the form is available.
 | Force password reset / Sign and force password reset | Optional Temporary password and confirmation | Requires a new password after sign-in. Blank keeps the current password for that sign-in; an account without a usable password requires a temporary one. Ends a shared demonstration account's lock on its own password and PIN |
 | Clear PIN lockout / Sign and clear PIN lockout | None beyond reason/signing | Clears failure count and lock deadline without changing the PIN. Requires an enrolled PIN, even if not currently locked |
 | Require PIN re-enrollment / Sign and require PIN re-enrollment | None beyond reason/signing | Removes the enrolled credential; owner must enroll a new PIN. Requires an enrolled PIN; prior signatures remain. Ends a shared demonstration account's lock on its own password and PIN |
+| Reset two-factor sign-in / Sign and reset two-factor sign-in | None beyond reason/signing | Removes the target's authenticator app and recovery codes, and clears its count of consecutive wrong codes, so they can set it up again. Refused for your own account and when nothing is set up |
 | Enroll or change your signature PIN | Always shown | Opens your own PIN page, not the target account's enrollment |
 | Cancel | Form available | Returns to the target's account record without a change |
 | Return without changes | Action unavailable | Returns to the target's account record without a change |
@@ -66,6 +67,8 @@ Known blockers are shown before requesting a signing PIN:
 | Deactivate the last active admin | Keep at least one active account with the admin role. |
 | Reactivate an active target | This account is already active. |
 | Clear lockout or require re-enrollment without a target PIN | This account has no enrolled PIN. |
+| Reset two-factor sign-in for your own account | Change your own two-factor sign-in on the Two-factor sign-in page. |
+| Reset two-factor sign-in when nothing is set up | This account has not set up two-factor sign-in. |
 
 If you lack your own enrolled PIN, that explanation takes precedence over a target-state blocker. These page checks do not authorize a change or replace the server's POST checks. An enrolled but locked signer PIN does not hide the form; signing still fails until that lock is resolved.
 
@@ -77,7 +80,7 @@ Every successful action increments management revision and the account's session
 
 HTTP signing requires your typed username and PIN and a current, unrevoked session. Defaults are 15-minute idle/8-hour absolute sessions and a 15-minute signing lock after five failed PIN attempts. Denied PIN attempts remain audited. Clearing a target's PIN lock still requires a working signer PIN; this is not a way to sign through your own lockout.
 
-The account mutation, safe before/after audit event and immutable **account_authorized** signature commit together, bound to the resulting management revision. Audit actions are **account.identity**, **account.roles**, **account.deactivate**, **account.reactivate**, **account.reset_password**, **account.unlock_pin** and **account.reenroll_pin**. Secrets and hashes are excluded from the snapshots. Validation errors return status 422 with secrets blank and safe fields preserved when the form remains available; a failed action commits no requested account change. Signer PIN-failure counters and denied-attempt audit events can still change.
+The account mutation, safe before/after audit event and immutable **account_authorized** signature commit together, bound to the resulting management revision. Audit actions are **account.identity**, **account.roles**, **account.deactivate**, **account.reactivate**, **account.reset_password**, **account.unlock_pin**, **account.reenroll_pin** and **account.reset_two_factor**. Secrets and hashes are excluded from the snapshots, which include `two_factor` and `recovery_codes_left`. The signature's authentication context records the channel, the components username and PIN, when the session started, and `sign_in_factors` (the factors proven at sign-in: password, plus totp or recovery_code when two-factor sign-in was used). The reset follows the same revision and session rules as the other actions: the target's sessions end. If an operator cannot sign in at all, the `reset_two_factor` command does the same removal outside the web page, recorded with the named administrator and reason. Validation errors return status 422 with secrets blank and safe fields preserved when the form remains available; a failed action commits no requested account change. Signer PIN-failure counters and denied-attempt audit events can still change.
 
 ## Related pages
 

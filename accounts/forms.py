@@ -164,3 +164,87 @@ class AnnouncementForm(SignForm):
         if values.get("published") and not values.get("body"):
             self.add_error("body", "Enter the announcement text before publishing it.")
         return values
+
+
+CODE_HELP = "The 6-digit code your authenticator app shows now, or one of your recovery codes."
+
+
+class OneTimeCodeInput(forms.TextInput):
+    """A visible code field that, like a PIN field, never puts a submitted code back in the page:
+    a refused form may hold an unspent recovery code."""
+
+    def get_context(self, name, value, attrs):
+        return super().get_context(name, None, attrs)
+
+
+def _code_field(label, help_text):
+    return forms.CharField(
+        label=label,
+        max_length=64,
+        help_text=help_text,
+        widget=OneTimeCodeInput(
+            attrs={
+                "autocomplete": "one-time-code",
+                "autocapitalize": "characters",
+                "spellcheck": "false",
+            }
+        ),
+    )
+
+
+class SignInCodeForm(StyledForm):
+    otp_code = _code_field("Code", CODE_HELP)
+
+    def clean_otp_code(self):
+        from .two_factor import code_kind
+
+        code = self.cleaned_data["otp_code"]
+        if code_kind(code)[0] is None:
+            raise forms.ValidationError(
+                "Enter the 6-digit code from your authenticator app, or a recovery code."
+            )
+        return code
+
+
+class TwoFactorStartForm(StyledForm):
+    current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
+    action = forms.ChoiceField(choices=[("setup", "Set up")])
+
+    def __init__(self, *args, required=False, **kwargs):
+        # required only changes what an account with two-factor sign-in on may do.
+        super().__init__(*args, **kwargs)
+
+
+class TwoFactorChangeForm(SignInCodeForm):
+    current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
+    action = forms.ChoiceField(
+        choices=[
+            ("codes", "Make new recovery codes"),
+            ("setup", "Set up a new authenticator app"),
+            ("disable", "Turn off two-factor sign-in"),
+        ]
+    )
+
+    def __init__(self, *args, required=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["otp_code"].label = "Code from your authenticator app or a recovery code"
+        self.fields[
+            "otp_code"
+        ].help_text = "A recovery code used here is spent, as it would be at sign-in."
+        if required:
+            self.fields["action"].choices = self.fields["action"].choices[:2]
+        self.order_fields(["current_password", "otp_code", "action"])
+
+
+class TwoFactorConfirmForm(StyledForm):
+    otp_code = _code_field(
+        "Code from the app", "The 6-digit code the app shows for this account now."
+    )
+
+    def clean_otp_code(self):
+        from .two_factor import code_kind
+
+        code = self.cleaned_data["otp_code"]
+        if code_kind(code)[0] != "totp":
+            raise forms.ValidationError("Enter the 6-digit code the app shows.")
+        return code

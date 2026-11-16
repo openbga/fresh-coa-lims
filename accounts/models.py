@@ -23,6 +23,10 @@ class LoginThrottle(models.Model):
     )
     failures = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
+    # Consecutive wrong second-factor codes, across locks; only an accepted code or an
+    # administrator's reset clears it. At accounts.two_factor.CODE_FAILURE_LIMIT the second
+    # factor stops working until an administrator resets it.
+    code_failures = models.PositiveIntegerField(default=0, db_default=0)
 
 
 class LoginAnnouncement(models.Model):
@@ -51,3 +55,19 @@ class LoginAnnouncement(models.Model):
 
     def __str__(self):
         return "Sign-in announcement"
+
+
+class RecoveryCode(models.Model):
+    """A one-time code that replaces the authenticator code at sign-in when the app is lost.
+
+    Codes carry 120 random bits, so an approved one-way hash protects them; the code itself is
+    shown once, when the set is made, and never stored. A used code keeps its row with the time
+    of use until the set is replaced.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="recovery_codes"
+    )
+    digest = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
