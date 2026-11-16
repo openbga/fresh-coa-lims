@@ -289,6 +289,57 @@ class TwoFactorChangeForm(SignInCodeForm):
         self.order_fields(["current_password", "otp_code", "action"])
 
 
+SINGLE_SIGN_ON_ACTIONS = {
+    "link": "Link an organization account",
+    "unlink": "Unlink the organization account",
+}
+
+
+def _single_sign_on_action(action):
+    return forms.ChoiceField(
+        choices=[(action, SINGLE_SIGN_ON_ACTIONS[action])],
+        error_messages={"invalid_choice": "The link changed meanwhile. Reload the page."},
+    )
+
+
+class _ActionErrorAtTop:
+    """The action is the button pressed, not a field: its error goes in the form summary."""
+
+    def clean(self):
+        values = super().clean()
+        if "action" in self._errors:
+            self.add_error(None, list(self._errors.pop("action")))
+        return values
+
+
+class SingleSignOnStartForm(_ActionErrorAtTop, StyledForm):
+    """Link or unlink, confirmed with the password, for an account without two-factor sign-in."""
+
+    current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
+
+    def __init__(self, *args, action, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["action"] = _single_sign_on_action(action)
+
+
+class SingleSignOnChangeForm(_ActionErrorAtTop, SignInCodeForm):
+    """Link or unlink, confirmed with the password and a second factor."""
+
+    current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
+
+    def __init__(self, *args, action, keys=False, app=True, **kwargs):
+        super().__init__(*args, keys=keys, app=app, **kwargs)
+        field = self.fields["otp_code"]
+        field.label = (
+            "Code from your authenticator app or a recovery code" if app else "Recovery code"
+        )
+        field.help_text = "A recovery code used here is spent, as it would be at sign-in." + (
+            " Leave it empty to confirm with your security key." if keys else ""
+        )
+        self.fields["action"] = _single_sign_on_action(action)
+        self.order_fields(["current_password", "otp_code", "action"])
+
+
 class SecurityKeyNameForm(StyledForm):
     name = forms.CharField(
         label="Name of the key",

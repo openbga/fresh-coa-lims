@@ -117,6 +117,42 @@ MFA_PENDING_SECONDS = 300
 # login_passkey). The key must verify its holder with its own PIN, fingerprint or face. Set to
 # false to ask every account for its password first.
 PASSKEY_SIGN_IN = os.environ.get("PASSKEY_SIGN_IN", "true").lower() == "true"
+# Single sign-on with the organization's identity provider (OpenID Connect, accounts.
+# single_sign_on). Off unless the issuer, client ID and client secret are all set. Only accounts
+# whose owner linked an account at the provider sign in this way; none are created from it.
+OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "").strip()
+OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "").strip()
+OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "")
+# The name on the sign-in button: "Sign in with <name>".
+OIDC_PROVIDER_NAME = os.environ.get("OIDC_PROVIDER_NAME", "").strip() or "your organization"
+OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid email profile").split()
+# How the client authenticates to the token endpoint: client_secret_basic or client_secret_post.
+OIDC_TOKEN_AUTH_METHOD = os.environ.get("OIDC_TOKEN_AUTH_METHOD", "client_secret_basic").strip()
+# Sent as the prompt parameter. "login" asks the provider to authenticate the person at every
+# sign-in, so that a session someone else left open at the provider is not used; empty leaves
+# it to the provider.
+OIDC_PROMPT = os.environ.get("OIDC_PROMPT", "login").strip()
+OIDC_TIMEOUT_SECONDS = 10
+SINGLE_SIGN_ON = bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET)
+if SINGLE_SIGN_ON:
+    from urllib.parse import urlsplit
+
+    _issuer = urlsplit(OIDC_ISSUER)
+    if not (
+        _issuer.scheme == "https"
+        or (_issuer.scheme == "http" and _issuer.hostname in {"localhost", "127.0.0.1"})
+    ) or (_issuer.query or _issuer.fragment):
+        raise RuntimeError(
+            "OIDC_ISSUER must be an https URL without query or fragment (http only on localhost)."
+        )
+    if "openid" not in OIDC_SCOPES:
+        raise RuntimeError("OIDC_SCOPES must include openid.")
+    if OIDC_TOKEN_AUTH_METHOD not in {"client_secret_basic", "client_secret_post"}:
+        raise RuntimeError(
+            "OIDC_TOKEN_AUTH_METHOD must be client_secret_basic or client_secret_post."
+        )
+elif OIDC_ISSUER or OIDC_CLIENT_ID or OIDC_CLIENT_SECRET:
+    raise RuntimeError("Single sign-on needs OIDC_ISSUER, OIDC_CLIENT_ID and OIDC_CLIENT_SECRET.")
 OTP_TOTP_ISSUER = "OpenBGA Fresh CoA LIMS"
 # Failed codes count toward the account's sign-in failure limit and lock (LOGIN_FAILURE_LIMIT),
 # like a wrong password, so the library's own per-device delay is switched off.

@@ -20,6 +20,7 @@ def access_context(user):
     return {
         "laboratory_roles": roles,
         "has_laboratory_role": bool(roles),
+        "single_sign_on": settings.SINGLE_SIGN_ON,
         "is_account_administrator": user.is_active and (user.is_superuser or "admin" in roles),
         "can_view_identity_admin": user.is_active
         and user.is_staff
@@ -41,6 +42,7 @@ def access_context(user):
 
 
 PENDING_SIGN_IN = "two_factor_pending"
+SSO_PENDING = "single_sign_on_pending"
 PASSKEY_CEREMONY = "passkey_sign_in"
 PENDING_SETUP = "two_factor_setup"
 PENDING_KEY = "security_key_registration"
@@ -85,6 +87,8 @@ class SignIn(LoginView):
         context["passkey_sign_in"] = (
             settings.PASSKEY_SIGN_IN and relying_party(self.request) is not None
         )
+        if settings.SINGLE_SIGN_ON:
+            context["single_sign_on"] = settings.OIDC_PROVIDER_NAME
         notice = published_announcement()
         if notice is not None:
             context["announcement"] = notice
@@ -139,14 +143,14 @@ def login_verify(request):
             user, factor = two_factor.complete_sign_in(pending, proof)
         except two_factor.SignInRestart:
             request.session.pop(PENDING_SIGN_IN, None)
-            messages.info(request, "Sign in again: enter your password, then a new code.")
+            messages.info(request, _restart_message(pending))
             return redirect("login")
         except ValidationError as exc:
             log_second_factor_failed(pending, request)
             form.add_error(None, exc)
         else:
             request.session.pop(PENDING_SIGN_IN, None)
-            user.sign_in_factors = ["password", factor]
+            user.sign_in_factors = [_first_factor(pending), factor]
             user.authenticated_epoch = user.session_epoch  # As checked under the account lock.
             login(request, user, backend=pending["backend"])
             if factor == "recovery_code":
@@ -167,11 +171,12 @@ def login_verify(request):
         timezone.now().timestamp() - float(pending.get("started", 0)) > settings.MFA_PENDING_SECONDS
     ):
         request.session.pop(PENDING_SIGN_IN, None)
-        messages.info(request, "Sign in again: enter your password, then a new code.")
+        messages.info(request, _restart_message(pending))
         return redirect("login")
     context = {
         "form": form,
         "pending_seconds": settings.MFA_PENDING_SECONDS,
+        "first_factor": _first_factor(pending),
         "keys": keys,
         "app": two_factor.has_app(account),
         "keys_elsewhere": not keys and two_factor.has_keys(account),
@@ -187,6 +192,17 @@ def login_verify(request):
         context,
         status=422 if request.method == "POST" else 200,
     )
+
+
+def _first_factor(pending):
+    """What the first sign-in step checked: the password, or the identity provider."""
+    return "identity_provider" if pending.get("first") == "identity_provider" else "password"
+
+
+def _restart_message(pending):
+    if _first_factor(pending) == "identity_provider":
+        return "Sign in again with your organization, then enter a new code."
+    return "Sign in again: enter your password, then a new code."
 
 
 def _safe_next(request, value):
@@ -259,6 +275,112 @@ def login_passkey(request):
         "next": next_url,
     }
     return render(request, "registration/login_passkey.html", context, status=status)
+
+
+def _sso_callback_uri(request):
+    from django.urls import reverse
+
+    return request.build_absolute_uri(reverse("login_sso_callback"))
+
+
+@require_GET
+def login_sso(request):
+    """Leave for the organization's identity provider to sign in (Sign in's button).
+
+    Opening it only starts a request: the provider's answer must come back to this session with
+    the state it was given, within single_sign_on.PENDING_SECONDS.
+    """
+    from django.contrib import messages
+    from django.http import Http404
+    from django.shortcuts import redirect
+
+    from . import single_sign_on
+
+    if not single_sign_on.configured():
+        raise Http404
+    next_url = _safe_next(request, request.GET.get("next"))
+    try:
+        url, pending = single_sign_on.begin("sign_in", _sso_callback_uri(request), next=next_url)
+    except single_sign_on.ProviderUnavailable:
+        messages.error(request, single_sign_on.UNAVAILABLE)
+        return redirect("login")
+    request.session[SSO_PENDING] = pending
+    return redirect(url)
+
+
+@require_GET
+@sensitive_variables()
+def login_sso_callback(request):
+    """Where the identity provider sends the browser back, for a sign-in or a link."""
+    from django.contrib import messages
+    from django.contrib.auth import login
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from django.http import Http404
+    from django.shortcuts import redirect
+
+    from . import single_sign_on, two_factor
+    from .signin_log import log_second_factor_requested, log_single_sign_on_failed
+
+    if not single_sign_on.configured():
+        raise Http404
+    pending = request.session.pop(SSO_PENDING, None)  # Each request is answered once.
+    purpose = pending.get("purpose") if isinstance(pending, dict) else None
+    linking = purpose == "link" and request.user.is_authenticated
+    back = "accounts:single_sign_on" if linking else "login"
+    if purpose not in {"sign_in", "link"} or not single_sign_on.answered(pending, request.GET):
+        log_single_sign_on_failed(None, request, "expired")
+        messages.error(request, single_sign_on.EXPIRED)
+        return redirect(back)
+    try:
+        found = single_sign_on.identity(pending, request.GET)
+    except single_sign_on.ProviderUnavailable:
+        messages.error(request, single_sign_on.UNAVAILABLE)
+        return redirect(back)
+    except single_sign_on.Refused as exc:
+        log_single_sign_on_failed(None, request, "refused")
+        messages.error(request, str(exc))
+        return redirect(back)
+    if purpose == "link":
+        if not linking:
+            messages.error(request, single_sign_on.NOT_YOURS)
+            return redirect("login")
+        try:
+            user = single_sign_on.link(actor=request.user, pending=pending, found=found)
+        except (ValidationError, PermissionDenied) as exc:
+            messages.error(
+                request, " ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+            )
+            return redirect("accounts:single_sign_on")
+        _keep_session(request, user)
+        messages.success(
+            request,
+            f"Your account is linked to {found.label}. You can now sign in with "
+            f"{settings.OIDC_PROVIDER_NAME}. Other sessions have been signed out.",
+        )
+        return redirect("accounts:single_sign_on")
+    try:
+        user = single_sign_on.sign_in(found)
+    except ValidationError as exc:
+        log_single_sign_on_failed(found, request, "account")
+        messages.error(request, " ".join(exc.messages))
+        return redirect("login")
+    # The account generation read under the lock: a security change since ends this session.
+    user.authenticated_epoch = user.session_epoch
+    next_url = _safe_next(request, pending.get("next"))
+    backend = settings.AUTHENTICATION_BACKENDS[0]
+    if two_factor.enabled(user):
+        user.backend = backend
+        second = two_factor.begin_sign_in(user)
+        second["next"] = next_url
+        second["first"] = "identity_provider"
+        request.session.cycle_key()
+        request.session[PENDING_SIGN_IN] = second
+        log_second_factor_requested(user, request)
+        return redirect("login_verify")
+    request.session.pop(PENDING_SIGN_IN, None)
+    user.sign_in_factors = ["identity_provider"]
+    login(request, user, backend=backend)
+    return redirect(next_url or settings.LOGIN_REDIRECT_URL)
 
 
 def _keep_session(request, user):
@@ -530,6 +652,93 @@ def security_key_add(request):
 
 
 @login_required
+@sensitive_post_parameters("current_password", "otp_code")
+@sensitive_variables()
+def single_sign_on_page(request):
+    """The owner's link to an account at the organization's identity provider."""
+    from django.contrib import messages
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from django.http import Http404, HttpResponseNotAllowed
+    from django.shortcuts import redirect
+
+    from . import security_keys, single_sign_on, two_factor
+    from .administration import CREDENTIALS_LOCKED
+    from .forms import SingleSignOnChangeForm, SingleSignOnStartForm
+
+    if not single_sign_on.configured():
+        raise Http404
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    user = request.user
+    state = single_sign_on.status(user)
+    on = two_factor.enabled(user)
+    rp = security_keys.relying_party(request)
+    keys = on and rp is not None and security_keys.usable_keys(user, rp.id).exists()
+    context = {
+        "page_title": "Organization sign-in",
+        "provider": settings.OIDC_PROVIDER_NAME,
+        "issuer": settings.OIDC_ISSUER,
+        "state": state,
+        "two_factor": on,
+        "keys_here": keys,
+    }
+    if user.credentials_locked:
+        context["unavailable"] = CREDENTIALS_LOCKED
+        return render(
+            request,
+            "accounts/single_sign_on.html",
+            context,
+            status=403 if request.method == "POST" else 200,
+        )
+    action = "unlink" if state["link"] else "link"
+    if on:
+        form = SingleSignOnChangeForm(
+            request.POST or None, action=action, keys=keys, app=two_factor.has_app(user)
+        )
+    else:
+        form = SingleSignOnStartForm(request.POST or None, action=action)
+    ceremony = request.session.pop(CONFIRM_CEREMONY, None) if request.method == "POST" else None
+    if request.method == "POST" and form.is_valid():
+        data = {"actor": user, "current_password": form.cleaned_data["current_password"]}
+        if on:
+            answer = form.cleaned_data["security_key_response"]
+            data["code"] = (
+                security_keys.KeyAssertion(answer, ceremony or {})
+                if answer
+                else form.cleaned_data["otp_code"]
+            )
+        try:
+            if action == "link":
+                confirmed = single_sign_on.begin_link(**data)
+                url, pending = single_sign_on.begin("link", _sso_callback_uri(request), **confirmed)
+                request.session[SSO_PENDING] = pending
+                return redirect(url)
+            user = single_sign_on.unlink(**data)
+            _keep_session(request, user)
+            messages.success(
+                request,
+                f"Your account is no longer linked; {settings.OIDC_PROVIDER_NAME} no longer "
+                "signs you in. Other sessions have been signed out.",
+            )
+            return redirect("accounts:single_sign_on")
+        except single_sign_on.ProviderUnavailable:
+            form.add_error(None, single_sign_on.UNAVAILABLE)
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
+    context["form"] = form
+    if keys:
+        ceremony = security_keys.begin(rp, "confirm", user.pk)
+        request.session[CONFIRM_CEREMONY] = ceremony
+        context["key_options"] = security_keys.request_options(user, ceremony)
+    return render(
+        request,
+        "accounts/single_sign_on.html",
+        context,
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@login_required
 @require_GET
 def access(request):
     context = access_context(request.user)
@@ -642,6 +851,7 @@ def user_detail(request, pk):
 
     from . import two_factor
     from .administration import ACTIONS, safe_snapshot
+    from .models import SingleSignOnLink
 
     require_role(request.user, "admin")
     target = get_object_or_404(get_user_model(), pk=pk)
@@ -656,6 +866,8 @@ def user_detail(request, pk):
         actions.extend(["unlock_pin", "reenroll_pin"])
     if two_factor.set_up_anything(target) and target.pk != request.user.pk:
         actions.append("reset_two_factor")
+    if evidence["single_sign_on"] and target.pk != request.user.pk:
+        actions.append("remove_single_sign_on")
     history = (
         AuditEvent.objects.filter(object_type="accounts.user", object_id=str(pk))
         .select_related("actor", "electronicsignature")
@@ -669,6 +881,8 @@ def user_detail(request, pk):
             "target": target,
             "evidence": evidence,
             "two_factor": two_factor.status(target),
+            "single_sign_on": SingleSignOnLink.objects.filter(user_id=target.pk).first(),
+            "single_sign_on_configured": settings.SINGLE_SIGN_ON,
             "actions": [
                 (ACTIONS[a], reverse("accounts:user_action", args=[pk, a])) for a in actions
             ],
@@ -805,6 +1019,13 @@ def user_action(request, pk, action):
             unavailable = "Change your own two-factor sign-in on the Two-factor sign-in page."
         elif not two_factor.set_up_anything(target):
             unavailable = "This account has not set up two-factor sign-in."
+    elif action == "remove_single_sign_on":
+        from .models import SingleSignOnLink
+
+        if target.pk == request.user.pk:
+            unavailable = "Unlink your own organization account on the Organization sign-in page."
+        elif not SingleSignOnLink.objects.filter(user_id=target.pk).exists():
+            unavailable = "This account is not linked to an organization account."
     return _account_form(
         request,
         form,

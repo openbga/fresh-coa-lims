@@ -110,3 +110,31 @@ class SecurityKey(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class SingleSignOnLink(models.Model):
+    """The account at the organization's identity provider that signs this account in.
+
+    The provider names a person by issuer and subject (OpenID Connect Core 1.0 section 5.7); the
+    owner links them after confirming the password. The label is the name or email the provider
+    gave when the link was made, shown so that the owner and administrators recognize it.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="single_sign_on"
+    )
+    issuer = models.CharField(max_length=255)
+    subject = models.CharField(max_length=255)
+    label = models.CharField(max_length=254, blank=True)
+    created_at = models.DateTimeField()
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["issuer", "subject"], name="single_sign_on_identity_once"
+            ),
+        ]
+
+    def __str__(self):
+        return self.label or self.subject

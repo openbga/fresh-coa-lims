@@ -19,6 +19,7 @@ from core.models import ElectronicSignature, PINCredential
 from core.services import require_role, verify_pin
 from core.session_control import signing_context
 
+from .models import SingleSignOnLink
 from .services import ROLES
 
 ACCOUNT_LOCK = 681241
@@ -31,6 +32,7 @@ ACTIONS = {
     "reenroll_pin": "Require PIN re-enrollment",
     "reset_password": "Force password reset",
     "reset_two_factor": "Reset two-factor sign-in",
+    "remove_single_sign_on": "Remove organization sign-in link",
 }
 
 
@@ -108,7 +110,17 @@ def safe_snapshot(user):
         if credential and credential.locked_until
         else None,
         **two_factor_snapshot(user),
+        # The organization account linked for single sign-on; its subject is not personal data,
+        # the label is what the owner saw when linking.
+        "single_sign_on": _single_sign_on_snapshot(user),
     }
+
+
+def _single_sign_on_snapshot(user):
+    link = SingleSignOnLink.objects.filter(user_id=user.pk).first()
+    if link is None:
+        return None
+    return {"issuer": link.issuer, "subject": link.subject, "label": link.label}
 
 
 def _signer(actor, encoded):
@@ -268,6 +280,16 @@ def change_account(
             if not two_factor.set_up_anything(user):
                 raise ValidationError("This account has not set up two-factor sign-in.")
             two_factor.remove(user)
+        elif action == "remove_single_sign_on":
+            from . import single_sign_on
+
+            if actor.pk == user.pk:
+                raise PermissionDenied(
+                    "Unlink your own organization account on the Organization sign-in page."
+                )
+            if not SingleSignOnLink.objects.select_for_update().filter(user_id=user.pk).exists():
+                raise ValidationError("This account is not linked to an organization account.")
+            single_sign_on.remove(user)
         if action in {"reenroll_pin", "reset_password"} and user.credentials_locked:
             # The administrator replaces a published credential, so the owner must be able to
             # set the next one; the account stops being a shared demonstration account.
