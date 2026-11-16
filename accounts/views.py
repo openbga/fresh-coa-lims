@@ -713,7 +713,11 @@ def single_sign_on_page(request):
                 confirmed = single_sign_on.begin_link(**data)
                 url, pending = single_sign_on.begin("link", _sso_callback_uri(request), **confirmed)
                 request.session[SSO_PENDING] = pending
-                return redirect(url)
+                # An ordinary link leaves for the provider: the site's form-action policy, which
+                # also governs the redirects after a form's submission, stays 'self'.
+                context["continue_url"] = url
+                context["pending_minutes"] = single_sign_on.PENDING_SECONDS // 60
+                return render(request, "accounts/single_sign_on.html", context)
             user = single_sign_on.unlink(**data)
             _keep_session(request, user)
             messages.success(
@@ -731,15 +735,12 @@ def single_sign_on_page(request):
         ceremony = security_keys.begin(rp, "confirm", user.pk)
         request.session[CONFIRM_CEREMONY] = ceremony
         context["key_options"] = security_keys.request_options(user, ceremony)
-    response = render(
+    return render(
         request,
         "accounts/single_sign_on.html",
         context,
         status=422 if request.method == "POST" else 200,
     )
-    if settings.CONTENT_SECURITY_POLICY:
-        response["Content-Security-Policy"] = single_sign_on.form_action_policy()
-    return response
 
 
 @login_required
@@ -1084,8 +1085,9 @@ def password_change(request):
             if found is not None:
                 messages.warning(
                     request,
-                    f"Your account is still linked to the organization account {found} for "
-                    "sign-in. If you do not recognize it, unlink it on Organization sign-in.",
+                    f"Your account is still linked to the organization account {found} "
+                    f"(subject {found.subject}, linked {found.created_at:%Y-%m-%d}) for sign-in. "
+                    "If you do not recognize it, unlink it on Organization sign-in.",
                 )
             return redirect("quality:lot_list")
         except (ValidationError, PermissionDenied) as exc:

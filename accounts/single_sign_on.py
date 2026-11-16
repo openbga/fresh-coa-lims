@@ -20,6 +20,7 @@ audit events; an administrator removes another account's link with a reason and 
 import logging
 import re
 import secrets
+import threading
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -53,7 +54,6 @@ SIGNING_ALGORITHMS = (
     "EdDSA",
 )
 ERROR_CODE = re.compile(r"[a-z_]{1,64}")
-HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
 LABEL_CLAIMS = ("preferred_username", "email", "name")
 LABEL_LIMIT = 254
 
@@ -110,7 +110,8 @@ def _client(issuer, client_id, client_secret, scopes, auth_method):
         name="organization",
         client_id=client_id,
         client_secret=client_secret,
-        server_metadata_url=issuer.rstrip("/") + "/.well-known/openid-configuration",
+        # No discovery address: client() fetches and checks the document itself and gives the
+        # library only the checked keys, so the library never loads an unchecked copy.
         client_kwargs={
             "scope": " ".join(scopes),
             "code_challenge_method": "S256",
@@ -135,6 +136,7 @@ ENDPOINTS = ("authorization_endpoint", "token_endpoint", "jwks_uri")
 # an unreachable provider does not hold a worker for the full timeout on every request.
 RETRY_SECONDS = 30
 _unavailable_until = {}
+_discovery_lock = threading.Lock()
 
 
 def _secure_url(value):
@@ -171,9 +173,11 @@ def _checked(document):
 
 
 def client():
-    """The provider's client with its discovery document loaded and checked (once a process,
-    and again whenever the library loads it anew); raises ProviderUnavailable."""
+    """The provider's client with its checked discovery document (fetched once a process);
+    raises ProviderUnavailable."""
     import time
+
+    import requests
 
     key = (
         settings.OIDC_ISSUER,
@@ -182,48 +186,35 @@ def client():
         tuple(settings.OIDC_SCOPES),
         settings.OIDC_TOKEN_AUTH_METHOD,
     )
-    if _unavailable_until.get(key, 0) > time.monotonic():
-        raise ProviderUnavailable
     app = _client(*key)
-    try:
-        metadata = app.load_server_metadata()
-        loaded_at = metadata["_loaded_at"]
-    except Exception as exc:
-        app.server_metadata = {}
-        _unavailable_until[key] = time.monotonic() + RETRY_SECONDS
-        logger.warning("Single sign-on discovery failed: %s", type(exc).__name__)
-        raise ProviderUnavailable from exc
-    if getattr(app, "checked_at", None) != loaded_at:
-        kept = _checked(metadata)
+    if getattr(app, "checked", False):
+        return app
+    with _discovery_lock:
+        if getattr(app, "checked", False):
+            return app
+        if _unavailable_until.get(key, 0) > time.monotonic():
+            raise ProviderUnavailable
+        try:
+            response = requests.get(
+                settings.OIDC_ISSUER.rstrip("/") + "/.well-known/openid-configuration",
+                headers={"Accept": "application/json"},
+                timeout=settings.OIDC_TIMEOUT_SECONDS,
+                allow_redirects=False,
+            )
+            response.raise_for_status()
+            document = response.json()
+            kept = _checked(document) if isinstance(document, dict) else None
+        except Exception as exc:
+            _unavailable_until[key] = time.monotonic() + RETRY_SECONDS
+            logger.warning("Single sign-on discovery failed: %s", type(exc).__name__)
+            raise ProviderUnavailable from exc
         if kept is None:
-            app.server_metadata = {}
             _unavailable_until[key] = time.monotonic() + RETRY_SECONDS
             logger.warning("Single sign-on discovery document does not match OIDC_ISSUER.")
             raise ProviderUnavailable
-        # Bound in one step: another request never sees a half-replaced document.
-        app.server_metadata = {**kept, "_loaded_at": loaded_at}
-        app.checked_at = loaded_at
+        app.server_metadata = kept
+        app.checked = True
     return app
-
-
-def form_action_policy():
-    """The site's Content-Security-Policy with the provider's authorization endpoint added to
-    form-action, for the page whose form leaves for the provider: browsers apply form-action to
-    the redirects that follow a form's submission. The site's policy when the provider cannot
-    be reached (the form then shows that instead of leaving)."""
-    from urllib.parse import urlsplit
-
-    policy = settings.CONTENT_SECURITY_POLICY
-    try:
-        endpoint = urlsplit(client().server_metadata["authorization_endpoint"])
-        host = endpoint.hostname.encode("idna").decode("ascii")
-        port = endpoint.port
-    except ProviderUnavailable, KeyError, ValueError, AttributeError, UnicodeError:
-        return policy
-    if not HOST_NAME.fullmatch(host) or endpoint.username is not None:
-        return policy
-    origin = f"{endpoint.scheme}://{host}" + (f":{port}" if port is not None else "")
-    return policy.replace("form-action 'self'", f"form-action 'self' {origin}")
 
 
 def begin(purpose, redirect_uri, **context):
@@ -333,7 +324,7 @@ def identity(pending, params):
     # says when that happened, it must be after this request started.
     stated = claims.get("auth_time") if claims else None
     if (
-        settings.OIDC_PROMPT == "login"
+        "login" in settings.OIDC_PROMPT.split()
         and isinstance(stated, (int, float))
         and stated < float(pending["started"]) - LEEWAY_SECONDS
     ):
@@ -455,6 +446,8 @@ def begin_link(*, actor, current_password, code=None):
 
     if actor.credentials_locked:
         raise PermissionDenied(CREDENTIALS_LOCKED)
+    if SingleSignOnLink.objects.filter(user_id=actor.pk).exists():
+        raise ValidationError(ALREADY_LINKED)  # Before a code is spent.
     on = enabled(actor)
     if on and not code:
         raise ValidationError("Confirm with a code, a recovery code or your security key.")

@@ -91,7 +91,10 @@ def test_single_sign_on_journey(live_server, django_user_model, provider, artifa
         expect(facts(page)).to_contain_text("Not linked")
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         provider.next_subject = "sub-analyst"
-        page.get_by_role("button", name=f"Continue to {PROVIDER_NAME}", exact=True).click()
+        page.get_by_role("button", name="Confirm", exact=True).click()
+        # The password is accepted; an ordinary link leaves for the provider.
+        expect(page.get_by_role("heading", name=f"Continue to {PROVIDER_NAME}")).to_be_visible()
+        page.get_by_role("link", name=f"Continue to {PROVIDER_NAME}", exact=True).click()
         expect(page.get_by_text("Your account is linked to", exact=False).first).to_be_visible()
         expect(page).to_have_url(re.compile(r"/accounts/single-sign-on/$"))
         expect(facts(page)).to_contain_text(LABEL)
@@ -168,7 +171,10 @@ def test_single_sign_on_journey(live_server, django_user_model, provider, artifa
         check("organization-sign-in-not-linked")
         qpage.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         provider.next_subject = "sub-analyst"
-        qpage.get_by_role("button", name=f"Continue to {PROVIDER_NAME}", exact=True).click()
+        qpage.get_by_role("button", name="Confirm", exact=True).click()
+        expect(qpage.get_by_role("link", name=f"Continue to {PROVIDER_NAME}")).to_be_visible()
+        check("organization-sign-in-continue")
+        qpage.get_by_role("link", name=f"Continue to {PROVIDER_NAME}", exact=True).click()
         expect(qpage.get_by_text("Your account is linked to", exact=False).first).to_be_visible()
         expect(facts(qpage)).to_contain_text(LABEL)
         check("organization-sign-in-linked")

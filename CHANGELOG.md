@@ -6,7 +6,7 @@ All notable changes to OpenBGA Fresh CoA LIMS are recorded here. The format foll
 
 ### Added
 
-- Single sign-on with the organization's identity provider (OpenID Connect authorization code flow with PKCE), off unless `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` are set; also `OIDC_PROVIDER_NAME`, `OIDC_SCOPES`, `OIDC_TOKEN_AUTH_METHOD` and `OIDC_PROMPT` (default `login`). Owners link their own account on the new page **Organization sign-in** (`accounts:single_sign_on`); the sign-in page offers **Sign in with** the provider's name (`login_sso`, `login_sso_callback`). Administrators remove a link with the signed account action `remove_single_sign_on`; **Force password reset** (`reset_password`) now also removes the account's link.
+- Single sign-on with the organization's identity provider (OpenID Connect authorization code flow with PKCE), off unless `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` are set; also `OIDC_PROVIDER_NAME`, `OIDC_SCOPES`, `OIDC_TOKEN_AUTH_METHOD` and `OIDC_PROMPT` (default `login`). Owners link their own account on the new page **Organization sign-in** (`accounts:single_sign_on`); the sign-in page offers **Sign in with** the provider's name (`login_sso`, `login_sso_callback`). Administrators remove a link with the signed account action `remove_single_sign_on`; **Force password reset** (`reset_password`) and two-factor resets (the account action and the `reset_two_factor` command) now also remove the account's link.
 
 ### Changed
 

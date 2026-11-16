@@ -86,9 +86,15 @@ def link(user, subject="sub-analyst", label="analyst@synthetic.example"):
 
 
 def to_provider(response):
-    """Follow the application's redirect to the provider; returns the callback path."""
-    assert response.status_code == 302, getattr(response, "content", b"")[:500]
-    answer = requests.get(response["Location"], allow_redirects=False, timeout=10)
+    """Follow the application's redirect (sign-in) or link (linking) to the provider; returns
+    the callback path."""
+    if response.status_code == 200 and response.context and response.context.get("continue_url"):
+        target = response.context["continue_url"]
+        assert f'href="{target.replace("&", "&amp;")}"'.encode() in response.content
+    else:
+        assert response.status_code == 302, getattr(response, "content", b"")[:500]
+        target = response["Location"]
+    answer = requests.get(target, allow_redirects=False, timeout=10)
     assert answer.status_code == 302
     location = urlsplit(answer.headers["Location"])
     assert location.path == CALLBACK
@@ -380,10 +386,8 @@ def test_owner_links_after_confirming_the_password(provider, analyst):
     elsewhere.force_login(analyst)
     page = owner.get(PAGE)
     assert page.status_code == 200 and b"Not linked" in page.content
-    # The form leaves for the provider through a redirect, which form-action also governs.
-    origin = provider.issuer.removesuffix("/realm")
-    assert f"form-action 'self' {origin};" in page["Content-Security-Policy"]
-    assert "form-action 'self';" in owner.get(reverse("accounts:access"))["Content-Security-Policy"]
+    # The page leaves for the provider by an ordinary link, so the site's policy is unchanged.
+    assert "form-action 'self';" in page["Content-Security-Policy"]
     assert b"Organization sign-in" in owner.get(reverse("accounts:access")).content
     refused = start_link(owner, {"current_password": "wrong-synthetic"})
     assert refused.status_code == 422 and LoginThrottle.objects.get(user=analyst).failures == 1
@@ -597,13 +601,16 @@ def test_discovery_cannot_switch_off_checks_or_client_settings(client, provider,
     assert not signed_in_as(client) and single_sign_on.REFUSED in messages_of(response)
 
 
-def test_reloaded_discovery_is_checked_again(client, provider):
-    assert client.get(START).status_code == 302
-    app = single_sign_on.client()
-    provider.metadata_override = {"issuer": "https://elsewhere.synthetic.example"}
-    app.server_metadata.pop("_loaded_at")  # The library loads the document again.
-    response = client.get(START)
-    assert single_sign_on.UNAVAILABLE in messages_of(response)
+def test_discovery_is_fetched_once_and_only_checked_keys_are_used(client, provider, analyst):
+    link(analyst)
+    provider.metadata_override = {"verify": False, "proxies": {"https": "http://x.invalid"}}
+    for _ in range(3):
+        sign_in(client, provider, "sub-analyst")
+        assert signed_in_as(client) == str(analyst.pk)
+        client.logout()
+    assert provider.discovery_requests == 1
+    metadata = single_sign_on.client().server_metadata
+    assert set(metadata) <= set(single_sign_on.METADATA_KEYS) | {"jwks"}
 
 
 @pytest.mark.parametrize("key", ["authorization_endpoint", "token_endpoint", "jwks_uri"])
@@ -612,25 +619,6 @@ def test_discovery_endpoints_must_use_https(client, provider, key):
     response = client.get(START)
     assert response["Location"] == LOGIN
     assert single_sign_on.UNAVAILABLE in messages_of(response)
-
-
-@pytest.mark.parametrize(
-    "endpoint, origin",
-    [
-        ("https://\u0438dp.synthetic.example/authorize", "https://xn--dp-vlc.synthetic.example"),
-        ("https://idp.synthetic.example:8443/authorize", "https://idp.synthetic.example:8443"),
-        ("https://user@idp.synthetic.example/authorize", None),
-        ("https://*.synthetic.example/authorize", None),
-    ],
-)
-def test_form_action_names_only_a_plain_origin(provider, analyst, endpoint, origin):
-    provider.metadata_override = {"authorization_endpoint": endpoint}
-    owner = Client()
-    owner.force_login(analyst)
-    policy = owner.get(PAGE)["Content-Security-Policy"]
-    assert policy.isascii() and policy.startswith("default-src 'self'")
-    expected = f"form-action 'self' {origin};" if origin else "form-action 'self';"
-    assert expected in policy
 
 
 def test_unreachable_provider_spends_no_second_factor(provider, analyst, settings):
@@ -686,7 +674,11 @@ def test_password_resets_and_changes_do_not_hide_a_link(provider, analyst, manag
     )
     assert response.status_code == 302
     shown = messages_of(response)
-    assert any("still linked to the organization account analyst@synthetic" in m for m in shown)
+    assert any(
+        "still linked to the organization account analyst@synthetic.example (subject "
+        "sub-analyst, linked " in m
+        for m in shown
+    )
     assert SingleSignOnLink.objects.filter(user=analyst).exists()
 
     admin = Client()
@@ -708,3 +700,31 @@ def test_password_resets_and_changes_do_not_hide_a_link(provider, analyst, manag
     assert event.before["single_sign_on"] and event.after["single_sign_on"] is None
     response = sign_in(Client(), provider, "sub-analyst")
     assert single_sign_on.NOT_LINKED in messages_of(response)
+
+
+def test_already_linked_is_refused_before_a_code_is_spent(provider, analyst):
+    _device, codes = enable(analyst)
+    link(analyst)
+    with pytest.raises(single_sign_on.ValidationError, match="already linked"):
+        single_sign_on.begin_link(actor=fresh(analyst), current_password=PASSWORD, code=codes[0])
+    assert two_factor_codes_left(analyst) == len(codes)
+
+
+def test_two_factor_reset_removes_the_link(provider, analyst, manager):
+    enable(analyst)
+    link(analyst)
+    admin = Client()
+    admin.force_login(manager)
+    response = admin.post(
+        reverse("accounts:user_action", args=[analyst.pk, "reset_two_factor"]),
+        {
+            "revision": fresh(analyst).management_revision,
+            "reason": "Synthetic lost phone, identity verified",
+            "signature_username": manager.username,
+            "pin": PIN,
+        },
+    )
+    assert response.status_code == 302
+    assert not SingleSignOnLink.objects.filter(user=analyst).exists()
+    event = AuditEvent.objects.get(action="account.reset_two_factor")
+    assert event.before["single_sign_on"] and event.after["single_sign_on"] is None
