@@ -30,6 +30,7 @@ ACTIONS = {
     "unlock_pin": "Clear PIN lockout",
     "reenroll_pin": "Require PIN re-enrollment",
     "reset_password": "Force password reset",
+    "reset_two_factor": "Reset two-factor sign-in",
 }
 
 
@@ -86,6 +87,8 @@ def check_role_change(actor, user, roles, *, bootstrap=False):
 
 
 def safe_snapshot(user):
+    from .two_factor import snapshot as two_factor_snapshot
+
     credential = PINCredential.objects.filter(user=user).first()
     return {
         "id": user.pk,
@@ -104,6 +107,7 @@ def safe_snapshot(user):
         "pin_locked_until": credential.locked_until.isoformat()
         if credential and credential.locked_until
         else None,
+        **two_factor_snapshot(user),
     }
 
 
@@ -254,6 +258,16 @@ def change_account(
                 )
             user.password_change_required = True
             changed.append("password_change_required")
+        elif action == "reset_two_factor":
+            from . import two_factor
+
+            if actor.pk == user.pk:
+                raise PermissionDenied(
+                    "Change your own two-factor sign-in on the Two-factor sign-in page."
+                )
+            if not two_factor.set_up_anything(user):
+                raise ValidationError("This account has not set up two-factor sign-in.")
+            two_factor.remove(user)
         if action in {"reenroll_pin", "reset_password"} and user.credentials_locked:
             # The administrator replaces a published credential, so the owner must be able to
             # set the next one; the account stops being a shared demonstration account.

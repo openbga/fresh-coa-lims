@@ -2,9 +2,11 @@
 
 import shlex
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import render
+from django.utils import timezone
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_GET
 
@@ -36,8 +38,36 @@ def access_context(user):
     }
 
 
+PENDING_SIGN_IN = "two_factor_pending"
+PENDING_SETUP = "two_factor_setup"
+
+
 class SignIn(LoginView):
-    """The standard sign-in view plus the published sign-in announcement, if any."""
+    """The standard sign-in view plus the published sign-in announcement, if any.
+
+    For an account with a confirmed authenticator the accepted password only starts the sign-in;
+    login_verify completes it once the second factor is accepted.
+    """
+
+    def get(self, request, *args, **kwargs):
+        request.session.pop(PENDING_SIGN_IN, None)  # Opening sign-in again starts over.
+        return super().get(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        from django.shortcuts import redirect
+
+        from . import two_factor
+        from .signin_log import log_second_factor_requested
+
+        user = form.get_user()
+        if not two_factor.enabled(user):
+            return super().form_valid(form)
+        pending = two_factor.begin_sign_in(user)
+        pending["next"] = self.get_success_url()
+        self.request.session.cycle_key()
+        self.request.session[PENDING_SIGN_IN] = pending
+        log_second_factor_requested(user, self.request)
+        return redirect("login_verify")
 
     def get_context_data(self, **kwargs):
         from .announcements import announcement_html, published_announcement
@@ -48,6 +78,209 @@ class SignIn(LoginView):
             context["announcement"] = notice
             context["announcement_html"] = announcement_html(notice)
         return context
+
+
+@sensitive_post_parameters("otp_code")
+def login_verify(request):
+    """Second sign-in step: the authenticator code, or a recovery code, after the password."""
+    from django.contrib import messages
+    from django.contrib.auth import login
+    from django.core.exceptions import ValidationError
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+
+    from . import two_factor
+    from .forms import SignInCodeForm
+    from .signin_log import log_second_factor_failed
+
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    pending = request.session.get(PENDING_SIGN_IN)
+    if not isinstance(pending, dict):
+        return redirect("login")
+    form = SignInCodeForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            user, factor = two_factor.complete_sign_in(pending, form.cleaned_data["otp_code"])
+        except two_factor.SignInRestart:
+            request.session.pop(PENDING_SIGN_IN, None)
+            messages.info(request, "Sign in again: enter your password, then a new code.")
+            return redirect("login")
+        except ValidationError as exc:
+            log_second_factor_failed(pending, request)
+            form.add_error(None, exc)
+        else:
+            request.session.pop(PENDING_SIGN_IN, None)
+            user.sign_in_factors = ["password", factor]
+            login(request, user, backend=pending["backend"])
+            if factor == "recovery_code":
+                left = two_factor.status(user)["recovery_codes_left"]
+                messages.warning(
+                    request,
+                    f"You signed in with a recovery code. {left} unused "
+                    f"recovery code{'' if left == 1 else 's'} left. If you no longer have your "
+                    "authenticator app, set up a new one on Two-factor sign-in.",
+                )
+            return redirect(pending.get("next") or "/")
+    elif request.method == "GET" and (
+        timezone.now().timestamp() - float(pending.get("started", 0)) > settings.MFA_PENDING_SECONDS
+    ):
+        request.session.pop(PENDING_SIGN_IN, None)
+        messages.info(request, "Sign in again: enter your password, then a new code.")
+        return redirect("login")
+    return render(
+        request,
+        "registration/login_verify.html",
+        {"form": form, "pending_seconds": settings.MFA_PENDING_SECONDS},
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+def _keep_session(request, user, factors=None):
+    """After an owner's own security change: this session continues, the others end."""
+    request.session["account_epoch"] = user.session_epoch
+    if factors is not None:
+        request.session["sign_in_factors"] = factors
+    request.user = user
+
+
+@login_required
+@sensitive_post_parameters("current_password", "otp_code")
+def two_factor_page(request):
+    """The owner's two-factor sign-in: status, set up, new recovery codes, turn off."""
+    from django.contrib import messages
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+
+    from . import two_factor
+    from .administration import CREDENTIALS_LOCKED
+    from .forms import TwoFactorChangeForm, TwoFactorStartForm
+
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    user = request.user
+    state = two_factor.status(user)
+    context = {
+        "page_title": "Two-factor sign-in",
+        "state": state,
+        "code_count": two_factor.RECOVERY_CODE_COUNT,
+    }
+    if user.credentials_locked:
+        context["unavailable"] = CREDENTIALS_LOCKED
+        return render(
+            request,
+            "accounts/two_factor.html",
+            context,
+            status=403 if request.method == "POST" else 200,
+        )
+    form_class = TwoFactorChangeForm if state["enabled"] else TwoFactorStartForm
+    form = form_class(request.POST or None, required=state["required"])
+    if request.method == "POST" and form.is_valid():
+        action = form.cleaned_data["action"]
+        data = {"actor": user, "current_password": form.cleaned_data["current_password"]}
+        if state["enabled"]:
+            data["code"] = form.cleaned_data["otp_code"]
+        try:
+            if action == "setup":
+                device = two_factor.begin_setup(**data)
+                request.session[PENDING_SETUP] = device.pk
+                return redirect("accounts:two_factor_setup")
+            if action == "codes":
+                user, codes = two_factor.replace_recovery_codes(**data)
+                _keep_session(request, user)
+                return _show_recovery_codes(request, codes, replaced=True)
+            if action == "disable":
+                user = two_factor.disable(**data)
+                _keep_session(request, user, ["password"])
+                messages.success(
+                    request, "Two-factor sign-in is off. Other sessions have been signed out."
+                )
+                return redirect("accounts:two_factor")
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
+    context["form"] = form
+    return render(
+        request,
+        "accounts/two_factor.html",
+        context,
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+def _show_recovery_codes(request, codes, *, replaced):
+    """The one display of a new set of recovery codes; they are not stored in readable form."""
+    from django.contrib import messages
+
+    messages.success(
+        request,
+        "New recovery codes made. The earlier codes no longer work."
+        if replaced
+        else "Two-factor sign-in is on. Other sessions have been signed out.",
+    )
+    return render(
+        request,
+        "accounts/two_factor_codes.html",
+        {"page_title": "Recovery codes", "codes": codes},
+    )
+
+
+@login_required
+@sensitive_post_parameters("otp_code")
+def two_factor_setup(request):
+    """Add the new key to an authenticator app, then confirm it with a code from the app."""
+    import segno
+    from django.contrib import messages
+    from django.core.exceptions import PermissionDenied, ValidationError
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+    from django.utils.safestring import mark_safe
+
+    from . import two_factor
+    from .forms import TwoFactorConfirmForm
+
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    device = two_factor.pending_setup(request.user, request.session.get(PENDING_SETUP))
+    if device is None:
+        request.session.pop(PENDING_SETUP, None)
+        messages.info(request, "Setup was not started or has expired. Start again.")
+        return redirect("accounts:two_factor")
+    form = TwoFactorConfirmForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            user, codes = two_factor.confirm_setup(
+                actor=request.user, device_pk=device.pk, code=form.cleaned_data["otp_code"]
+            )
+        except (ValidationError, PermissionDenied) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
+        else:
+            request.session.pop(PENDING_SETUP, None)
+            _keep_session(request, user, ["password", "totp"])
+            return _show_recovery_codes(request, codes, replaced=False)
+    # Black on white in both themes so that every camera reads it.
+    qr = segno.make(device.config_url, error="m").svg_inline(
+        scale=5,
+        dark="#000",
+        light="#fff",
+        border=4,
+        svgclass="vr-qr",
+        lineclass=None,
+        omitsize=True,
+    )
+    return render(
+        request,
+        "accounts/two_factor_setup.html",
+        {
+            "page_title": "Set up two-factor sign-in",
+            "form": form,
+            "qr_svg": mark_safe(qr),  # Generated markup: paths only, no supplied text.
+            "secret_key": two_factor.secret_key(device),
+            "replacing": two_factor.enabled(request.user),
+            "setup_minutes": two_factor.SETUP_SECONDS // 60,
+        },
+        status=422 if request.method == "POST" else 200,
+    )
 
 
 @login_required
@@ -76,7 +309,8 @@ def user_list(request):
     from django import forms
     from django.contrib.auth import get_user_model
     from django.core.paginator import Paginator
-    from django.db.models import Q
+    from django.db.models import Exists, OuterRef, Q
+    from django_otp.plugins.otp_totp.models import TOTPDevice
 
     from core.services import require_role
 
@@ -91,13 +325,25 @@ def user_list(request):
             required=False,
             choices=[("", "Any status"), ("active", "Active"), ("inactive", "Inactive")],
         )
+        two_factor = forms.ChoiceField(
+            required=False,
+            label="Two-factor sign-in",
+            choices=[("", "On or off"), ("on", "On"), ("off", "Off")],
+        )
 
     filters = Filters(request.GET)
     for field in filters.fields.values():
         field.widget.attrs["class"] = (
             "form-select" if isinstance(field.widget, forms.Select) else "form-control"
         )
-    users = get_user_model().objects.prefetch_related("groups").order_by("username")
+    users = (
+        get_user_model()
+        .objects.prefetch_related("groups")
+        .annotate(
+            has_two_factor=Exists(TOTPDevice.objects.filter(user=OuterRef("pk"), confirmed=True))
+        )
+        .order_by("username")
+    )
     valid = filters.is_valid()
     if valid:
         data = filters.cleaned_data
@@ -112,6 +358,8 @@ def user_list(request):
             users = users.filter(groups__name=data["role"])
         if data["status"]:
             users = users.filter(is_active=data["status"] == "active")
+        if data["two_factor"]:
+            users = users.filter(has_two_factor=data["two_factor"] == "on")
     else:
         users = users.none()
     params = request.GET.copy()
@@ -141,6 +389,7 @@ def user_detail(request, pk):
     from core.models import AuditEvent
     from core.services import require_role
 
+    from . import two_factor
     from .administration import ACTIONS, safe_snapshot
 
     require_role(request.user, "admin")
@@ -154,6 +403,8 @@ def user_detail(request, pk):
     ]
     if evidence["pin_enrolled"]:
         actions.extend(["unlock_pin", "reenroll_pin"])
+    if two_factor.set_up_anything(target) and target.pk != request.user.pk:
+        actions.append("reset_two_factor")
     history = (
         AuditEvent.objects.filter(object_type="accounts.user", object_id=str(pk))
         .select_related("actor", "electronicsignature")
@@ -166,6 +417,7 @@ def user_detail(request, pk):
             "page_title": target.username,
             "target": target,
             "evidence": evidence,
+            "two_factor": two_factor.status(target),
             "actions": [
                 (ACTIONS[a], reverse("accounts:user_action", args=[pk, a])) for a in actions
             ],
@@ -295,6 +547,13 @@ def user_action(request, pk, action):
         and not PINCredential.objects.filter(user=target).exists()
     ):
         unavailable = "This account has no enrolled PIN."
+    elif action == "reset_two_factor":
+        from . import two_factor
+
+        if target.pk == request.user.pk:
+            unavailable = "Change your own two-factor sign-in on the Two-factor sign-in page."
+        elif not two_factor.set_up_anything(target):
+            unavailable = "This account has not set up two-factor sign-in."
     return _account_form(
         request,
         form,

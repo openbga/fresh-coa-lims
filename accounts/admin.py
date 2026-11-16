@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from .models import User
 
@@ -20,3 +21,5 @@ class ReadOnlyUserAdmin(UserAdmin):
 
 
 admin.site.unregister(Group)
+# Authenticator keys are secrets; their state is shown on the account page in the workspace.
+admin.site.unregister(TOTPDevice)

@@ -25,6 +25,7 @@ In scope: this repository's source code, its default configuration, the containe
 
 - bypass of authentication, session limits, role checks or the independent-review rule;
 - signing without a fresh username and PIN, PIN or password disclosure, or lockout bypass;
+- signing in without the second factor of an account that has one, reuse of a code, or disclosure of an authenticator key or a recovery code;
 - changing or deleting signed records, audit history or issued reports;
 - injection, cross-site scripting, request forgery, unsafe file or PDF handling, server-side request forgery;
 - exposure of secrets, hashes or other users' data.
@@ -55,12 +56,13 @@ Check these before exposing an instance. They describe software settings, not a 
 4. Serve only over HTTPS through a reverse proxy that overwrites `X-Forwarded-Proto`; the application trusts that header. Never expose the application port directly.
 5. HSTS defaults to one year when `DEBUG` is off. Lower `SECURE_HSTS_SECONDS` while first verifying HTTPS. Enable `SECURE_HSTS_INCLUDE_SUBDOMAINS` or `SECURE_HSTS_PRELOAD` only if every subdomain is HTTPS-only.
 6. Sessions use secure, HttpOnly cookies, end at browser close and expire after 15 minutes idle or 8 hours (`SESSION_IDLE_SECONDS`, `SESSION_ABSOLUTE_SECONDS`).
-7. Password sign-in locks an account for 15 minutes after 5 consecutive failures (`LOGIN_FAILURE_LIMIT`, `LOGIN_LOCK_SECONDS`); signature PINs lock in the same way. Anyone who knows a username can trigger a lock, so add per-address rate limiting at the proxy and review repeated locks.
-8. Responses carry a same-origin Content-Security-Policy, `X-Frame-Options: DENY` and `nosniff`. Update the policy before adding any external script, style, font or analytics.
-9. `/admin/` is a read-only view of account records for staff users and grants no laboratory authority. Keep staff and superuser accounts to a minimum, or block `/admin/` at the proxy if you do not use it.
-10. Create the first administrator with `createsuperuser` and `assign_roles`, add people with `create_staff` or **Users and roles**, and have each person set their own password and PIN. Never run `seed_demo` or set `DEMO_PASSWORD`/`DEMO_PIN` on a real instance. Never set `ALLOW_DEMO_RESET` or create the `render.demo.yaml` job there either: `reset_demo` erases the whole database. The sign-in announcement is readable by anyone who can reach the sign-in page: never put credentials of real accounts in it.
-11. Use separate database roles for migrations and runtime. The append-only triggers stop ordinary application writes, not a database owner. Keep the database on a private network and keep backups encrypted, access-restricted and restore-tested.
-12. Credential fields are masked in Django error reports. Configure any additional error tracker not to capture request bodies.
-13. `/health/` and `/ready/` are unauthenticated and return only a status word.
-14. Set `SOURCE_CODE_URL` to the source of the version you run (AGPL-3.0 section 13).
-15. Run `python manage.py check --deploy` with the production environment and review every warning.
+7. Password sign-in locks an account for 15 minutes after 5 consecutive failures (`LOGIN_FAILURE_LIMIT`, `LOGIN_LOCK_SECONDS`), wrong two-factor codes included; signature PINs lock in the same way. Anyone who knows a username can trigger a lock, so add per-address rate limiting at the proxy and review repeated locks.
+8. Require two-factor sign-in with `MFA_REQUIRED_ROLES` for the roles your access procedure names (or `all`); we recommend at least `admin`, whose accounts manage every other account. Each person sets up an authenticator app and keeps the recovery codes apart from it. Authenticator keys are stored in the database, so protect backups as you protect the database.
+9. Responses carry a same-origin Content-Security-Policy, `X-Frame-Options: DENY` and `nosniff`. Update the policy before adding any external script, style, font or analytics.
+10. `/admin/` is a read-only view of account records for staff users and grants no laboratory authority. Its sign-in page leads to the application's sign-in. Keep staff and superuser accounts to a minimum, or block `/admin/` at the proxy if you do not use it.
+11. Create the first administrator with `createsuperuser` and `assign_roles`, add people with `create_staff` or **Users and roles**, and have each person set their own password and PIN. Never run `seed_demo` or set `DEMO_PASSWORD`/`DEMO_PIN` on a real instance. Never set `ALLOW_DEMO_RESET` or create the `render.demo.yaml` job there either: `reset_demo` erases the whole database. The sign-in announcement is readable by anyone who can reach the sign-in page: never put credentials of real accounts in it.
+12. Use separate database roles for migrations and runtime. The append-only triggers stop ordinary application writes, not a database owner. Keep the database on a private network and keep backups encrypted, access-restricted and restore-tested.
+13. Credential fields are masked in Django error reports. Configure any additional error tracker not to capture request bodies.
+14. `/health/` and `/ready/` are unauthenticated and return only a status word.
+15. Set `SOURCE_CODE_URL` to the source of the version you run (AGPL-3.0 section 13).
+16. Run `python manage.py check --deploy` with the production environment and review every warning.

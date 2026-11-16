@@ -14,6 +14,8 @@ dependencies = [
   "whitenoise>=6.12,<7",
   "dj-database-url>=3,<4",
   "weasyprint>=70,<71",
+  "django-otp>=1.7.5,<2",
+  "segno>=1.6.6,<2",
 ]
 
 [project.urls]

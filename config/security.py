@@ -10,7 +10,7 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.functional import LazyObject, Promise
 from django.views.debug import ExceptionReporter, SafeExceptionReporterFilter
 
-# Credential fields used by sign-in, password, PIN enrollment and every signing form.
+# Credential fields used by sign-in, password, PIN enrollment, two-factor and every signing form.
 CREDENTIAL_FIELDS = frozenset(
     {
         "password",
@@ -23,6 +23,7 @@ CREDENTIAL_FIELDS = frozenset(
         "new_password1",
         "new_password2",
         "pin",
+        "otp_code",
     }
 )
 # Stored password/PIN hashes are offline-guessing verifiers. Django's standard algorithm names are

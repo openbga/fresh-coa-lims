@@ -4,7 +4,7 @@ urls: accounts:access
 views: accounts.views.access
 templates: accounts/access.html
 models: accounts.User
-reviewed: 2026-11-12
+reviewed: 2026-11-16
 ---
 
 ## Purpose
@@ -17,7 +17,7 @@ Any signed-in user, including an account with no laboratory role. A required pas
 
 ## Layout
 
-The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. The page shows your username, assigned roles or access-request guidance, and **Change password**. Administrators also see **Account and role management**, applicable management links and command guidance.
+The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. The page shows your username, assigned roles or access-request guidance, **Change password** and **Two-factor sign-in**. Administrators also see **Account and role management**, applicable management links and command guidance.
 
 The shared menu shows destinations your assigned roles can open. All five roles can read the laboratory areas under **Work**, **Configuration** and **Records**. **Audit trail** appears only for admin, quality or auditor; **Users and roles** and **Sign-in announcement** appear only for admin. Without a recognized role, only the **Account** section remains, with **Signature PIN** and **Account access**. No empty laboratory sections are shown.
 
@@ -29,6 +29,7 @@ The shared menu shows destinations your assigned roles can open. All five roles 
 | Change password | Always | Opens your password-change form |
 | Manage users and roles | Explicit admin role | Opens Users and roles |
 | View accounts in Django admin | Account administrator with staff status and user view/change permission | Opens the read-only Django account list |
+| Two-factor sign-in | Always | Opens your own two-factor sign-in settings |
 | Sign out | Shared top bar | Ends this session and returns to sign-in |
 
 ## Fields
@@ -56,4 +57,5 @@ The operator's `assign_roles` command replaces the complete role set. Include ev
 - [Material lots](/)
 - [Users and roles](/accounts/users/)
 - [Change password](/accounts/password/)
+- [Two-factor sign-in](/accounts/two-factor/)
 - [Read-only Django account administration](/admin/accounts/user/)

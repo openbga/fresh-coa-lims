@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sign in · OpenBGA Fresh CoA LIMS{% endblock %}
+{% block body_class %}vr-app vr-entrance-page{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
+{% block body %}
+<div class="vr-login">
+  <div class="vr-login-scene" aria-hidden="true">
+    <div class="vr-login-caption">
+      <p class="vr-login-title">Manufacturing quality control</p>
+      <p class="vr-login-description">From raw materials to finished product.</p>
+    </div>
+  </div>
+  <div class="vr-login-workspace">
+    <div class="vr-entrance-theme">{% include "includes/theme_menu.html" %}</div>
+    <main id="main" class="vr-login-main" tabindex="-1">
+      {% include "includes/brand.html" with variant="entrance" %}
+      <div class="vr-entrance-panel">
+        <h1>Two-factor sign-in</h1>
+        <p class="vr-entrance-lead">Your password was accepted. Enter the code your authenticator app shows for this account.</p>
+        {% include "includes/messages.html" %}
+        <form method="post" autocomplete="off" novalidate>
+          {% csrf_token %}
+          {% include "includes/form_errors.html" with form=form %}
+          {{ form.otp_code.as_field_group }}
+          <button class="btn btn-primary vr-login-submit" type="submit">Verify and sign in</button>
+        </form>
+        <p class="vr-login-help">Each code works once: if you have just used the one shown, wait for the next. No access to the app? Enter one of your recovery codes instead; each works once. <a href="{% url 'login' %}">Start again</a></p>
+      </div>
+      <p class="vr-login-help">Enter the code within {{ pending_seconds|floatformat:0 }} seconds of your password, or start again. Repeated wrong codes pause sign-in for this account for a while, as wrong passwords do.</p>
+    </main>
+    {% include "includes/app_footer.html" with centered=True %}
+  </div>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@
 <p>Your account has no laboratory role. Ask your organization's account administrator to assign the role appropriate to your work. Give them your username, <strong>{{ user.username }}</strong>.</p>
 <p>Signing in or holding superuser status does not grant laboratory access. You can sign out using the top bar while access is arranged.</p>
 {% endif %}
-<p><a href="{% url 'accounts:password_change' %}">Change password</a></p>
+<p><a href="{% url 'accounts:password_change' %}">Change password</a> · <a href="{% url 'accounts:two_factor' %}">Two-factor sign-in</a></p>
 {% if is_account_administrator %}
 <section class="mt-4" aria-labelledby="account-management-heading">
 <h2 class="h5" id="account-management-heading">Account and role management</h2>

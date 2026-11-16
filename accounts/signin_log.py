@@ -1,4 +1,4 @@
-"""One operational log line per sign-in, failed attempt and sign-out.
+"""One operational log line per sign-in, failed attempt and sign-out, and per second-factor step.
 
 The lines go to standard output, not the database, so they outlive database resets and follow the
 deployment's log retention. They name the account (only when it exists, so text typed into the
@@ -46,3 +46,19 @@ def log_sign_in_failure(sender, credentials, request=None, **kwargs):
 def log_sign_out(sender, request, user, **kwargs):
     if user is not None:
         _log("signout", user.get_username(), request)
+
+
+def log_second_factor_requested(user, request):
+    """The password was accepted; the sign-in waits for the authenticator or a recovery code."""
+    _log("signin.second_factor_requested", user.get_username(), request)
+
+
+def log_second_factor_failed(pending, request):
+    """A refused second factor; the pending sign-in names an existing account."""
+    users = get_user_model()
+    username = (
+        users._default_manager.filter(pk=pending.get("user"))
+        .values_list(users.USERNAME_FIELD, flat=True)
+        .first()
+    )
+    _log("signin.second_factor_failed", username or "<unknown>", request)

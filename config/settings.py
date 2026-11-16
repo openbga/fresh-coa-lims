@@ -29,6 +29,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.forms",
+    # Ahead of accounts, whose admin module unregisters the authenticator model (secrets).
+    "django_otp",
+    "django_otp.plugins.otp_totp",
     "accounts",
     "core",
     "suppliers",
@@ -94,6 +97,27 @@ LOGIN_FAILURE_LIMIT = int(os.environ.get("LOGIN_FAILURE_LIMIT", "5"))
 LOGIN_LOCK_SECONDS = int(os.environ.get("LOGIN_LOCK_SECONDS", "900"))
 if LOGIN_FAILURE_LIMIT < 1 or LOGIN_LOCK_SECONDS < 60:
     raise RuntimeError("Sign-in throttling needs LOGIN_FAILURE_LIMIT >= 1, LOCK_SECONDS >= 60.")
+# Two-factor sign-in (accounts.two_factor). Members of these laboratory roles must set up an
+# authenticator app before they can use the workspace: a comma-separated list of roles, "all"
+# for every account, or empty for none (each account may still set it up). Shared demonstration
+# accounts, whose credentials are published, cannot set it up and are not required to.
+MFA_REQUIRED_ROLES = frozenset(
+    role.strip().lower()
+    for role in os.environ.get("MFA_REQUIRED_ROLES", "").split(",")
+    if role.strip()
+)
+if not MFA_REQUIRED_ROLES <= {"all", "admin", "analyst", "auditor", "quality", "reviewer"}:
+    raise RuntimeError(
+        "MFA_REQUIRED_ROLES must list laboratory roles (admin, analyst, auditor, quality, "
+        "reviewer) or be all."
+    )
+# Seconds allowed between an accepted password and the authenticator code.
+MFA_PENDING_SECONDS = 300
+OTP_TOTP_ISSUER = "OpenBGA Fresh CoA LIMS"
+# Failed codes count toward the account's sign-in failure limit and lock (LOGIN_FAILURE_LIMIT),
+# like a wrong password, so the library's own per-device delay is switched off.
+OTP_TOTP_THROTTLE_FACTOR = 0
+OTP_ADMIN_HIDE_SENSITIVE_DATA = True
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},

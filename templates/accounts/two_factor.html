@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block breadcrumbs %}<a href="{% url 'accounts:access' %}">Account access</a>{% endblock %}
+{% block page_intro %}<p>Sign-in asks for a code from an authenticator app on your phone after your password. Use any app that supports time-based codes (TOTP). Your signature PIN is still entered for every signature.</p>{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="two-factor-status"><div class="card-header"><h2 class="card-title" id="two-factor-status">Status</h2></div><div class="card-body"><dl class="vr-facts">
+<div><dt>Two-factor sign-in</dt><dd>{% if state.enabled %}On: authenticator app, set up {{ state.since|date:"Y-m-d" }}{% else %}Off{% endif %}</dd></div>
+{% if state.enabled %}<div><dt>Code last accepted</dt><dd>{{ state.last_used_at|date:"Y-m-d H:i T"|default:"Not yet" }}</dd></div>
+<div><dt>Unused recovery codes</dt><dd>{{ state.recovery_codes_left }} of {{ code_count }}</dd></div>{% endif %}
+<div><dt>Required for your account</dt><dd>{% if state.required %}Yes, by this deployment's settings{% else %}No{% endif %}</dd></div>
+</dl>
+{% if state.required and not state.enabled %}<p class="alert alert-info mb-0">Set up two-factor sign-in before continuing. You can sign out from the top bar.</p>{% endif %}
+{% if state.enabled and state.recovery_codes_left < 3 %}<p class="alert alert-warning mb-0">{% if state.recovery_codes_left %}Only {{ state.recovery_codes_left }} recovery code{{ state.recovery_codes_left|pluralize }} left.{% else %}No recovery codes left.{% endif %} Make new ones so that you can still sign in without the app.</p>{% endif %}
+</div></section>
+{% if unavailable %}<p class="alert alert-info">{{ unavailable }}</p><a class="btn btn-link" href="{% url 'accounts:access' %}">Return without changes</a>
+{% elif state.enabled %}
+<section class="card" aria-labelledby="two-factor-change"><div class="card-header"><h2 class="card-title" id="two-factor-change">Change two-factor sign-in</h2></div><div class="card-body">
+<p>Confirm that it is you with your password and a current code. A new authenticator app replaces the current one only once you confirm it with a code it shows; new recovery codes replace all earlier ones.</p>
+<form class="vr-form" method="post" autocomplete="off" novalidate>
+{% csrf_token %}{% include "includes/form_errors.html" with form=form %}
+{{ form.current_password.as_field_group }}
+{{ form.otp_code.as_field_group }}
+<div class="vr-form-actions"><a class="btn btn-link" href="{% url 'accounts:access' %}">Cancel</a>
+<button class="btn btn-outline-secondary" type="submit" name="action" value="codes">Make new recovery codes</button>
+<button class="btn btn-outline-secondary" type="submit" name="action" value="setup">Set up a new authenticator app</button>
+{% if not state.required %}<button class="btn btn-outline-danger" type="submit" name="action" value="disable">Turn off two-factor sign-in</button>{% endif %}</div>
+</form>
+{% if state.required %}<p class="mt-3 mb-0">Two-factor sign-in is required for your account, so it cannot be turned off here.</p>{% endif %}
+</div></section>
+{% else %}
+<section class="card" aria-labelledby="two-factor-setup"><div class="card-header"><h2 class="card-title" id="two-factor-setup">Set up</h2></div><div class="card-body">
+<p>Have your phone ready with an authenticator app. After you confirm your password, the next page shows a QR code to scan and a key you can type instead.</p>
+<form class="vr-form" method="post" autocomplete="off" novalidate>
+{% csrf_token %}{% include "includes/form_errors.html" with form=form %}
+{{ form.current_password.as_field_group }}
+<div class="vr-form-actions">{% if not state.required %}<a class="btn btn-link" href="{% url 'accounts:access' %}">Cancel</a>{% endif %}<button class="btn btn-primary" type="submit" name="action" value="setup">Set up two-factor sign-in</button></div>
+</form>
+</div></section>
+{% endif %}
+{% endblock %}
