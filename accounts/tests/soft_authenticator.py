@@ -19,17 +19,18 @@ def _sha256(data):
 
 
 class SoftKey:
-    def __init__(self, *, origin="http://testserver", synced=False, counter=True):
+    def __init__(self, *, origin="http://testserver", synced=False, counter=True, verifies=True):
         self.private = ec.generate_private_key(ec.SECP256R1())
         self.credential_id = os.urandom(32)
         self.origin = origin
         self.synced = synced
         self.counter = counter
+        self.verifies = verifies  # Whether it checks its holder's PIN or fingerprint (UV).
         self.sign_count = 0
         self.user_handle = None
 
     def _flags(self, *, attested=False):
-        flags = UP | UV
+        flags = UP | (UV if self.verifies else 0)
         if self.synced:
             flags |= BE | BS
         if attested:
@@ -81,7 +82,7 @@ class SoftKey:
             }
         )
 
-    def answer(self, options, *, origin=None, rp_id=None, count=None, tamper=False):
+    def answer(self, options, *, origin=None, rp_id=None, count=None, tamper=False, handle=True):
         """What navigator.credentials.get() returns for the options the page embeds."""
         if count is not None:
             self.sign_count = count
@@ -101,8 +102,8 @@ class SoftKey:
             "authenticatorData": b64(auth_data),
             "signature": b64(signature),
         }
-        if self.user_handle:
-            response["userHandle"] = self.user_handle
+        if self.user_handle and handle:
+            response["userHandle"] = self.user_handle if handle is True else handle
         return json.dumps(
             {
                 "id": b64(self.credential_id),

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% block breadcrumbs %}<a href="{% url 'accounts:access' %}">Account access</a>{% endblock %}
-{% block page_intro %}<p>After your password, sign-in asks for a second factor: a security key or passkey, or a code from an authenticator app on your phone (any app that supports time-based codes, TOTP). Recovery codes stand in when neither is at hand. Your signature PIN is still entered for every signature.</p>{% endblock %}
+{% block page_intro %}<p>After your password, sign-in asks for a second factor: a security key or passkey, or a code from an authenticator app on your phone (any app that supports time-based codes, TOTP). Recovery codes stand in when neither is at hand.{% if passkey_sign_in %} A security key or passkey that checks your PIN, fingerprint or face also signs you in on its own: choose Sign in with a passkey on the sign-in page.{% endif %} Your signature PIN is still entered for every signature.</p>{% endblock %}
 {% block content %}
 <section class="card mb-3" aria-labelledby="two-factor-status"><div class="card-header"><h2 class="card-title" id="two-factor-status">Status</h2></div><div class="card-body"><dl class="vr-facts">
 <div><dt>Two-factor sign-in</dt><dd>{% if state.enabled %}On since {{ state.since|date:"Y-m-d" }}{% else %}Off{% endif %}</dd></div>

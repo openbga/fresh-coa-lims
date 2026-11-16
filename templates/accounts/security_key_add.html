@@ -6,6 +6,7 @@
 <section class="card" aria-labelledby="security-key-register"><div class="card-header"><h2 class="card-title" id="security-key-register">Register the key</h2></div><div class="card-body">
 <p>Name the key, choose Register the key, then follow your browser's prompts: insert or touch the key, or confirm with your phone or computer. The key works only at {{ rp_id }}.</p>
 {% if first %}<p>This is your first second factor: two-factor sign-in turns on, and the next page shows recovery codes for when the key is not at hand.</p>{% else %}<p>Your other second factors keep working; your recovery codes do not change.</p>{% endif %}
+{% if passkey_sign_in %}<p>If the key checks your PIN, fingerprint or face, it can also sign you in without your password: choose Sign in with a passkey on the sign-in page.</p>{% endif %}
 <p>Finish within {{ setup_minutes }} minutes of starting, or start again.</p>
 <form class="vr-form" method="post" autocomplete="off" novalidate data-security-key="create" data-security-key-options="security-key-options">
 {% csrf_token %}{% include "includes/form_errors.html" with form=form %}

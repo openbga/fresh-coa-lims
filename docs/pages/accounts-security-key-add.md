@@ -21,6 +21,7 @@ The **Two-factor sign-in** breadcrumb and an introduction (what a security key a
 
 - Instructions: name the key, choose Register the key, follow the browser's prompts. **The key works only at** the host name of this site.
 - A note: for a first factor, two-factor sign-in turns on and the next page shows recovery codes; otherwise, other second factors keep working and recovery codes do not change.
+- When `PASSKEY_SIGN_IN` is true: **If the key checks your PIN, fingerprint or face, it can also sign you in without your password: choose Sign in with a passkey on the sign-in page.**
 - The time limit in minutes, then the **Name of the key** field, a status line, **Cancel** and **Register the key**.
 - Notices: **This browser cannot register security keys at this address. Use another browser, or an authenticator app.** when the browser lacks Web Authentication or the page is not a secure context; **Registering a security key needs JavaScript.** without JavaScript.
 
@@ -48,9 +49,10 @@ On success: the first second factor shows **Your recovery codes** (ten codes, on
 - **Bound to the host name**: the key records the host name it was registered at and works only there. Registration is not offered on an IP address (see Two-factor sign-in).
 - **First or additional**: the first factor of an account turns two-factor sign-in on, replaces any recovery codes with a new set and clears the count of wrong codes. An additional key leaves the codes and the other factors unchanged. Either way the management revision and session generation advance: your other sessions end and this one continues.
 - **Audit**: **account.two_factor_enabled** for the first factor, **account.security_key_added** for an additional key, with the safe snapshot before and after (`two_factor`, `recovery_codes_left`, `authenticator_app`, `security_keys`). The key's name appears in the reason; the keys themselves, challenges and answers are never recorded. No electronic signature.
-- **User verification**: the key's own PIN or fingerprint is requested when the key supports it, not required. Resident (discoverable) credentials are preferred.
+- **User verification**: the key's own PIN or fingerprint is requested when the key supports it, not required. Resident (discoverable) credentials are preferred. A key that verified its holder at sign-in can be used on Sign in with a passkey, without the password; one that does not check its holder works only after the password.
 
 ## Related pages
 
 - [Two-factor sign-in](/accounts/two-factor/)
+- [Sign in with a passkey](/accounts/login/passkey/)
 - [Account access](/accounts/access/)

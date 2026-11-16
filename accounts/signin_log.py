@@ -62,3 +62,18 @@ def log_second_factor_failed(pending, request):
         .first()
     )
     _log("signin.second_factor_failed", username or "<unknown>", request)
+
+
+def log_passkey_failed(assertion, request):
+    """A refused security key or passkey without the password; names the account only when the
+    answer came from one of its keys (key_owner), never text from the request."""
+    from .security_keys import key_owner
+
+    users = get_user_model()
+    owner = key_owner(assertion)
+    username = (
+        users._default_manager.filter(pk=owner).values_list(users.USERNAME_FIELD, flat=True).first()
+        if owner is not None
+        else None
+    )
+    _log("signin.passkey_failed", username or "<unknown>", request)

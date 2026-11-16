@@ -17,7 +17,7 @@ Any signed-in user, including an account with no laboratory role. It manages onl
 
 ## Layout
 
-The **Account access** breadcrumb and a short introduction are followed by a **Status** card, a keys table when keys exist, then one form card.
+The **Account access** breadcrumb and a short introduction (which, when the site is opened by a host name and `PASSKEY_SIGN_IN` is true, adds **A security key or passkey that checks your PIN, fingerprint or face also signs you in on its own: choose Sign in with a passkey on the sign-in page.**) are followed by a **Status** card, a keys table when keys exist, then one form card.
 
 - **Status** lists **Two-factor sign-in** (**Off**, or **On since** the date of the earliest factor), **Security keys and passkeys** (**None**, or "N of at most 10"), **Authenticator app** (**Not set up**, or **Set up** with the date), **Code last accepted** (app only: date and time, or **Not yet**), **Unused recovery codes** (when on, for example 8 of 10) and **Required for your account** (**Yes, by this deployment's settings** or **No**).
 - Warnings and notices: **Two-factor sign-in is stopped for this account after too many wrong codes or refused keys. Nothing is accepted until an administrator resets it; you then set it up again.**; the info notice **Set up two-factor sign-in before continuing. You can sign out from the top bar.** when it is required and not set up; and, when fewer than 3 recovery codes remain, **Only N recovery code(s) left.** or **No recovery codes left.** with advice to make new ones.
@@ -76,5 +76,6 @@ Every action needs your current password. When two-factor sign-in is on it also 
 - [Account access](/accounts/access/)
 - [Set up two-factor sign-in](/accounts/two-factor/setup/)
 - [Add a security key or passkey](/accounts/two-factor/security-key/)
+- [Sign in with a passkey](/accounts/login/passkey/)
 - [Change password](/accounts/password/)
 - [Users and roles](/accounts/users/)

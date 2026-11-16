@@ -41,6 +41,7 @@ def access_context(user):
 
 
 PENDING_SIGN_IN = "two_factor_pending"
+PASSKEY_CEREMONY = "passkey_sign_in"
 PENDING_SETUP = "two_factor_setup"
 PENDING_KEY = "security_key_registration"
 CONFIRM_CEREMONY = "security_key_confirmation"
@@ -78,8 +79,12 @@ class SignIn(LoginView):
 
     def get_context_data(self, **kwargs):
         from .announcements import announcement_html, published_announcement
+        from .security_keys import relying_party
 
         context = super().get_context_data(**kwargs)
+        context["passkey_sign_in"] = (
+            settings.PASSKEY_SIGN_IN and relying_party(self.request) is not None
+        )
         notice = published_announcement()
         if notice is not None:
             context["announcement"] = notice
@@ -184,6 +189,78 @@ def login_verify(request):
     )
 
 
+def _safe_next(request, value):
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    if isinstance(value, str) and url_has_allowed_host_and_scheme(
+        value, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return value
+    return ""
+
+
+@sensitive_variables()
+def login_passkey(request):
+    """Sign in with a security key or passkey alone, without the password.
+
+    Started by a POST from Sign in, which makes a new request for the browser; the answer comes
+    back to the same address. Each request is answered once: a refused answer gets a new one.
+    """
+    from django.contrib.auth import login
+    from django.core.exceptions import ValidationError
+    from django.http import HttpResponseNotAllowed
+    from django.shortcuts import redirect
+
+    from . import security_keys, two_factor
+    from .forms import PasskeySignInForm
+    from .signin_log import log_passkey_failed
+
+    if request.method not in {"GET", "POST"}:
+        return HttpResponseNotAllowed(["GET", "POST"])
+    rp = security_keys.relying_party(request)
+    if request.method == "GET" or not settings.PASSKEY_SIGN_IN or rp is None:
+        # Nothing is started by opening the address: Sign in offers the button.
+        request.session.pop(PASSKEY_CEREMONY, None)
+        return redirect("login")
+    form = PasskeySignInForm(request.POST)
+    ceremony = request.session.pop(PASSKEY_CEREMONY, None)
+    next_url = _safe_next(request, request.POST.get("next"))
+    status = 422
+    if not form.is_valid():
+        form.add_error(None, two_factor.KEY_REFUSED)  # Not an answer a browser gives.
+    elif not form.cleaned_data["security_key_response"]:
+        status = 200  # Started from Sign in, or sent without the page's script.
+    elif not isinstance(ceremony, dict):
+        # Sent twice, or the session ended: stale rather than wrong, and not counted.
+        log_passkey_failed(
+            security_keys.KeyAssertion(form.cleaned_data["security_key_response"], {}), request
+        )
+        form.add_error(None, two_factor.KEY_EXPIRED)
+    else:
+        assertion = security_keys.KeyAssertion(form.cleaned_data["security_key_response"], ceremony)
+        try:
+            user = two_factor.complete_passkey_sign_in(assertion)
+        except ValidationError as exc:
+            log_passkey_failed(assertion, request)
+            form.add_error(None, exc)
+        else:
+            request.session.pop(PENDING_SIGN_IN, None)
+            user.sign_in_factors = ["passkey"]
+            user.authenticated_epoch = user.session_epoch  # As checked under the lock.
+            login(request, user, backend=settings.AUTHENTICATION_BACKENDS[0])
+            return redirect(next_url or settings.LOGIN_REDIRECT_URL)
+    # Each request is answered once: a new one for the next attempt.
+    ceremony = security_keys.begin(rp, security_keys.PASSKEY, None)
+    request.session[PASSKEY_CEREMONY] = ceremony
+    context = {
+        "form": form,
+        "key_options": security_keys.passkey_options(ceremony),
+        "pending_seconds": settings.MFA_PENDING_SECONDS,
+        "next": next_url,
+    }
+    return render(request, "registration/login_passkey.html", context, status=status)
+
+
 def _keep_session(request, user):
     """After an owner's own security change: this session continues, the others end. What the
     session's sign-in proved (sign_in_factors) stays as it was."""
@@ -219,6 +296,7 @@ def two_factor_page(request):
         "keys_available": rp is not None,
         "keys_here": keys,
         "unavailable_host": security_keys.UNAVAILABLE_HOST,
+        "passkey_sign_in": settings.PASSKEY_SIGN_IN and rp is not None,
     }
     if user.credentials_locked:
         context["unavailable"] = CREDENTIALS_LOCKED
@@ -445,6 +523,7 @@ def security_key_add(request):
             "first": not two_factor.enabled(request.user),
             "rp_id": ceremony["rp_id"],
             "setup_minutes": two_factor.SETUP_SECONDS // 60,
+            "passkey_sign_in": settings.PASSKEY_SIGN_IN,
         },
         status=422 if request.method == "POST" else 200,
     )

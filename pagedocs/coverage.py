@@ -15,6 +15,7 @@ EXEMPT_NAMES = {
     "ready": "JSON database readiness probe for the platform.",
     "login": "Entrance page outside the signed-in shell; the panel is not shown before sign-in.",
     "login_verify": "Second sign-in step, outside the signed-in shell like the entrance page.",
+    "login_passkey": "Sign-in with a key alone, outside the signed-in shell like Sign in.",
     "logout": "POST-only sign-out action; redirects without rendering a page.",
     "pagedocs:doc": "The documentation endpoint itself.",
 }
