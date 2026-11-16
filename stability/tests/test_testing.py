@@ -17,7 +17,7 @@ from catalog import services as catalog
 from core.models import AuditEvent, ElectronicSignature
 from quality.models import Lot, Sample
 from stability import evidence, services, testing
-from stability.models import Pull, Study
+from stability.models import ProtocolCondition, Pull, Study
 
 from .helpers import (
     PIN,
@@ -34,6 +34,7 @@ from .helpers import (
     review,
     reviewed,
     shelf_life,
+    shown_criteria,
     specified_study,
     started_study,
     submit,
@@ -92,9 +93,13 @@ def test_assigning_is_refused_without_role_reason_or_an_open_pull(people):
         assign(people, scheduled)
     pull = pulled(people, study)
     with pytest.raises(PermissionDenied):
-        analytical.assign_pull_tests(actor=people["reviewer"], pull=pull, reason="No role")
+        analytical.assign_pull_tests(
+            actor=people["reviewer"], pull=pull, reason="No role", criteria_hash=""
+        )
     with pytest.raises(ValidationError, match="reason"):
-        analytical.assign_pull_tests(actor=people["analyst2"], pull=pull, reason=" ")
+        analytical.assign_pull_tests(
+            actor=people["analyst2"], pull=pull, reason=" ", criteria_hash=""
+        )
     assert not AnalyticalTest.objects.exists()
 
 
@@ -534,3 +539,215 @@ def test_database_keeps_a_test_with_exactly_one_subject(people):
     # The pull of a test is part of its identity.
     with pytest.raises(DatabaseError, match="identity"), transaction.atomic():
         AnalyticalTest.objects.filter(pk=test.pk).update(pull=None, lot=lot, sample=sample)
+
+
+def test_criteria_approved_after_the_page_opened_are_not_frozen_unseen(people):
+    study, config = specified_study(people)
+    pull = pulled(people, study)
+    shown = shown_criteria(pull)
+    later = catalog.new_specification_revision(
+        actor=people["quality"],
+        specification=config["specification"],
+        basis="Synthetic tighter limit",
+        effective_from=timezone.now(),
+        effective_until=timezone.now() + timedelta(days=200),
+        reason="Synthetic revision",
+    )
+    catalog.remove_test_line(
+        actor=people["quality"], line=later.tests.get(code="assay"), reason="Replaced"
+    )
+    add_line(people, later, "assay", method=config["method"], lower_limit=Decimal("99"))
+    approve_revision(people, later)
+    with pytest.raises(ValidationError, match="acceptance criteria in force changed"):
+        assign(people, pull, criteria_hash=shown)
+    assert not AnalyticalTest.objects.exists()
+    pull.refresh_from_db()
+    assert pull.revision == 2
+    (test,) = assign(people, pull)  # with the criteria shown now
+    assert "@v2#" in test.requirement["source"] and test.requirement["lower_limit"] == "99"
+
+
+def test_two_analysts_assigning_one_pull_at_once_create_each_test_once(people, monkeypatch):
+    from laboratory.tests.helpers import run_interleaved
+
+    study, _ = specified_study(people)
+    pull = pulled(people, study)
+    token = shown_criteria(pull)
+
+    def by(name):
+        return lambda: analytical.assign_pull_tests(
+            actor=people[name], pull=pull, reason="Tests of the time point", criteria_hash=token
+        )
+
+    outcome = run_interleaved(monkeypatch, testing, "lock", by("analyst2"), by("analyst"))
+    assert outcome["first"] == [], outcome  # the other analyst's tests are seen, not repeated
+    assert len(outcome["second"]) == 1, outcome
+    assert AnalyticalTest.objects.filter(pull=pull).count() == 1
+
+
+def test_a_draft_protocol_is_withdrawn_and_the_code_drafted_again(people):
+    config = shelf_life(people)
+    draft = draft_protocol(
+        people, code="SYN-WD", specification=config["specification"], test_codes=("assy",)
+    )
+    with pytest.raises(ValidationError, match="does not state assy"):
+        services.approve_protocol(
+            actor=people["quality"],
+            pin=PIN,
+            protocol=draft,
+            expected_revision=draft.revision,
+            reason="Independent approval",
+        )
+    with pytest.raises(ValidationError, match="still a draft"):
+        draft_protocol(people, code="SYN-WD", specification=config["specification"])
+    with pytest.raises(PermissionDenied, match="author or a quality person"):
+        services.withdraw_protocol(
+            actor=people["analyst2"],
+            protocol=draft,
+            expected_revision=draft.revision,
+            reason="Not mine",
+        )
+    with pytest.raises(ValidationError, match="Record changed"):
+        services.withdraw_protocol(
+            actor=people["analyst"],
+            protocol=draft,
+            expected_revision=draft.revision - 1,
+            reason="Stale",
+        )
+    with pytest.raises(ValidationError, match="reason"):
+        services.withdraw_protocol(
+            actor=people["analyst"], protocol=draft, expected_revision=draft.revision, reason=""
+        )
+    withdrawn = services.withdraw_protocol(
+        actor=people["quality"],
+        protocol=draft,
+        expected_revision=draft.revision,
+        reason="Test code mistyped",
+    )
+    assert withdrawn.state == "withdrawn" and withdrawn.revision == draft.revision + 1
+    event = AuditEvent.objects.get(action="protocol.withdrawn", object_id=str(draft.pk))
+    assert event.reason == "Test code mistyped" and event.actor == people["quality"]
+    with pytest.raises(ValidationError, match="Only a draft"):
+        services.withdraw_protocol(
+            actor=people["analyst"],
+            protocol=withdrawn,
+            expected_revision=withdrawn.revision,
+            reason="Again",
+        )
+    with pytest.raises(ValidationError, match="Only a draft protocol can be approved"):
+        services.approve_protocol(
+            actor=people["quality"],
+            pin=PIN,
+            protocol=withdrawn,
+            expected_revision=withdrawn.revision,
+            reason="Approve a withdrawn draft",
+        )
+    # The database keeps a withdrawn draft as it was and takes no more content.
+    model = type(withdrawn)
+    with pytest.raises(DatabaseError, match="immutable"), transaction.atomic():
+        model.objects.filter(pk=withdrawn.pk).update(state="draft")
+    with pytest.raises(ValidationError, match="is withdrawn and frozen"):
+        services.add_condition(
+            actor=people["analyst"],
+            protocol=withdrawn,
+            label="Late",
+            setpoint="S",
+            temperature_c=None,
+            humidity_pct=None,
+            reason="Late",
+        )
+    with pytest.raises(DatabaseError, match="Only a draft protocol accepts"):
+        with transaction.atomic():
+            ProtocolCondition.objects.create(protocol=withdrawn, label="Late", setpoint="S")
+    corrected = approved_protocol(
+        people, code="SYN-WD", specification=config["specification"], test_codes=("assay",)
+    )
+    assert (corrected.version, corrected.state) == (2, "approved")
+    withdrawn.refresh_from_db()
+    assert withdrawn.state == "withdrawn"
+
+
+def test_a_pulled_pull_that_cannot_be_tested_is_missed_and_the_study_completed(people):
+    study, _ = specified_study(people, codes=("assay", "water"), intervals=(30, 100))
+    lost = pulled(people, study, 100)
+    assay, water = sorted(assign(people, lost), key=lambda t: t.test_code)
+    reviewed(people, assay)
+    observe(people, water, "99.0")
+    with pytest.raises(ValidationError, match="holds results"):
+        services.mark_pull_missed(actor=people["analyst"], pull=lost, reason="Material lost")
+    # Water was spilled before submission: a correction cannot bring it back, so the lab
+    # submits what it has and reviews it, then records the pull as missed.
+    submit(people, water)
+    review(people, water)
+    missed = services.mark_pull_missed(
+        actor=people["analyst"], pull=lost, reason="Retained material lost; see DEV-SYN-1"
+    )
+    assert (missed.state, missed.missed_reason) == (
+        "missed",
+        "Retained material lost; see DEV-SYN-1",
+    )
+    assert AnalyticalTest.objects.filter(pull=lost, state="reviewed").count() == 2
+    first = pulled(people, study, 30)
+    with pytest.raises(ValidationError, match="Only a scheduled or pulled pull"):
+        services.mark_pull_missed(actor=people["analyst"], pull=missed, reason="Again")
+    for test in assign(people, first):
+        reviewed(people, test)
+    accept(people, first)
+    study.refresh_from_db()
+    closed = services.close_study(
+        actor=people["quality"],
+        pin=PIN,
+        study=study,
+        expected_revision=study.revision,
+        outcome="completed",
+        reason="Every pull accepted or missed",
+    )
+    assert closed.state == "completed"
+
+
+def test_untouched_tests_of_a_missed_pull_take_no_more_work(people):
+    study, _ = specified_study(people)
+    pull = pulled(people, study)
+    (test,) = assign(people, pull)
+    services.mark_pull_missed(actor=people["analyst"], pull=pull, reason="Insufficient material")
+    test = AnalyticalTest.objects.get(pk=test.pk)
+    assert analytical.subject_refusal(test) == "This pull is missed; its tests take no more work."
+    with pytest.raises(ValidationError, match="missed; its tests take no more work"):
+        observe(people, test)
+
+
+def test_the_assign_page_refuses_changed_criteria_and_shows_the_ones_in_force(client, people):
+    import re as regex
+
+    from django.urls import reverse
+
+    study, config = specified_study(people)
+    pull = pulled(people, study)
+    url = reverse("stability:pull_tests", args=[pull.pk])
+    client.force_login(people["analyst2"])
+    page = client.get(url).content.decode()
+    shown = regex.search(r'name="criteria" value="([0-9a-f]{64})"', page).group(1)
+    assert "95 to 105 %" in page
+    later = catalog.new_specification_revision(
+        actor=people["quality"],
+        specification=config["specification"],
+        basis="Synthetic tighter limit",
+        effective_from=timezone.now(),
+        effective_until=timezone.now() + timedelta(days=200),
+        reason="Synthetic revision",
+    )
+    catalog.remove_test_line(
+        actor=people["quality"], line=later.tests.get(code="assay"), reason="Replaced"
+    )
+    add_line(people, later, "assay", method=config["method"], lower_limit=Decimal("99"))
+    approve_revision(people, later)
+    refused = client.post(url, {"reason": "Tests of the time point", "criteria": shown})
+    html = refused.content.decode()
+    assert refused.status_code == 422
+    assert "acceptance criteria in force changed" in html and "99 to 105 %" in html
+    assert not AnalyticalTest.objects.exists()
+    current = regex.search(r'name="criteria" value="([0-9a-f]{64})"', html).group(1)
+    assert current != shown
+    done = client.post(url, {"reason": "Tests of the time point", "criteria": current})
+    assert done.status_code == 302
+    assert AnalyticalTest.objects.get(pull=pull).requirement["lower_limit"] == "99"

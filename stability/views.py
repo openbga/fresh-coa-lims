@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.db.models import DateField, DurationField, ExpressionWrapper, F, Q, Value
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -50,11 +51,13 @@ from .forms import (
     ObligationForm,
     ProtocolForm,
     PullForm,
+    PullTestsForm,
     ReasonForm,
     ReserveForm,
     SigningForm,
     StudyForm,
     TimepointForm,
+    WithdrawProtocolForm,
 )
 from .models import (
     Hold,
@@ -201,11 +204,21 @@ def overview(request):
 
 # --- Protocols -------------------------------------------------------------------------------
 
-PROTOCOL_STATUS = [("draft", "Draft"), ("approved", "Approved"), ("superseded", "Superseded")]
+PROTOCOL_STATUS = [
+    ("draft", "Draft"),
+    ("approved", "Approved"),
+    ("superseded", "Superseded"),
+    ("withdrawn", "Withdrawn"),
+]
 
 
 def _protocol_state(protocol):
-    tone = {"draft": "progress", "approved": "success", "superseded": "neutral"}[protocol.state]
+    tone = {
+        "draft": "progress",
+        "approved": "success",
+        "superseded": "neutral",
+        "withdrawn": "neutral",
+    }[protocol.state]
     return status(protocol.get_state_display(), tone)
 
 
@@ -322,6 +335,11 @@ def protocol_detail(request, pk):
         else None,
         action("Add timepoint", reverse("stability:timepoint_new", args=[p.pk]))
         if own_draft and conditions
+        else None,
+        action("Withdraw draft", reverse("stability:protocol_withdraw", args=[p.pk]))
+        if draft
+        and can(user, *services.AUTHORS)
+        and (p.author_id == user.pk or can(user, "quality"))
         else None,
         action("Start study", reverse("stability:study_new") + f"?protocol={p.pk}")
         if p.state == Protocol.State.APPROVED and can(user, *services.AUTHORS)
@@ -564,6 +582,50 @@ def protocol_approve(request, pk):
     )
 
 
+@login_required
+def protocol_withdraw(request, pk):
+    require_role(request.user, *services.AUTHORS)
+    p = get_object_or_404(Protocol, pk=pk)
+    detail = reverse("stability:protocol_detail", args=[p.pk])
+    if p.state != Protocol.State.DRAFT:
+        messages.warning(request, "Only a draft protocol can be withdrawn.")
+        return redirect(detail)
+    if p.author_id != request.user.pk and not can(request.user, "quality"):
+        raise PermissionDenied("Only the draft's author or a quality person withdraws it.")
+    form = WithdrawProtocolForm(request.POST or None, initial={"expected_revision": p.revision})
+    if request.method == "POST" and form.is_valid():
+        done, _ = run_form(
+            request,
+            form,
+            lambda: services.withdraw_protocol(
+                actor=request.user,
+                protocol=p,
+                expected_revision=form.cleaned_data["expected_revision"],
+                reason=form.cleaned_data["reason"],
+            ),
+        )
+        if done:
+            messages.success(
+                request, f"{p.identifier} withdrawn. The next version of {p.code} can be drafted."
+            )
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Withdraw {p.identifier}",
+        crumbs=crumbs(
+            ("Protocols", reverse("stability:protocol_list")),
+            (p.identifier, detail),
+            ("Withdraw draft", None),
+        ),
+        submit="Withdraw draft",
+        cancel_url=detail,
+        intro="A withdrawn draft is never approved and keeps its content in the record. The "
+        "next version of the code can then be drafted, for example to name another "
+        "specification or to correct a time point.",
+    )
+
+
 # --- Studies ---------------------------------------------------------------------------------
 
 STUDY_STATUS = [("active", "Active"), ("completed", "Completed"), ("terminated", "Terminated")]
@@ -795,7 +857,10 @@ def _comparison(pulls):
                 elif row is None or not row["lineage"]:
                     cells.append(status(*_untested(pull)))
                 elif not row["tests"]:
-                    cells.append(status("In testing", "progress"))
+                    missed = pull.state == Pull.State.MISSED
+                    cells.append(
+                        status(*(("Missed", "neutral") if missed else ("In testing", "progress")))
+                    )
                 else:
                     text = "; ".join(_result_cell(test)["text"] for test in row["tests"])
                     if len(criteria[code]) > 1:
@@ -979,8 +1044,11 @@ def pull_detail(request, pk):
         detail_actions.append(
             action("Record pull", reverse("stability:pull_record", args=[p.pk]), True)
         )
-    if p.state == "scheduled" and today > p.window[1] and can(user, *services.AUTHORS):
-        detail_actions.append(action("Mark missed", reverse("stability:pull_missed", args=[p.pk])))
+    if p.state in ("scheduled", "pulled") and can(user, *services.AUTHORS):
+        if services.missed_refusal(p) is None:
+            detail_actions.append(
+                action("Mark missed", reverse("stability:pull_missed", args=[p.pk]))
+            )
     tested = has_tests(p)
     blockers, rows, outcome = pull_results(p) if tested else ([], [], "")
     assignable, unassigned = _assignable(p, rows if tested else None)
@@ -1256,18 +1324,29 @@ def pull_tests(request, pk):
     if not set(accepted) - existing:
         messages.info(request, "Every test of this time point is already assigned.")
         return redirect(detail)
-    form = ReasonForm(request.POST or None)
+    shown = analytical.pull_criteria_hash(accepted)
+    form = PullTestsForm(request.POST or None, initial={"criteria": shown})
     if request.method == "POST" and form.is_valid():
         created, _ = run_form(
             request,
             form,
             lambda: analytical.assign_pull_tests(
-                actor=request.user, pull=pull, reason=form.cleaned_data["reason"]
+                actor=request.user,
+                pull=pull,
+                reason=form.cleaned_data["reason"],
+                criteria_hash=form.cleaned_data["criteria"],
             ),
         )
         if created is not None:
             messages.success(request, f"Assigned {len(created)} test(s) to the pull.")
             return redirect(detail)
+        if form.cleaned_data["criteria"] != shown:
+            # Refused because the criteria changed: the page now shows the criteria in force
+            # and carries their token, so it can be submitted after review without reopening.
+            refusal = " ".join(form.non_field_errors())
+            form = PullTestsForm({**form.data.dict(), "criteria": shown})
+            form.is_valid()
+            form.add_error(None, refusal)
     criteria = []
     for code, payload in accepted.items():
         spec = parse_requirement(payload)
@@ -1323,7 +1402,10 @@ def pull_missed(request, pk):
         crumbs=[*trail, ("Mark missed", None)],
         submit="Mark missed",
         cancel_url=detail,
-        intro="A missed pull stays on the study record and cannot be rescheduled silently.",
+        intro="A missed pull stays on the study record and cannot be rescheduled silently. A "
+        "pull that was taken but cannot be tested (for example lost or insufficient material) "
+        "is recorded as missed too, once nothing of its testing is in progress; its reviewed "
+        "results stay in the record and its untouched tests take no more work.",
     )
 
 

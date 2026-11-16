@@ -34,14 +34,15 @@ One protocol version (code and version number) with its header facts, storage co
 |---|---|---|---|
 | **Approve** | Draft with at least one timepoint, you have the Quality role and you are not the author | Quality | Opens the signing page, where the full approval preconditions are checked |
 | **Add condition** / **Add timepoint** | Draft; you are the author and an Analyst or Quality user (timepoint also needs at least one condition) | Analyst, Quality (author only) | Opens the add form |
-| **Start study** | State Approved (not Draft or Superseded) | Analyst, Quality | Opens the new study form with this protocol preselected |
+| **Withdraw draft** | Draft; you are its author (Analyst or Quality) or a Quality user | Analyst, Quality | Opens the withdrawal form |
+| **Start study** | State Approved (not Draft, Superseded or Withdrawn) | Analyst, Quality | Opens the new study form with this protocol preselected |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Product, Protocol document, Test profile revision, Acceptance criteria, Basis | `Protocol.product`, `.document_ref`, `.document_url`, `.test_profile_ref`, `.specification`, `.basis` | Text; document link | — | Header; the header is frozen after creation |
-| Title / State | `Protocol.title`, `.state` | Text; Draft, Approved or Superseded | — | Page title and status label |
+| Title / State | `Protocol.title`, `.state` | Text; Draft, Approved, Superseded or Withdrawn | — | Page title and status label |
 | Storage conditions | `ProtocolCondition.*` | Label, setpoint, temperature (°C), humidity (%) | — | Blank when not set |
 | Timepoints | `ProtocolTimepoint.*` | Day (interval from time zero), window (± days), test codes | — | Pulls are scheduled from these |
 | Author / Approved | `Protocol.author`, `.approved_at` | User, time | — | Authorship and approval time |
@@ -59,4 +60,4 @@ One protocol version (code and version number) with its header facts, storage co
 
 - [Stability protocols](/stability/protocols/)
 - [Stability studies](/stability/studies/)
-- Add storage condition, Add timepoint and Approve protocol (opened from the actions above)
+- Add storage condition, Add timepoint, Approve protocol and Withdraw draft protocol (opened from the actions above)

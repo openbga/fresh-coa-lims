@@ -189,10 +189,11 @@ def test_author_ids(pull):
     return ids | investigation_author_ids(Investigation.objects.filter(test__pull=pull))
 
 
-def frozen_results(pull):
+def frozen_results(pull, results):
     """Frozen-ready JSON of a pull's results for its acceptance; nothing is recomputed later.
-    Raises nothing: the caller checks ``pull_results`` for blockers first."""
-    _, rows, outcome = pull_results(pull)
+    ``results`` is what ``pull_results`` read for the signature, so the signer's check and the
+    frozen record rest on one read. Raises nothing: the caller checks the blockers first."""
+    _, rows, outcome = results
     investigations = Investigation.objects.filter(test__pull=pull).order_by("pk")
     timepoint = pull.timepoint
     results = []
@@ -265,13 +266,11 @@ def frozen_results(pull):
     }
 
 
-def testing_in_progress(study):
-    """Why the study cannot be closed yet, one reason each, or []: a test of one of its pulls
-    awaits review, an open one already holds an observation, a raw-data file or a QC batch,
-    or an investigation of one is open. Closing would leave that work with no way forward,
-    because a closed study's pulls take no more testing. An open test that holds nothing
-    does not stop the study: it is left as it is."""
-    tests = list(AnalyticalTest.objects.filter(pull__study=study).order_by("pk"))
+def _work_in_progress(tests, investigations):
+    """Why the tests' evidence is still in progress, one reason each, or []: a test awaits
+    review, an open one already holds an observation, a raw-data file or a QC batch, or an
+    investigation is open. An open test that holds nothing is not work in progress."""
+    tests = list(tests.order_by("pk"))
     worked = set(
         Observation.objects.filter(test__in=tests).values_list("test_id", flat=True)
     ) | set(RawDataFile.objects.filter(test__in=tests).values_list("test_id", flat=True))
@@ -284,9 +283,25 @@ def testing_in_progress(study):
                 f"{test.label} {test.test_code} holds results, raw data or a QC batch that "
                 "were not submitted."
             )
-    open_investigations = Investigation.objects.filter(
-        test__pull__study=study,
-        phase__in=[Investigation.Phase.LABORATORY, Investigation.Phase.FULL],
+    open_investigations = investigations.filter(
+        phase__in=[Investigation.Phase.LABORATORY, Investigation.Phase.FULL]
     ).order_by("pk")
-    reasons += [f"{inv.label} is open: {inv.trigger}." for inv in open_investigations]
-    return reasons
+    return reasons + [f"{inv.label} is open: {inv.trigger}." for inv in open_investigations]
+
+
+def testing_in_progress(study):
+    """Why the study cannot be closed yet (see ``_work_in_progress``), or []. Closing would
+    leave that work with no way forward, because a closed study's pulls take no more testing.
+    An open test that holds nothing does not stop the study: it is left as it is."""
+    return _work_in_progress(
+        AnalyticalTest.objects.filter(pull__study=study),
+        Investigation.objects.filter(test__pull__study=study),
+    )
+
+
+def pull_testing_in_progress(pull):
+    """Why a pulled pull cannot be recorded as missed (see ``_work_in_progress``), or []. Its
+    reviewed results stay in the record; untouched tests take no more work."""
+    return _work_in_progress(
+        AnalyticalTest.objects.filter(pull=pull), Investigation.objects.filter(test__pull=pull)
+    )

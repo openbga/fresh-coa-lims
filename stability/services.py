@@ -31,6 +31,7 @@ from .evidence import (
     frozen_results,
     has_tests,
     pull_results,
+    pull_testing_in_progress,
     sample_evidence,
     test_author_ids,
     testing_in_progress,
@@ -135,7 +136,10 @@ def create_protocol(*, actor, code, reason, **values):
 def _draft_for_author(actor, protocol):
     protocol = _lock(Protocol, protocol)
     if protocol.state != Protocol.State.DRAFT:
-        raise ValidationError("An approved protocol is frozen; create a new version.")
+        raise ValidationError(
+            f"{protocol.identifier} is {protocol.get_state_display().lower()} and frozen; "
+            "create a new version."
+        )
     if protocol.author_id != actor.pk:
         raise PermissionDenied("Only the protocol author edits a draft.")
     return protocol
@@ -228,6 +232,37 @@ def approve_protocol(*, actor, pin, protocol, expected_revision, reason):
         permission="quality",
         apply=apply,
     )
+
+
+@transaction.atomic
+def withdraw_protocol(*, actor, protocol, expected_revision, reason):
+    """Withdraw a draft that will not be approved, for example one whose specification cannot
+    state a test of a time point. The draft keeps its content; the next version of the code
+    can then be drafted. Its author or a quality person withdraws it, with a reason."""
+    require_role(actor, *AUTHORS)
+    _need_reason(reason)
+    lock_account(actor)
+    # The row lock serializes this with approval and with edits of the draft. Approval takes
+    # the row before the protocol lock, so this takes no protocol lock: a new version drafted
+    # meanwhile reads the draft as it was committed and is refused until this commits.
+    locked = _lock(Protocol, protocol)
+    if locked.state != Protocol.State.DRAFT:
+        raise ValidationError("Only a draft protocol can be withdrawn.")
+    if locked.author_id != actor.pk and not actor.groups.filter(name="quality").exists():
+        raise PermissionDenied("Only the draft's author or a quality person withdraws it.")
+    if locked.revision != expected_revision:
+        raise ValidationError("Record changed. Reload before withdrawing.")
+    before = snapshot(locked)
+    _bump(locked, state=Protocol.State.WITHDRAWN)
+    record_event(
+        actor=actor,
+        action="protocol.withdrawn",
+        obj=locked,
+        before=before,
+        after=snapshot(locked),
+        reason=reason,
+    )
+    return locked
 
 
 # --- Studies and pulls -----------------------------------------------------------------------
@@ -443,18 +478,38 @@ def attach_pull_evidence(
     return pull
 
 
+def missed_refusal(pull, study=None):
+    """Why the pull cannot be recorded as missed now, or None. A scheduled pull is missed
+    once its window has closed. A pulled pull is missed when its material cannot be tested
+    (lost or insufficient), provided nothing of its testing is in progress: its reviewed
+    results stay in the record and its untouched tests take no more work."""
+    study = study or pull.study
+    if study.state != Study.State.ACTIVE:
+        return "Only a pull of an active study can be marked missed."
+    if pull.state == Pull.State.SCHEDULED:
+        if timezone.localdate() <= pull.window[1]:
+            return "The pull window has not closed yet."
+        return None
+    if pull.state == Pull.State.PULLED:
+        if reasons := pull_testing_in_progress(pull):
+            return "Testing of this pull is in progress; finish it first: " + " ".join(reasons)
+        return None
+    return "Only a scheduled or pulled pull can be marked missed."
+
+
 @transaction.atomic
 def mark_pull_missed(*, actor, pull, reason):
-    """A missed pull stays visible forever; it is never deleted or silently rescheduled."""
+    """A missed pull stays visible forever; it is never deleted or silently rescheduled.
+
+    Locks the pull, then its study; testing locks a test before its pull, so work recorded
+    on a test at the same moment either commits first and refuses this, or is refused."""
     require_role(actor, *AUTHORS)
     _need_reason(reason)
     lock_account(actor)
     pull = _lock(Pull, pull)
     study = _lock(Study, pull.study)
-    if study.state != Study.State.ACTIVE or pull.state != Pull.State.SCHEDULED:
-        raise ValidationError("Only a scheduled pull of an active study can be marked missed.")
-    if timezone.localdate() <= pull.window[1]:
-        raise ValidationError("The pull window has not closed yet.")
+    if refusal := missed_refusal(pull, study):
+        raise ValidationError(refusal)
     before = snapshot(pull)
     _bump(pull, state=Pull.State.MISSED, missed_reason=reason.strip())
     record_event(
@@ -508,11 +563,12 @@ def accept_pull(*, actor, pin, pull, expected_revision, reason):
         if has_tests(locked):
             # Tested in the system. Every evidence change of the pull's tests advanced this
             # pull's revision under its lock, so what is read here is what the signer saw.
-            blockers, _, outcome = pull_results(locked)
+            results = pull_results(locked)
+            blockers, _, outcome = results
             if blockers or not outcome:
                 raise ValidationError("Testing is not complete: " + " ".join(blockers))
             locked.outcome = outcome
-            locked.result_evidence = frozen_results(locked)
+            locked.result_evidence = frozen_results(locked, results)
         elif locked.sample_id:
             _check_pull_sample(locked, locked.sample)
             codes = list(locked.timepoint.test_codes)

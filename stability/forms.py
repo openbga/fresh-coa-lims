@@ -159,6 +159,17 @@ class PullForm(forms.Form):
         self.fields["chamber"].queryset = Equipment.objects.filter(pk__in=fit)
 
 
+class PullTestsForm(ReasonForm):
+    """Assign a pull's tests. ``criteria`` is the token of the acceptance criteria the page
+    shows; the service refuses the assignment when the criteria in force differ from it."""
+
+    criteria = forms.CharField(widget=forms.HiddenInput, max_length=64)
+
+
+class WithdrawProtocolForm(ReasonForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+
+
 class EvidenceForm(forms.Form):
     sample_reference = forms.CharField(
         max_length=80,

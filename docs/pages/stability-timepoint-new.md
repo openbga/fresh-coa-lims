@@ -4,7 +4,7 @@ urls: stability:timepoint_new
 views: stability.views.timepoint_new
 templates: ops/form.html
 models: stability.ProtocolTimepoint, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -40,7 +40,7 @@ Add a pull timepoint and its required tests to a draft protocol.
 
 ## Rules and hidden logic
 
-- Same draft and author rules as adding a condition: only a Draft protocol ("An approved protocol is frozen; create a new version.") and only its author (403).
+- Same draft and author rules as adding a condition: only a Draft protocol ("<code> v<n> is approved and frozen; create a new version." (or withdrawn, or superseded)) and only its author (403).
 - Saving recalculates the protocol's content digest and raises the protocol revision by 1; event `protocol.timepoint_added` records the protocol revision before and after.
 - Timepoints become pulls when a study starts on the approved protocol; later changes do not alter existing studies.
 

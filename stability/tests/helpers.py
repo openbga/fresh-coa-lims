@@ -292,9 +292,19 @@ def pulled(people, study, interval=100):
     )
 
 
-def assign(people, pull):
+def shown_criteria(pull):
+    """The criteria token the Assign tests page would show for the pull now."""
+    from analytical.contracts import resolve_pull
+
+    return analytical.pull_criteria_hash(resolve_pull(pull)[0])
+
+
+def assign(people, pull, criteria_hash=None):
     return analytical.assign_pull_tests(
-        actor=people["analyst2"], pull=pull, reason="Tests of the time point"
+        actor=people["analyst2"],
+        pull=pull,
+        reason="Tests of the time point",
+        criteria_hash=criteria_hash or shown_criteria(pull),
     )
 
 

@@ -266,28 +266,49 @@ def assign_tests(*, actor, sample, reason):
         return created, holds
 
 
-def assign_pull_tests(*, actor, pull, reason):
+def pull_criteria_hash(accepted):
+    """Token of the acceptance criteria a page showed for a pull's tests: the payloads
+    ``resolve_pull`` returned, which name the specification and method versions."""
+    return canonical_hash(accepted)
+
+
+CRITERIA_CHANGED = (
+    "The acceptance criteria in force changed since this page was opened. Review the "
+    "criteria shown now before assigning the tests."
+)
+
+
+def assign_pull_tests(*, actor, pull, reason, criteria_hash):
     """Create the tests of a stability pull: one for each test of its time point, under the
     acceptance criteria of the protocol as they are in force now. Returns the tests created.
 
-    All or nothing: when a test of the time point cannot be resolved nothing is assigned and
-    the reasons are raised. The tests belong to the pull and name no lot.
+    ``criteria_hash`` is ``pull_criteria_hash`` of the criteria the analyst was shown; the
+    criteria are read again under the pull lock and a difference is refused, so nothing
+    approved in between is frozen unseen. All or nothing: when a test of the time point
+    cannot be resolved nothing is assigned and the reasons are raised. The tests belong to
+    the pull and name no lot.
     """
     require_role(actor, ANALYST)
     _require_reason(reason)
     with transaction.atomic():
         # Same order as ``assign_tests``: the account, the pull's tests, then the pull.
         get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
-        existing = set(
+        list(
             AnalyticalTest.objects.select_for_update(no_key=True)
             .filter(pull_id=pull.pk)
             .order_by("pk")
-            .values_list("test_code", flat=True)
+            .values_list("pk", flat=True)
         )
         (locked,) = stability_pulls().lock([pull.pk])
+        # Read after the pull lock: tests another analyst assigned while this waited are seen.
+        existing = set(
+            AnalyticalTest.objects.filter(pull_id=locked.pk).values_list("test_code", flat=True)
+        )
         accepted, holds = resolve_pull(locked)
         if holds:
             raise ValidationError(holds)
+        if pull_criteria_hash(accepted) != criteria_hash:
+            raise ValidationError(CRITERIA_CHANGED)
         created = []
         for code, payload in accepted.items():
             if code in existing:

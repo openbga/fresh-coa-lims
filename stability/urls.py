@@ -11,6 +11,7 @@ urlpatterns = [
     path("protocols/<int:pk>/conditions/new/", views.condition_new, name="condition_new"),
     path("protocols/<int:pk>/timepoints/new/", views.timepoint_new, name="timepoint_new"),
     path("protocols/<int:pk>/approve/", views.protocol_approve, name="protocol_approve"),
+    path("protocols/<int:pk>/withdraw/", views.protocol_withdraw, name="protocol_withdraw"),
     path("studies/", views.study_list, name="study_list"),
     path("studies/new/", views.study_new, name="study_new"),
     path("studies/<int:pk>/", views.study_detail, name="study_detail"),

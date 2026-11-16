@@ -4,7 +4,7 @@ urls: stability:condition_new
 views: stability.views.condition_new
 templates: ops/form.html
 models: stability.ProtocolCondition, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -40,7 +40,7 @@ Add an approved storage condition to a draft protocol.
 ## Rules and hidden logic
 
 - Only a draft accepts conditions; the database also refuses new content on a non-draft protocol.
-- Messages: "An approved protocol is frozen; create a new version."; "Only the protocol author edits a draft."
+- Messages: "<code> v<n> is approved and frozen; create a new version." (or withdrawn, or superseded); "Only the protocol author edits a draft."
 - Adding content refreshes the protocol digest and raises its revision, so an approval dialog opened earlier goes stale. Event `protocol.condition_added` (records the protocol revision before and after).
 - A label already used on this protocol is refused when saving (model uniqueness check shown as an error summary).
 

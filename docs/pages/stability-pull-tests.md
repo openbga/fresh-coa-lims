@@ -35,6 +35,7 @@ Create the tests of a pulled stability pull in the system, one for each test of 
 |---|---|---|---|---|
 | Test, Acceptance criterion, Method, Replicates, Assigned | — | Display | — | The criteria in force now for each test of the time point; assigned tests freeze them |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with each `test.assigned` event |
+| (hidden) Criteria | — | Token | Yes | Identifies the criteria the page showed (specification and method versions); a difference is refused |
 
 ## Rules and hidden logic
 
@@ -42,6 +43,8 @@ Create the tests of a pulled stability pull in the system, one for each test of 
 - A pull linked to a sample or external evidence is refused: "A pull is tested in the system or linked to other evidence, never both."
 - The specification's version in force now supplies the criteria. If it has no approved version in force, does not state a test of the time point, or a method has no approved version in force, the page returns to the pull record with "Tests cannot be assigned: …". All or nothing: no test is assigned unless every test of the time point can be.
 - If every test is already assigned: "Every test of this time point is already assigned." Only missing tests are created, so a repeat adds nothing for tests that exist.
+- The criteria are read again when you submit, under the pull lock. If a version approved since the page was opened changed them, nothing is assigned and the page shows "The acceptance criteria in force changed since this page was opened. Review the criteria shown now before assigning the tests." with the criteria in force now; it can then be submitted after review.
+- Two analysts assigning at the same moment do not create a test twice: the second sees the first's tests and assigns only what is missing.
 - Each test freezes the criterion, method version, specification version and protocol version; a later version of the specification applies only to later pulls. A test of a line the specification marks as not required is still tested: the time point decides what is tested.
 - Each created test is a normal test of the pull (no lot, no sample). Event `test.assigned` for each; the pull's revision rises by 1, so an acceptance page opened earlier goes stale. The pull and study are locked while assigning.
 

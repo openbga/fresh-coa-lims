@@ -28,6 +28,7 @@ from stability.tests.helpers import (
     pulled,
     review,
     reviewed,
+    shown_criteria,
     specified_study,
     submit,
 )
@@ -205,7 +206,10 @@ def assayed(data, pull, value):
     """Assign, record, submit and review the pull's assay. Returns (test, investigation)."""
     staff = data["people"]
     (test,) = analytical.assign_pull_tests(
-        actor=staff["analyst"], pull=pull, reason="Tests of the time point"
+        actor=staff["analyst"],
+        pull=pull,
+        reason="Tests of the time point",
+        criteria_hash=shown_criteria(pull),
     )
     analytical.record_observation(
         actor=staff["analyst"],

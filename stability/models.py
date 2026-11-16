@@ -34,6 +34,8 @@ class Protocol(models.Model):
         DRAFT = "draft", "Draft"
         APPROVED = "approved", "Approved"
         SUPERSEDED = "superseded", "Superseded"
+        # A draft that will not be approved; the next version of its code can then be drafted.
+        WITHDRAWN = "withdrawn", "Withdrawn"
 
     code = models.CharField(max_length=60)
     version = models.PositiveIntegerField(default=1)
