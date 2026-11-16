@@ -5,6 +5,7 @@ import io
 import json
 import threading
 import zipfile
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -13,17 +14,19 @@ from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection, connections, transaction
 from django.urls import reverse
+from django.utils import timezone
 
 from analytical import rawdata
 from analytical import services as analytical
 from core.audit import record_event
 from core.models import AuditEvent, ElectronicSignature, PINCredential
-from core.services import review_audit, set_pin
+from core.services import approve_rule, review_audit, save_rule, set_pin
 from quality import services as quality
 from quality.models import Lot
 from reporting import lot_record
 from reporting import services as reporting
 from reporting.render import RenderError
+from sampling.models import LotAssignment
 from tests.receipts import on_site_receipt
 from tests.test_integrated_journey import (  # noqa: F401 - the fixture is used by name
     PASSWORD,
@@ -32,6 +35,7 @@ from tests.test_integrated_journey import (  # noqa: F401 - the fixture is used 
     dispose,
     integrated,
 )
+from tests.test_stability_testing import assayed, pull_of, shelf_life_of, study_of
 
 pytestmark = pytest.mark.django_db(transaction=True)
 RAW = b"synthetic balance printout\r\nweight 1.00012 g\r\n"
@@ -427,11 +431,123 @@ def test_a_lot_just_received_exports_its_receipt(integrated, django_user_model):
 
 
 def test_names_in_the_package_never_leave_its_folder():
-    assert lot_record.safe_name("../../etc/passwd", "x") == "passwd"
-    assert lot_record.safe_name("..\\..\\boot.ini", "x") == "boot.ini"
+    # An uploaded file name keeps its last part only; an identifier keeps every part.
+    assert lot_record.safe_name("../../etc/passwd", "x", uploaded=True) == "passwd"
+    assert lot_record.safe_name("..\\..\\boot.ini", "x", uploaded=True) == "boot.ini"
+    assert lot_record.safe_name("../../etc/passwd", "x") == "etc_passwd"
+    assert lot_record.safe_name("L/2026/007", "x") == "L_2026_007"
     assert lot_record.safe_name("...", "fallback") == "fallback"
-    assert lot_record.safe_name("LOT/2026:01*", "x") == "2026_01"
+    assert lot_record.safe_name("LOT:01*", "x") == "LOT_01"
     assert lot_record.safe_name("a\x00b\nc", "x") == "a_b_c"
+
+
+def printed_context(monkeypatch):
+    captured = {}
+    original = lot_record.render_record_pdf
+
+    def capture(context, **kwargs):
+        captured.update(context)
+        return original(context, **kwargs)
+
+    monkeypatch.setattr(lot_record, "render_record_pdf", capture)
+    return captured
+
+
+def test_only_a_records_first_event_is_its_entry(released, monkeypatch):
+    printed = printed_context(monkeypatch)
+    unpack(export(released))
+    by_action = {}
+    for row in printed["trail"]:
+        by_action.setdefault(row["action"], []).append(row)
+    # The test is entered when it is assigned; later events that state no earlier values print
+    # what they recorded, never "Entered".
+    assert all(row["entered"] for row in by_action["test.assigned"])
+    for action in ("observation.recorded", "rawdata.attached", "test.submitted"):
+        for row in by_action[action]:
+            if row["record_ref"].startswith("analytical.analyticaltest:"):
+                assert not row["entered"] and row["recorded"], action
+    test_view = next(
+        r for part in printed["lot_parts"] if part["title"] == "Tests" for r in part["records"]
+    )
+    assert test_view["entered"] and test_view["later"] == test_view["events"] - 1 >= 3
+
+
+def test_a_held_assignment_is_not_reported_as_a_mismatch(released):
+    lot, people = released["lot"], released["people"]
+    current = LotAssignment.objects.filter(lot=lot).order_by("-pk").first()
+    LotAssignment.objects.create(
+        lot=lot,
+        material=current.material,
+        stage=current.stage,
+        scope=current.scope,
+        scopes=current.scopes,
+        status="hold",
+        hold_reasons=["Synthetic applicability hold"],
+        reason="Synthetic hold, shaped as the requirement service writes it",
+        assigned_by=people["analyst"],
+    )
+    _, _, members = unpack(export(released))
+    record = json.loads(members["record.json"])
+    assert len(section(record, "assignments")["records"]) == 2
+    assert [c for c in record["checks"] if c["outcome"] != "intact"] == []
+
+
+def test_configuration_is_what_the_lot_named_not_what_replaced_it(released):
+    lot, people = released["lot"], released["people"]
+    old = lot.rules
+    newer = save_rule(
+        actor=people["author"],
+        code=old.code,
+        segment=old.segment,
+        policy=old.policy,
+        effective_from=timezone.now(),
+        effective_until=timezone.now() + timedelta(days=400),
+        reason="Synthetic later version, approved after the lot was released",
+    )
+    approve_rule(
+        actor=people["approver"],
+        pin=PIN,
+        rule=newer,
+        expected_revision=newer.revision,
+        reason="Synthetic approval",
+    )
+    _, _, members = unpack(export(released))
+    record = json.loads(members["record.json"])
+    assert [r["id"] for r in section(record, "core_ruleset")["records"]] == [old.pk]
+    signed = {
+        s["fields"]["object_id"]
+        for s in record["signatures"]
+        if s["fields"]["object_type"] == "core.ruleset"
+    }
+    assert signed == {str(old.pk)}
+    # The method version frozen in the lot's requirements is named, with its approval checked.
+    methods = section(record, "catalog_methodrevision")["records"]
+    assert [m["id"] for m in methods] == [released["method"].pk]
+    assert any(
+        c["check"] == "approved content" and c["record"] == f"catalog.methodrevision:{m['id']}"
+        for c in record["checks"]
+        for m in methods
+    )
+
+
+def test_stability_tests_and_their_investigation_are_part_of_the_record(released):
+    lot = released["lot"]
+    study = study_of(released, lot, shelf_life_of(released))
+    failing, investigation = assayed(released, pull_of(released, study, 1), "90.10")
+    assert failing.lot_id is None and investigation.lot_id is None
+    _, _, members = unpack(export(released))
+    record = json.loads(members["record.json"])
+    assert [r["id"] for r in section(record, "stability_tests")["records"]] == [failing.pk]
+    assert [r["id"] for r in section(record, "tests")["records"]] == [released["test"].pk]
+    observed = {r["fields"]["test"] for r in section(record, "observations")["records"]}
+    assert observed == {released["test"].pk, failing.pk}
+    assert [r["id"] for r in section(record, "investigations")["records"]] == [investigation.pk]
+    assert section(record, "studies")["records"][0]["id"] == study.pk
+    assert section(record, "stability_protocol")["part"] == "referenced"
+    events = {(e["fields"]["object_type"], e["fields"]["object_id"]) for e in record["audit_trail"]}
+    assert ("analytical.analyticaltest", str(failing.pk)) in events
+    assert ("analytical.investigation", str(investigation.pk)) in events
+    assert all(c["outcome"] == "intact" for c in record["checks"])
 
 
 # Page ---------------------------------------------------------------------------------------
@@ -487,7 +603,8 @@ def test_page_reports_a_render_failure(client, released, monkeypatch):
         reverse("quality:lot_record", args=[released["lot"].pk]), {"purpose": PURPOSE}
     )
     assert response.status_code == 422
-    assert b"The record could not be exported: synthetic renderer failure" in response.content
+    assert b"its printed copy could not be produced. Nothing was recorded." in response.content
+    assert b"synthetic renderer failure" not in response.content
     assert not AuditEvent.objects.filter(action=lot_record.EXPORT_ACTION).exists()
 
 

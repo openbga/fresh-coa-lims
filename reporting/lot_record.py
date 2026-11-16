@@ -77,12 +77,21 @@ def _tests(c):
     return Q(lot=c.lot.pk) | Q(sample__in=c.ids("samples"))
 
 
+def _all_tests(c):
+    return c.ids("tests") + c.ids("stability_tests")
+
+
+def _of_tests(name):
+    return lambda c: Q(**{f"{name}__in": _all_tests(c)})
+
+
 def _investigations(c):
-    return Q(lot=c.lot.pk) | Q(test__in=c.ids("tests"))
+    return Q(lot=c.lot.pk) | Q(test__in=_all_tests(c))
 
 
 def _batches(c):
-    return Q(pk__in={r.batch_id for r in c.records("tests") if r.batch_id})
+    tests = c.records("tests") + c.records("stability_tests")
+    return Q(pk__in={r.batch_id for r in tests if r.batch_id})
 
 
 def _contexts(c):
@@ -127,9 +136,22 @@ LOT_SECTIONS = (
         _in("record", "sampling_records"),
     ),
     Section("results", "Manual results", "quality.Result", _in("sample", "samples")),
+    Section("studies", "Stability studies", "stability.Study", _lot),
+    Section("pulls", "Stability pulls", "stability.Pull", _in("study", "studies")),
+    Section("reserves", "Reserve samples", "stability.ReserveSample", _lot),
+    Section("retention", "Retention obligations", "stability.RetentionObligation", _lot),
+    Section("holds", "Holds", "stability.Hold", _lot),
     Section("tests", "Tests", "analytical.AnalyticalTest", _tests),
-    Section("observations", "Observations", "analytical.Observation", _in("test", "tests")),
-    Section("raw_files", "Raw-data files", "analytical.RawDataFile", _in("test", "tests")),
+    # A stability pull's tests name no lot: they are not part of the lot's release testing, but
+    # they are part of its record.
+    Section(
+        "stability_tests",
+        "Tests of stability pulls",
+        "analytical.AnalyticalTest",
+        _in("pull", "pulls"),
+    ),
+    Section("observations", "Observations", "analytical.Observation", _of_tests("test")),
+    Section("raw_files", "Raw-data files", "analytical.RawDataFile", _of_tests("test")),
     Section("investigations", "Investigations", "analytical.Investigation", _investigations),
     Section(
         "investigation_entries",
@@ -146,11 +168,6 @@ LOT_SECTIONS = (
         "reporting.ReportVersion",
         _in("report", "reports"),
     ),
-    Section("studies", "Stability studies", "stability.Study", _lot),
-    Section("pulls", "Stability pulls", "stability.Pull", _in("study", "studies")),
-    Section("reserves", "Reserve samples", "stability.ReserveSample", _lot),
-    Section("retention", "Retention obligations", "stability.RetentionObligation", _lot),
-    Section("holds", "Holds", "stability.Hold", _lot),
     # Last: they name any of the records above as their context.
     Section(
         "resource_uses",
@@ -173,6 +190,8 @@ REFERENCED = {
     "catalog.material": "Materials",
     "catalog.specification": "Specifications",
     "catalog.specificationrevision": "Specification versions",
+    "catalog.method": "Methods",
+    "catalog.methodrevision": "Method versions",
     "sampling.samplingplan": "Sampling plans",
     "sampling.samplingplanrevision": "Sampling plan versions",
     "suppliers.supplier": "Suppliers",
@@ -186,6 +205,14 @@ REFERENCED = {
     "stability.protocoltimepoint": "Stability protocol time points",
 }
 USER_LABEL = "accounts.user"
+# A link to the version that later replaced a record is not something the lot's records name.
+NOT_FOLLOWED = frozenset({"superseded_by"})
+# Approved versions whose stored hash is recomputed from their approved content.
+APPROVED_VERSIONS = (
+    "catalog.specificationrevision",
+    "catalog.methodrevision",
+    "sampling.samplingplanrevision",
+)
 
 
 class ExportError(Exception):
@@ -212,9 +239,15 @@ def key_of(obj):
     return (label_of(type(obj)), str(obj.pk))
 
 
-def safe_name(text, fallback, limit=80):
-    """A file or folder name that names no other folder and holds no control character."""
-    text = str(text).replace("\\", "/").rsplit("/", 1)[-1]
+def safe_name(text, fallback, limit=80, uploaded=False):
+    """A file or folder name that names no other folder and holds no control character.
+
+    An uploaded file name keeps only its last part, as a browser may send a path; an identifier
+    such as a lot number keeps every part, its separators replaced.
+    """
+    text = str(text)
+    if uploaded:
+        text = text.replace("\\", "/").rsplit("/", 1)[-1]
     text = re.sub(r"[^A-Za-z0-9._ -]+", "_", text).strip(" ._")[:limit].strip(" ._")
     return text or fallback
 
@@ -306,6 +339,37 @@ class Collection:
         return grouped
 
 
+def _named_inside(c):
+    """Configuration the lot's records name by id inside stored values: the rule sets,
+    specification versions and method versions frozen in its requirement assignments, and every
+    rule set the lot was under (its receipt and later assignments move ``Lot.rules``)."""
+    wanted = {}
+
+    def add(label, value):
+        if isinstance(value, int) and not isinstance(value, bool):
+            wanted.setdefault(label, set()).add(value)
+
+    for assignment in c.records("assignments"):
+        payload = assignment.payload if isinstance(assignment.payload, dict) else {}
+        for rules in [payload.get("rules"), *(payload.get("additional_rules") or [])]:
+            if isinstance(rules, dict):
+                add("core.ruleset", rules.get("id"))
+        for spec in [payload.get("specification"), *(payload.get("specifications") or [])]:
+            if isinstance(spec, dict):
+                add("catalog.specificationrevision", spec.get("revision_id"))
+        for line in payload.get("tests") or []:
+            method = line.get("method") if isinstance(line, dict) else None
+            if isinstance(method, dict):
+                add("catalog.methodrevision", method.get("revision_id"))
+    for before, after in AuditEvent.objects.filter(
+        object_type=label_of(Lot), object_id=str(c.lot.pk)
+    ).values_list("before", "after"):
+        for values in (before, after):
+            if isinstance(values, dict):
+                add("core.ruleset", values.get("rules"))
+    return wanted
+
+
 def collect(lot):
     """The lot's own records and the configuration they name, without file content."""
     c = Collection(lot=lot)
@@ -316,23 +380,25 @@ def collect(lot):
         if binary:
             rows = rows.defer(*binary)
         c.by_section[section.key] = list(rows.order_by("pk"))
-    frontier = list(c.lot_records())
-    while frontier:
-        wanted = {}
+    wanted, frontier = _named_inside(c), list(c.lot_records())
+    while wanted or frontier:
         for obj in frontier:
             for f in type(obj)._meta.concrete_fields:
-                if not _is_reference(f) or label_of(f.related_model) not in REFERENCED:
+                if not _is_reference(f) or f.name in NOT_FOLLOWED:
                     continue
-                value = getattr(obj, f.attname)
-                label = label_of(f.related_model)
-                if value is not None and value not in c.referenced.get(label, {}):
+                label, value = label_of(f.related_model), getattr(obj, f.attname)
+                if label in REFERENCED and value is not None:
                     wanted.setdefault(label, set()).add(value)
         frontier = []
         for label, ids in sorted(wanted.items()):
             found = c.referenced.setdefault(label, {})
-            for obj in apps.get_model(label).objects.filter(pk__in=ids).order_by("pk"):
+            missing = [pk for pk in ids if pk not in found]
+            for obj in apps.get_model(label).objects.filter(pk__in=missing).order_by("pk"):
                 found[obj.pk] = obj
                 frontier.append(obj)
+        wanted = {}
+    for label in list(c.referenced):
+        c.referenced[label] = dict(sorted(c.referenced[label].items()))
     return c
 
 
@@ -403,7 +469,7 @@ def _serialize(obj, c):
 def _binary_path(obj, f, c):
     label = label_of(type(obj))
     if label == "analytical.rawdatafile":
-        name = safe_name(obj.filename, "raw-data", limit=100)
+        name = safe_name(obj.filename, "raw-data", limit=100, uploaded=True)
         return f"files/raw-data/test-{obj.test_id}/{obj.pk}-{name}"
     if label == "reporting.reportversion":
         number = next(
@@ -417,9 +483,11 @@ def _entry(path, data):
     return {"path": path, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
 
 
-def _add(archive, name, data, stamp):
+def _add(archive, name, data, stamp, compress=True):
+    """Add one member. Stored files and PDFs are already compressed or are kept as they are, so
+    they are stored without compressing them again, which keeps a large export fast."""
     info = zipfile.ZipInfo(name, date_time=stamp)
-    info.compress_type = zipfile.ZIP_DEFLATED
+    info.compress_type = zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
     info.external_attr = 0o644 << 16
     archive.writestr(info, data)
 
@@ -433,7 +501,7 @@ def _write_files(c, archive, folder, stamp):
             entry = {**_entry(_binary_path(obj, f, c), data), "record": ref(obj)}
             c.binary[(ref(obj), f.name)] = entry
             c.files.append(entry)
-            _add(archive, f"{folder}/{entry['path']}", data, stamp)
+            _add(archive, f"{folder}/{entry['path']}", data, stamp, compress=False)
 
 
 def _check(kind, record, describes, stored, computed):
@@ -452,7 +520,9 @@ def _file_text(entry):
 
 
 def _checks(c, signatures):
-    """Recompute every stored checksum and hash the record holds, and state each outcome."""
+    """Recompute the SHA-256 of every stored file and the hash stored with each signature's
+    content, certificate content, requirement assignment and approved version, and state each
+    outcome. Other hashes the records hold are copied, not recomputed."""
     results = [
         _check(
             "signature content",
@@ -495,6 +565,8 @@ def _checks(c, signatures):
             )
         )
     for assignment in c.records("assignments"):
+        if assignment.payload is None:  # a hold freezes no requirements and stores no hash
+            continue
         results.append(
             _check(
                 "requirement assignment",
@@ -504,7 +576,7 @@ def _checks(c, signatures):
                 canonical_hash(assignment.payload),
             )
         )
-    for label in ("catalog.specificationrevision", "sampling.samplingplanrevision"):
+    for label in APPROVED_VERSIONS:
         for revision in c.referenced.get(label, {}).values():
             if revision.approved_content is not None:
                 results.append(
@@ -560,10 +632,18 @@ def _printed_value(obj, f, c, people, names):
 
 
 def _short(value):
+    if value == "":
+        return "(blank)"
     text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
     if len(text) > PRINT_CHANGE_LIMIT:
         return f"{text[:PRINT_CHANGE_LIMIT]}… ({len(text)} characters, in full in record.json)"
     return text
+
+
+def recorded(event):
+    """What an event without earlier values recorded: each value it states."""
+    after = event.after if isinstance(event.after, dict) else {}
+    return [{"field": key, "value": _short(after[key])} for key in sorted(after)]
 
 
 def changes(event):
@@ -588,10 +668,15 @@ def _printed(c, sections, signatures, events, reviews, people, checks, meta):
     signed = {}
     for signature in signatures:
         signed.setdefault((signature.object_type, signature.object_id), []).append(signature)
-    counted = {}
+    # A record's first event entered it when it states no earlier values; every later event
+    # acted on the record after it was entered, whether or not it states earlier values.
+    counted, trail = {}, []
     for event in events:
-        total, changed = counted.get((event.object_type, event.object_id), (0, 0))
-        counted[(event.object_type, event.object_id)] = (total + 1, changed + bool(event.before))
+        key = (event.object_type, event.object_id)
+        first = key not in counted
+        total, entered = counted.get(key, (0, False))
+        counted[key] = (total + 1, entered or (first and not event.before))
+        trail.append((event, first and not event.before))
     outcome = {
         check["record"]: check["outcome"]
         for check in checks
@@ -599,7 +684,7 @@ def _printed(c, sections, signatures, events, reviews, people, checks, meta):
     }
 
     def record_view(obj, part):
-        total, changed = counted.get(key_of(obj), (0, 0))
+        total, entered = counted.get(key_of(obj), (0, False))
         return {
             "ref": ref(obj),
             "part": part,
@@ -609,7 +694,8 @@ def _printed(c, sections, signatures, events, reviews, people, checks, meta):
                 for f in type(obj)._meta.concrete_fields
             ],
             "events": total,
-            "changed": changed,
+            "entered": entered,
+            "later": total - 1 if entered else total,
             "signatures": [
                 {
                     "name": s.signer_name,
@@ -647,10 +733,11 @@ def _printed(c, sections, signatures, events, reviews, people, checks, meta):
                 "record": names.get((event.object_type, event.object_id), ""),
                 "record_ref": f"{event.object_type}:{event.object_id}",
                 "reason": event.reason,
-                "created": not event.before,
+                "entered": entered,
                 "changes": changes(event),
+                "recorded": [] if entered or event.before else recorded(event),
             }
-            for event in events
+            for event, entered in trail
         ],
         "reviews": [
             {
@@ -844,8 +931,8 @@ def _build(actor, lot_pk, purpose, archive):
     record_bytes = json.dumps(record, ensure_ascii=False, indent=1).encode()
 
     listed = list(c.files)
-    for name, data in (("record.pdf", pdf), ("record.json", record_bytes)):
-        _add(archive, f"{folder}/{name}", data, stamp)
+    for name, data, compress in (("record.pdf", pdf, False), ("record.json", record_bytes, True)):
+        _add(archive, f"{folder}/{name}", data, stamp, compress=compress)
         listed.append(_entry(name, data))
     summary = {
         "lot_revision": lot.revision,

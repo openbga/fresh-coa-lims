@@ -69,10 +69,10 @@
 </dl>
 {% if differs %}
 <div class="differs">
-  <p><strong>{{ differs|length }} of {{ checks|length }} stored checksums or hashes do not match what is stored with them.</strong> The record is copied as it is stored; the checks that differ are listed under Checks.</p>
+  <p><strong>{{ differs|length }} of {{ checks|length }} checks do not match.</strong> The record is copied as it is stored; the checks that differ are listed under Checks.</p>
 </div>
 {% else %}
-<p><strong>All {{ checks|length }} stored checksums and hashes match what is stored with them.</strong></p>
+<p><strong>All {{ checks|length }} checks match.</strong> See Checks for what was recomputed.</p>
 {% endif %}
 
 <h2>How to read this record</h2>
@@ -81,7 +81,8 @@
   <li>Everything was read from the database at one instant, the export time above. Configuration the lot's records name is shown as it stood then.</li>
   <li>Times are in UTC. Numbers are printed exactly as recorded. A dash means the field is blank.</li>
   <li>A field naming another record shows its name and number (#). A field naming a person shows the name and username.</li>
-  <li>Each record states how many audit trail events it has and how many of them changed it after it was entered. The Audit trail section lists every event with what it changed.</li>
+  <li>Each of the lot's records states whether the audit trail shows it being entered and how many events acted on it later. The Audit trail section lists every event: what each change replaced, or what an event recorded.</li>
+  <li>The checks recompute the SHA-256 of every file in the package, and the hash stored with each signature's content, certificate content, requirement assignment and approved specification, method and sampling plan version. Other hashes the records hold are copied, not recomputed.</li>
   <li>Structured values longer than {{ print_json_limit }} characters, and values in the audit trail longer than {{ print_change_limit }} characters, are shortened here and kept in full in record.json.</li>
 </ul>
 
@@ -125,7 +126,7 @@
       <td>{{ event.action }}</td>
       <td>{{ event.record|default:"—" }}<br><span class="id">{{ event.record_ref }}</span></td>
       <td class="text">{{ event.reason|default:"—" }}</td>
-      <td>{% if event.created %}Entered{% elif event.changes %}{% for change in event.changes %}<div><strong>{{ change.field }}</strong>: {{ change.before }} → {{ change.after }}</div>{% endfor %}{% else %}No field changed{% endif %}</td>
+      <td>{% if event.entered %}Entered{% elif event.changes %}{% for change in event.changes %}<div><strong>{{ change.field }}</strong>: {{ change.before }} → {{ change.after }}</div>{% endfor %}{% elif event.recorded %}Recorded:{% for item in event.recorded %}<div><strong>{{ item.field }}</strong>: {{ item.value }}</div>{% endfor %}{% else %}No field changed{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -160,7 +161,7 @@
 
 <h2>Checks</h2>
 {% if checks %}
-<p>Each stored checksum or hash recomputed from what is stored with it.</p>
+<p>Each checksum or hash recomputed from what is stored with it.</p>
 <table>
   <thead><tr><th scope="col" class="w16">Check</th><th scope="col" class="w22">Record</th><th scope="col">What</th><th scope="col" class="w12">Outcome</th></tr></thead>
   <tbody>

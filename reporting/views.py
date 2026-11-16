@@ -1,3 +1,4 @@
+import logging
 import re
 
 from django.contrib import messages
@@ -18,6 +19,8 @@ from . import lot_record, services
 from .forms import AmendForm, IssueForm, LotPickForm, LotRecordForm
 from .models import Report
 from .render import RenderError
+
+logger = logging.getLogger(__name__)
 
 SORTS = {
     "number": "number",
@@ -364,8 +367,15 @@ def lot_record_export(request, pk):
             package = lot_record.export_lot_record(
                 actor=request.user, lot_pk=lot.pk, purpose=form.cleaned_data["purpose"]
             )
-        except (lot_record.ExportError, RenderError) as exc:
+        except lot_record.ExportError as exc:
             form.add_error(None, f"The record could not be exported: {exc}")
+        except RenderError:
+            logger.exception("The printed copy of lot %s could not be rendered", lot.pk)
+            form.add_error(
+                None,
+                "The record could not be exported: its printed copy could not be produced. "
+                "Nothing was recorded. Try again; if it fails again, tell your administrator.",
+            )
         else:
             response = FileResponse(
                 package.file,

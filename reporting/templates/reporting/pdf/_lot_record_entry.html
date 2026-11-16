@@ -5,7 +5,7 @@
     {% for row in record.rows %}<tr><th scope="row">{{ row.label|capfirst }}</th><td>{% if row.block %}<pre>{{ row.text }}</pre>{% else %}{{ row.text }}{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>
-{% if record.part == "lot" %}<p class="muted">{% if record.events %}Audit trail: {{ record.events }} event{{ record.events|pluralize }}, {% if record.changed %}{{ record.changed }} changed it after it was entered.{% else %}none changed it after it was entered.{% endif %}{% else %}No audit trail event names this record.{% endif %}</p>{% endif %}
+{% if record.part == "lot" %}<p class="muted">{% if not record.events %}No audit trail event names this record.{% elif record.entered %}Audit trail: entered, {% if record.later %}then {{ record.later }} later event{{ record.later|pluralize }}.{% else %}no later event.{% endif %}{% else %}Audit trail: {{ record.events }} event{{ record.events|pluralize }}.{% endif %}</p>{% endif %}
 {% if record.signatures %}
 <table>
   <thead><tr><th scope="col" class="w22">Signed by</th><th scope="col" class="w16">Meaning</th><th scope="col" class="w17">Date and time (UTC)</th><th scope="col" class="num w9">Revision</th><th scope="col">Signed content SHA-256</th></tr></thead>

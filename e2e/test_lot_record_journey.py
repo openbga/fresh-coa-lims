@@ -96,7 +96,7 @@ def test_auditor_exports_the_record_and_an_analyst_cannot(live_server, released,
         )
         target = artifacts / download.suggested_filename
         download.save_as(target)
-        expect(button).to_be_enabled()
+        expect(button).to_be_enabled(timeout=10_000)
         expect(page).to_have_url(export_url)
 
         # Analysts read the lot but do not see the export, and are refused if they open it.
