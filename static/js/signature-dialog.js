@@ -20,11 +20,13 @@
   });
   dialog.showModal();
   const error = content.querySelector('.errorlist');
+  if (error) {
+    error.setAttribute('tabindex', '-1');
+    error.setAttribute('role', 'alert');
+  }
   if (typing) {
     typing.focus();
   } else if (error) {
-    error.setAttribute('tabindex', '-1');
-    error.setAttribute('role', 'alert');
     error.focus();
   } else {
     content.querySelector('input[type="password"]').focus();

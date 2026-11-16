@@ -105,8 +105,9 @@ def repo(tmp_path, monkeypatch):
     return root
 
 
-def results(root, suite, cases, suite_root="", commit=COMMIT):
-    """A results directory as the CI jobs write it."""
+def results(root, suite, cases, suite_root="", commit=COMMIT, ran_on=COMMIT, changes="false"):
+    """A results directory as the CI jobs write it: pytest records the commit it ran on in the
+    JUnit file, and the environment step the commit after it."""
     directory = root.parent / "results" / suite
     directory.mkdir(parents=True)
     body = []
@@ -122,6 +123,12 @@ def results(root, suite, cases, suite_root="", commit=COMMIT):
         )
     (directory / "junit.xml").write_text(
         '<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest">'
+        + (
+            f'<properties><property name="commit" value="{ran_on}"/>'
+            f'<property name="uncommitted_changes" value="{changes}"/></properties>'
+            if ran_on
+            else ""
+        )
         + "".join(body)
         + "</testsuite></testsuites>",
         encoding="utf-8",
@@ -293,12 +300,13 @@ def test_parametrized_and_untraced_results(repo):
     )
     assert summary["requirements"][0]["counts"]["passed"] == 4
     assert summary["untraced_results"] == ["app.tests.test_other::test_unknown"]
+    assert summary["status"] == "incomplete"
 
 
 def test_refuses_results_of_another_commit_or_mixed_commits(repo, monkeypatch):
     application = results(repo, "application", APPLICATION)
     browser = results(
-        repo, "browser", [("test_journey", "test_journey", "passed")], "e2e", "f" * 40
+        repo, "browser", [("test_journey", "test_journey", "passed")], "e2e", "f" * 40, "f" * 40
     )
     with pytest.raises(pack.PackError, match="different commits"):
         pack.build([application, browser], repo.parent / "pack", repo)
@@ -333,7 +341,7 @@ def test_command_line_exit_status(repo, monkeypatch, capsys):
     assert pack.main(["check"]) == 0
     assert pack.main(["build", "--results", str(application), "--output", str(output)]) == 1
     err = capsys.readouterr().err
-    assert "Requirements without passing evidence" not in err
+    assert "Requirements not passed: OQ-001 (incomplete)" in err
     assert "Not run: e2e/test_journey.py::test_journey" in err
     assert json.loads((output / "pack.json").read_text())["not_run"] == [
         "e2e/test_journey.py::test_journey"
@@ -379,3 +387,103 @@ def test_uncommitted_changes_are_read_from_git(tmp_path):
     git("checkout", "-q", "a.txt")
     (tmp_path / "new.py").write_text("")
     assert pack._uncommitted(tmp_path)
+
+
+def test_results_must_record_the_commit_their_tests_ran_on(repo):
+    browser = [("test_journey", "test_journey", "passed")]
+    with pytest.raises(pack.PackError, match="does not record the commit"):
+        pack.read_results(results(repo, "application", APPLICATION, ran_on=None), repo)
+    later = results(repo, "browser", browser, "e2e", ran_on="d" * 40)
+    with pytest.raises(pack.PackError, match="the tests ran on d+, but the environment"):
+        pack.read_results(later, repo)
+
+
+def test_tests_run_on_uncommitted_changes_leave_the_pack_incomplete(repo):
+    summary = pack.build(
+        [
+            results(repo, "application", APPLICATION, changes="true"),
+            results(repo, "browser", [("test_journey", "test_journey", "passed")], "e2e"),
+        ],
+        repo.parent / "pack",
+        repo,
+    )
+    assert (summary["status"], summary["uncommitted_changes"]) == ("incomplete", True)
+
+
+def test_a_skip_needs_a_reason_in_the_map(repo):
+    cases = [APPLICATION[1], APPLICATION[2], ("app.tests.test_rules", "test_version", "skipped")]
+    browser = [("test_journey", "test_journey", "passed")]
+    summary = pack.build(
+        [results(repo, "application", cases), results(repo, "browser", browser, "e2e")],
+        repo.parent / "unexplained",
+        repo,
+    )
+    assert summary["status"] == "incomplete"
+    assert summary["requirements"][0]["status"] == "incomplete"
+    assert summary["unexpected_skips"] == ["app/tests/test_rules.py::test_version"]
+
+    with (repo / "docs/traceability.toml").open("a") as handle:
+        handle.write('[skips]\n"app/tests/test_rules.py::test_version" = "Needs a <tool>."\n')
+    summary = pack.build(
+        [results(repo, "application2", cases), results(repo, "browser2", browser, "e2e")],
+        repo.parent / "explained",
+        repo,
+    )
+    assert summary["status"] == "passed"
+    assert summary["allowed_skips"] == [
+        {"test": "app/tests/test_rules.py::test_version", "reason": "Needs a <tool>."}
+    ]
+    assert "allowed: Needs a &lt;tool&gt;." in (repo.parent / "explained/index.html").read_text()
+
+
+def test_nested_and_unittest_classes_must_be_traced(repo):
+    write(
+        repo / "app/tests/test_more.py",
+        """
+        import unittest
+
+
+        class TestOuter:
+            class TestInner:
+                def test_inner(self):
+                    pass
+
+
+        class Checks(unittest.TestCase):
+            def test_case(self):
+                pass
+
+
+        class Helper:
+            def test_not_collected(self):
+                pass
+        """,
+    )
+    assert pack.check(repo) == [
+        f"app/tests/test_more.py::{name} is not traced to a requirement in docs/traceability.toml."
+        for name in ("TestOuter::TestInner::test_inner", "Checks::test_case")
+    ]
+
+
+def test_spreadsheet_formulas_are_kept_as_text():
+    assert [pack._cell(v) for v in ("=1+1", "+x", "-x", "@x", "plain", 1.5)] == [
+        "'=1+1",
+        "'+x",
+        "'-x",
+        "'@x",
+        "plain",
+        1.5,
+    ]
+
+
+def test_record_checkout_writes_the_commit_into_the_junit_file(tmp_path, monkeypatch):
+    from _pytest.junitxml import LogXML, xml_key
+
+    monkeypatch.setenv("GITHUB_SHA", COMMIT)
+    monkeypatch.setattr(pack, "_uncommitted", lambda root: False)
+    junit = LogXML(str(tmp_path / "junit.xml"), None)
+    config = type("Config", (), {"stash": pytest.Stash()})()
+    pack.record_checkout(config)  # no JUnit file requested: nothing to do
+    config.stash[xml_key] = junit
+    pack.record_checkout(config)
+    assert junit.global_properties == [("commit", COMMIT), ("uncommitted_changes", "false")]

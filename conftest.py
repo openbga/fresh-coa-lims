@@ -6,6 +6,8 @@ them and they keep the hashing work factor of a deployment.
 
 import pytest
 
+from scripts import validation_pack
+
 # Most tests create several accounts, each with a password and a signature PIN. At Django's
 # PBKDF2 work factor of 1,000,000 iterations that hashing is most of the suite's run time.
 # Only the work factor is lowered here. The hasher class, the `pbkdf2_sha256` algorithm name,
@@ -22,3 +24,8 @@ def reduced_hash_work_factor():
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(PBKDF2PasswordHasher, "iterations", TEST_PBKDF2_ITERATIONS)
         yield
+
+
+def pytest_sessionstart(session):
+    # The commit the tests run on goes into the JUnit file the validation pack is built from.
+    validation_pack.record_checkout(session.config)

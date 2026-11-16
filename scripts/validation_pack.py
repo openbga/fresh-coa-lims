@@ -13,8 +13,9 @@ validate the system for anyone's intended use.
         server, installed packages and, with --browser, Chromium).
     python scripts/validation_pack.py build --results DIR [--results DIR ...] --output DIR
         Assemble the pack from result directories, each holding junit.xml and
-        environment.json. Exits 1 unless no test failed, every traced test ran and every
-        requirement has a passing test.
+        environment.json. Exits 1 unless every requirement and project check passed (a
+        traced test passed, none failed, all ran, none skipped without a reason in the map),
+        every result is traced and the checkout matched its commit.
 
 Only the standard library is needed to check and build.
 """
@@ -99,14 +100,25 @@ def discover_tests(root):
         for module in sorted((root / directory).rglob("test_*.py")):
             path = module.relative_to(root).as_posix()
             tree = ast.parse(module.read_text(encoding="utf-8"), filename=path)
-            for node in tree.body:
-                if _is_test(node):
-                    tests[f"{path}::{node.name}"] = _summary(node)
-                elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
-                    for item in node.body:
-                        if _is_test(item):
-                            tests[f"{path}::{node.name}::{item.name}"] = _summary(item)
+            _collect(tree.body, path, tests)
     return tests
+
+
+def _collect(nodes, prefix, tests):
+    """pytest's defaults: functions named test*, in modules or in classes named Test* (nested
+    ones too) or derived from a unittest TestCase."""
+    for node in nodes:
+        if _is_test(node):
+            tests[f"{prefix}::{node.name}"] = _summary(node)
+        elif isinstance(node, ast.ClassDef) and (
+            node.name.startswith("Test") or any(_is_test_case(base) for base in node.bases)
+        ):
+            _collect(node.body, f"{prefix}::{node.name}", tests)
+
+
+def _is_test_case(base):
+    name = base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "")
+    return name.endswith("TestCase")
 
 
 def _is_test(node):
@@ -116,6 +128,11 @@ def _is_test(node):
 def _summary(node):
     doc = ast.get_docstring(node) or ""
     return " ".join(doc.split("\n\n")[0].split())
+
+
+def read_skips(root):
+    """Tests that may be skipped where a pack is built, each with the reason."""
+    return tomllib.loads((root / MAP).read_text(encoding="utf-8")).get("skips", {})
 
 
 def _entries(traced, project):
@@ -140,8 +157,9 @@ def check(root=None):
             problems.append(f"{requirement} has no test traced to it in {MAP}.")
     for requirement in sorted(set(traced) - set(requirements)):
         problems.append(f"{MAP} names {requirement}, which is not in {REQUIREMENTS}.")
+    skips = read_skips(root)
     entries = _entries(traced, project)
-    for entry in sorted(set(entries)):
+    for entry in sorted(set(entries) | set(skips)):
         path = entry.split("::")[0]
         if not (root / path).exists():
             problems.append(f"{MAP} names {entry}, which does not exist.")
@@ -195,7 +213,13 @@ def _database_version():
         return "not recorded: DATABASE_URL is not set"
     import psycopg
 
-    with psycopg.connect(url, connect_timeout=10) as connection:
+    # Only the server matters; the database named may not exist (pytest makes its own), so
+    # fall back to the server's maintenance database.
+    try:
+        connection = psycopg.connect(url, connect_timeout=10)
+    except psycopg.OperationalError:
+        connection = psycopg.connect(url, dbname="postgres", connect_timeout=10)
+    with connection:
         version = connection.execute("SHOW server_version").fetchone()[0]
     return f"PostgreSQL {version}"
 
@@ -263,7 +287,39 @@ def read_results(directory, root):
         )
     if not cases:
         raise PackError(f"{directory / 'junit.xml'} holds no test case.")
+    properties = {
+        prop.get("name"): prop.get("value")
+        for suite in tree.iter("testsuite")
+        for prop in suite.findall("properties/property")
+    }
+    if "commit" not in properties:
+        raise PackError(
+            f"{directory / 'junit.xml'} does not record the commit its tests ran on; run the "
+            "suite from a checkout of this repository, whose conftest records it."
+        )
+    if properties["commit"] != env.get("commit"):
+        raise PackError(
+            f"{directory}: the tests ran on {properties['commit']}, but the environment was "
+            f"recorded at {env.get('commit')}."
+        )
+    env = {
+        **env,
+        "uncommitted_changes": env.get("uncommitted_changes", True)
+        or properties.get("uncommitted_changes") != "false",
+    }
     return env, cases
+
+
+def record_checkout(config):
+    """Write the commit and whether the checkout differs from it into the JUnit file as the
+    tests start (called from each suite's conftest), so that results recorded later cannot be
+    attributed to another commit."""
+    from _pytest.junitxml import xml_key
+
+    junit = config.stash.get(xml_key, None)
+    if junit is not None:
+        junit.add_global_property("commit", _commit())
+        junit.add_global_property("uncommitted_changes", str(_uncommitted(ROOT)).lower())
 
 
 def _node_id(classname, name, env, root):
@@ -317,6 +373,13 @@ def build(results, output, root=None):
         for suite in suites
         for case in suite["cases"]
     ]
+    skips = read_skips(root)
+    for row in rows:
+        if row["outcome"] == "skipped":
+            row["allowed"] = next(
+                (reason for entry, reason in skips.items() if covers(entry, _base(row["node"]))),
+                None,
+            )
     groups = [(row["id"], row, traced[row["id"]]) for row in requirements]
     groups += [(name, None, entries) for name, entries in project.items()]
     evidence = []
@@ -336,7 +399,7 @@ def build(results, output, root=None):
                 "tests": matched,
                 "not_run": not_run,
                 "counts": _counts(matched, not_run),
-                "status": _status(matched),
+                "status": _status(matched, not_run),
             }
         )
     entries = [entry for _, _, values in groups for entry in values]
@@ -345,13 +408,12 @@ def build(results, output, root=None):
     uncommitted = _uncommitted(root) or any(
         suite["environment"].get("uncommitted_changes", True) for suite in suites
     )
+    unexpected_skips = [
+        r["node"] for r in rows if r["outcome"] == "skipped" and r.get("allowed") is None
+    ]
     if failed:
         status = "failed"
-    elif (
-        uncommitted
-        or any(item["not_run"] for item in evidence)
-        or any(item["status"] != "passed" for item in evidence if item["requirement"])
-    ):
+    elif uncommitted or untraced or any(item["status"] != "passed" for item in evidence):
         status = "incomplete"
     else:
         status = "passed"
@@ -395,6 +457,10 @@ def build(results, output, root=None):
         ],
         "untraced_results": [r["node"] for r in untraced],
         "failed_tests": [r["node"] for r in failed],
+        "unexpected_skips": unexpected_skips,
+        "allowed_skips": [
+            {"test": r["node"], "reason": r["allowed"]} for r in rows if r.get("allowed")
+        ],
         "not_run": sorted({node for item in evidence for node in item["not_run"]}),
     }
 
@@ -421,15 +487,16 @@ def build(results, output, root=None):
     )
     _write_csv(
         output / "traceability.csv",
-        ["requirement", "test", "suite", "outcome", "seconds", "description", "message"],
+        ["requirement", "test", "suite", "outcome", "seconds", "description", "message"]
+        + ["skip_allowed_because"],
         [
             [item["id"], r["node"], r["suite"], r["outcome"], f"{r['seconds']:.3f}"]
-            + [descriptions.get(_base(r["node"]), ""), r["message"]]
+            + [descriptions.get(_base(r["node"]), ""), r["message"], r.get("allowed") or ""]
             for item in evidence
             for r in sorted(item["tests"], key=lambda r: r["node"])
         ]
         + [
-            [item["id"], node, "", "not run", "", descriptions[node], ""]
+            [item["id"], node, "", "not run", "", descriptions[node], "", ""]
             for item in evidence
             for node in item["not_run"]
         ],
@@ -463,19 +530,30 @@ def _counts(cases, not_run):
     return counts
 
 
-def _status(cases):
+def _status(cases, not_run):
+    """Failed when a test failed; not run without a passing test; incomplete while a traced
+    test did not run or was skipped without a reason in the map."""
     if any(case["outcome"] in ("failed", "error") for case in cases):
         return "failed"
-    if any(case["outcome"] == "passed" for case in cases):
-        return "passed"
-    return "not run"
+    if not any(case["outcome"] == "passed" for case in cases):
+        return "not run"
+    if not_run or any(case["outcome"] == "skipped" and not case.get("allowed") for case in cases):
+        return "incomplete"
+    return "passed"
 
 
 def _write_csv(path, header, rows):
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(header)
-        writer.writerows(rows)
+        writer.writerows([_cell(value) for value in row] for row in rows)
+
+
+def _cell(value):
+    """Text a spreadsheet would read as a formula is kept as text."""
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + value
+    return value
 
 
 def _write_checksums(output):
@@ -499,7 +577,9 @@ def _html(summary, evidence, untraced, descriptions):
         rows = "".join(
             f"<tr><td><code>{e(r['node'])}</code><br><small>"
             f"{e(descriptions.get(_base(r['node']), ''))}</small></td><td>{e(r['suite'])}</td>"
-            f"<td class='{e(r['outcome'])}'>{e(r['outcome'])}</td>"
+            f"<td class='{e(r['outcome'])}'>{e(r['outcome'])}"
+            f"{'<br><small>allowed: ' + e(r['allowed']) + '</small>' if r.get('allowed') else ''}"
+            "</td>"
             f"<td>{e(r['message'])}</td></tr>"
             for r in sorted(item["tests"], key=lambda r: r["node"])
         )
@@ -518,7 +598,8 @@ def _html(summary, evidence, untraced, descriptions):
         f"<td>Python {e(s['environment']['python'])}; {e(s['environment']['database'])}"
         f"{'; ' + e(s['environment']['browser']) if s['environment'].get('browser') else ''}"
         f"<br><small>{e(s['environment']['runner'])}</small></td>"
-        f"<td><code>{e(s['environment']['command'])}</code></td></tr>"
+        f"<td><code>{e(s['environment']['command'])}</code>"
+        f"{_link(s['environment'].get('run'))}</td></tr>"
         for s in summary["suites"]
     )
     requirement_rows = "".join(
@@ -555,7 +636,20 @@ def _html(summary, evidence, untraced, descriptions):
         if untraced
         else "<p>None.</p>"
     )
-    run = summary["suites"][0]["environment"].get("run") if summary["suites"] else ""
+    skipped_list = (
+        "<ul>"
+        + "".join(
+            f"<li><code>{e(item['test'])}</code>: allowed, {e(item['reason'])}</li>"
+            for item in summary["allowed_skips"]
+        )
+        + "".join(
+            f"<li><code>{e(node)}</code>: <strong class='failed'>not allowed</strong></li>"
+            for node in summary["unexpected_skips"]
+        )
+        + "</ul>"
+        if summary["allowed_skips"] or summary["unexpected_skips"]
+        else "<p>None.</p>"
+    )
     head = "<th>Passed</th><th>Failed</th><th>Skipped</th><th>Not run</th>"
     changes = (
         " <strong class='failed'>with uncommitted changes: these results are not those of the "
@@ -593,16 +687,17 @@ section {{ margin-bottom: 1.5rem; }}
 <dt>Status</dt><dd class="{e(summary["status"])}">{e(summary["status"])}</dd>
 <dt>Commit</dt><dd><code>{e(summary["commit"])}</code>{changes}</dd>
 <dt>Created</dt><dd>{e(summary["created_at"])}</dd>
-<dt>Test run</dt><dd>{f'<a href="{e(run)}">{e(run)}</a>' if run else "Not run in CI"}</dd>
 <dt>Release notes</dt><dd><a href="release-notes.md">{e(summary["release_notes"])}</a></dd>
 </dl>
 <h2>Test suites</h2>
-<table><thead><tr><th>Suite</th>{head}<th>Environment</th><th>Command</th></tr></thead>
+<table><thead><tr><th>Suite</th>{head}<th>Environment</th><th>Command and run</th></tr>
+</thead>
 <tbody>{suites}</tbody></table>
 <h2>Requirements</h2>
 <p>From <a href="documents/product.md">product.md</a>; the regulatory rows they cite are in
 <a href="documents/regulations.md">regulations.md</a>. A requirement passes when at least one
-test traced to it passed and none failed. A test that passes shows that the behaviour it
+test traced to it passed, none failed, every one ran and none was skipped without a reason
+allowed by the map. A test that passes shows that the behaviour it
 checks works as tested; it does not show that a requirement is met in full. The delivery
 column states what is not implemented.</p>
 <table><thead><tr><th>ID</th><th>Required outcome</th><th>Status</th>{head}</tr></thead>
@@ -612,6 +707,10 @@ column states what is not implemented.</p>
 <tbody>{project_rows}</tbody></table>
 <h2>Results traced to no requirement</h2>
 {untraced_list}
+<h2>Skipped tests</h2>
+<p>A skipped test leaves its requirement incomplete unless <code>traceability.toml</code> allows
+the skip with a reason.</p>
+{skipped_list}
 <h2>Evidence by requirement</h2>
 {details}
 <h2>Files</h2>
@@ -623,6 +722,12 @@ SHA-256 of every other file (check with <code>sha256sum -c SHA256SUMS</code>).</
 </body>
 </html>
 """
+
+
+def _link(url):
+    if not url:
+        return "<br><small>not run in CI</small>"
+    return f'<br><a href="{html.escape(url)}">{html.escape(url)}</a>'
 
 
 def _codes(values):
@@ -659,11 +764,13 @@ def main(argv=None):
     except PackError as error:
         print(error, file=sys.stderr)
         return 2
-    failing = [r["id"] for r in summary["requirements"] if r["status"] != "passed"]
+    failing = [
+        f"{r['id']} ({r['status']})" for r in summary["requirements"] if r["status"] != "passed"
+    ]
     print(f"Validation pack {summary['status']}: {args.output}")
     if failing:
-        print("Requirements without passing evidence: " + ", ".join(failing), file=sys.stderr)
-    for label in ("failed_tests", "not_run"):
+        print("Requirements not passed: " + ", ".join(failing), file=sys.stderr)
+    for label in ("failed_tests", "not_run", "unexpected_skips", "untraced_results"):
         if summary[label]:
             shown = summary[label][:50]
             more = len(summary[label]) - len(shown)

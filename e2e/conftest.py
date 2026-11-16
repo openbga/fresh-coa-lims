@@ -3,6 +3,13 @@ from pathlib import Path
 
 import pytest
 
+from scripts import validation_pack
+
+
+def pytest_sessionstart(session):
+    # The commit the tests run on goes into the JUnit file the validation pack is built from.
+    validation_pack.record_checkout(session.config)
+
 
 @pytest.fixture
 def artifacts():
