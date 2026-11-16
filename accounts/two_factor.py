@@ -15,6 +15,7 @@ generation, so other sessions sign in again, and writes an attributed audit even
 """
 
 import hashlib
+import logging
 import re
 import secrets
 from base64 import b32encode
@@ -26,6 +27,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
+from django.utils.html import escape
 from django.views.decorators.debug import sensitive_variables
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
@@ -37,7 +39,9 @@ from .authentication import (
     record_password_failure,
     reset_password_failures,
 )
-from .models import RecoveryCode
+from .models import LoginThrottle, RecoveryCode
+
+logger = logging.getLogger(__name__)
 
 DEVICE_NAME = "Authenticator app"
 RECOVERY_CODE_COUNT = 10
@@ -47,13 +51,47 @@ ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _READ_AS = str.maketrans({"O": "0", "I": "1", "L": "1"})
 AUTHENTICATOR_CODE = re.compile(r"[0-9]{6}")
 SETUP_SECONDS = 600
+# Consecutive wrong codes, across sign-in locks, after which the second factor stops working
+# until an administrator resets it (NIST SP 800-63B-4 section 3.2.2 allows at most 100).
+CODE_FAILURE_LIMIT = 100
 
 CODE_REFUSED = "The code was not accepted."
 PASSWORD_REFUSED = "Current password was not accepted."
+STOPPED = (
+    "Two-factor sign-in is stopped for this account after too many wrong codes. Ask an "
+    "administrator to reset it."
+)
 REQUIRED = (
     "Two-factor sign-in is required for your account, so it cannot be turned off. Set up a new "
     "authenticator app instead."
 )
+
+
+class Concealed:
+    """A secret shown once on its owner's page: templates render it, but its repr, which error
+    reports and debuggers print for frame variables and template contexts, does not show it."""
+
+    def __init__(self, value, *, html=False):
+        self._value = value
+        self._html = html
+
+    def __str__(self):
+        return str(self._value)
+
+    def __html__(self):
+        return str(self._value) if self._html else str(escape(self._value))
+
+    def __iter__(self):
+        return iter(self._value)
+
+    def __len__(self):
+        return len(self._value)
+
+    def __getitem__(self, index):
+        return self._value[index]
+
+    def __repr__(self):
+        return "<concealed>"
 
 
 class SignInRestart(Exception):
@@ -89,10 +127,18 @@ def missing(user):
     return required(user) and not enabled(user)
 
 
+def stopped(user):
+    """Too many consecutive wrong codes: no code is accepted until an administrator resets it."""
+    return LoginThrottle.objects.filter(
+        user_id=user.pk, code_failures__gte=CODE_FAILURE_LIMIT
+    ).exists()
+
+
 def snapshot(user):
     """The second-factor state recorded in account audit values; never a secret."""
     return {
         "two_factor": enabled(user),
+        "two_factor_stopped": stopped(user),
         "recovery_codes_left": RecoveryCode.objects.filter(user_id=user.pk, used_at=None).count(),
     }
 
@@ -105,6 +151,7 @@ def status(user):
         "last_used_at": device.last_used_at if device else None,
         "recovery_codes_left": RecoveryCode.objects.filter(user_id=user.pk, used_at=None).count(),
         "required": required(user),
+        "stopped": device is not None and stopped(user),
     }
 
 
@@ -149,6 +196,14 @@ def _accept(user, device, code):
     Runs inside the caller's transaction with the account and the device locked. Returns the
     factor used ('totp' or 'recovery_code') or None. A used recovery code is marked and recorded.
     """
+    factor = _match(user, device, code)
+    if factor is not None:
+        LoginThrottle.objects.filter(user_id=user.pk, code_failures__gt=0).update(code_failures=0)
+    return factor
+
+
+@sensitive_variables()
+def _match(user, device, code):
     kind, value = code_kind(code)
     if kind == "totp":
         return "totp" if device.verify_token(value) else None
@@ -173,10 +228,35 @@ def _accept(user, device, code):
     return None
 
 
-def _refuse(user, message=CODE_REFUSED):
-    """Count the failed code in its own transaction, so the refusal cannot roll it back."""
+def _count_wrong_code(user, *, second_factor=True):
+    """Count a wrong code inside the caller's transaction, while the account row is still locked,
+    so parallel attempts are counted one after another and none passes a limit unchecked. The
+    caller lets that transaction commit and raises the refusal after it.
+
+    Every wrong code counts toward the sign-in lock; a wrong code for the account's confirmed
+    authenticator also counts toward CODE_FAILURE_LIMIT.
+    """
     record_password_failure(user)
-    raise ValidationError(message)
+    if second_factor:
+        with transaction.atomic():
+            LoginThrottle.objects.get_or_create(user_id=user.pk)
+            throttle = LoginThrottle.objects.select_for_update().get(user_id=user.pk)
+            throttle.code_failures += 1
+            throttle.save(update_fields=["code_failures"])
+            if throttle.code_failures == CODE_FAILURE_LIMIT:
+                logger.warning(
+                    "Two-factor sign-in stopped for account id %s after %s wrong codes.",
+                    user.pk,
+                    CODE_FAILURE_LIMIT,
+                )
+                record_event(
+                    actor=user,
+                    action="account.two_factor_stopped",
+                    obj=user,
+                    after=snapshot(user),
+                    reason=f"{CODE_FAILURE_LIMIT} consecutive wrong codes; an administrator "
+                    "must reset two-factor sign-in.",
+                )
 
 
 def begin_sign_in(user):
@@ -219,12 +299,16 @@ def complete_sign_in(pending, code):
         device = authenticator(user, for_update=True)
         if device is None:
             raise SignInRestart
+        if stopped(user):
+            raise ValidationError(STOPPED)
         if password_locked(user):
             # Refused without counting, as a password is during a lock.
             raise ValidationError(CODE_REFUSED)
         factor = _accept(user, device, code)
+        if factor is None:
+            _count_wrong_code(user)
     if factor is None:
-        _refuse(user)
+        raise ValidationError(CODE_REFUSED)
     return user, factor
 
 
@@ -249,11 +333,15 @@ def _reauthenticate(actor, current_password, code=None):
         device = authenticator(user, for_update=True)
         if device is None:
             raise ValidationError("Two-factor sign-in is not set up for your account.")
+        if stopped(user):
+            raise ValidationError(STOPPED)
         if password_locked(user):
             raise ValidationError(CODE_REFUSED)
         factor = _accept(user, device, code)
+        if factor is None:
+            _count_wrong_code(user)
     if factor is None:
-        _refuse(user)
+        raise ValidationError(CODE_REFUSED)
     reset_password_failures(user)
     return verified
 
@@ -305,7 +393,21 @@ def begin_setup(*, actor, current_password, code=None):
             # Set up in another session meanwhile: replacing it needs a code from it.
             raise ValidationError("Two-factor sign-in was set up meanwhile. Start again.")
         TOTPDevice.objects.filter(user_id=user.pk, confirmed=False).delete()
+        _discard_expired_setups()
         return TOTPDevice.objects.create(user=user, name=DEVICE_NAME, confirmed=False)
+
+
+def _discard_expired_setups():
+    """Unconfirmed keys older than SETUP_SECONDS can no longer be confirmed; drop them."""
+    since = timezone.now() - timedelta(seconds=SETUP_SECONDS)
+    TOTPDevice.objects.filter(confirmed=False, created_at__lte=since).delete()
+
+
+def discard_setup(user):
+    """Drop the owner's unconfirmed keys that can no longer be confirmed (expired setups); a
+    setup still in time, perhaps in another session, is left alone."""
+    since = timezone.now() - timedelta(seconds=SETUP_SECONDS)
+    TOTPDevice.objects.filter(user_id=user.pk, confirmed=False, created_at__lte=since).delete()
 
 
 def pending_setup(user, device_pk):
@@ -349,13 +451,17 @@ def confirm_setup(*, actor, device_pk, code):
         if password_locked(user):
             raise ValidationError(CODE_REFUSED)
         accepted = kind == "totp" and device.verify_token(value)
-        if accepted:
+        if not accepted:
+            # A key the owner was just given is not guessed: only the sign-in lock counts this.
+            _count_wrong_code(user, second_factor=False)
+        else:
             before = safe_snapshot(user)
             replaced = TOTPDevice.objects.filter(user_id=user.pk, confirmed=True).exists()
             TOTPDevice.objects.filter(user_id=user.pk).exclude(pk=device.pk).delete()
             device.confirmed = True
             device.save(update_fields=["confirmed"])
             codes = _new_recovery_codes(user, timezone.now())
+            LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
             _record(
                 user,
                 "account.two_factor_replaced" if replaced else "account.two_factor_enabled",
@@ -365,7 +471,7 @@ def confirm_setup(*, actor, device_pk, code):
                 else "The owner set up two-factor sign-in.",
             )
     if not accepted:
-        _refuse(user)
+        raise ValidationError(CODE_REFUSED)
     return user, codes
 
 
@@ -414,14 +520,14 @@ def disable(*, actor, current_password, code):
 
 
 def remove(user):
-    """Delete the account's authenticator keys and recovery codes (caller holds the locks)."""
+    """Delete the account's authenticator keys and recovery codes and clear its count of wrong
+    codes (caller holds the locks)."""
     TOTPDevice.objects.filter(user_id=user.pk).delete()
     RecoveryCode.objects.filter(user_id=user.pk).delete()
+    LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
 
 
 def set_up_anything(user):
-    """Whether an administrator reset has anything to remove."""
-    return (
-        TOTPDevice.objects.filter(user_id=user.pk).exists()
-        or RecoveryCode.objects.filter(user_id=user.pk).exists()
-    )
+    """Whether an administrator reset has anything to remove: a confirmed authenticator or
+    recovery codes (an unconfirmed setup changes nothing for sign-in)."""
+    return enabled(user) or RecoveryCode.objects.filter(user_id=user.pk).exists() or stopped(user)

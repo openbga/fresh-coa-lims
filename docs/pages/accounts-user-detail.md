@@ -30,7 +30,7 @@ The **Users and roles** breadcrumb precedes account facts and the action links. 
 | Force password reset | Always | Opens required password replacement, optionally with a temporary password |
 | Clear PIN lockout | A PIN credential exists | Opens clearing of failure count and lock time; a current lock is not required |
 | Require PIN re-enrollment | A PIN credential exists | Opens revocation of the enrolled PIN |
-| Reset two-factor sign-in | The account has an authenticator or recovery codes, and it is not your own account | Opens removal of the authenticator app and recovery codes |
+| Reset two-factor sign-in | The account has a confirmed authenticator, recovery codes or a stopped second factor, and it is not your own account; an unconfirmed setup alone does not count | Opens removal of the authenticator app and recovery codes |
 | Inspect recorded values | Each history event | Expands preserved Before/After values |
 | Previous / Next | An adjacent history page exists | Moves through account history |
 
@@ -47,12 +47,12 @@ Visible actions still enforce their rules on submission, including no self-addit
 | Last sign-in | `User.last_login` | Date/time and zone | — | Last login, or Never signed in |
 | Password change required | `User.password_change_required` | Yes/No | — | Whether the user must replace their password before continuing |
 | Signature PIN | `PINCredential.user`, `locked_until`, `failures` | Enrollment, timestamp, count | — | Enrollment required/Enrolled, stored lock deadline when present and failure count; no PIN/hash is displayed |
-| Two-factor sign-in | authenticator device, `RecoveryCode.used_at` | Display text | — | **On since** the date and the count of unused recovery codes, or **Off**; **required for this account** is added when the deployment requires it for the account's roles |
+| Two-factor sign-in | authenticator device, `RecoveryCode.used_at` | Display text | — | **On since** the date and the count of unused recovery codes, with **stopped after too many wrong codes** when 100 consecutive wrong codes stopped it, or **Off**; **required for this account** is added when the deployment requires it for the account's roles |
 | Shared demonstration account | `User.credentials_locked` | Display text | — | Shown only for an account the demonstration seed published in the sign-in announcement: it cannot change its own password or signature PIN |
 | Management revision | `User.management_revision` | Integer | — | Revision checked by signed account-change forms |
 | Django staff / superuser | `User.is_staff`, `is_superuser` | Yes/No | — | Read-only flags; these actions never change them |
 | History action / time / actor / reason | `AuditEvent.action`, `occurred_at`, `actor`, `reason` | Text/date-time | — | Attribution and rationale for the event |
-| Before / After | `AuditEvent.before`, `after` | Structured values | — | Preserved safe account snapshots, including `two_factor` (true/false) and `recovery_codes_left`; no credential hashes, keys or codes |
+| Before / After | `AuditEvent.before`, `after` | Structured values | — | Preserved safe account snapshots, including `two_factor` (true/false), `two_factor_stopped` (true/false) and `recovery_codes_left`; no credential hashes, keys or codes |
 | Signed by / meaning / time / revision | `ElectronicSignature.signer_name`, `meaning`, `signed_at`, `revision` | Text/date-time/integer | — | Displayed when the event has a signature |
 | History page (`page`) | — | Integer | No | Defaults to page 1; 30 events per page |
 

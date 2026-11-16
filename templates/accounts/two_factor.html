@@ -8,6 +8,7 @@
 <div><dt>Unused recovery codes</dt><dd>{{ state.recovery_codes_left }} of {{ code_count }}</dd></div>{% endif %}
 <div><dt>Required for your account</dt><dd>{% if state.required %}Yes, by this deployment's settings{% else %}No{% endif %}</dd></div>
 </dl>
+{% if state.stopped %}<p class="alert alert-warning">Two-factor sign-in is stopped for this account after too many wrong codes. No code is accepted until an administrator resets it; you then set it up again.</p>{% endif %}
 {% if state.required and not state.enabled %}<p class="alert alert-info mb-0">Set up two-factor sign-in before continuing. You can sign out from the top bar.</p>{% endif %}
 {% if state.enabled and state.recovery_codes_left < 3 %}<p class="alert alert-warning mb-0">{% if state.recovery_codes_left %}Only {{ state.recovery_codes_left }} recovery code{{ state.recovery_codes_left|pluralize }} left.{% else %}No recovery codes left.{% endif %} Make new ones so that you can still sign in without the app.</p>{% endif %}
 </div></section>

@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import render
 from django.utils import timezone
-from django.views.decorators.debug import sensitive_post_parameters
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET
 
 from .services import ROLES
@@ -60,6 +60,9 @@ class SignIn(LoginView):
         from .signin_log import log_second_factor_requested
 
         user = form.get_user()
+        # The session keeps the account generation read with the password, so a second factor
+        # set up in another session meanwhile ends this one at its next request.
+        user.authenticated_epoch = user.session_epoch
         if not two_factor.enabled(user):
             return super().form_valid(form)
         pending = two_factor.begin_sign_in(user)
@@ -81,6 +84,7 @@ class SignIn(LoginView):
 
 
 @sensitive_post_parameters("otp_code")
+@sensitive_variables()
 def login_verify(request):
     """Second sign-in step: the authenticator code, or a recovery code, after the password."""
     from django.contrib import messages
@@ -112,6 +116,7 @@ def login_verify(request):
         else:
             request.session.pop(PENDING_SIGN_IN, None)
             user.sign_in_factors = ["password", factor]
+            user.authenticated_epoch = user.session_epoch  # As checked under the account lock.
             login(request, user, backend=pending["backend"])
             if factor == "recovery_code":
                 left = two_factor.status(user)["recovery_codes_left"]
@@ -136,16 +141,16 @@ def login_verify(request):
     )
 
 
-def _keep_session(request, user, factors=None):
-    """After an owner's own security change: this session continues, the others end."""
+def _keep_session(request, user):
+    """After an owner's own security change: this session continues, the others end. What the
+    session's sign-in proved (sign_in_factors) stays as it was."""
     request.session["account_epoch"] = user.session_epoch
-    if factors is not None:
-        request.session["sign_in_factors"] = factors
     request.user = user
 
 
 @login_required
 @sensitive_post_parameters("current_password", "otp_code")
+@sensitive_variables()
 def two_factor_page(request):
     """The owner's two-factor sign-in: status, set up, new recovery codes, turn off."""
     from django.contrib import messages
@@ -192,7 +197,7 @@ def two_factor_page(request):
                 return _show_recovery_codes(request, codes, replaced=True)
             if action == "disable":
                 user = two_factor.disable(**data)
-                _keep_session(request, user, ["password"])
+                _keep_session(request, user)
                 messages.success(
                     request, "Two-factor sign-in is off. Other sessions have been signed out."
                 )
@@ -208,9 +213,13 @@ def two_factor_page(request):
     )
 
 
+@sensitive_variables()
 def _show_recovery_codes(request, codes, *, replaced):
     """The one display of a new set of recovery codes; they are not stored in readable form."""
     from django.contrib import messages
+    from django.utils.html import format_html_join
+
+    from .two_factor import Concealed
 
     messages.success(
         request,
@@ -221,12 +230,21 @@ def _show_recovery_codes(request, codes, *, replaced):
     return render(
         request,
         "accounts/two_factor_codes.html",
-        {"page_title": "Recovery codes", "codes": codes},
+        {
+            "page_title": "Recovery codes",
+            "codes": Concealed(codes),
+            # Rendered here, so no template loop frame holds a code in plain form.
+            "code_list": Concealed(
+                format_html_join("", "<li><code>{}</code></li>", ((code,) for code in codes)),
+                html=True,
+            ),
+        },
     )
 
 
 @login_required
 @sensitive_post_parameters("otp_code")
+@sensitive_variables()
 def two_factor_setup(request):
     """Add the new key to an authenticator app, then confirm it with a code from the app."""
     import segno
@@ -244,6 +262,7 @@ def two_factor_setup(request):
     device = two_factor.pending_setup(request.user, request.session.get(PENDING_SETUP))
     if device is None:
         request.session.pop(PENDING_SETUP, None)
+        two_factor.discard_setup(request.user)
         messages.info(request, "Setup was not started or has expired. Start again.")
         return redirect("accounts:two_factor")
     form = TwoFactorConfirmForm(request.POST or None)
@@ -256,7 +275,7 @@ def two_factor_setup(request):
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
         else:
             request.session.pop(PENDING_SETUP, None)
-            _keep_session(request, user, ["password", "totp"])
+            _keep_session(request, user)
             return _show_recovery_codes(request, codes, replaced=False)
     # Black on white in both themes so that every camera reads it.
     qr = segno.make(device.config_url, error="m").svg_inline(
@@ -274,8 +293,9 @@ def two_factor_setup(request):
         {
             "page_title": "Set up two-factor sign-in",
             "form": form,
-            "qr_svg": mark_safe(qr),  # Generated markup: paths only, no supplied text.
-            "secret_key": two_factor.secret_key(device),
+            # Generated markup: paths only, no supplied text.
+            "qr_svg": two_factor.Concealed(mark_safe(qr), html=True),
+            "secret_key": two_factor.Concealed(two_factor.secret_key(device)),
             "replacing": two_factor.enabled(request.user),
             "setup_minutes": two_factor.SETUP_SECONDS // 60,
         },

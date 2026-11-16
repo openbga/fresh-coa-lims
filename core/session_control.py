@@ -23,8 +23,13 @@ def session_started(sender, request, user, **kwargs):
     now = timezone.now().timestamp()
     request.session["authenticated_at"] = now
     request.session["last_activity_at"] = now
+    # The generation read when the credentials were checked, when the sign-in view supplies it,
+    # so a security change committed in between ends this session too.
+    epoch = getattr(user, "authenticated_epoch", None)
     request.session["account_epoch"] = (
-        get_user_model().objects.values_list("session_epoch", flat=True).get(pk=user.pk)
+        epoch
+        if epoch is not None
+        else get_user_model().objects.values_list("session_epoch", flat=True).get(pk=user.pk)
     )
     # What this sign-in proved; accounts.views.login_verify sets it after the second factor.
     request.session["sign_in_factors"] = list(getattr(user, "sign_in_factors", ["password"]))

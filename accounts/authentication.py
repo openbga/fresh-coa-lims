@@ -55,6 +55,12 @@ def reset_password_failures(user):
             throttle.save(update_fields=["failures"])
 
 
+def _has_second_factor(user):
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    return TOTPDevice.objects.filter(user_id=user.pk, confirmed=True).exists()
+
+
 @sensitive_variables()
 def confirm_password(user, password, *, reset=True):
     """Re-authenticate a signed-in owner, sharing the sign-in failure counter and lock.
@@ -64,6 +70,9 @@ def confirm_password(user, password, *, reset=True):
     the verified password hash, which the caller rechecks under its own lock because the account
     may change in between, or None when refused. With reset=False a correct password leaves the
     count alone: the caller checks a second factor next and resets only when that passes too.
+    For an account with two-factor sign-in a correct password never resets the count here, so a
+    password change or PIN enrollment cannot clear it between guessed codes; the next complete
+    sign-in or confirmed code does.
     """
     with transaction.atomic():
         account = get_user_model().objects.select_for_update().get(pk=user.pk)
@@ -75,7 +84,7 @@ def confirm_password(user, password, *, reset=True):
         if not account.check_password(password):
             record_password_failure(account)
             return None
-        if reset:
+        if reset and not _has_second_factor(account):
             reset_password_failures(account)
         return account.password
 

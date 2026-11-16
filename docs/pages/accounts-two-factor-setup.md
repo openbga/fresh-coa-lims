@@ -43,8 +43,8 @@ After a successful confirmation this URL shows **Your recovery codes**: ten code
 ## Rules and hidden logic
 
 - **Time limit**: setup must be confirmed within 10 minutes of starting. Otherwise **Setup expired. Start again.**
-- **Validation**: a recovery code is not accepted here: **Enter the 6-digit code the app shows.** A wrong code shows **The code was not accepted.**; it counts toward the sign-in failure limit and lock (default five failures, 15 minutes), and during a lock a correct code is refused too. Errors return status 422.
-- **Confirmation**: the new key replaces any earlier authenticator and all earlier recovery codes. The recovery-codes display shows **Two-factor sign-in is on. Other sessions have been signed out.** Your other sessions end; this one continues and records sign-in factors password and totp.
+- **Validation**: a recovery code is not accepted here: **Enter the 6-digit code the app shows.** A wrong code shows **The code was not accepted.**; it counts toward the sign-in failure limit and lock (default five failures, 15 minutes), and during a lock a correct code is refused too. It does not count toward the limit of 100 consecutive wrong codes, which applies to a confirmed authenticator. Starting a setup also discards every other setup older than 10 minutes, and opening this page after the time limit discards your unconfirmed key. Errors return status 422.
+- **Confirmation**: the new key replaces any earlier authenticator and all earlier recovery codes. The recovery-codes display shows **Two-factor sign-in is on. Other sessions have been signed out.** Your other sessions end; this one continues, and what its sign-in proved stays as it was (the password, for a first setup), as later signatures record.
 - **Audit**: **account.two_factor_enabled**, or **account.two_factor_replaced** when an app already existed, with before and after values `two_factor` and `recovery_codes_left`. The key and codes are never recorded. No electronic signature.
 - **Sign-in log**: later sign-ins log `signin.second_factor_requested`; see Sign in.
 

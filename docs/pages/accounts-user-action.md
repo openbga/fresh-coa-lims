@@ -34,7 +34,7 @@ Submit buttons and editable fields below appear only when the form is available.
 | Force password reset / Sign and force password reset | Optional Temporary password and confirmation | Requires a new password after sign-in. Blank keeps the current password for that sign-in; an account without a usable password requires a temporary one. Ends a shared demonstration account's lock on its own password and PIN |
 | Clear PIN lockout / Sign and clear PIN lockout | None beyond reason/signing | Clears failure count and lock deadline without changing the PIN. Requires an enrolled PIN, even if not currently locked |
 | Require PIN re-enrollment / Sign and require PIN re-enrollment | None beyond reason/signing | Removes the enrolled credential; owner must enroll a new PIN. Requires an enrolled PIN; prior signatures remain. Ends a shared demonstration account's lock on its own password and PIN |
-| Reset two-factor sign-in / Sign and reset two-factor sign-in | None beyond reason/signing | Removes the target's authenticator app and recovery codes so they can set it up again. Refused for your own account and when nothing is set up |
+| Reset two-factor sign-in / Sign and reset two-factor sign-in | None beyond reason/signing | Removes the target's authenticator app and recovery codes, and clears its count of consecutive wrong codes, so they can set it up again. Refused for your own account and when nothing is set up |
 | Enroll or change your signature PIN | Always shown | Opens your own PIN page, not the target account's enrollment |
 | Cancel | Form available | Returns to the target's account record without a change |
 | Return without changes | Action unavailable | Returns to the target's account record without a change |

@@ -5,7 +5,7 @@
 <div class="vr-qr-frame" role="img" aria-label="QR code with the key for your authenticator app">{{ qr_svg }}</div>
 <div>
 <p>Scan the QR code with the app, or choose to enter a key in the app and type this key. The key is time-based and the app shows a 6-digit code that changes every 30 seconds.</p>
-<dl class="vr-facts"><div><dt>Account</dt><dd>{{ user.get_username }}</dd></div><div><dt>Key</dt><dd><code class="vr-secret-key">{{ secret_key }}</code></dd></div></dl>
+<dl class="vr-facts mb-3"><div><dt>Account</dt><dd>{{ user.get_username }}</dd></div><div><dt>Key</dt><dd><code class="vr-secret-key">{{ secret_key }}</code></dd></div></dl>
 <p>Keep the key private: anyone who has it can produce your codes. It is shown only while you set up.</p>
 </div>
 </div></section>

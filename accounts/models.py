@@ -23,6 +23,10 @@ class LoginThrottle(models.Model):
     )
     failures = models.PositiveIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
+    # Consecutive wrong second-factor codes, across locks; only an accepted code or an
+    # administrator's reset clears it. At accounts.two_factor.CODE_FAILURE_LIMIT the second
+    # factor stops working until an administrator resets it.
+    code_failures = models.PositiveIntegerField(default=0, db_default=0)
 
 
 class LoginAnnouncement(models.Model):

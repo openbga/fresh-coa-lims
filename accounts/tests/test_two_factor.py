@@ -76,7 +76,7 @@ def enable(user):
     device = TOTPDevice.objects.get(user=user, confirmed=False)
     response = client.post(SETUP, {"otp_code": code(device)})
     assert response.status_code == 200, response.content
-    return TOTPDevice.objects.get(pk=device.pk), response.context["codes"]
+    return TOTPDevice.objects.get(pk=device.pk), list(response.context["codes"])
 
 
 def password_step(client, username, next_url=""):
@@ -125,9 +125,8 @@ def test_setup_turns_on_two_factor_and_shows_recovery_codes_once(analyst):
     setup = client.get(SETUP)
     assert setup.status_code == 200
     assert b"<svg" in setup.content and b'class="vr-qr"' in setup.content
-    assert setup.context["secret_key"].replace(" ", "") == two_factor.secret_key(device).replace(
-        " ", ""
-    )
+    assert str(setup.context["secret_key"]) == two_factor.secret_key(device)
+    assert repr(setup.context["secret_key"]) == "<concealed>"
     # Nothing changes for sign-in before the key is confirmed.
     assert not two_factor.enabled(analyst)
 
@@ -152,7 +151,8 @@ def test_setup_turns_on_two_factor_and_shows_recovery_codes_once(analyst):
     assert event.before["two_factor"] is False and event.after["recovery_codes_left"] == 10
     # This session continues; the other session must sign in again.
     assert client.get(PAGE).status_code == 200 and signed_in(client)
-    assert client.session["sign_in_factors"] == ["password", "totp"]
+    # The session keeps what its sign-in proved: the password only.
+    assert client.session["sign_in_factors"] == ["password"]
     assert other.get(PAGE).status_code == 302 and not signed_in(other)
     # The setup page cannot be replayed once the key is confirmed.
     assert client.get(SETUP)["Location"] == PAGE
@@ -367,16 +367,18 @@ def test_setup_expires_and_is_bound_to_its_owner(analyst):
     client.force_login(analyst)
     client.post(PAGE, {"current_password": PASSWORD, "action": "setup"})
     device = TOTPDevice.objects.get(user=analyst)
+    token = code(device)
+    intruder = make_user("intruder.test", ["analyst"])
+    with pytest.raises(ValidationError, match="Setup expired"):
+        two_factor.confirm_setup(actor=intruder, device_pk=device.pk, code=token)
     TOTPDevice.objects.filter(pk=device.pk).update(
         created_at=timezone.now() - timedelta(seconds=two_factor.SETUP_SECONDS + 1)
     )
+    with pytest.raises(ValidationError, match="Setup expired"):
+        two_factor.confirm_setup(actor=analyst, device_pk=device.pk, code=token)
     assert client.get(SETUP)["Location"] == PAGE
     assert PENDING_SETUP not in client.session
-    intruder = make_user("intruder.test", ["analyst"])
-    with pytest.raises(ValidationError, match="Setup expired"):
-        two_factor.confirm_setup(actor=intruder, device_pk=device.pk, code=code(device))
-    with pytest.raises(ValidationError, match="Setup expired"):
-        two_factor.confirm_setup(actor=analyst, device_pk=device.pk, code=code(device))
+    assert not TOTPDevice.objects.filter(pk=device.pk).exists()
     assert not two_factor.enabled(analyst)
 
 
@@ -415,7 +417,7 @@ def test_required_roles_keep_the_workspace_closed_until_set_up(analyst, settings
     page = client.get(PAGE)
     assert page.status_code == 200
     assert b"Set up two-factor sign-in before continuing." in page.content
-    assert client.get(reverse("pagedocs:doc"), {"route": "accounts:two_factor"}).status_code != 302
+    assert client.get(reverse("pagedocs:doc"), {"path": PAGE}).status_code == 200
     assert client.get("/health/").status_code == 200
     # Password replacement comes first when both are due.
     get_user_model().objects.filter(pk=analyst.pk).update(password_change_required=True)
@@ -608,3 +610,204 @@ def test_django_admin_sign_in_cannot_skip_the_second_factor():
         "/accounts/login/?next=/admin/"
     )
     assert client.get("/admin/")["Location"].startswith("/admin/login/")
+
+
+def test_password_only_confirmations_do_not_clear_the_count_of_wrong_codes(analyst):
+    from accounts.administration import change_own_password
+
+    device, _ = enable(analyst)
+    client = Client()
+    client.force_login(analyst)
+    wrong = "000000" if code(device, 1) != "000000" else "111111"
+    for _ in range(settings.LOGIN_FAILURE_LIMIT - 1):
+        client.post(PAGE, {"current_password": PASSWORD, "otp_code": wrong, "action": "codes"})
+    assert LoginThrottle.objects.get(user=analyst).failures == settings.LOGIN_FAILURE_LIMIT - 1
+    # A correct password on another form, refused for another reason, leaves the count alone.
+    with pytest.raises(ValidationError):
+        change_own_password(
+            actor=fresh(analyst), current_password=PASSWORD, password="short", reason="Test"
+        )
+    with pytest.raises(ValidationError):
+        set_pin(actor=fresh(analyst), pin="12", password=PASSWORD)
+    assert LoginThrottle.objects.get(user=analyst).failures == settings.LOGIN_FAILURE_LIMIT - 1
+    client.post(PAGE, {"current_password": PASSWORD, "otp_code": wrong, "action": "codes"})
+    assert LoginThrottle.objects.get(user=analyst).locked_until > timezone.now()
+    assert LoginThrottle.objects.get(user=analyst).code_failures == settings.LOGIN_FAILURE_LIMIT
+
+
+def test_second_factor_stops_after_the_consecutive_failure_limit(analyst, manager):
+    device, codes = enable(analyst)
+    LoginThrottle.objects.update_or_create(
+        user=analyst, defaults={"code_failures": two_factor.CODE_FAILURE_LIMIT - 2}
+    )
+    client = Client()
+    password_step(client, analyst.username)
+    # An accepted code clears the count.
+    assert client.post(VERIFY, {"otp_code": code(device, 1)}).status_code == 302
+    assert LoginThrottle.objects.get(user=analyst).code_failures == 0
+    LoginThrottle.objects.filter(user=analyst).update(
+        code_failures=two_factor.CODE_FAILURE_LIMIT - 1
+    )
+    client = Client()
+    password_step(client, analyst.username)
+    wrong = "000000" if code(device, 2) != "000000" else "111111"
+    assert client.post(VERIFY, {"otp_code": wrong}).status_code == 422
+    event = AuditEvent.objects.get(action="account.two_factor_stopped")
+    assert event.after["two_factor_stopped"] is True
+    LoginThrottle.objects.filter(user=analyst).update(failures=0, locked_until=None)
+    for valid in (code(device, 2), codes[0]):
+        response = client.post(VERIFY, {"otp_code": valid})
+        assert response.status_code == 422 and b"Ask an" in response.content
+    assert not signed_in(client)
+    assert RecoveryCode.objects.filter(user=analyst, used_at=None).count() == 10
+    # The owner, signed in elsewhere, cannot use a code either; the page says why.
+    owner = Client()
+    owner.force_login(analyst)
+    assert b"stopped for this account" in owner.get(PAGE).content
+    refused = owner.post(
+        PAGE, {"current_password": PASSWORD, "otp_code": codes[1], "action": "codes"}
+    )
+    assert refused.status_code == 422
+    # The way forward: an administrator's reset, then setting it up again.
+    admin = Client()
+    admin.force_login(manager)
+    detail = admin.get(reverse("accounts:user_detail", args=[analyst.pk]))
+    assert b"stopped after too many wrong codes" in detail.content
+    response = admin.post(
+        reverse("accounts:user_action", args=[analyst.pk, "reset_two_factor"]),
+        {
+            "revision": fresh(analyst).management_revision,
+            "reason": "Synthetic repeated wrong codes, identity verified",
+            "signature_username": manager.username,
+            "pin": PIN,
+        },
+    )
+    assert response.status_code == 302
+    assert LoginThrottle.objects.get(user=analyst).code_failures == 0
+    assert not two_factor.stopped(analyst)
+    assert password_step(Client(), analyst.username)["Location"] == "/"
+
+
+def test_session_keeps_the_generation_read_with_the_password(analyst, monkeypatch):
+    real_enabled = two_factor.enabled
+
+    def enabled_meanwhile(user):
+        # Another session turns two-factor sign-in on between the check and the login.
+        answer = real_enabled(user)
+        get_user_model().objects.filter(pk=user.pk).update(session_epoch=user.session_epoch + 1)
+        return answer
+
+    monkeypatch.setattr(two_factor, "enabled", enabled_meanwhile)
+    client = Client()
+    assert password_step(client, analyst.username)["Location"] == "/"
+    monkeypatch.setattr(two_factor, "enabled", real_enabled)
+    assert client.get("/accounts/access/").status_code == 302
+    assert not signed_in(client)
+
+
+SYNTHETIC_CODES = ("AAAA-BBBB-CCCC-DDDD-EEEE-FFFF", "GGGG-HHHH-JJJJ-KKKK-MMMM-NNNN")
+
+
+def synthetic_codes():
+    return list(SYNTHETIC_CODES)
+
+
+def test_error_reports_do_not_print_recovery_codes(analyst, monkeypatch, rf):
+    from django.views.debug import ExceptionReporter
+
+    from accounts import views
+
+    def broken_render(*args, **kwargs):
+        raise RuntimeError("synthetic template failure")
+
+    request = rf.get(PAGE)
+    request.user = analyst
+    request.session = {}
+    request._messages = type("Messages", (), {"add": lambda *a, **k: None})()
+    codes = list(SYNTHETIC_CODES)
+    monkeypatch.setattr(views, "render", broken_render)
+
+    def report():
+        # The traceback starts here; this frame holds no reference to the codes.
+        try:
+            views._show_recovery_codes(request, synthetic_codes(), replaced=True)
+        except RuntimeError:
+            reporter = ExceptionReporter(request, *sys.exc_info(), is_email=True)
+            return reporter.get_traceback_html(), reporter.get_traceback_text()
+
+    html, text = report()
+    assert "synthetic template failure" in html
+    for value in codes:
+        assert value not in html and value not in text
+    assert repr(two_factor.Concealed(codes)) == "<concealed>"
+
+
+def test_abandoned_setups_are_discarded_and_offer_no_reset(analyst, manager):
+    client = Client()
+    client.force_login(analyst)
+    client.post(PAGE, {"current_password": PASSWORD, "action": "setup"})
+    assert not two_factor.set_up_anything(analyst)
+    admin = Client()
+    admin.force_login(manager)
+    reset = reverse("accounts:user_action", args=[analyst.pk, "reset_two_factor"])
+    assert (
+        reset.encode() not in admin.get(reverse("accounts:user_detail", args=[analyst.pk])).content
+    )
+    TOTPDevice.objects.update(
+        created_at=timezone.now() - timedelta(seconds=two_factor.SETUP_SECONDS + 1)
+    )
+    # Starting another account's setup drops expired keys of every account.
+    other = make_user("other.test", ["analyst"])
+    two_factor.begin_setup(actor=other, current_password=PASSWORD)
+    assert list(TOTPDevice.objects.values_list("user__username", flat=True)) == ["other.test"]
+    # Opening an expired setup page drops the owner's key.
+    TOTPDevice.objects.update(
+        created_at=timezone.now() - timedelta(seconds=two_factor.SETUP_SECONDS + 1)
+    )
+    owner = Client()
+    owner.force_login(other)
+    session = owner.session
+    session[PENDING_SETUP] = TOTPDevice.objects.get().pk
+    session.save()
+    assert owner.get(SETUP)["Location"] == PAGE
+    assert not TOTPDevice.objects.exists()
+
+
+def test_parallel_wrong_codes_are_counted_one_after_another(analyst):
+    device, _ = enable(analyst)
+    LoginThrottle.objects.update_or_create(
+        user=analyst, defaults={"code_failures": two_factor.CODE_FAILURE_LIMIT - 1}
+    )
+    clients = [Client() for _ in range(3)]
+    for client in clients:
+        password_step(client, analyst.username)
+    wrong = "000000" if code(device, 1) != "000000" else "111111"
+    barrier = Barrier(len(clients))
+
+    def submit(client):
+        close_old_connections()
+        try:
+            barrier.wait(timeout=10)
+            return client.post(VERIFY, {"otp_code": wrong}).content
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(len(clients)) as pool:
+        pages = list(pool.map(submit, clients))
+    # The first wrong code reaches the limit; the others meet a stopped factor, uncounted.
+    assert LoginThrottle.objects.get(user=analyst).code_failures == two_factor.CODE_FAILURE_LIMIT
+    assert sum(b"stopped for this account" in page for page in pages) == len(clients) - 1
+    assert AuditEvent.objects.filter(action="account.two_factor_stopped").count() == 1
+
+
+def test_opening_setup_elsewhere_leaves_a_setup_in_time(analyst):
+    client = Client()
+    client.force_login(analyst)
+    client.post(PAGE, {"current_password": PASSWORD, "action": "setup"})
+    device = TOTPDevice.objects.get(user=analyst)
+    elsewhere = Client()
+    elsewhere.force_login(analyst)
+    assert elsewhere.get(SETUP)["Location"] == PAGE
+    assert TOTPDevice.objects.filter(pk=device.pk).exists()
+    assert client.post(SETUP, {"otp_code": code(device)}).status_code == 200
+    assert two_factor.enabled(analyst)
