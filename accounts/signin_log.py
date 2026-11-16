@@ -77,3 +77,24 @@ def log_passkey_failed(assertion, request):
         else None
     )
     _log("signin.passkey_failed", username or "<unknown>", request)
+
+
+def log_single_sign_on_failed(found, request, reason):
+    """A refused or expired answer from the identity provider, or an identity that cannot sign
+    in. Names the laboratory account only when the identity is linked to one; never the
+    provider's claims or text from the request."""
+    from .models import SingleSignOnLink
+
+    username = None
+    if found is not None:
+        username = (
+            SingleSignOnLink.objects.filter(issuer=found.issuer, subject=found.subject)
+            .values_list("user__username", flat=True)
+            .first()
+        )
+    logger.info(
+        "signin.single_sign_on_failed reason=%s user=%s request_id=%s",
+        reason,
+        username or "<unknown>",
+        _request_id(request),
+    )

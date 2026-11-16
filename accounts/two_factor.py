@@ -650,6 +650,16 @@ def remove(user):
     LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
 
 
+def reset(user):
+    """An administrator's reset (signed in the workspace, or the operator command): remove() and
+    also the organization sign-in link, because whoever linked it may have known only the
+    password before the second factor was set up; the owner links again afterwards."""
+    from .models import SingleSignOnLink
+
+    remove(user)
+    SingleSignOnLink.objects.filter(user_id=user.pk).delete()
+
+
 def set_up_anything(user):
     """Whether an administrator reset has anything to remove: a confirmed authenticator, a
     security key or recovery codes (an unconfirmed setup changes nothing for sign-in)."""

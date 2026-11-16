@@ -17,7 +17,7 @@
       {% include "includes/brand.html" with variant="entrance" %}
       <div class="vr-entrance-panel">
         <h1>Two-factor sign-in</h1>
-        <p class="vr-entrance-lead">Your password was accepted. {% if keys and app %}Use your security key, or enter the code your authenticator app shows for this account.{% elif keys %}Use your security key or passkey.{% else %}Enter the code your authenticator app shows for this account.{% endif %}</p>
+        <p class="vr-entrance-lead">{% if first_factor == "identity_provider" %}Your organization signed you in.{% else %}Your password was accepted.{% endif %} {% if keys and app %}Use your security key, or enter the code your authenticator app shows for this account.{% elif keys %}Use your security key or passkey.{% else %}Enter the code your authenticator app shows for this account.{% endif %}</p>
         {% include "includes/messages.html" %}
         <form method="post" autocomplete="off" novalidate{% if keys %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
           {% csrf_token %}
