@@ -25,6 +25,12 @@
     error.setAttribute('role', 'alert');
   }
   if (typing) {
+    // The focus stays where the person is typing; the field then describes the error.
+    if (error) {
+      error.id = error.id || 'signature-errors';
+      const described = typing.getAttribute('aria-describedby');
+      typing.setAttribute('aria-describedby', described ? `${error.id} ${described}` : error.id);
+    }
     typing.focus();
   } else if (error) {
     error.focus();

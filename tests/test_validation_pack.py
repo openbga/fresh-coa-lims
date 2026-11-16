@@ -487,3 +487,36 @@ def test_record_checkout_writes_the_commit_into_the_junit_file(tmp_path, monkeyp
     config.stash[xml_key] = junit
     pack.record_checkout(config)
     assert junit.global_properties == [("commit", COMMIT), ("uncommitted_changes", "false")]
+
+
+def test_each_allowed_skip_names_one_test_and_a_reason(repo):
+    with (repo / "docs/traceability.toml").open("a") as handle:
+        handle.write(
+            "[skips]\n"
+            '"app/tests/" = "Everything may skip."\n'
+            '"app/tests/test_audit.py::test_event" = " "\n'
+            '"app/tests/test_rules.py::test_version" = true\n'
+            '"app/tests/test_rules.py::test_gone" = "Gone."\n'
+        )
+    assert pack.check(repo) == [
+        "docs/traceability.toml names app/tests/test_rules.py::test_gone, which is not a test.",
+        "docs/traceability.toml allows skips of app/tests/; name each test that may skip.",
+        "docs/traceability.toml allows a skip of app/tests/test_audit.py::test_event without a "
+        "reason.",
+        "docs/traceability.toml allows a skip of app/tests/test_rules.py::test_version without a "
+        "reason.",
+    ]
+
+
+def test_outside_a_checkout_the_tests_run_and_the_build_refuses_them(tmp_path, monkeypatch):
+    from _pytest.junitxml import LogXML, xml_key
+
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.setattr(pack, "ROOT", tmp_path)  # not a git checkout
+    junit = LogXML(str(tmp_path / "junit.xml"), None)
+    config = type("Config", (), {"stash": pytest.Stash()})()
+    config.stash[xml_key] = junit
+    pack.record_checkout(config)
+    assert junit.global_properties == []
+    with pytest.raises(pack.PackError, match="cannot be read"):
+        pack._commit()

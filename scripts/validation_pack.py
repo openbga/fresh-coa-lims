@@ -165,6 +165,11 @@ def check(root=None):
             problems.append(f"{MAP} names {entry}, which does not exist.")
         elif "::" in entry and not any(covers(entry, node_id) for node_id in tests):
             problems.append(f"{MAP} names {entry}, which is not a test.")
+    for entry, reason in sorted(skips.items()):
+        if "::" not in entry:
+            problems.append(f"{MAP} allows skips of {entry}; name each test that may skip.")
+        if not isinstance(reason, str) or not reason.strip():
+            problems.append(f"{MAP} allows a skip of {entry} without a reason.")
     for node_id in tests:
         if not any(covers(entry, node_id) for entry in entries):
             problems.append(f"{node_id} is not traced to a requirement in {MAP}.")
@@ -227,17 +232,23 @@ def _database_version():
 def _commit():
     if os.environ.get("GITHUB_SHA"):
         return os.environ["GITHUB_SHA"]
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
-    )
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise PackError(f"The commit of {ROOT} cannot be read: {error}") from error
     return result.stdout.strip()
 
 
 def _uncommitted(root):
     """Whether the checkout differs from its commit (or cannot be read as one)."""
-    result = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, check=False
-    )
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return True
     return result.returncode != 0 or bool(result.stdout.strip())
 
 
@@ -317,9 +328,14 @@ def record_checkout(config):
     from _pytest.junitxml import xml_key
 
     junit = config.stash.get(xml_key, None)
-    if junit is not None:
-        junit.add_global_property("commit", _commit())
-        junit.add_global_property("uncommitted_changes", str(_uncommitted(ROOT)).lower())
+    if junit is None:
+        return
+    try:
+        commit = _commit()
+    except PackError:
+        return  # outside a checkout: the build refuses these results, the tests still run
+    junit.add_global_property("commit", commit)
+    junit.add_global_property("uncommitted_changes", str(_uncommitted(ROOT)).lower())
 
 
 def _node_id(classname, name, env, root):
@@ -409,7 +425,7 @@ def build(results, output, root=None):
         suite["environment"].get("uncommitted_changes", True) for suite in suites
     )
     unexpected_skips = [
-        r["node"] for r in rows if r["outcome"] == "skipped" and r.get("allowed") is None
+        r["node"] for r in rows if r["outcome"] == "skipped" and not r.get("allowed")
     ]
     if failed:
         status = "failed"

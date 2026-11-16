@@ -173,10 +173,11 @@ jobs:
   validation-pack:
     # The requirements, the tests traced to each one (docs/traceability.toml), both suites'
     # results with their environment and the release notes of this commit, with checksums.
-    # A release keeps the pack of the develop commit it releases (docs/operations.md).
-    # Not on main, where no suite runs.
+    # A release keeps the pack of the develop commit it releases (docs/operations.md). It also
+    # waits for the container smoke job, whose backup cycle stands in for a test the
+    # application job skips. Not on main, where no suite runs.
     if: github.ref != 'refs/heads/main'
-    needs: [application, browser]
+    needs: [application, browser, container-smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -197,7 +198,9 @@ jobs:
           --results build/validation/validation-results-application
           --results build/validation/validation-results-browser
           --output build/validation-pack
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      # An incomplete pack is kept too: its pack.json and index.html say why. The job fails.
+      - if: ${{ !cancelled() && hashFiles('build/validation-pack/pack.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: validation-pack-${{ github.sha }}
           path: build/validation-pack/
