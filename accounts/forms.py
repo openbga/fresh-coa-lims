@@ -192,6 +192,15 @@ def _code_field(label, help_text):
     )
 
 
+class PasskeySignInForm(forms.Form):
+    """The answer of a security key or passkey, without the password; the page's script fills
+    it. Sent empty, the form starts a new request."""
+
+    security_key_response = forms.CharField(
+        required=False, widget=forms.HiddenInput, max_length=64 * 1024
+    )
+
+
 class SignInCodeForm(StyledForm):
     """A code, or a security key's answer that the page's script puts in security_key_response.
 

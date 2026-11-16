@@ -26,8 +26,15 @@
           <input type="hidden" name="next" value="{{ next }}">
           <button class="btn btn-primary vr-login-submit" type="submit">Sign in</button>
         </form>
+        {% if passkey_sign_in %}
+        <form method="post" action="{% url 'login_passkey' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <button class="btn btn-outline-primary vr-login-submit" type="submit">Sign in with a passkey</button>
+        </form>
+        {% endif %}
       </div>
-      <p class="vr-login-help">Accounts are provisioned by your laboratory administrator. Repeated failed attempts pause password sign-in for that account for a while.</p>
+      <p class="vr-login-help">Accounts are provisioned by your laboratory administrator. Repeated failed attempts pause sign-in for that account for a while.{% if passkey_sign_in %} A passkey or security key you added on Two-factor sign-in signs you in without your password when it checks your PIN, fingerprint or face.{% endif %}</p>
     </main>
     {% include "includes/app_footer.html" with centered=True %}
   </div>

@@ -25,7 +25,7 @@ In scope: this repository's source code, its default configuration, the containe
 
 - bypass of authentication, session limits, role checks or the independent-review rule;
 - signing without a fresh username and PIN, PIN or password disclosure, or lockout bypass;
-- signing in without the second factor of an account that has one, reuse of a code or of a security key's answer, an answer accepted from another site, or disclosure of an authenticator key or a recovery code;
+- signing in without the second factor of an account that has one, signing in with a key alone that did not verify its holder or that belongs to another account, reuse of a code or of a security key's answer, an answer accepted from another site, or disclosure of an authenticator key or a recovery code;
 - changing or deleting signed records, audit history or issued reports;
 - injection, cross-site scripting, request forgery, unsafe file or PDF handling, server-side request forgery;
 - exposure of secrets, hashes or other users' data.

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.views import LogoutView
 from django.urls import include, path
 
-from accounts.views import SignIn, login_verify
+from accounts.views import SignIn, login_passkey, login_verify
 from config import views
 
 handler403 = "accounts.views.permission_denied"
@@ -12,6 +12,7 @@ urlpatterns = [
     path("ready/", views.ready, name="ready"),
     path("accounts/login/", SignIn.as_view(), name="login"),
     path("accounts/login/verify/", login_verify, name="login_verify"),
+    path("accounts/login/passkey/", login_passkey, name="login_passkey"),
     path("accounts/logout/", LogoutView.as_view(), name="logout"),
     path("accounts/", include("accounts.urls")),
     path("admin/", admin.site.urls),

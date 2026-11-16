@@ -113,6 +113,10 @@ if not MFA_REQUIRED_ROLES <= {"all", "admin", "analyst", "auditor", "quality", "
     )
 # Seconds allowed between an accepted password and the authenticator code.
 MFA_PENDING_SECONDS = 300
+# Sign-in with a security key or passkey alone, without the password (accounts.views.
+# login_passkey). The key must verify its holder with its own PIN, fingerprint or face. Set to
+# false to ask every account for its password first.
+PASSKEY_SIGN_IN = os.environ.get("PASSKEY_SIGN_IN", "true").lower() == "true"
 OTP_TOTP_ISSUER = "OpenBGA Fresh CoA LIMS"
 # Failed codes count toward the account's sign-in failure limit and lock (LOGIN_FAILURE_LIMIT),
 # like a wrong password, so the library's own per-device delay is switched off.

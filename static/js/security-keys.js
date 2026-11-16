@@ -43,13 +43,13 @@
       clientExtensionResults: credential.getClientExtensionResults(),
     });
   };
-  const refusal = {
-    NotAllowedError:
-      'The security key was not used, or the request timed out. Try again, or use a code.',
+  // A form without a code field names its own way out in data-security-key-fallback.
+  const refusal = (fallback) => ({
+    NotAllowedError: `The security key was not used, or the request timed out. Try again, or ${fallback}.`,
     InvalidStateError: 'This key is already registered for your account. Use another key.',
     SecurityError: 'This browser does not allow security keys at this address.',
     AbortError: 'The request was cancelled. Try again.',
-  };
+  });
 
   document.querySelectorAll('[data-security-key-unsupported]').forEach((notice) => {
     notice.hidden = supported;
@@ -60,6 +60,8 @@
     const source = document.getElementById(form.dataset.securityKeyOptions);
     const field = form.elements.namedItem('security_key_response');
     const status = form.querySelector('[data-security-key-status]');
+    const fallback = form.dataset.securityKeyFallback || 'use a code';
+    const refusals = refusal(fallback);
     const buttons = [...form.elements].filter((e) => e.matches('[data-security-key-button]'));
     const needKey = [...form.elements].filter((e) =>
       e.matches('[data-security-key-button], [data-security-key-required]'),
@@ -130,7 +132,7 @@
         busy(false);
         if (status) {
           status.textContent =
-            refusal[error.name] || 'The security key could not be used. Try again, or use a code.';
+            refusals[error.name] || `The security key could not be used. Try again, or ${fallback}.`;
         }
       } finally {
         asking = false;

@@ -63,6 +63,10 @@ CODE_FAILURE_LIMIT = 100
 
 CODE_REFUSED = "The code was not accepted."
 KEY_REFUSED = "The security key was not accepted."
+PASSKEY_UNKNOWN = (
+    "This passkey or security key is not registered for an account at this address, or it was "
+    "removed. Sign in with your password."
+)
 KEY_EXPIRED = "The security key request expired. Try again."
 NAME_TAKEN = "You already have a key with this name. Choose another name."
 PASSWORD_REFUSED = "Current password was not accepted."
@@ -374,6 +378,46 @@ def complete_sign_in(pending, code):
     if factor is None:
         raise ValidationError(_refused(code))
     return user, factor
+
+
+@sensitive_variables()
+def complete_passkey_sign_in(assertion):
+    """Sign in with a security key or passkey alone, without the password; returns the user.
+
+    The key must verify its holder (its PIN, fingerprint or face), so it stands for both
+    factors. The account is the one whose key has the answer's credential ID; the answer must
+    carry that account's user handle. While the account is locked or its second factor is
+    stopped even a valid answer is refused. A refused answer is not counted: a key's signature
+    cannot be guessed and the key checks the PIN or biometric itself, while anyone who has seen
+    a key's credential ID (it is public to whoever passed the password step) could otherwise
+    send unsigned answers to lock the account and stop its second factor without its password.
+    Raises ValidationError when refused.
+    """
+    from .security_keys import PASSKEY, key_owner, verify_assertion
+
+    if connection.in_atomic_block:
+        raise RuntimeError("Check sign-in answers outside an enclosing transaction.")
+    if _expired(assertion, settings.MFA_PENDING_SECONDS):
+        raise ValidationError(KEY_EXPIRED)
+    owner = key_owner(assertion)
+    if owner is None:
+        raise ValidationError(PASSKEY_UNKNOWN)
+    with transaction.atomic():
+        user = get_user_model().objects.select_for_update().filter(pk=owner).first()
+        if user is None or not user.is_active:
+            raise ValidationError(KEY_REFUSED)
+        if stopped(user):
+            raise ValidationError(STOPPED)
+        if password_locked(user):
+            raise ValidationError(KEY_REFUSED)
+        if key_owner(assertion) != user.pk:
+            raise ValidationError(PASSKEY_UNKNOWN)  # Removed meanwhile; removals hold this lock.
+        try:
+            verify_assertion(user, assertion, purpose=PASSKEY)
+        except KeyRefused as exc:
+            raise ValidationError(KEY_REFUSED) from exc
+        LoginThrottle.objects.filter(user_id=user.pk, code_failures__gt=0).update(code_failures=0)
+    return user
 
 
 @sensitive_variables()

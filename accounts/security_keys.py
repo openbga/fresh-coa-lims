@@ -1,10 +1,13 @@
-"""Security keys and passkeys (W3C Web Authentication) as a second sign-in factor.
+"""Security keys and passkeys (W3C Web Authentication) as a sign-in factor.
 
 A key answers a random challenge with a signature that also covers the site's host name (the
 relying party ID) and the page's origin as the browser reports them, so an answer given to a
 look-alike site does not work here. The server keeps each key's public key and signature count;
-py_webauthn checks the answer. Keys are a second factor after the password: user verification
-(the key's own PIN or fingerprint) is asked for when the key has it, not required.
+py_webauthn checks the answer. After the password a key is the second factor: user verification
+(the key's own PIN or fingerprint) is asked for when the key has it, not required. Without the
+password (purpose PASSKEY) the key must verify its holder, so it proves both who holds it and
+something only that person knows or is; the browser offers the keys stored for this site and
+the answer's user handle names the account.
 
 Each challenge belongs to one ceremony kept in the session (sign-in, a confirmation on the
 owner's page or a registration) and expires with it. The key's row keeps the digest of the
@@ -41,6 +44,8 @@ from .models import SecurityKey
 logger = logging.getLogger(__name__)
 
 RP_NAME = "OpenBGA Fresh CoA LIMS"
+# The ceremony of a sign-in with a key alone, without the password.
+PASSKEY = "passkey"
 KEY_LIMIT = 10
 # How long the browser waits for the key; the ceremony itself expires with its sign-in or setup.
 BROWSER_TIMEOUT_MS = 120_000
@@ -97,6 +102,38 @@ def begin(rp, purpose, user_pk):
         "origin": rp.origin,
         "issued": timezone.now().timestamp(),
     }
+
+
+def passkey_options(ceremony):
+    """Options for a sign-in without the password: no account is known yet, so the browser
+    offers the keys it holds for this site (discoverable credentials), and each must verify its
+    holder."""
+    options = generate_authentication_options(
+        rp_id=ceremony["rp_id"],
+        challenge=base64url_to_bytes(ceremony["challenge"]),
+        timeout=BROWSER_TIMEOUT_MS,
+        allow_credentials=[],
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    return json.loads(options_to_json(options))
+
+
+def key_owner(assertion):
+    """The account whose key gave this answer to a sign-in without the password, or None when
+    no key registered at the ceremony's host has the answer's credential ID. The caller locks
+    the account and checks the answer with verify_assertion."""
+    ceremony = assertion.ceremony
+    if not isinstance(ceremony, dict) or ceremony.get("purpose") != PASSKEY:
+        return None
+    try:
+        _data, raw_id, _handle = _parse(assertion.response)
+    except KeyRefused:
+        return None
+    return (
+        SecurityKey.objects.filter(rp_id=ceremony.get("rp_id"), credential_id=raw_id)
+        .values_list("user_id", flat=True)
+        .first()
+    )
 
 
 def usable_keys(user, rp_id):
@@ -194,13 +231,18 @@ def verify_assertion(user, assertion, *, purpose):
     Returns the key, with its count, last use and answered challenge updated. Raises KeyRefused
     for an answer from a key the account does not have here, to another challenge or site, a
     replayed one, or one whose signature count did not increase (a copied key may exist).
+    Without the password (purpose PASSKEY) the answer must also carry the account's user handle
+    (Web Authentication Level 3, section 7.2) and show that the key verified its holder.
     """
     ceremony = assertion.ceremony
     if not isinstance(ceremony, dict) or ceremony.get("purpose") != purpose:
         raise KeyRefused
-    if ceremony.get("user") != user.pk:
+    alone = purpose == PASSKEY
+    if ceremony.get("user") != (None if alone else user.pk):
         raise KeyRefused
     _data, raw_id, handle = _parse(assertion.response)
+    if alone and handle is None:
+        raise KeyRefused
     key = (
         SecurityKey.objects.select_for_update()
         .filter(user_id=user.pk, rp_id=ceremony["rp_id"], credential_id=raw_id)
@@ -212,24 +254,29 @@ def verify_assertion(user, assertion, *, purpose):
     if key.last_challenge == digest:
         raise KeyRefused
     try:
+        # The count is compared below, once the signature is known to be the key's: the library
+        # compares it first, so an unsigned answer could raise the warning about a copy.
         verified = verify_authentication_response(
             credential=assertion.response,
             expected_challenge=base64url_to_bytes(ceremony["challenge"]),
             expected_rp_id=ceremony["rp_id"],
             expected_origin=ceremony["origin"],
             credential_public_key=bytes(key.public_key),
-            credential_current_sign_count=key.sign_count,
-            require_user_verification=False,
+            credential_current_sign_count=0,
+            require_user_verification=alone,
         )
     except WebAuthnException as exc:
-        if "sign count" in str(exc).lower():
-            logger.warning(
-                "Security key id %s of account id %s answered with a signature count that did "
-                "not increase; a copy of the key may exist.",
-                key.pk,
-                user.pk,
-            )
         raise KeyRefused from exc
+    count = verified.new_sign_count
+    if (count > 0 or key.sign_count > 0) and count <= key.sign_count:
+        # Web Authentication Level 3, section 6.1.1: a signal that a copy of the key may exist.
+        logger.warning(
+            "Security key id %s of account id %s answered with a signature count that did not "
+            "increase; a copy of the key may exist.",
+            key.pk,
+            user.pk,
+        )
+        raise KeyRefused
     key.sign_count = verified.new_sign_count
     key.last_used_at = timezone.now()
     key.last_challenge = digest
