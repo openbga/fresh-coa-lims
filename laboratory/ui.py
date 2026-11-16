@@ -112,9 +112,9 @@ def work_labels(pairs):
     """Readable labels for recorded work contexts, keyed by (context_type, context_id).
 
     Known contexts resolve to the sample reference, the test label with its lot number and sample
-    reference, or the QC batch number; anything unknown or no longer resolvable keeps its raw
-    identifier as the fallback. Returns (labels, links, details): `details` holds, per resolved
-    test or QC batch, the facts the impact lists show."""
+    reference (or its stability pull), or the QC batch number; anything unknown or no longer
+    resolvable keeps its raw identifier as the fallback. Returns (labels, links, details):
+    `details` holds, per resolved test or QC batch, the facts the impact lists show."""
     from django.apps import apps
     from django.db.models import Count
 
@@ -135,13 +135,17 @@ def work_labels(pairs):
     batch_ids = canonical("analytical.qcbatch")
     if test_ids and apps.is_installed("analytical"):
         tests = apps.get_model("analytical", "AnalyticalTest").objects.filter(pk__in=test_ids)
-        for test in tests.select_related("sample", "lot"):
+        related = ("sample", "lot", "pull__study__lot", "pull__timepoint__condition")
+        for test in tests.select_related(*related):
             key = ("analytical.analyticaltest", str(test.pk))
-            labels[key] = f"{test.label} · lot {test.lot.number} · sample {test.sample.reference}"
+            # A test of a stability pull names the pull where a lot's test names its sample.
+            lot = test.source_lot.number
+            sampled = "stability pull" if test.pull_id is not None else "sample"
+            labels[key] = f"{test.label} · lot {lot} · {sampled} {test.sample_text}"
             links[key] = reverse("analytical:test_detail", args=[test.pk])
             details[key] = {
                 "kind": "test",
-                "lot": test.lot.number,
+                "lot": lot,
                 "test_code": test.test_code,
                 "state": test.get_state_display(),
                 "result": _result_text(test),
@@ -273,7 +277,7 @@ def history_for(*objs):
         # Show old/new only for changes to an existing record, never whole creation payloads.
         event.changes = (
             [
-                (key, event.before.get(key), event.after.get(key))
+                (key, _brief(event.before.get(key)), _brief(event.after.get(key)))
                 for key in sorted(set(event.before) | set(event.after))
                 if event.before.get(key) != event.after.get(key)
             ]
@@ -281,6 +285,18 @@ def history_for(*objs):
             else []
         )
     return events
+
+
+BRIEF_LIMIT = 240
+
+
+def _brief(value):
+    """A long structured value, such as the results frozen with a pull's acceptance, is named
+    in the history instead of printed: the page shows it in its own section, the signature
+    binds it and the audit trail keeps it in full."""
+    if isinstance(value, (dict, list)) and len(str(value)) > BRIEF_LIMIT:
+        return f"structured record with {len(value)} entries, kept in full in the audit trail"
+    return value
 
 
 def signatures_for(*objs):

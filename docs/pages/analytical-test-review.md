@@ -4,7 +4,7 @@ urls: analytical:test_review
 views: analytical.views.test_review
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.AnalyticalTest, quality.Lot, laboratory.ContractApproval, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -40,16 +40,16 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 
 ## Rules and hidden logic
 
-- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, including a contract laboratory result, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
-- **Preconditions**: test Submitted ("This test is not awaiting review."); not your own ("You cannot review your own test."); the lot's rule set version approved ("An approved rule revision is required."; it need not be in force still, so a result is reviewed and an investigation proceeds after a later version retired it); lot in quarantine; batch still Open with QC passed ("Batch QC no longer passes; this test cannot be reviewed."); calculation unchanged: the reportable value, the reportable text frozen at submission (for example "<10" or "Absent") and conformance are recalculated from the current replicates and must match ("Calculated result changed; return the test for resubmission.").
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine." (for a stability test the pull's reason: it must be pulled and not yet accepted and its study active); "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, including a contract laboratory result, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
+- **Preconditions**: test Submitted ("This test is not awaiting review."); not your own ("You cannot review your own test."); the lot's rule set version approved (not checked for a stability test: a pull is under no rule set, its criteria are the protocol's frozen on the test; "An approved rule revision is required."; it need not be in force still, so a result is reviewed and an investigation proceeds after a later version retired it); lot in quarantine (or, for a stability test, the pull open for testing); batch still Open with QC passed ("Batch QC no longer passes; this test cannot be reviewed."); calculation unchanged: the reportable value, the reportable text frozen at submission (for example "<10" or "Absent") and conformance are recalculated from the current replicates and must match ("Calculated result changed; return the test for resubmission.").
 - **Result reported by a contract laboratory**: the summary names the laboratory and its report; check the replicates against that report, which also holds the laboratory's batch QC, instruments and calculation inputs. The test has no QC batch of this laboratory, so the batch check does not apply. The reported values have no stored inputs and are not recalculated from inputs; the reportable result and conformance are still worked out again from the replicates and must match.
 - **Approval revoked**: when the approval the result relied on was revoked since, the summary shows "The approval this result relied on (CLA-n) was revoked on DATE TIME. The result stands as recorded. The approval's record lists every result that relied on it, for quality to assess under the laboratory's procedure." It is information only.
 - **Not enforced by this page**: a revoked contract laboratory approval does not block the review.
 - **Stale page**: "Record changed. Reload and review before signing."
 - **Identity and session**: "Enter your own signing username and PIN." (audited `signature.identity_denied`); "Session expired. Sign in again before signing."
 - **PIN**: "Enroll a signature PIN first."; "Signature PIN was not accepted."; five consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are audited (`signature.denied`) even though the signing is rejected.
-- **Effect**: in one transaction the test becomes Reviewed, test and lot revisions rise by 1, `signed.reviewed` is audited and an immutable signature (signer, meaning, server time, revision, content hash) is stored.
-- Review does not release the lot; disposition is a separate signed decision.
+- **Effect**: in one transaction the test becomes Reviewed, test revision and the revision of the lot (or, for a stability test, the pull) rise by 1, `signed.reviewed` is audited and an immutable signature (signer, meaning, server time, revision, content hash) is stored.
+- Review does not release the lot; disposition is a separate signed decision. Reviewing a stability test never changes the lot: the pull's acceptance is a separate signed decision (see Accept pull).
 
 ## Related pages
 

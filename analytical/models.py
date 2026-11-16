@@ -111,8 +111,18 @@ class AnalyticalTest(models.Model):
         # never answers a requirement.
         SUPERSEDED = "superseded", "Superseded"
 
-    lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="+")
-    sample = models.ForeignKey("quality.Sample", on_delete=models.PROTECT, related_name="+")
+    # A test belongs to the testing of a lot (``lot`` and ``sample``) or to a stability pull
+    # (``pull``), never both. A stability test names no lot: nothing that reads a lot's tests
+    # can count it, so the record of a released lot is not changed by its stability studies.
+    lot = models.ForeignKey(
+        "quality.Lot", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    sample = models.ForeignKey(
+        "quality.Sample", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    pull = models.ForeignKey(
+        "stability.Pull", null=True, blank=True, on_delete=models.PROTECT, related_name="tests"
+    )
     test_code = models.CharField(max_length=80)
     requirement = models.JSONField()
     requirement_hash = models.CharField(max_length=64)
@@ -162,6 +172,22 @@ class AnalyticalTest(models.Model):
                 | Q(investigation__isnull=False),
                 name="analytical_retest_has_investigation",
             ),
+            models.CheckConstraint(
+                condition=Q(lot__isnull=False, sample__isnull=False, pull__isnull=True)
+                | Q(lot__isnull=True, sample__isnull=True, pull__isnull=False),
+                name="analytical_test_subject",
+            ),
+            models.UniqueConstraint(
+                fields=["pull", "test_code"],
+                condition=Q(kind="original"),
+                name="analytical_one_original_pull_test",
+            ),
+            # A pull is retested on the material that was pulled: it has no other sample, and
+            # its requirements are not replaced.
+            models.CheckConstraint(
+                condition=Q(pull__isnull=True) | Q(kind__in=["original", "retest", "rerun"]),
+                name="analytical_pull_test_kind",
+            ),
         ]
 
     def __str__(self):
@@ -170,6 +196,29 @@ class AnalyticalTest(models.Model):
     @property
     def label(self):
         return f"T-{self.pk}"
+
+    @property
+    def is_stability(self):
+        return self.pull_id is not None
+
+    @property
+    def source_lot(self):
+        """The lot the tested material comes from, for display: the lot under test or, for a
+        stability test, the lot of the pull's study. A stability test is not part of that
+        lot's record."""
+        return self.pull.study.lot if self.pull_id is not None else self.lot
+
+    @property
+    def sample_text(self):
+        """What was tested: the sample's reference, or the stability pull."""
+        return self.pull.label if self.pull_id is not None else self.sample.reference
+
+    @property
+    def subject_text(self):
+        """Lot and sample, or lot and stability pull, on one line."""
+        if self.pull_id is not None:
+            return f"{self.source_lot.number} / stability pull {self.pull.label}"
+        return f"{self.lot.number} / {self.sample.reference}"
 
     @cached_property
     def spec(self):
@@ -327,7 +376,11 @@ class Investigation(models.Model):
         INVALIDATED = "invalidated", "Original result invalidated: assignable cause"
         CONFIRMED = "confirmed", "Out-of-specification result confirmed"
 
-    lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="+")
+    # The lot whose record the investigation belongs to; none for a stability test, whose
+    # investigation holds the pull and never the lot.
+    lot = models.ForeignKey(
+        "quality.Lot", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     test = models.OneToOneField(
         AnalyticalTest, on_delete=models.PROTECT, related_name="triggered_investigation"
     )
@@ -361,6 +414,10 @@ class Investigation(models.Model):
     @property
     def is_open(self):
         return self.phase != self.Phase.CLOSED
+
+    @property
+    def is_stability(self):
+        return self.lot_id is None
 
 
 class InvestigationEntry(models.Model):

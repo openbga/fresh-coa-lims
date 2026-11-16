@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% include "includes/breadcrumbs.html" with section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endblock %}
+{% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% if test.pull_id %}{% url 'stability:pull_detail' test.pull_id as pull_url %}{% include "includes/breadcrumbs.html" with section="Testing" section_url=list_url record=test.pull.label record_url=pull_url current=test.label %}{% else %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% include "includes/breadcrumbs.html" with section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endif %}{% endblock %}
 {% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% endblock %}
 {% block page_meta %}
 <ul class="vr-page-meta">
   <li>{% include "analytical/_test_status.html" with plain=True %}</li>
   <li>{{ test.get_kind_display }}</li>
-  <li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' test.lot_id %}">{{ test.lot.number }}</a> · sample <span class="vr-id">{{ test.sample.reference }}</span></li>
+  {% if test.pull_id %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' test.pull_id %}">{{ test.pull.label }}</a> · lot <span class="vr-id">{{ test.source_lot.number }}</span></li>
+  {% else %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' test.lot_id %}">{{ test.lot.number }}</a> · sample <span class="vr-id">{{ test.sample.reference }}</span></li>{% endif %}
   <li>Revision {{ test.revision }}</li>
 </ul>
 {% endblock %}
@@ -18,6 +19,9 @@
 {% if can_contract_correct %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a>{% endif %}
 {% endblock %}
 {% block content %}
+{% if test.pull_id %}
+<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Stability test" tone="info" plain=True %}<div class="text-break">This is a test of stability pull <a href="{% url 'stability:pull_detail' test.pull_id %}">{{ test.pull.label }}</a>, judged against the acceptance criterion of the study's protocol as frozen below. It is recorded, reviewed and signed like any other test and is not part of the record of lot <span class="vr-id">{{ test.source_lot.number }}</span>.{% if subject_closed %} {{ subject_closed }}{% endif %}</div></div>
+{% endif %}
 {% if test.state == "superseded" %}
 <div class="alert alert-info" role="status">{% include "includes/status.html" with label="Superseded" tone="neutral" plain=True %}<div class="text-break">The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the <a href="{% url 'sampling:lot' test.lot_id %}">lot's requirements</a> for the signed replacement{% if children %}; the test that repeats it under the current requirement is listed under Linked tests{% endif %}.</div></div>
 {% endif %}
@@ -76,7 +80,7 @@
       {% csrf_token %}
       {{ submit_form }}
       <div class="vr-form-actions"><button class="btn btn-primary" type="submit">Submit for review</button></div>
-      <p class="vr-form-note">Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the lot.</p>
+      <p class="vr-form-note">Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the {% if test.pull_id %}pull{% else %}lot{% endif %}.</p>
     </form>
     {% elif test.state == "open" and current_count == spec.replicates and not qc_ready %}
     <p class="vr-form-note mt-3">Results cannot be submitted until the test's QC batch is open and its QC passes.</p>

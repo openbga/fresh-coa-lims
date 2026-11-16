@@ -4,7 +4,7 @@ urls: analytical:investigation_detail
 views: analytical.views.investigation_detail
 templates: analytical/investigation_detail.html, analytical/_history.html, analytical/_investigation_status.html, analytical/_test_status.html
 models: analytical.Investigation, analytical.InvestigationEntry, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-12
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -21,9 +21,9 @@ One out-of-specification investigation: phase, lineage of the original result an
 
 ## Layout
 
-- **Header**: "INV-n out-of-specification investigation"; status, Lot link, Opened, Revision; action buttons.
-- **Open**: alert "Lot held" with the trigger. **Closed**: **Conclusion** card (Outcome, Assignable cause, Conclusion, Closed).
-- **Results and lineage** ("N of M retests used"): Test, Kind, Sample, Replicates, Reportable, Status. First row is "Original result".
+- **Header**: "INV-n out-of-specification investigation"; status, Lot link (for a stability test: "Stability pull <pull> · lot <number>", the pull linking to the pull record), Opened, Revision; action buttons.
+- **Open**: alert "Lot held" with the trigger. For a stability test the alert is "Pull held": the trigger, "Stability pull <pull> cannot be accepted until quality signs a conclusion.", the retest rule, and that the record of the lot is not changed by the investigation (whether the lot needs a hold or other action is for quality to decide). **Closed**: **Conclusion** card (Outcome, Assignable cause, Conclusion, Closed).
+- **Results and lineage** ("N of M retests used"): Test, Kind, Sample (the stability pull for a stability test), Replicates, Reportable, Status. First row is "Original result".
 - **Investigation record**: dated entries; empty "No laboratory assessment yet".
 - **Electronic signatures** and **History**.
 
@@ -51,6 +51,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 
 ## Rules and hidden logic
 
+- **Pull hold**: an investigation of a stability test holds the pull (it cannot be accepted) and never the lot; it has no lot. Only a retest of the material that was pulled can be authorized, and once the study is closed its pulls take no more testing, so Authorize retest and Conclude are then refused.
 - **Lot hold**: while open, the lot cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.
 - **Allowance**: retest or resample limit comes from the frozen specification (0 to 3).
 - **Records are append-only**: entries and history cannot be edited. Each change raises the investigation revision.

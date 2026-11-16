@@ -18,6 +18,12 @@ A supplier's certificate result accepted in place of a test is never an observat
 proposal or an acceptance stands for a requirement of the lot, a test of that requirement takes
 no observation, no reported result, no raw-data file and no QC batch (``supplier_refusal``),
 and no test is assigned for it.
+
+A test belongs to the testing of a lot or to a stability pull. For a pull's test the pull
+stands where the lot stands: ``_lock_subjects`` locks the lots (by pk), then the pulls and
+their studies (through ``contracts.stability_pulls``), refuses a lot that left quarantine and
+a pull that takes no more testing, and every evidence change advances the revision of what it
+locked. A pull's test names no lot, so the lot of its study is neither locked nor changed.
 """
 
 import datetime
@@ -27,6 +33,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 from psycopg.errors import UniqueViolation
 
@@ -52,6 +59,8 @@ from .contracts import (
     reported_source,
     require_additional_rules,
     resolve,
+    resolve_pull,
+    stability_pulls,
     supplier_standing,
 )
 from .gates import data_author_ids, investigation_author_ids
@@ -95,13 +104,40 @@ def _lock_lots(*lot_ids):
     return lots
 
 
-def _bump(*lots):
-    for lot in lots:
-        lot.revision += 1
-        lot.save(update_fields=["revision"])
+def _lock_subjects(*tests):
+    """Lock what the tests belong to and return it: their lots, then their stability pulls.
+    A lot that left quarantine and a pull that takes no more testing are refused."""
+    lots = _lock_lots(*(test.lot_id for test in tests if test.lot_id is not None))
+    pull_ids = {test.pull_id for test in tests if test.pull_id is not None}
+    return [*lots, *(stability_pulls().lock(pull_ids) if pull_ids else [])]
+
+
+def subject_refusal(test):
+    """Reason the evidence of this test cannot change now, or None: its lot left quarantine,
+    or its stability pull takes no more testing. Shared by the pages; the locked services
+    recheck through ``_lock_subjects``."""
+    if test.pull_id is None:
+        return quarantine_refusal(test.lot)
+    try:
+        return stability_pulls().refusal(test.pull)
+    except ValidationError as exc:
+        return " ".join(exc.messages)
+
+
+def _bump(*subjects):
+    """Advance the revision of each locked lot or stability pull: a disposition or an
+    acceptance opened before this change is then stale."""
+    for subject in subjects:
+        subject.revision += 1
+        subject.save(update_fields=["revision"])
 
 
 STALE = "Record changed. Reload and review before continuing."
+# Tests whose evidence can still change: of a lot in quarantine, or of a stability pull that
+# was pulled and not yet accepted, in a study that is still active.
+IN_PROGRESS_SUBJECT = Q(lot__state="quarantine") | Q(
+    pull__state="pulled", pull__study__state="active"
+)
 
 
 def _check_revision(record, expected_revision):
@@ -120,7 +156,10 @@ def _test_authors(test):
 
 def supplier_refusal(test):
     """Why this test takes no laboratory work now, or None: a supplier's certificate result is
-    proposed or accepted in place of it. Shared by the pages and the locked services."""
+    proposed or accepted in place of it. Shared by the pages and the locked services. A
+    supplier's result never stands in for a test of a stability pull."""
+    if test.lot_id is None:
+        return None
     label = supplier_standing(test.lot).get(test.test_code)
     if label is None:
         return None
@@ -225,6 +264,78 @@ def assign_tests(*, actor, sample, reason):
         if created:
             _bump(lot)
         return created, holds
+
+
+def pull_criteria_hash(accepted):
+    """Token of the acceptance criteria a page showed for a pull's tests: the payloads
+    ``resolve_pull`` returned, which name the specification and method versions."""
+    return canonical_hash(accepted)
+
+
+CRITERIA_CHANGED = (
+    "The acceptance criteria in force changed since this page was opened. Review the "
+    "criteria shown now before assigning the tests."
+)
+
+
+def assign_pull_tests(*, actor, pull, reason, criteria_hash):
+    """Create the tests of a stability pull: one for each test of its time point, under the
+    acceptance criteria of the protocol as they are in force now. Returns the tests created.
+
+    ``criteria_hash`` is ``pull_criteria_hash`` of the criteria the analyst was shown; the
+    criteria are read again under the pull lock and a difference is refused, so nothing
+    approved in between is frozen unseen. All or nothing: when a test of the time point
+    cannot be resolved nothing is assigned and the reasons are raised. The tests belong to
+    the pull and name no lot.
+    """
+    require_role(actor, ANALYST)
+    _require_reason(reason)
+    with transaction.atomic():
+        # Same order as ``assign_tests``: the account, the pull's tests, then the pull.
+        get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+        list(
+            AnalyticalTest.objects.select_for_update(no_key=True)
+            .filter(pull_id=pull.pk)
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+        (locked,) = stability_pulls().lock([pull.pk])
+        # Read after the pull lock: tests another analyst assigned while this waited are seen.
+        existing = set(
+            AnalyticalTest.objects.filter(pull_id=locked.pk).values_list("test_code", flat=True)
+        )
+        accepted, holds = resolve_pull(locked)
+        if holds:
+            raise ValidationError(holds)
+        if pull_criteria_hash(accepted) != criteria_hash:
+            raise ValidationError(CRITERIA_CHANGED)
+        created = []
+        for code, payload in accepted.items():
+            if code in existing:
+                continue  # its lineage decides what follows: review, rerun or investigation
+            test = AnalyticalTest.objects.create(
+                pull=locked,
+                test_code=code,
+                requirement=payload,
+                requirement_hash=canonical_hash(payload),
+                created_by=actor,
+            )
+            created.append(test)
+            record_event(
+                actor=actor,
+                action="test.assigned",
+                obj=test,
+                after={
+                    "pull": locked.pk,
+                    "test_code": code,
+                    "requirement": payload["source"],
+                    "requirement_hash": test.requirement_hash,
+                },
+                reason=reason,
+            )
+        if created:
+            _bump(locked)
+        return created
 
 
 def _reading(spec, value, qualifier, outcome, observed_text):
@@ -401,7 +512,7 @@ def record_observation(
 
     def work(desk, attempt):
         locked = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
-        (lot,) = _lock_lots(locked.lot_id)
+        subjects = _lock_subjects(locked)
         if locked.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting observations.")
         _raise(supplier_refusal(locked))
@@ -445,7 +556,7 @@ def record_observation(
         observation.full_clean()
         observation.save()
         _touch(locked)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="observation.recorded",
@@ -487,7 +598,7 @@ def correct_observation(
 
     def work(desk, attempt):
         test = AnalyticalTest.objects.select_for_update().get(pk=observation.test_id)
-        (lot,) = _lock_lots(test.lot_id)
+        subjects = _lock_subjects(test)
         if test.state != AnalyticalTest.State.OPEN:
             raise ValidationError(
                 "Only open tests can be corrected. A reviewer must return a submitted test first."
@@ -531,7 +642,7 @@ def correct_observation(
         correction.full_clean()
         correction.save()
         _touch(test)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="observation.corrected",
@@ -701,7 +812,7 @@ def record_contract_result(
     def work(desk, attempt):
         locked = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         _check_revision(locked, expected_revision)
-        (lot,) = _lock_lots(locked.lot_id)
+        subjects = _lock_subjects(locked)
         current = list(locked.current_observations().order_by("replicate", "pk"))
         _raise(contract_refusal(locked, current) or supplier_refusal(locked))
         spec = locked.spec
@@ -780,7 +891,7 @@ def record_contract_result(
             observation.save()
             observations.append(observation)
         _touch(locked)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="contract_result.corrected" if current else "contract_result.recorded",
@@ -838,7 +949,7 @@ def submit_test(*, actor, test, expected_revision, reason):
         batch = QCBatch.objects.select_for_update().get(pk=batch_id) if batch_id else None
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         _check_revision(test, expected_revision)
-        (lot,) = _lock_lots(test.lot_id)
+        subjects = _lock_subjects(test)
         if test.state != AnalyticalTest.State.OPEN or test.batch_id != batch_id:
             raise ValidationError("This test cannot be submitted.")
         spec = test.spec
@@ -865,7 +976,7 @@ def submit_test(*, actor, test, expected_revision, reason):
         test.submitted_by = actor
         test.state = AnalyticalTest.State.SUBMITTED
         _touch(test)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="test.submitted",
@@ -953,7 +1064,7 @@ def return_test(*, actor, test, expected_revision, reason):
     with transaction.atomic():
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         _check_revision(test, expected_revision)
-        (lot,) = _lock_lots(test.lot_id)
+        subjects = _lock_subjects(test)
         _raise(return_refusal(actor, test))
         before = {
             "mean": None if test.mean_value is None else str(test.mean_value),
@@ -964,20 +1075,22 @@ def return_test(*, actor, test, expected_revision, reason):
         test.reportable_text = ""
         test.submitted_by = None
         _touch(test)
-        _bump(lot)
+        _bump(*subjects)
         record_event(actor=actor, action="test.returned", obj=test, before=before, reason=reason)
         return test
 
 
 def review_test(*, actor, pin, test, expected_revision, reason):
     def apply(locked):
-        (lot,) = _lock_lots(locked.lot_id)
+        subjects = _lock_subjects(locked)
         _raise(review_refusal(actor, locked))
         # The review evaluates what was recorded against the requirement frozen on the test.
         # It does not need the lot's rule version to be in force still: that is checked when
         # tests are assigned and at disposition, so a version retired meanwhile strands
-        # neither a result awaiting review nor the investigation of a failing one.
-        validate_approved_rules(lot.rules)
+        # neither a result awaiting review nor the investigation of a failing one. A stability
+        # pull is under no rule set: its criteria are those of its protocol.
+        if locked.lot_id is not None:
+            validate_approved_rules(subjects[0].rules)
         current = list(locked.current_observations())
         _recheck_calculations(
             locked.spec,
@@ -991,7 +1104,7 @@ def review_test(*, actor, pin, test, expected_revision, reason):
         if reportable != locked.reportable_value or conforms != locked.conforms or text_changed:
             raise ValidationError("Calculated result changed; return the test for resubmission.")
         locked.state = AnalyticalTest.State.REVIEWED
-        _bump(lot)
+        _bump(*subjects)
 
     return sign_transition(
         actor=actor,
@@ -1016,7 +1129,8 @@ NO_EARLIER_BATCH = (
 
 def earlier_batch_methods():
     """{(code, revision): method payload} of method revisions that are not the one in force
-    and that open tests of lots in quarantine, not yet in a batch, are frozen to.
+    and that open tests of lots in quarantine, or of stability pulls being tested, not yet in
+    a batch, are frozen to.
 
     A lot keeps the versions frozen for it, so such a test still gets a QC batch of its own
     method revision: without one a test that cannot be superseded (a retest under an open
@@ -1026,9 +1140,9 @@ def earlier_batch_methods():
     in_force = {code: payload["revision"] for code, payload in batch_methods().items()}
     found = {}
     waiting = AnalyticalTest.objects.filter(
+        IN_PROGRESS_SUBJECT,
         state=AnalyticalTest.State.OPEN,
         batch__isnull=True,
-        lot__state="quarantine",
         requirement__method__requires_batch=True,
     )
     for test in waiting.order_by("pk"):
@@ -1102,7 +1216,7 @@ def assign_to_batch(*, actor, test, batch, reason):
     with transaction.atomic():
         batch = QCBatch.objects.select_for_update().get(pk=batch.pk)
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
-        (lot,) = _lock_lots(test.lot_id)
+        subjects = _lock_subjects(test)
         _raise(batch_join_refusal(batch) or batching_refusal(test) or supplier_refusal(test))
         method = test.spec.method
         if not method.requires_batch or (method.code, method.revision) != (
@@ -1113,7 +1227,7 @@ def assign_to_batch(*, actor, test, batch, reason):
         test.batch = batch
         _touch(test)
         _touch(batch)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="test.batched",
@@ -1270,9 +1384,16 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
         if actor.pk in recorders:
             raise ValidationError("You cannot reject a batch containing your own work.")
         # A superseded test is closed and stays as it is: it is not invalidated or rerun,
-        # though whoever worked on it is still an author of the batch.
+        # though whoever worked on it is still an author of the batch. So is an open test of a
+        # stability pull that takes no more testing (missed, or its study closed): it held
+        # nothing but its place in the batch, which must not keep the batch from rejection.
         tests = [t for t in members if t.state != AnalyticalTest.State.SUPERSEDED]
-        lots = _lock_lots(*[t.lot_id for t in tests])
+        lots = _lock_lots(*(t.lot_id for t in tests if t.lot_id is not None))
+        pull_ids = {t.pull_id for t in tests if t.pull_id is not None}
+        pulls = stability_pulls().lock(pull_ids, refuse=False) if pull_ids else []
+        closed = {pull.pk for pull in pulls if pull.closed}
+        tests = [t for t in tests if t.pull_id not in closed]
+        subjects = [*lots, *(pull for pull in pulls if pull.pk not in closed)]
         for test in tests:
             if test.state not in OPEN_STATES:
                 raise ValidationError(
@@ -1288,6 +1409,7 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
             rerun = AnalyticalTest.objects.create(
                 lot_id=test.lot_id,
                 sample_id=test.sample_id,
+                pull_id=test.pull_id,
                 test_code=test.test_code,
                 requirement=test.requirement,
                 requirement_hash=test.requirement_hash,
@@ -1315,7 +1437,7 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
                     f"in QC-failed batch {locked.number}",
                 )
         locked.state = QCBatch.State.REJECTED
-        _bump(*lots)
+        _bump(*subjects)
 
     return sign_transition(
         actor=actor,
@@ -1428,6 +1550,11 @@ def conclude_refusal(actor, investigation, original, children):
     return None
 
 
+PULL_RESAMPLE = (
+    "A stability pull has no other sample: authorize a retest of the material that was pulled."
+)
+
+
 def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reason, sample=None):
     """Quality authorizes one justified retest/resample within the specification's limit."""
     if kind not in {AnalyticalTest.Kind.RETEST, AnalyticalTest.Kind.RESAMPLE}:
@@ -1435,24 +1562,27 @@ def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reas
 
     def apply(locked):
         original = AnalyticalTest.objects.select_for_update().get(pk=locked.test_id)
-        (lot,) = _lock_lots(locked.lot_id)
+        subjects = _lock_subjects(original)
         _raise(authorize_refusal(actor, locked, original))
         if kind == AnalyticalTest.Kind.RETEST:
             target = original.sample_id
+        elif original.pull_id is not None:
+            raise ValidationError(PULL_RESAMPLE)
         else:
             if sample is None:
                 raise ValidationError("Choose the newly collected sample to test.")
             fresh = Sample.objects.get(pk=sample.pk)
             if (
-                fresh.lot_id != lot.pk
+                fresh.lot_id != original.lot_id
                 or fresh.pk == original.sample_id
                 or AnalyticalTest.objects.filter(sample=fresh).exists()
             ):
                 raise ValidationError("A resample must be a new, untested sample of this lot.")
             target = fresh.pk
         child = AnalyticalTest.objects.create(
-            lot=lot,
+            lot_id=original.lot_id,
             sample_id=target,
+            pull_id=original.pull_id,
             test_code=original.test_code,
             requirement=original.requirement,
             requirement_hash=original.requirement_hash,
@@ -1468,7 +1598,7 @@ def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reas
             author=actor,
             external_reference=f"{child.label} {kind}",
         )
-        _bump(lot)
+        _bump(*subjects)
 
     return sign_transition(
         actor=actor,
@@ -1490,7 +1620,7 @@ def conclude(*, actor, pin, investigation, expected_revision, outcome, assignabl
     def apply(locked):
         original = AnalyticalTest.objects.select_for_update().get(pk=locked.test_id)
         children = list(locked.tests.select_for_update().order_by("pk"))
-        (lot,) = _lock_lots(locked.lot_id)
+        subjects = _lock_subjects(original)
         _raise(conclude_refusal(actor, locked, original, children))
         if outcome == Investigation.Outcome.INVALIDATED:
             if not assignable_cause.strip():
@@ -1513,7 +1643,7 @@ def conclude(*, actor, pin, investigation, expected_revision, outcome, assignabl
         locked.conclusion = reason
         locked.phase = Investigation.Phase.CLOSED
         locked.closed_at = timezone.now()
-        _bump(lot)
+        _bump(*subjects)
 
     return sign_transition(
         actor=actor,

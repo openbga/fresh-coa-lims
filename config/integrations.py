@@ -261,6 +261,32 @@ class TestingUnderReplacement:
         )
 
 
+class StabilityPulls:
+    """Stability pulls as the testing module sees them (settings.ANALYTICAL_STABILITY_PULLS).
+
+    A test belongs to the testing of a lot or to a stability pull. For a pull's test the pull
+    stands where the lot stands: ``requirements`` are the acceptance criteria of its protocol,
+    ``refusal`` says why it takes no more testing, and ``lock`` locks the pulls a transition
+    changes, refusing one that takes none (or, with ``refuse`` false, marking it ``closed``),
+    so that the transition can advance their revision.
+    """
+
+    def requirements(self, pull):
+        from stability import testing
+
+        return testing.requirements(pull)
+
+    def refusal(self, pull):
+        from stability import testing
+
+        return testing.refusal(pull)
+
+    def lock(self, pull_ids, refuse=True):
+        from stability import testing
+
+        return testing.lock(pull_ids, refuse=refuse)
+
+
 def report_holds(lot):
     from stability.gates import lot_hold_evidence
 

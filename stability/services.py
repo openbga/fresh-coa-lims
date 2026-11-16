@@ -3,6 +3,11 @@
 Same contract as the other domain modules: authorize on the server, lock and recheck current
 state, and commit state, attributed audit event and any signature in one transaction.
 Independence: whoever authored, pulled or placed something cannot be the signer for it.
+
+A pull is tested in the system (`testing`, with the tests assigned and worked in the testing
+module) or linked to a sample of its lot or to external evidence, never both. Accepting a
+pull tested in the system records how its reviewed results compare with the acceptance
+criteria frozen on its tests and freezes those results with the signature.
 """
 
 import hashlib
@@ -13,6 +18,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from analytical.models import AnalyticalTest
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import require_role, sign_transition
@@ -21,7 +27,16 @@ from laboratory.models import Qualification, ResourceUse
 from laboratory.services import lock_account
 from quality.models import Lot, Sample
 
-from .evidence import sample_evidence
+from . import testing
+from .evidence import (
+    frozen_results,
+    has_tests,
+    pull_results,
+    pull_testing_in_progress,
+    sample_evidence,
+    test_author_ids,
+    testing_in_progress,
+)
 from .models import (
     Hold,
     Protocol,
@@ -102,6 +117,8 @@ def create_protocol(*, actor, code, reason, **values):
     latest = Protocol.objects.filter(code=code).order_by("-version").first()
     if latest and latest.state == Protocol.State.DRAFT:
         raise ValidationError(f"{latest.identifier} is still a draft; approve or leave it.")
+    # ``values`` may name the specification that states the acceptance criteria; like the
+    # rest of the header it is fixed from here on (a new version names another).
     protocol = Protocol(
         code=code, version=latest.version + 1 if latest else 1, author=actor, **values
     )
@@ -120,7 +137,10 @@ def create_protocol(*, actor, code, reason, **values):
 def _draft_for_author(actor, protocol):
     protocol = _lock(Protocol, protocol)
     if protocol.state != Protocol.State.DRAFT:
-        raise ValidationError("An approved protocol is frozen; create a new version.")
+        raise ValidationError(
+            f"{protocol.identifier} is {protocol.get_state_display().lower()} and frozen; "
+            "create a new version."
+        )
     if protocol.author_id != actor.pk:
         raise PermissionDenied("Only the protocol author edits a draft.")
     return protocol
@@ -181,6 +201,10 @@ def approve_protocol(*, actor, pin, protocol, expected_revision, reason):
             raise ValidationError("Every storage condition needs at least one timepoint.")
         if protocol_digest(locked) != locked.content_digest:
             raise ValidationError("Protocol content changed. Reload and review before signing.")
+        # A protocol that names a specification is approved only while the version in force
+        # states every test of every time point, with a method in force.
+        if problems := testing.protocol_problems(locked):
+            raise ValidationError(problems)
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [PROTOCOL_LOCK])
         for older in Protocol.objects.select_for_update().filter(
@@ -211,6 +235,37 @@ def approve_protocol(*, actor, pin, protocol, expected_revision, reason):
     )
 
 
+@transaction.atomic
+def withdraw_protocol(*, actor, protocol, expected_revision, reason):
+    """Withdraw a draft that will not be approved, for example one whose specification cannot
+    state a test of a time point. The draft keeps its content; the next version of the code
+    can then be drafted. Its author or a quality person withdraws it, with a reason."""
+    require_role(actor, *AUTHORS)
+    _need_reason(reason)
+    lock_account(actor)
+    # The row lock serializes this with approval and with edits of the draft. Approval takes
+    # the row before the protocol lock, so this takes no protocol lock: a new version drafted
+    # meanwhile reads the draft as it was committed and is refused until this commits.
+    locked = _lock(Protocol, protocol)
+    if locked.state != Protocol.State.DRAFT:
+        raise ValidationError("Only a draft protocol can be withdrawn.")
+    if locked.author_id != actor.pk and not actor.groups.filter(name="quality").exists():
+        raise PermissionDenied("Only the draft's author or a quality person withdraws it.")
+    if locked.revision != expected_revision:
+        raise ValidationError("Record changed. Reload before withdrawing.")
+    before = snapshot(locked)
+    _bump(locked, state=Protocol.State.WITHDRAWN)
+    record_event(
+        actor=actor,
+        action="protocol.withdrawn",
+        obj=locked,
+        before=before,
+        after=snapshot(locked),
+        reason=reason,
+    )
+    return locked
+
+
 # --- Studies and pulls -----------------------------------------------------------------------
 
 
@@ -228,6 +283,8 @@ def start_study(*, actor, identifier, protocol, lot, container_closure, start_da
     if protocol.state != Protocol.State.APPROVED:
         raise ValidationError("Studies start only on the current approved protocol revision.")
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
+    if problem := testing.material_problem(protocol, lot):
+        raise ValidationError(problem)
     rules = lot.rules
     study = Study(
         identifier=identifier,
@@ -369,6 +426,12 @@ def record_pull(
     return pull
 
 
+TESTED_HERE = (
+    "This pull is tested in the system: its own tests are its evidence. A pull is tested in "
+    "the system or linked to other evidence, never both."
+)
+
+
 @transaction.atomic
 def attach_pull_evidence(
     *,
@@ -389,6 +452,8 @@ def attach_pull_evidence(
     study = _lock(Study, pull.study)
     if study.state != Study.State.ACTIVE or pull.state != Pull.State.PULLED:
         raise ValidationError("Evidence can be linked only to a pulled, unaccepted pull.")
+    if has_tests(pull):
+        raise ValidationError(TESTED_HERE)
     sample = _resolve_sample(study, sample_reference)
     if sample is not None:
         _check_pull_sample(pull, sample)
@@ -414,18 +479,58 @@ def attach_pull_evidence(
     return pull
 
 
+def missed_refusal(pull, study=None):
+    """Why the pull cannot be recorded as missed now, or None. A scheduled pull is missed
+    once its window has closed. A pulled pull is missed when its material cannot be tested
+    (lost or insufficient): nothing of its testing may be in progress, it may not be ready for
+    acceptance (missing it would skip the reviewer's signed outcome), and no result of it may
+    have failed (a failure is recorded through acceptance). Its conforming reviewed results
+    stay in the record and its untouched tests take no more work."""
+    study = study or pull.study
+    if study.state != Study.State.ACTIVE:
+        return "Only a pull of an active study can be marked missed."
+    if pull.state == Pull.State.SCHEDULED:
+        if timezone.localdate() <= pull.window[1]:
+            return "The pull window has not closed yet."
+        return None
+    if pull.state == Pull.State.PULLED:
+        if reasons := pull_testing_in_progress(pull):
+            return "Testing of this pull is in progress; finish it first: " + " ".join(reasons)
+        _, rows, outcome = pull_results(pull)
+        if outcome:
+            return (
+                "Every test of this pull has a decided result: a reviewer accepts the pull "
+                "with its outcome instead."
+            )
+        failing = [
+            test.label
+            for row in rows
+            for test in row["lineage"]
+            if test.state == AnalyticalTest.State.REVIEWED and test.conforms is False
+        ]
+        if failing or any(row["outcome"] == "fails" for row in rows):
+            return (
+                f"A result of this pull did not meet the acceptance criteria "
+                f"({', '.join(failing)}); it is not recorded as missed. Complete its tests "
+                "and have a reviewer accept the pull, or terminate the study."
+            )
+        return None
+    return "Only a scheduled or pulled pull can be marked missed."
+
+
 @transaction.atomic
 def mark_pull_missed(*, actor, pull, reason):
-    """A missed pull stays visible forever; it is never deleted or silently rescheduled."""
+    """A missed pull stays visible forever; it is never deleted or silently rescheduled.
+
+    Locks the pull, then its study; testing locks a test before its pull, so work recorded
+    on a test at the same moment either commits first and refuses this, or is refused."""
     require_role(actor, *AUTHORS)
     _need_reason(reason)
     lock_account(actor)
     pull = _lock(Pull, pull)
     study = _lock(Study, pull.study)
-    if study.state != Study.State.ACTIVE or pull.state != Pull.State.SCHEDULED:
-        raise ValidationError("Only a scheduled pull of an active study can be marked missed.")
-    if timezone.localdate() <= pull.window[1]:
-        raise ValidationError("The pull window has not closed yet.")
+    if refusal := missed_refusal(pull, study):
+        raise ValidationError(refusal)
     before = snapshot(pull)
     _bump(pull, state=Pull.State.MISSED, missed_reason=reason.strip())
     record_event(
@@ -440,9 +545,10 @@ def mark_pull_missed(*, actor, pull, reason):
 
 
 def pull_author_ids(pull):
-    """Users who may not accept the pull: its puller, everyone who ever linked its evidence and,
-    for a linked sample, the sample's creator and every data or investigation author of its
-    tests."""
+    """Users who may not accept the pull: its puller, everyone who ever linked its evidence,
+    for a linked sample the sample's creator and every data or investigation author of its
+    tests, and for a pull tested in the system every data or investigation author of the
+    pull's own tests."""
     from analytical.gates import data_author_ids, investigation_author_ids
     from analytical.models import AnalyticalTest, Investigation
 
@@ -461,6 +567,7 @@ def pull_author_ids(pull):
         for test in AnalyticalTest.objects.filter(sample_id=pull.sample_id):
             ids |= data_author_ids(test)
         ids |= investigation_author_ids(Investigation.objects.filter(test__sample=pull.sample_id))
+    ids |= test_author_ids(pull)
     ids.discard(None)
     return ids
 
@@ -474,14 +581,26 @@ def accept_pull(*, actor, pin, pull, expected_revision, reason):
             raise PermissionDenied(
                 "You cannot accept a pull you pulled, documented or produced test data for."
             )
-        if locked.sample_id:
+        if has_tests(locked):
+            # Tested in the system. Every evidence change of the pull's tests advanced this
+            # pull's revision under its lock, so what is read here is what the signer saw.
+            results = pull_results(locked)
+            blockers, _, outcome = results
+            if blockers or not outcome:
+                raise ValidationError("Testing is not complete: " + " ".join(blockers))
+            locked.outcome = outcome
+            locked.result_evidence = frozen_results(locked, results)
+        elif locked.sample_id:
             _check_pull_sample(locked, locked.sample)
             codes = list(locked.timepoint.test_codes)
             blockers, _ = sample_evidence(locked.sample, codes, _pull_start(locked))
             if blockers:
                 raise ValidationError("Testing is not complete: " + " ".join(blockers))
         elif not (locked.external_sample_ref and locked.evidence_ref):
-            raise ValidationError("Link a sample or external stability evidence first.")
+            raise ValidationError(
+                "Assign and complete the pull's tests, or link a sample or external "
+                "stability evidence first."
+            )
         locked.state = Pull.State.ACCEPTED
         locked.accepted_at = timezone.now()
 
@@ -506,6 +625,12 @@ def close_study(*, actor, pin, study, expected_revision, outcome, reason):
             raise ValidationError("This study is already closed.")
         if locked.created_by_id == actor.pk:
             raise PermissionDenied("The person who started a study cannot close it.")
+        # Every testing transition locks the study after its tests and pull, so what is read
+        # here under the study lock cannot gain work before this commits.
+        if reasons := testing_in_progress(locked):
+            raise ValidationError(
+                "Testing of the study's pulls is in progress; finish it first: " + " ".join(reasons)
+            )
         pending = locked.pulls.filter(state__in=[Pull.State.SCHEDULED, Pull.State.PULLED])
         if outcome == Study.State.COMPLETED and pending.exists():
             raise ValidationError(

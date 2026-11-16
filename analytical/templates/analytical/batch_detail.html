@@ -52,7 +52,7 @@
     <div class="vr-table-wrap">
       <table class="table vr-table">
         <thead><tr><th scope="col">Test</th><th scope="col">Lot</th><th scope="col">Sample</th><th scope="col">Code</th><th scope="col">Status</th></tr></thead>
-        <tbody>{% for t in tests %}<tr><th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th><td class="vr-id">{{ t.lot.number }}</td><td class="vr-id">{{ t.sample.reference }}</td><td>{{ t.test_code }}</td><td>{% include "analytical/_test_status.html" with test=t plain=True %}</td></tr>{% endfor %}</tbody>
+        <tbody>{% for t in tests %}<tr><th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th><td class="vr-id">{{ t.source_lot.number }}</td><td class="vr-id">{{ t.sample_text }}{% if t.pull_id %} <span class="vr-muted small">stability pull</span>{% endif %}</td><td>{{ t.test_code }}</td><td>{% include "analytical/_test_status.html" with test=t plain=True %}</td></tr>{% endfor %}</tbody>
       </table>
     </div>
     {% else %}
