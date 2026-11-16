@@ -282,7 +282,7 @@ def change_account(
                 )
             if not two_factor.set_up_anything(user):
                 raise ValidationError("This account has not set up two-factor sign-in.")
-            two_factor.remove(user)
+            two_factor.reset(user)
         elif action == "remove_single_sign_on":
             from . import single_sign_on
 

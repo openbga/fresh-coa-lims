@@ -643,16 +643,21 @@ def disable(*, actor, current_password, code):
 
 def remove(user):
     """Delete the account's authenticator keys, security keys and recovery codes and clear its
-    count of wrong codes (caller holds the locks). An administrator's reset also removes the
-    organization sign-in link: whoever linked it may have known only the password before the
-    second factor was set up, and the owner links again after the reset."""
-    from .models import SingleSignOnLink
-
-    SingleSignOnLink.objects.filter(user_id=user.pk).delete()
+    count of wrong codes (caller holds the locks)."""
     TOTPDevice.objects.filter(user_id=user.pk).delete()
     SecurityKey.objects.filter(user_id=user.pk).delete()
     RecoveryCode.objects.filter(user_id=user.pk).delete()
     LoginThrottle.objects.filter(user_id=user.pk).update(code_failures=0)
+
+
+def reset(user):
+    """An administrator's reset (signed in the workspace, or the operator command): remove() and
+    also the organization sign-in link, because whoever linked it may have known only the
+    password before the second factor was set up; the owner links again afterwards."""
+    from .models import SingleSignOnLink
+
+    remove(user)
+    SingleSignOnLink.objects.filter(user_id=user.pk).delete()
 
 
 def set_up_anything(user):

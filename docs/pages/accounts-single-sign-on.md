@@ -27,7 +27,7 @@ The **Account access** breadcrumb and an introduction are followed by a **Status
 
 | Action | Shown when | Result |
 |---|---|---|
-| **Confirm** | Not linked | Checks your password (and second factor). The form card is replaced by **Continue to PROVIDER**, which says the button works once, in this browser, for 10 minutes |
+| **Confirm** | Not linked | Checks your password (and second factor), then reloads this page with `?continue`: the form card is replaced by **Continue to PROVIDER**, which says the button works once, in this browser, for 10 minutes. Reloading that page sends no password or code again; once the request is used, expired or your account changed, the address shows the form again |
 | **Continue to PROVIDER** | After **Confirm** | Opens the provider's sign-in. On return the link is made and you see **Your account is linked to LABEL. You can now sign in with PROVIDER. Other sessions have been signed out.** **Cancel** beside it reloads this page; the confirmation is then not used |
 | **Unlink the organization account** | Linked | Checks your password (and second factor), removes the link and shows **Your account is no longer linked; PROVIDER no longer signs you in. Other sessions have been signed out.** |
 | **Cancel** | Form shown | Returns to Account access |

@@ -80,7 +80,7 @@ def reset_two_factor(*, actor, user, reason):
     authenticator app and the recovery codes.
     """
     from .administration import account_lock, reason_required, safe_snapshot
-    from .two_factor import remove, set_up_anything
+    from .two_factor import reset, set_up_anything
 
     reason_required(reason)
     account_lock()
@@ -94,7 +94,7 @@ def reset_two_factor(*, actor, user, reason):
     if not set_up_anything(user):
         raise ValidationError("This account has not set up two-factor sign-in.")
     before = safe_snapshot(user)
-    remove(user)
+    reset(user)
     user.management_revision += 1
     user.session_epoch += 1
     user.save(update_fields=["management_revision", "session_epoch"])

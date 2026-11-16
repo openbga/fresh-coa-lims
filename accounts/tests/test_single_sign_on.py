@@ -88,6 +88,8 @@ def link(user, subject="sub-analyst", label="analyst@synthetic.example"):
 def to_provider(response):
     """Follow the application's redirect (sign-in) or link (linking) to the provider; returns
     the callback path."""
+    if response.status_code == 302 and response["Location"] == PAGE + "?continue":
+        response = response.client.get(response["Location"])
     if response.status_code == 200 and response.context and response.context.get("continue_url"):
         target = response.context["continue_url"]
         assert f'href="{target.replace("&", "&amp;")}"'.encode() in response.content
@@ -728,3 +730,50 @@ def test_two_factor_reset_removes_the_link(provider, analyst, manager):
     assert not SingleSignOnLink.objects.filter(user=analyst).exists()
     event = AuditEvent.objects.get(action="account.reset_two_factor")
     assert event.before["single_sign_on"] and event.after["single_sign_on"] is None
+
+
+def test_reloading_the_continue_page_sends_no_code_again(provider, analyst):
+    device, codes = enable(analyst)
+    owner = Client()
+    owner.force_login(analyst)
+    response = start_link(owner, {"current_password": PASSWORD, "otp_code": code(device, 1)})
+    assert response.status_code == 302 and response["Location"] == PAGE + "?continue"
+    first = owner.get(response["Location"])
+    again = owner.get(response["Location"])
+    assert first.context["continue_url"] == again.context["continue_url"]
+    assert not LoginThrottle.objects.filter(user=analyst, failures__gt=0).exists()
+    assert not LoginThrottle.objects.filter(user=analyst, code_failures__gt=0).exists()
+    assert two_factor_codes_left(analyst) == len(codes)
+    provider.next_subject = "sub-reload"
+    owner.get(to_provider(again))
+    assert SingleSignOnLink.objects.get(user=analyst).subject == "sub-reload"
+    # Without a pending request (used, expired or from another account) the page is the form.
+    page = owner.get(PAGE + "?continue")
+    assert page.context.get("continue_url") is None and b"Unlink" in page.content
+    stranger = Client()
+    stranger.force_login(make_user("other.sso", ["analyst"]))
+    assert stranger.get(PAGE + "?continue").context.get("continue_url") is None
+
+
+def test_owner_turning_off_two_factor_keeps_the_link(provider, analyst):
+    device, _codes = enable(analyst)
+    link(analyst)
+    owner = Client()
+    owner.force_login(analyst)
+    response = owner.post(
+        "/accounts/two-factor/",
+        {"current_password": PASSWORD, "otp_code": code(device, 1), "action": "disable"},
+    )
+    assert response.status_code == 302
+    assert SingleSignOnLink.objects.filter(user=analyst).exists()
+
+
+def test_operator_reset_command_removes_the_link(provider, analyst, manager):
+    from django.core.management import call_command
+
+    enable(analyst)
+    link(analyst)
+    call_command(
+        "reset_two_factor", analyst.username, actor=manager.username, reason="Synthetic recovery"
+    )
+    assert not SingleSignOnLink.objects.filter(user=analyst).exists()

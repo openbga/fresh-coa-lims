@@ -660,6 +660,7 @@ def single_sign_on_page(request):
     from django.core.exceptions import PermissionDenied, ValidationError
     from django.http import Http404, HttpResponseNotAllowed
     from django.shortcuts import redirect
+    from django.urls import reverse
 
     from . import security_keys, single_sign_on, two_factor
     from .administration import CREDENTIALS_LOCKED
@@ -691,6 +692,22 @@ def single_sign_on_page(request):
             status=403 if request.method == "POST" else 200,
         )
     action = "unlink" if state["link"] else "link"
+    pending = request.session.get(SSO_PENDING)
+    if (
+        request.method == "GET"
+        and "continue" in request.GET
+        and isinstance(pending, dict)
+        and pending.get("purpose") == "link"
+        and pending.get("user") == user.pk
+        and pending.get("epoch") == user.session_epoch
+        and isinstance(pending.get("url"), str)
+        and 0
+        <= timezone.now().timestamp() - float(pending.get("started", 0))
+        <= single_sign_on.PENDING_SECONDS
+    ):
+        context["continue_url"] = pending["url"]
+        context["pending_minutes"] = single_sign_on.PENDING_SECONDS // 60
+        return render(request, "accounts/single_sign_on.html", context)
     if on:
         form = SingleSignOnChangeForm(
             request.POST or None, action=action, keys=keys, app=two_factor.has_app(user)
@@ -712,12 +729,11 @@ def single_sign_on_page(request):
                 single_sign_on.client()  # Unreachable: refused before a code is spent.
                 confirmed = single_sign_on.begin_link(**data)
                 url, pending = single_sign_on.begin("link", _sso_callback_uri(request), **confirmed)
-                request.session[SSO_PENDING] = pending
-                # An ordinary link leaves for the provider: the site's form-action policy, which
-                # also governs the redirects after a form's submission, stays 'self'.
-                context["continue_url"] = url
-                context["pending_minutes"] = single_sign_on.PENDING_SECONDS // 60
-                return render(request, "accounts/single_sign_on.html", context)
+                request.session[SSO_PENDING] = {**pending, "url": url}
+                # The page then shows an ordinary link to the provider: the site's form-action
+                # policy, which also governs the redirects after a form's submission, stays
+                # 'self', and reloading it sends no password or code again.
+                return redirect(reverse("accounts:single_sign_on") + "?continue")
             user = single_sign_on.unlink(**data)
             _keep_session(request, user)
             messages.success(
@@ -1086,7 +1102,8 @@ def password_change(request):
                 messages.warning(
                     request,
                     f"Your account is still linked to the organization account {found} "
-                    f"(subject {found.subject}, linked {found.created_at:%Y-%m-%d}) for sign-in. "
+                    f"(subject {found.subject}, linked "
+                    f"{timezone.localtime(found.created_at):%Y-%m-%d}) for sign-in. "
                     "If you do not recognize it, unlink it on Organization sign-in.",
                 )
             return redirect("quality:lot_list")
