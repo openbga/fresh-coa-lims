@@ -724,7 +724,7 @@ def libpq_arguments():
         for key, value in params.items()
         if key in keywords and key not in SECRET_PARAMETERS and value not in (None, "")
     }
-    settings.setdefault("application_name", "fresh-coa-lims backup_manifest")
+    settings.setdefault("application_name", "qm-lims backup_manifest")
     environment = dict(os.environ)
     if params.get("password"):
         environment["PGPASSWORD"] = str(params["password"])

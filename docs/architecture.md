@@ -1,6 +1,6 @@
 # Architecture
 
-Product intent is in [product.md](product.md); source and tests define the implementation. OpenBGA Fresh CoA LIMS uses a conventional Django/PostgreSQL architecture for manufacturing quality control. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
+Product intent is in [product.md](product.md); source and tests define the implementation. OpenBGA QM LIMS uses a conventional Django/PostgreSQL architecture for manufacturing quality control. Versions live in `pyproject.toml`, `uv.lock` and vendored asset notices.
 
 ## Shape and boundaries
 
@@ -80,9 +80,10 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 | Local database | Compose PostgreSQL 17 on loopback port 55433 |
 | Render web | `fresh-coa-lims`, Docker, 1c-2g, Virginia, deploys `develop` automatically after CI checks pass (synthetic demonstration) |
 | Render database | `fresh-coa-lims-db`, PostgreSQL 17, 0.5c-1g, 5 GB, private access; database name/user `open_qual` |
+| Legacy identifiers | The product was named Fresh CoA LIMS until 2026-11-16. Kept so installations and stored data stay valid: database name/user `open_qual`, the Render resources `fresh-coa-lims`, `fresh-coa-lims-db` and `fresh-coa-lims-demo-reset` with the demo at `fresh-coa-lims.onrender.com`, the `fresh-coa-lims.backup-manifest/1` and `fresh-coa-lims.restore-check/1` format identifiers read by `verify_restore`, and the `freshcoa-pagedocs-*` browser storage keys. Renaming a Render service changes its URL, so do it only as a deliberate deployment change |
 | Migration | Fresh project history; serialized pre-deploy `python manage.py migrate --noinput` |
 | Health | `/health/` process health; `/ready/` checks database availability |
-| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/fresh-coa-lims>) for AGPL-3.0 section 13 |
+| Source offer | Every page footer links to `SOURCE_CODE_URL` (default <https://github.com/openbga/qm-lims>) for AGPL-3.0 section 13 |
 | Static | Vendored local assets; `collectstatic` during build and before template tests |
 | Security | Production secret/hosts/origins from environment, HTTPS, one-year HSTS by default, secure cookies, CSRF and a same-origin Content-Security-Policy |
 | Time | UTC default; retain unambiguous timestamp/zone context; never reinterpret signed records |

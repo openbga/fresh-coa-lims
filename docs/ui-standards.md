@@ -1,10 +1,10 @@
 # UI standards
 
-These are the OpenBGA Fresh CoA LIMS house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+These are the OpenBGA QM LIMS house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
 
 ## Components and theme
 
-The product name is **OpenBGA Fresh CoA LIMS** on the sign-in page, in browser titles, documentation, the application footer and newly issued certificates. The top-left workspace brand uses the short label **Fresh COA**. Use spaces in the display name and the lowercase hyphenated slug `fresh-coa-lims` in repository and deployment URLs. The presentation wordmark leads with **Fresh CoA LIMS** and identifies it as an OpenBGA project. The shared mark combines a certificate sheet with a leaf-shaped folded corner, in the existing teal and green palette. Existing issued PDF bytes retain their original branding. The repository is [openbga/fresh-coa-lims](https://github.com/openbga/fresh-coa-lims).
+The product name is **OpenBGA QM LIMS** on the sign-in page, in browser titles, documentation, the application footer and newly issued certificates. The top-left workspace brand shows the same full name, which on a phone shows only **QM LIMS** visually (the prefix stays in the accessible name). Always keep the **OpenBGA** prefix in primary brand lockups; **QM** is the product token (quality management) and the scope stays manufacturing quality control. Use spaces in the display name and the lowercase hyphenated slug `qm-lims` in repository and project URLs. The presentation wordmark reads **OpenBGA QM LIMS**. The shared mark combines a certificate sheet with a leaf-shaped folded corner, in the existing teal and green palette. Existing issued PDF bytes retain their original branding. The repository is [openbga/qm-lims](https://github.com/openbga/qm-lims).
 
 Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to Bootstrap variables; the retained prefix is a compatibility choice, not product branding. Use the local pinned assets and retained vendor notices. New pages must not invent a second control, dialog or table framework. No template-specific colours, inline styles or utilities that bypass light/dark theme tokens. Print uses a legible light theme.
 
@@ -17,7 +17,7 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA Fresh CoA LIMS name and mark throughout, with manufacturing QC imagery and terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA QM LIMS name and mark throughout, with manufacturing QC imagery and terms.
 
 Show menu destinations according to the signed-in user's explicit roles and the destination's read permissions. Combine multiple roles, retain read-only destinations and hide empty sections. Accounts without a recognized role keep account guidance and credential access. Menu visibility never replaces server authorization for a page or action.
 

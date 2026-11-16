@@ -1,4 +1,4 @@
-# Render Blueprint for OpenBGA Fresh CoA LIMS: one Docker web service built from Dockerfile and one
+# Render Blueprint for OpenBGA QM LIMS: one Docker web service built from Dockerfile and one
 # PostgreSQL 17 database. Migrations run before each deploy, /health/ is the health check and
 # the database accepts no external connections. This is the project's synthetic demonstration:
 # it deploys develop automatically once the commit's CI checks pass. Adjust names, plans and

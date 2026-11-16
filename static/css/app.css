@@ -1,5 +1,5 @@
 /*
- * OpenBGA Fresh CoA LIMS application theme for Bootstrap 5.3: the "field notebook".
+ * OpenBGA QM LIMS application theme for Bootstrap 5.3: the "field notebook".
  *
  * Bootstrap supplies every control, dialog, dropdown, table and form widget; DataTables supplies
  * grid behaviour. This file sets the design tokens for the light and dark colour modes
@@ -946,6 +946,15 @@ s,
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* The product token stays visible; the prefix remains in the accessible name. */
+  .vr-topbar > .vr-brand .vr-brand-prefix {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .vr-topbar > .vr-brand img,
