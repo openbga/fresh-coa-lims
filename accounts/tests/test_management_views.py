@@ -54,7 +54,13 @@ def test_administrator_only_navigation_and_all_action_routes(client, manager):
         response = client.get(reverse("accounts:user_action", args=[target.pk, action]))
         assert response.status_code == 200
         assert b"account_authorized" in response.content
-        if action in {"reactivate", "unlock_pin", "reenroll_pin", "reset_two_factor"}:
+        if action in {
+            "reactivate",
+            "unlock_pin",
+            "reenroll_pin",
+            "reset_two_factor",
+            "remove_single_sign_on",
+        }:
             assert b"Return without changes" in response.content
             assert b'name="pin"' not in response.content
         else:
