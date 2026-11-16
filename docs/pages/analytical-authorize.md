@@ -4,7 +4,7 @@ urls: analytical:authorize
 views: analytical.views.authorize
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.Investigation, analytical.AnalyticalTest, analytical.InvestigationEntry, quality.Sample, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -20,7 +20,7 @@ Quality signs authorization of one justified retest or resample within the speci
 
 ## Layout
 
-- Card "Authorize retest · INV-n": "Your signature records authorized for INV-n at record revision N", summary (investigation facts, Allowance "X of N retests or resamples used"), signer, PIN link, form, **Cancel**, **Sign and authorize**.
+- Card "Authorize retest · INV-n": "Your signature records authorized for INV-n at record revision N", summary (investigation facts, Allowance "X of N retests or resamples used", or "X of N retests used" for a stability test), signer, PIN link, form, **Cancel**, **Sign and authorize**.
 
 ## Actions
 
@@ -34,7 +34,7 @@ Quality signs authorization of one justified retest or resample within the speci
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Authorize | `AnalyticalTest.kind` | "Retest of the original sample" or "Resample: test a newly collected sample" | Yes | Which test to create |
-| New sample (resample only) | `AnalyticalTest.sample` | Choice | Only for resample | Samples of this lot that have no tests |
+| New sample (resample only) | `AnalyticalTest.sample` | Choice | Only for resample | Samples of this lot that have no tests; not shown for a stability test |
 | Scientific justification and plan | `InvestigationEntry.text`, `AuditEvent.reason` | Text, max 2000 | Yes | Stored as an "Authorized retest or resample" entry |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature |
@@ -42,12 +42,13 @@ Quality signs authorization of one justified retest or resample within the speci
 
 ## Rules and hidden logic
 
-- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): no PIN field is shown and no PIN checked when authorization is impossible. Redirects to the investigation with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This investigation is closed."; "You cannot authorize retesting of your own result."; "Record the laboratory assessment first."; "The approved specification allows no further retests or resamples.". Retest/resample choice and the resample sample are checked on signing.
-- **Preconditions**: investigation open ("This investigation is closed."); not your own data ("You cannot authorize retesting of your own result."); laboratory assessment recorded ("Record the laboratory assessment first."); allowance left ("The approved specification allows no further retests or resamples."); lot in quarantine.
+- **Stability test**: the investigation has no lot and no other sample. The form offers only the kind "Retest of the material that was pulled" and has no sample field; a resample is refused on signing: "A stability pull has no other sample: authorize a retest of the material that was pulled." The retest is a test of the same pull. 
+- **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): no PIN field is shown and no PIN checked when authorization is impossible. Redirects to the investigation with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine."; "This investigation is closed."; "You cannot authorize retesting of your own result."; "Record the laboratory assessment first."; "The approved specification allows no further retests or resamples.". For a stability test the first check is instead that the pull takes testing: it must be pulled and not yet accepted and its study active ("Record the pull before testing it.", "This pull is accepted; its tests take no more work.", "Study … is closed; its pulls take no more testing."). Retest/resample choice and the resample sample are checked on signing.
+- **Preconditions**: investigation open ("This investigation is closed."); not your own data ("You cannot authorize retesting of your own result."); laboratory assessment recorded ("Record the laboratory assessment first."); allowance left ("The approved specification allows no further retests or resamples."); lot in quarantine (or, for a stability test, the pull open for testing).
 - **Allowance**: linked tests that are not Invalidated count; those invalidated by batch rejection do not.
 - **Kind**: "Choose retest or resample." if neither is posted.
 - **Resample**: "Choose the newly collected sample to test."; "A resample must be a new, untested sample of this lot."
-- **Effect**: a new Open test (same code and frozen specification) is linked to the investigation, and an "Authorized retest or resample" entry with your justification is added (reference "T-n retest" or "T-n resample"); lot revision rises by 1; `signed.authorized` and an immutable signature are stored.
+- **Effect**: a new Open test (same code and frozen specification) is linked to the investigation, and an "Authorized retest or resample" entry with your justification is added (reference "T-n retest" or "T-n resample"); the lot revision (for a stability test the pull revision, never the lot) rises by 1; `signed.authorized` and an immutable signature are stored.
 - **Stale page, identity, session and PIN** messages as for other signings: "Record changed. Reload and review before signing."; "Enter your own signing username and PIN."; "Session expired. Sign in again before signing."; "Signature PIN was not accepted."; five failures lock for 15 minutes.
 - The retest does not replace the original; only a conclusion can invalidate it.
 

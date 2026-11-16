@@ -85,6 +85,7 @@
             <li id="supplier-reliance"><h3>Reliance on supplier results</h3><p>Where the laboratory's approved rule set allows it, a result stated on a supplier's certificate can stand in for a test. Quality qualifies a supplier for one material and named tests, with the evidence and dates, and a second quality person signs. An analyst proposes the stated result on the lot and a reviewer who recorded none of it signs the acceptance. The rule set lists the tests the laboratory always performs itself, such as identity. Testing and acceptance exclude each other, and the certificate of analysis lists accepted supplier results apart from the laboratory's own.</p></li>
             <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, and analyst qualifications by method. Recording a result or a batch QC check names the instruments and the reagent or standard lots used. The entry is refused when an instrument is out of calibration or out of service, a lot is expired or not released, or the analyst has no current qualification for the method. After a failed calibration the equipment page lists the results that used it.</p></li>
             <li id="stability-retention"><h3>Stability and retention</h3><p>Stability protocols with conditions, time points and scheduled pulls. Reserve samples, retention obligations calculated from their anchor dates, and holds that block disposal.</p></li>
+            <li id="stability-testing"><h3>Stability testing in the system</h3><p>A protocol names the specification that states its acceptance criteria. Each pull is tested with the same recording, independent review and signatures as release testing, against the criteria in force when its tests are assigned. The tests belong to the pull, so the record of a released lot does not change. A failing result opens an investigation that holds the pull, and a reviewer who produced none of the data accepts the pull with the outcome of its results. The study shows the results by condition and time point beside the criteria. A protocol without a specification still links a sample or results kept elsewhere.</p></li>
             <li id="signatures-audit"><h3>Signatures, audit trail and accounts</h3><p>Username and PIN are re-entered for every signature, which is bound to the exact revision signed. The audit trail records who changed what, when and why, and can be reviewed and exported. Accounts are named, roles are explicit and account changes are signed.</p></li>
             <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
           </ul>
@@ -103,16 +104,6 @@
           </div>
           <div class="col-lg-8">
             <ol class="qual-workflow">
-              <li id="stability-testing">
-                <h3>Stability testing in the system</h3>
-                <p>A stability pull on a released lot currently points to results kept elsewhere, because the record of a released lot cannot change.</p>
-                <ul>
-                  <li>Test a stability pull with the same recording, review and signature steps as release testing.</li>
-                  <li>Leave the released lot's record unchanged.</li>
-                  <li>Compare results by condition and time point with the acceptance criteria of the protocol.</li>
-                </ul>
-                <p class="qual-ref">Requirement OQ-012</p>
-              </li>
               <li id="validation-support">
                 <h3>Support for validation and inspection</h3>
                 <p>Each laboratory validates the system for its own use. The project can supply evidence that shortens that work.</p>

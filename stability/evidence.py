@@ -16,7 +16,7 @@ data.
 
 from analytical.contracts import reported_source
 from analytical.gates import data_author_ids, investigation_author_ids
-from analytical.models import AnalyticalTest, Investigation
+from analytical.models import AnalyticalTest, Investigation, Observation, RawDataFile
 from core.models import ElectronicSignature
 
 RESULTS_SCHEMA = "stability.pull-results/1"
@@ -263,3 +263,30 @@ def frozen_results(pull):
         ],
         "author_ids": sorted(test_author_ids(pull)),
     }
+
+
+def testing_in_progress(study):
+    """Why the study cannot be closed yet, one reason each, or []: a test of one of its pulls
+    awaits review, an open one already holds an observation, a raw-data file or a QC batch,
+    or an investigation of one is open. Closing would leave that work with no way forward,
+    because a closed study's pulls take no more testing. An open test that holds nothing
+    does not stop the study: it is left as it is."""
+    tests = list(AnalyticalTest.objects.filter(pull__study=study).order_by("pk"))
+    worked = set(
+        Observation.objects.filter(test__in=tests).values_list("test_id", flat=True)
+    ) | set(RawDataFile.objects.filter(test__in=tests).values_list("test_id", flat=True))
+    reasons = []
+    for test in tests:
+        if test.state == STATE.SUBMITTED:
+            reasons.append(f"{test.label} {test.test_code} awaits independent review.")
+        elif test.state == STATE.OPEN and (test.pk in worked or test.batch_id is not None):
+            reasons.append(
+                f"{test.label} {test.test_code} holds results, raw data or a QC batch that "
+                "were not submitted."
+            )
+    open_investigations = Investigation.objects.filter(
+        test__pull__study=study,
+        phase__in=[Investigation.Phase.LABORATORY, Investigation.Phase.FULL],
+    ).order_by("pk")
+    reasons += [f"{inv.label} is open: {inv.trigger}." for inv in open_investigations]
+    return reasons

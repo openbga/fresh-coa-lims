@@ -4,7 +4,7 @@ urls: analytical:observation_correct
 views: analytical.views.observation_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.Observation, analytical.AnalyticalTest, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-14
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -51,7 +51,7 @@ Correct one replicate result by adding a linked correction. The original result 
 | Original record | `Observation.raw_reference` | Text, max 200 | Yes | Source of the corrected value |
 | Reason for correction | `Observation.reason` | Text, max 2000 | Yes | "The original result stays visible in the record." |
 | Test (summary) | `AnalyticalTest.id` (shown as T-n), `AnalyticalTest.requirement` name, `AnalyticalTest.test_code` | Text | — | "T-n · name (code)": the test being recorded |
-| Lot and sample (summary) | `Lot.number`, `Sample.reference` | Text | — | "lot / sample" the test belongs to |
+| Lot and sample (summary) | `Lot.number`, `Sample.reference` | Text | — | "lot / sample" the test belongs to; for a stability test "Lot and stability pull" |
 | Specification (summary) | `AnalyticalTest.requirement` (source, acceptance) | Text | — | Frozen approved requirement: "source · acceptance", e.g. "95.0 to 105.0 unit", "at least L unit", "more than L and at most U unit", "less than U unit" or, for a qualitative test, "Absent in 25 g (expected: Absent)" |
 | Record revision (summary) | `AnalyticalTest.revision` | Integer | — | Test revision when the page opened; recording raises it by 1 |
 | Result being corrected (summary) | `Observation.value_text`, `Observation.unit` | Text as recorded + unit (no unit for qualitative tests) | — | The current result this correction supersedes, e.g. "<10 CFU/g" or "Absent"; it stays visible struck through |
@@ -62,7 +62,7 @@ Correct one replicate result by adding a linked correction. The original result 
 ## Rules and hidden logic
 
 - **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the test record with the warning "Only current observations of open tests can be corrected.". A replicate reported by a contract laboratory is refused the same way: "This replicate was reported by a contract laboratory. Correct the contract laboratory result as a whole."
-- **Preconditions**: test must be Open ("Only open tests can be corrected. A reviewer must return a submitted test first."); lot in quarantine; the observation must not already be corrected ("This observation has already been corrected."); it was made in this laboratory, not reported by a contract laboratory (the message above; the server repeats the check).
+- **Preconditions**: test must be Open ("Only open tests can be corrected. A reviewer must return a submitted test first."); lot in quarantine (or, for a stability test, the pull pulled and not yet accepted and its study active; once the study is closed its pulls' tests take no more work); the observation must not already be corrected ("This observation has already been corrected."); it was made in this laboratory, not reported by a contract laboratory (the message above; the server repeats the check).
 - **Bench checks**: without a configured bench the page redirects to the test record with "No bench check is configured; results are held." and the server refuses the entry with the same message. After the record locks and validations the bench checks your current qualification for the test's method and every instrument and lot you selected. A refusal shows each reason, as "Refused: <subject>: <reason>", on the checkbox list of the refused instrument or lot, or above the form for your qualification (for example "Refused: analyst.test: No approved, current qualification for “<method>”."). Nothing is saved; the refused attempt is audited by the bench. The accepted evidence (user, activity, qualification, equipment and lots with their use records) is frozen on the observation and in its audit event.
 - **Required resources**: a method that requires equipment refuses an entry with none selected ("Select the instrument used; this method requires one."); the same applies to reagent or standard lots. The server repeats this check ("Method <code> requires at least one instrument; select the equipment used.").
 - **Calculated results**: when the method has a calculation, the form asks for each input instead of the value. The server calculates the value with the approved formula and rounds it half-up to the approved decimals. A missing, non-finite or over-precise input (more than 8 decimal places or 20 digits), a division by zero ("The value cannot be calculated: The formula divides by zero for these values.") or a result too large to store refuses the entry; nothing is saved. A calculated result cannot be reported as less than a value. The inputs as entered and the calculation applied (method, revision, formula, unit, decimals) are stored on the observation and in its audit event.
@@ -70,7 +70,7 @@ Correct one replicate result by adding a linked correction. The original result 
 - **Form by result type** (from the frozen requirement): numeric and count tests show the value and the less-than checkbox; qualitative tests show the outcome radio pair and **What was observed**, with no numeric field.
 - **Reading validation** (form errors, status 422, nothing saved): "A count must be a whole number of zero or more."; "A less-than result needs a value greater than zero."; "A qualitative result cannot be reported as less than a value."; "Choose the observed result: Absent or Present." (or Conforms or Does not conform); "Describe what was observed; the outcome alone is not a complete record."
 - **As recorded**: the result text is stored exactly as entered ("99.80", "<10") or as the outcome label ("Absent"). A less-than result is never treated as zero or as its number.
-- **Effect**: a new row with the same replicate number supersedes the old one; the test and lot revisions rise by 1; `observation.corrected` is audited with the before and after readings as recorded (value text, qualifier, outcome, what was observed, inputs and calculation), the bench evidence and your reason.
+- **Effect**: a new row with the same replicate number supersedes the old one; the test revision and the revision of the lot (or, for a stability test, the pull) rise by 1; `observation.corrected` is audited with the before and after readings as recorded (value text, qualifier, outcome, what was observed, inputs and calculation), the bench evidence and your reason.
 - **Display**: the old value is struck through and marked "superseded"; the new row is marked "correction".
 - **Independence**: a corrected original still counts as that user's data, so a superseded author cannot review the test.
 - Out-of-specification submitted tests cannot be returned, so they cannot be corrected.

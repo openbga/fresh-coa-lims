@@ -411,35 +411,71 @@ def test_a_confirmed_failure_closes_the_pull_with_the_outcome_fails(people):
     assert closed.state == "completed"
 
 
-def test_an_accepted_or_closed_pull_takes_no_more_testing(people):
-    study, _ = specified_study(people, codes=("assay", "water"))
-    pull = pulled(people, study)
-    assay, water = sorted(assign(people, pull), key=lambda t: t.test_code)
-    observe(people, water, "99.0")
-    services.close_study(
+def close(people, study, outcome="terminated"):
+    study.refresh_from_db()
+    return services.close_study(
         actor=people["quality"],
         pin=PIN,
         study=study,
         expected_revision=study.revision,
-        outcome="terminated",
+        outcome=outcome,
         reason="Synthetic early termination",
     )
+
+
+def test_a_study_is_not_closed_while_testing_of_its_pulls_is_in_progress(people):
+    study, _ = specified_study(people, codes=("assay", "water"))
+    pull = pulled(people, study)
+    assay, water = sorted(assign(people, pull), key=lambda t: t.test_code)
+    observe(people, water, "91.0")  # out of specification once submitted
+    with pytest.raises(ValidationError, match=f"{water.label} water holds results"):
+        close(people, study)
+    submit(people, water)
+    with pytest.raises(ValidationError, match="awaits independent review"):
+        close(people, study)
+    review(people, water)
+    investigation = Investigation.objects.get(test=water)
+    with pytest.raises(ValidationError, match=f"{investigation.label} is open"):
+        close(people, study)
+    study.refresh_from_db()
+    assert study.state == "active"
+    assert not ElectronicSignature.objects.filter(object_type="stability.study").exists()
+    # The way forward: conclude the investigation. The untouched assay test does not stop it.
+    analytical.add_entry(
+        actor=people["analyst2"],
+        investigation=investigation,
+        kind="assessment",
+        text="Synthetic assessment: no laboratory error found",
+    )
+    investigation.refresh_from_db()
+    analytical.conclude(
+        actor=people["quality2"],
+        pin=PIN,
+        investigation=investigation,
+        expected_revision=investigation.revision,
+        outcome="confirmed",
+        assignable_cause="",
+        reason="Out-of-specification result confirmed",
+    )
+    assert close(people, study).state == "terminated"
+    # The closed study's pulls take no more testing.
+    assay = AnalyticalTest.objects.get(pk=assay.pk)
+    assert analytical.subject_refusal(assay).startswith(f"Study {study.identifier} is closed")
     for attempt in (
         lambda: observe(people, assay),
-        lambda: submit(people, water),
         lambda: assign(people, pull),
         lambda: analytical.correct_observation(
             actor=people["analyst2"],
             observation=Observation.objects.get(test=water),
-            value=Decimal("99.1"),
+            value=Decimal("91.1"),
             raw_reference="NB-STB-1 p2",
             reason="Late correction",
         ),
     ):
-        with pytest.raises(ValidationError, match="is closed; its pulls take no more testing"):
+        with pytest.raises(ValidationError, match="is closed|Only open tests"):
             attempt()
-    assay = AnalyticalTest.objects.get(pk=assay.pk)
-    assert analytical.subject_refusal(assay).startswith(f"Study {study.identifier} is closed")
+    with pytest.raises(ValidationError, match="is closed; its pulls take no more testing"):
+        observe(people, assay)
     assert Observation.objects.count() == 1
 
 

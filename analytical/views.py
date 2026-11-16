@@ -1299,7 +1299,8 @@ def authorize(request, pk):
             (
                 "Allowance",
                 f"{inv.tests.exclude(state='invalidated').count()} of "
-                f"{inv.test.spec.max_retests} retests or resamples used",
+                f"{inv.test.spec.max_retests} "
+                + ("retests used" if inv.lot_id is None else "retests or resamples used"),
             ),
         ],
     )

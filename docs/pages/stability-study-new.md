@@ -4,7 +4,7 @@ urls: stability:study_new
 views: stability.views.study_new
 templates: ops/form.html
 models: stability.Study, stability.Pull, quality.Lot, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -33,7 +33,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 |---|---|---|---|---|
 | Identifier | `Study.identifier` | Text, max 60, unique | Yes | "This study identifier already exists." if taken |
 | Approved protocol | `Study.protocol` | Approved protocol versions only | Yes | Preselected when opened with a protocol in the link (as from a protocol record) |
-| Lot | `Study.lot` | Any lot, listed by lot number | Yes | The lot under study; any lot state is allowed, including released lots |
+| Lot | `Study.lot` | Any lot, listed by lot number | Yes | The lot under study; any lot state is allowed, including released lots. When the protocol names a specification, the lot must be of that specification's material |
 | Container and closure | `Study.container_closure` | Text, max 200 | Yes | Marketed or proposed system |
 | Time zero | `Study.start_date` | Date, today or earlier | Yes | Date the study actually started; due dates are Time zero plus each timepoint's days |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
@@ -41,6 +41,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 ## Rules and hidden logic
 
 - "Studies start only on the current approved protocol revision." The lot's rule revision at the start is stored as the decision basis.
+- When the protocol names a specification, the lot's latest assigned requirements decide its material. Refused: "Lot <number> has no requirements assigned, so its material is not established. <protocol> tests against specification <code> of <material>; assign the lot's requirements first." or "Lot <number> is <material>; <protocol> tests against specification <code> of <material>." A protocol with no specification has no such check.
 - One study per protocol, lot and container closure; a repeat is refused by the model's uniqueness check.
 - Creates one Pull per protocol timepoint (all conditions), due on Time zero plus the timepoint's interval days; starts Active with revision 1 and records you as the starter (you cannot close it later).
 - Event `study.started` records how many pulls were scheduled and the protocol.
@@ -48,7 +49,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 - Time zero cannot be in the future: "Time zero cannot be in the future: this workflow records studies that have actually started." (also shown beside the field). Today and historical dates are accepted. This is an application rule for recording an actual start, not a regulatory requirement.
 - Not compared with the lot: Time zero may predate the lot's receipt (historical starts are legitimate) and any lot state, including released lots, is allowed. A planned-study workflow (scheduling a study before it starts) is not supported.
 - Once saved, Time zero and every pull's due date are immutable (the database refuses changes).
-- Not enforced by this page: that Time zero is plausible for the lot, or the lot's relation to the protocol product.
+- Not enforced by this page: that Time zero is plausible for the lot, or the lot's relation to the protocol product (apart from the material check above).
 
 ## Related pages
 

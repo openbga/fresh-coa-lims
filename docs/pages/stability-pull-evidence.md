@@ -4,12 +4,12 @@ urls: stability:pull_evidence
 views: stability.views.pull_evidence
 templates: ops/form.html
 models: stability.Pull, quality.Sample, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-15
 ---
 
 ## Purpose
 
-Link the sample registered for testing, or an external stability system's records, to a pulled pull.
+Link the sample registered for testing, or an external stability system's records, to a pulled pull that has no tests of its own.
 
 ## Who can use it
 
@@ -39,6 +39,7 @@ Link the sample registered for testing, or an external stability system's record
 
 ## Rules and hidden logic
 
+- A pull that already has tests assigned in the system is not linked: opening or submitting this page shows the warning "This pull is tested in the system: its own tests are its evidence. A pull is tested in the system or linked to other evidence, never both." and returns to the pull record; a save is also refused with that text. Linking evidence and assigning tests exclude each other.
 - Messages: "Evidence can be linked only to a pulled, unaccepted pull." (also when the study is closed); "No sample has this reference."; "The sample belongs to a different lot than the study."; "Link a sample, or give the external sample and evidence references."
 - Allowed until acceptance; earlier links stay in the history as before/after values. A sample is evidence for one pull only ("The sample is already evidence for …; each pull needs its own sample.") and must be collected on the pull date ("The sample was collected on <date>, not on the pull date <date>; it cannot be this pull's evidence."). The sample must not be dated in the future ("The sample cannot be collected in the future."). The user who links evidence is recorded and cannot later accept the pull. Each save replaces the previous links and sets the revision up by 1. Event `pull.evidence_linked`.
 

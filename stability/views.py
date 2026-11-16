@@ -32,7 +32,15 @@ from laboratory.ui import (
 )
 
 from . import gates, services, testing
-from .evidence import CONFORMS, FAILS, has_tests, pull_results, sample_evidence, study_results
+from .evidence import (
+    CONFORMS,
+    FAILS,
+    has_tests,
+    pull_results,
+    sample_evidence,
+    study_results,
+    testing_in_progress,
+)
 from .forms import (
     AnchorForm,
     CloseStudyForm,
@@ -748,8 +756,13 @@ def _result_cell(test):
 
 
 def _comparison(pulls):
-    """One section for each storage condition: the tests as rows, the time points as columns
-    and each reviewed result beside the acceptance criterion it was judged against."""
+    """One section for each storage condition: the time points as rows, the tests as columns
+    and each reviewed result with the acceptance criterion it was judged against.
+
+    Time points are rows because a study gains them over the years while it tests a handful
+    of attributes, so the table grows down the page and a phone shows every result without
+    scrolling sideways. A criterion that differs between time points is written in the cell.
+    """
     tested = study_results(pulls)
     if not tested:
         return []
@@ -762,50 +775,55 @@ def _comparison(pulls):
         codes = []
         for pull in members:
             codes += [code for code in pull.timepoint.test_codes if code not in codes]
+        found = {}  # (pull pk, code) -> the row of that test's lineage on the pull
+        names, criteria = dict.fromkeys(codes), {code: [] for code in codes}
+        for pull in members:
+            for row in tested.get(pull.pk, ([], [], ""))[1]:
+                found[(pull.pk, row["test_code"])] = row
+                if row["lineage"]:
+                    spec = row["lineage"][0].spec
+                    names[row["test_code"]] = f"{spec.name} ({row['test_code']})"
+                    if spec.acceptance not in criteria[row["test_code"]]:
+                        criteria[row["test_code"]].append(spec.acceptance)
         rows = []
-        for code in codes:
-            name, criteria, cells = code, {}, []
-            for pull in members:
-                found = tested.get(pull.pk)
-                row = next((r for r in found[1] if r["test_code"] == code), None) if found else None
+        for pull in members:
+            cells = []
+            for code in codes:
+                row = found.get((pull.pk, code))
                 if code not in pull.timepoint.test_codes:
                     cells.append("")
                 elif row is None or not row["lineage"]:
                     cells.append(status(*_untested(pull)))
+                elif not row["tests"]:
+                    cells.append(status("In testing", "progress"))
                 else:
-                    spec = row["lineage"][0].spec
-                    name = f"{spec.name} ({code})"
-                    criteria.setdefault(spec.acceptance, []).append(pull.timepoint.label)
-                    if row["tests"]:
-                        results = [_result_cell(test) for test in row["tests"]]
-                        tone = "danger" if row["outcome"] == FAILS else "success"
-                        tone = tone if row["outcome"] else "progress"
-                        text = "; ".join(r["text"] for r in results)
-                        cells.append(status(text if row["outcome"] else f"{text} · open", tone))
-                    else:
-                        cells.append(status("In testing", "progress"))
-            if len(criteria) == 1:
-                criterion = next(iter(criteria))
-            else:
-                criterion = "; ".join(
-                    f"{text} ({', '.join(labels)})" for text, labels in criteria.items()
-                )
-            # The criterion shares the row heading, so that on a narrow screen the first
-            # results are in view beside the test they belong to.
-            rows.append([f"{name}: {criterion}" if criterion else name, *cells])
+                    text = "; ".join(_result_cell(test)["text"] for test in row["tests"])
+                    if len(criteria[code]) > 1:
+                        text += f" (against {row['tests'][0].spec.acceptance})"
+                    tone = {FAILS: "danger", CONFORMS: "success"}.get(row["outcome"], "progress")
+                    cells.append(status(text if row["outcome"] else f"{text} · open", tone))
+            rows.append(
+                [
+                    cell(pull.timepoint.label, reverse("stability:pull_detail", args=[pull.pk])),
+                    *cells,
+                ]
+            )
+        headings = [
+            names[code] or code
+            if len(criteria[code]) != 1
+            else f"{names[code] or code}: {criteria[code][0]}"
+            for code in codes
+        ]
         sections.append(
             section(
                 f"Results · {condition.label}",
-                [
-                    ("Test and acceptance criterion", False),
-                    *((pull.timepoint.label, False) for pull in members),
-                ],
+                [("Time point", False), *((heading, False) for heading in headings)],
                 rows,
                 "No results yet.",
                 note=f"{condition.setpoint}. Reviewed results of the pulls tested in the "
-                "system, each judged against the acceptance criterion frozen on its test. "
-                "Where the criterion changed between time points, each one is listed with "
-                "the time points it applied to.",
+                "system, each judged against the acceptance criterion frozen on its test and "
+                "named in the column heading. Where the criterion changed between time points, "
+                "each result names the criterion it was judged against.",
             )
         )
     return sections
@@ -833,6 +851,10 @@ def study_close(request, pk):
         denial = "You started this study, so you cannot close it."
     elif s.state != Study.State.ACTIVE:
         denial = "This study is already closed."
+    elif reasons := testing_in_progress(s):
+        denial = "Testing of the study's pulls is in progress; finish it first: " + " ".join(
+            reasons
+        )
     form = CloseStudyForm(request.POST or None, initial={"expected_revision": s.revision})
     detail = reverse("stability:study_detail", args=[s.pk])
     return sign_page(
@@ -842,7 +864,8 @@ def study_close(request, pk):
         identifier=s.identifier,
         meaning="approved",
         meaning_text="You approve closing the study. Completion needs every pull accepted or "
-        "recorded as missed; early termination is recorded as such.",
+        "recorded as missed; early termination is recorded as such. A closed study's pulls take "
+        "no more testing, and open tests that hold nothing are left as they are.",
         button="Sign and approve",
         facts=[
             ("Lot", s.lot.number),
@@ -969,7 +992,14 @@ def pull_detail(request, pk):
         detail_actions.append(
             action("Link evidence", reverse("stability:pull_evidence", args=[p.pk]))
         )
-    if p.state == "pulled" and can(user, "reviewer") and user.pk not in services.pull_author_ids(p):
+    # A pull tested here is offered for acceptance once its testing is complete; the Tests
+    # section says what is still open.
+    if (
+        p.state == "pulled"
+        and can(user, "reviewer")
+        and user.pk not in services.pull_author_ids(p)
+        and not (tested and (blockers or not outcome))
+    ):
         detail_actions.append(
             action("Accept pull", reverse("stability:pull_accept", args=[p.pk]), True)
         )
@@ -1116,8 +1146,8 @@ def _tests_section(pull, rows, blockers, outcome):
             table.append([row["test_code"], status("No test assigned", "warning"), "", ""])
     if pull.state == Pull.State.ACCEPTED:
         note = f"Accepted: {pull.get_outcome_display().lower()}."
-    elif blockers:
-        note = "The pull cannot be accepted yet: " + " ".join(blockers)
+    elif blockers or not outcome:
+        note = "The pull cannot be accepted yet: " + (" ".join(blockers) or "testing is open.")
     else:
         label = dict(Pull.Outcome.choices)[outcome].lower()
         note = f"Every test is reviewed: the pull {label}. A reviewer can accept it."

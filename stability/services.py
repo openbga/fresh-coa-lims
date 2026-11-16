@@ -27,7 +27,14 @@ from laboratory.services import lock_account
 from quality.models import Lot, Sample
 
 from . import testing
-from .evidence import frozen_results, has_tests, pull_results, sample_evidence, test_author_ids
+from .evidence import (
+    frozen_results,
+    has_tests,
+    pull_results,
+    sample_evidence,
+    test_author_ids,
+    testing_in_progress,
+)
 from .models import (
     Hold,
     Protocol,
@@ -541,6 +548,12 @@ def close_study(*, actor, pin, study, expected_revision, outcome, reason):
             raise ValidationError("This study is already closed.")
         if locked.created_by_id == actor.pk:
             raise PermissionDenied("The person who started a study cannot close it.")
+        # Every testing transition locks the study after its tests and pull, so what is read
+        # here under the study lock cannot gain work before this commits.
+        if reasons := testing_in_progress(locked):
+            raise ValidationError(
+                "Testing of the study's pulls is in progress; finish it first: " + " ".join(reasons)
+            )
         pending = locked.pulls.filter(state__in=[Pull.State.SCHEDULED, Pull.State.PULLED])
         if outcome == Study.State.COMPLETED and pending.exists():
             raise ValidationError(

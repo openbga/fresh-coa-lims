@@ -370,8 +370,9 @@ def test_a_qc_batch_carries_the_tests_of_a_pull(people, settings):  # noqa: F811
 
 def test_an_earlier_method_version_still_gets_a_batch_for_a_pull_in_testing(people):  # noqa: F811
     study, config = specified_study(people, requires_batch=True)
-    pull = pulled(people, study)
-    (test,) = assign(people, pull)
+    first, second = pulled(people, study, 100), pulled(people, study, 30)
+    (test,) = assign(people, first)
+    assign(people, second)  # left untouched
     method = config["method"]
     later = catalog.new_method_revision(
         actor=people["quality"],
@@ -393,7 +394,7 @@ def test_an_earlier_method_version_still_gets_a_batch_for_a_pull_in_testing(peop
         expected_revision=later.revision,
         reason="Independent synthetic configuration review",
     )
-    # The pull's test keeps the version frozen on it and can still be run under it.
+    # The pull's tests keep the version frozen on them and can still be run under it.
     assert (method.code, 1) in analytical.earlier_batch_methods()
     batch = analytical.create_batch(
         actor=people["analyst2"],
@@ -405,7 +406,18 @@ def test_an_earlier_method_version_still_gets_a_batch_for_a_pull_in_testing(peop
     analytical.assign_to_batch(
         actor=people["analyst2"], test=test, batch=batch, reason="Synthetic run"
     )
-    # Once the pull is no longer in testing, nothing asks for the earlier version.
+    analytical.record_qc(
+        actor=people["analyst2"],
+        batch=batch,
+        check_code="control",
+        value=Decimal("100.0"),
+        raw_reference="NB-STB-QC p2",
+    )
+    reviewed(people, test, "100.1")
+    # The untouched test of the other pull still needs the earlier version.
+    assert (method.code, 1) in analytical.earlier_batch_methods()
+    # Once its study is closed, nothing asks for the earlier version.
+    study.refresh_from_db()
     stability.close_study(
         actor=people["quality"],
         pin=LAB_PIN,
@@ -414,8 +426,6 @@ def test_an_earlier_method_version_still_gets_a_batch_for_a_pull_in_testing(peop
         outcome="terminated",
         reason="Synthetic early termination",
     )
-    other, _ = AnalyticalTest.objects.get(pk=test.pk), None
-    assert other.batch_id == batch.pk
     assert (method.code, 1) not in analytical.earlier_batch_methods()
 
 
@@ -435,15 +445,24 @@ def test_testing_a_pull_and_closing_its_study_do_not_deadlock(people, monkeypatc
             reason="Synthetic early termination",
         )
 
-    # The observation holds the test, the pull and the study while the closure queues.
+    # The observation holds the test, the pull and the study while the closure queues; the
+    # closure then reads the observation and refuses, so no recorded result is stranded.
     outcome = run_interleaved(
         monkeypatch, analytical, "_touch", lambda: observe(people, assay, "100.0"), close
     )
     assert isinstance(outcome["first"], Observation), outcome
-    assert outcome["second"].state == "terminated", outcome
-    # Afterwards the closed study refuses the next observation.
-    with pytest.raises(ValidationError, match="is closed"):
-        observe(people, water, "99.0")
+    assert isinstance(outcome["second"], ValidationError), outcome
+    assert "holds results" in str(outcome["second"]), outcome
+    # The other way round: the closure holds the study while the observation queues on it.
+    submit(people, assay)
+    review(people, assay)
+    outcome = run_interleaved(
+        monkeypatch, stability, "testing_in_progress", close, lambda: observe(people, water, "99.0")
+    )
+    assert outcome["first"].state == "terminated", outcome
+    assert isinstance(outcome["second"], ValidationError), outcome
+    assert "is closed" in str(outcome["second"]), outcome
+    assert not Observation.objects.filter(test=water).exists()
 
 
 def test_accepting_a_pull_and_recording_on_it_do_not_deadlock(people, monkeypatch):  # noqa: F811

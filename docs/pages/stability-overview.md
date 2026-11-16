@@ -4,7 +4,7 @@ urls: stability:overview
 views: stability.views.overview
 templates: ops/overview.html
 models: stability.Pull, stability.Protocol, stability.Study, stability.Hold, stability.RetentionObligation, stability.ReserveSample
-reviewed: 2026-11-11
+reviewed: 2026-11-15
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Work queues for stability pulls, studies, protocols, holds, retention anchors an
 ## Layout
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
-- Title "Stability and retention", the introduction (native scheduling is thin; link external stability systems where used) and one list of queues, each with a count. A zero count is shown in a neutral tone. The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
+- Title "Stability and retention", the introduction (a pull is tested in the system against the acceptance criteria of its protocol, or linked to an external stability system where one is used) and one list of queues, each with a count. A zero count is shown in a neutral tone. The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Pulls outside acceptance criteria (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
 
 Queue names wrap on narrow screens to keep counts and attention labels easier to see. Wide tables can be scrolled sideways.
 
@@ -27,13 +27,14 @@ Queue names wrap on narrow screens to keep counts and attention labels easier to
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| Queue name link | Always | Any reader | Opens the matching list. Pull queues, Active studies, Protocols awaiting approval, Active holds and Reserves below minimum quantity open with their status filter applied; Retention anchors not yet known opens the unfiltered [Reserve samples](/stability/reserves/) list |
+| Queue name link | Always | Any reader | Opens the matching list. Pull queues (Pulls outside acceptance criteria opens the Pulls list filtered to "Accepted, acceptance criteria not met"), Active studies, Protocols awaiting approval, Active holds and Reserves below minimum quantity open with their status filter applied; Retention anchors not yet known opens the unfiltered [Reserve samples](/stability/reserves/) list |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Pulls overdue / due now / awaiting acceptance | `Pull.state`, `Pull.due_date`, `Timepoint.window_days` | Count | — | Pulls of active studies only |
+| Pulls outside acceptance criteria | `Pull.state`, `Pull.outcome` | Count | — | Accepted pulls whose recorded outcome is "Does not meet the acceptance criteria"; active studies only; shown in the danger tone when above zero |
 | Active studies | `Study.state` | Count | — | State Active |
 | Protocols awaiting approval | `Protocol.state` | Count | — | State Draft |
 | Active holds | `Hold.state` | Count | — | State Active |
@@ -42,7 +43,8 @@ Queue names wrap on narrow screens to keep counts and attention labels easier to
 
 ## Rules and hidden logic
 
-- Only Scheduled pulls count as overdue or due. The window is the due date ± the timepoint's window days: **due** from the first to the last day of the window (inclusive), **overdue** after it closes, **upcoming** before it opens. Awaiting acceptance counts pulls in state Pulled. All three consider active studies only.
+- Only Scheduled pulls count as overdue or due. The window is the due date ± the timepoint's window days: **due** from the first to the last day of the window (inclusive), **overdue** after it closes, **upcoming** before it opens. Awaiting acceptance counts pulls in state Pulled. All three consider active studies only, as does Pulls outside acceptance criteria.
+- Pulls outside acceptance criteria counts accepted pulls tested in the system whose confirmed results fall outside the criteria, in active studies only (the list it opens also shows closed studies).
 - The other queues count every record, whatever its age.
 - Not enforced by this page: any reminder or notification; the page only counts.
 
