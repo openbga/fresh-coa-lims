@@ -87,6 +87,10 @@ def test_stability_pull_is_tested_in_the_system_and_the_lot_record_is_left_alone
             page.set_viewport_size({"width": 1440, "height": 1000})
 
         def sign(person, reason, button, label="Reason"):
+            # Type only once the signing page has loaded, as the other journeys do: its
+            # deferred script moves the form into a dialog and moves the focus.
+            expect(field("Signing username")).to_be_visible()
+            page.wait_for_load_state()
             field("Signing username").fill(person)
             field("Signature PIN").fill(PIN)
             field(label).fill(reason)
