@@ -85,7 +85,7 @@ Native reports resolve the exact assignment ID, lot and payload hash captured by
 | Security | Production secret/hosts/origins from environment, HTTPS, one-year HSTS by default, secure cookies, CSRF and a same-origin Content-Security-Policy |
 | Time | UTC default; retain unambiguous timestamp/zone context; never reinterpret signed records |
 
-Resource sizes above are configuration choices, not a claim of deployment or current provider pricing. Secrets and operational evidence stay out of Git. Seeding is deliberate and never part of deploy. Use backward-compatible migrations when instances overlap; reverting code does not revert schema. Restore into an isolated database and verify audit/signature/record relationships before relying on recovery. Production requires an owner for backup retention, restore rehearsal, access reviews, identity proofing and intended-use validation.
+Resource sizes above are configuration choices, not a claim of deployment or current provider pricing. Secrets and operational evidence stay out of Git. Seeding is deliberate and never part of deploy. Use backward-compatible migrations when instances overlap; reverting code does not revert schema. Restore into an isolated database and check it against the backup manifest (`verify_restore`) before relying on recovery. Production requires an owner for backup retention, restore rehearsal, access reviews, identity proofing and intended-use validation.
 
 ## Integration gate
 

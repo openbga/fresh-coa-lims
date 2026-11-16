@@ -47,7 +47,7 @@
               <li><a href="#later">Later</a></li>
               <li><a href="#outside">Outside the current plan</a></li>
             </ul>
-            <p class="qual-demo-note">Last updated <time datetime="2026-11-15">15 November 2026</time>. To propose a change, <a href="https://github.com/openbga/fresh-coa-lims/issues">open an issue on GitHub</a>.</p>
+            <p class="qual-demo-note">Last updated <time datetime="2026-11-16">16 November 2026</time>. To propose a change, <a href="https://github.com/openbga/fresh-coa-lims/issues">open an issue on GitHub</a>.</p>
           </div>
           <div class="col-lg-5">
             <aside class="qual-record" aria-labelledby="reading-heading">
@@ -86,6 +86,7 @@
             <li id="laboratory-resources"><h3>Equipment, reagents and qualifications</h3><p>Equipment with calibration and out-of-service status, reagent lots with release and rejection, and analyst qualifications by method. Recording a result or a batch QC check names the instruments and the reagent or standard lots used. The entry is refused when an instrument is out of calibration or out of service, a lot is expired or not released, or the analyst has no current qualification for the method. After a failed calibration the equipment page lists the results that used it.</p></li>
             <li id="stability-retention"><h3>Stability and retention</h3><p>Stability protocols with conditions, time points and scheduled pulls. Reserve samples, retention obligations calculated from their anchor dates, and holds that block disposal.</p></li>
             <li id="signatures-audit"><h3>Signatures, audit trail and accounts</h3><p>Username and PIN are re-entered for every signature, which is bound to the exact revision signed. The audit trail records who changed what, when and why, and can be reviewed and exported. Accounts are named, roles are explicit and account changes are signed.</p></li>
+            <li id="backup-restore"><h3>Backup and restore checks</h3><p>When a backup is taken, an operator command records each table's rows and a fingerprint of them, the schema and the migrations, read at the same instant as the database dump. After the backup is restored into a new database, a second command compares the copy with that record, recomputes the signature hashes and the checksums of issued certificates and raw-data files, and checks that the history protections are switched on. It writes a report the operator keeps as evidence of the restore test. Both commands only read the database. Schedules, off-site storage and recovery objectives stay with the laboratory.</p></li>
             <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
           </ul>
         </div>
@@ -120,7 +121,6 @@
                   <li>Multi-factor sign-in and single sign-on. The PIN is still re-entered for every signature.</li>
                   <li>A validation pack with each release: the requirements, the tests that cover them, the test results and release notes.</li>
                   <li>One export of a lot's complete record with its reviews, signatures, investigations and audit trail.</li>
-                  <li>Backup and restore checks that an operator can run and keep as evidence.</li>
                 </ul>
                 <p class="qual-ref">Requirements OQ-002, OQ-016</p>
               </li>
