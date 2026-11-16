@@ -1,4 +1,4 @@
-{% comment %}Raw-data files of a test. Parameters: test, can_correct (analyst, open test, lot in quarantine).{% endcomment %}
+{% comment %}Raw-data files of a test. Parameters: test, can_correct (analyst, open test, lot in quarantine or stability pull being tested).{% endcomment %}
 {% with files=test.raw_file_list %}
 <section class="card vr-table-card mb-3" aria-labelledby="raw-heading">
   <div class="card-header"><h2 class="card-title" id="raw-heading">Raw data files</h2><span class="vr-count">{{ files|length }}</span></div>

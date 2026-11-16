@@ -42,6 +42,8 @@ from .models import AnalyticalTest, Investigation, Observation, QCBatch, QCResul
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 PAGE_SIZE = 30
+# What a page shows of the stability pull a test belongs to: its study, lot and time point.
+PULL = ("pull__study__lot", "pull__timepoint__condition")
 
 
 def query_params(request):
@@ -216,7 +218,9 @@ def mark_supplier_results(tests):
     """Set ``supplier_result`` on each open test whose requirement a supplier's certificate
     result is proposed or accepted for: such a test is not work waiting to be done."""
     tests = list(tests)
-    standing = supplier_standing_by_lot({t.lot_id for t in tests if t.state == "open"})
+    standing = supplier_standing_by_lot(
+        {t.lot_id for t in tests if t.state == "open" and t.lot_id is not None}
+    )
     for test in tests:
         test.supplier_result = (
             standing.get((test.lot_id, test.test_code)) if test.state == "open" else None
@@ -231,13 +235,15 @@ def test_list(request):
     if state not in TEST_FILTERS:
         state = ""
     query = request.GET.get("q", "").strip()
-    tests = AnalyticalTest.objects.select_related("lot", "sample", "batch").filter(
+    tests = AnalyticalTest.objects.select_related("lot", "sample", "batch", *PULL).filter(
         TEST_FILTERS[state][1]
     )
     if query:
         tests = tests.filter(
             Q(lot__number__icontains=query)
             | Q(sample__reference__icontains=query)
+            | Q(pull__study__identifier__icontains=query)
+            | Q(pull__study__lot__number__icontains=query)
             | Q(test_code__icontains=query)
         )
     tests = tests.order_by("-created_at", "-pk")
@@ -295,7 +301,9 @@ def batch_list(request):
 def investigation_list(request):
     access(request.user)
     state = request.GET.get("state", "open")
-    investigations = Investigation.objects.select_related("lot", "test")
+    investigations = Investigation.objects.select_related(
+        "lot", "test", *(f"test__{name}" for name in PULL)
+    )
     if state == "open":
         investigations = investigations.exclude(phase="closed")
     elif state == "closed":
@@ -305,7 +313,10 @@ def investigation_list(request):
     query = request.GET.get("q", "").strip()
     if query:
         investigations = investigations.filter(
-            Q(lot__number__icontains=query) | Q(test__test_code__icontains=query)
+            Q(lot__number__icontains=query)
+            | Q(test__pull__study__identifier__icontains=query)
+            | Q(test__pull__study__lot__number__icontains=query)
+            | Q(test__test_code__icontains=query)
         )
     return render(
         request,
@@ -409,11 +420,15 @@ def assign_tests(request, lot):
 # Tests ----------------------------------------------------------------------------------------
 
 
+def subject_crumb(test):
+    """The page a test is reached from: its lot's testing page, or its stability pull."""
+    if test.pull_id is not None:
+        return (test.pull.label, reverse("stability:pull_detail", args=[test.pull_id]))
+    return (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id]))
+
+
 def test_crumbs(test, current=None):
-    crumbs = [
-        ("Testing", reverse("analytical:test_list")),
-        (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id])),
-    ]
+    crumbs = [("Testing", reverse("analytical:test_list")), subject_crumb(test)]
     if current:
         crumbs += [(test.label, reverse("analytical:test_detail", args=[test.pk])), (current, None)]
     else:
@@ -425,7 +440,7 @@ def test_summary(test):
     spec = test.spec
     return [
         ("Test", f"{test.label} · {spec.name} ({test.test_code})"),
-        ("Lot and sample", f"{test.lot.number} / {test.sample.reference}"),
+        ("Lot and stability pull" if test.pull_id else "Lot and sample", test.subject_text),
         ("Specification", f"{spec.source} · {spec.acceptance}"),
         ("Record revision", test.revision),
     ]
@@ -460,7 +475,9 @@ def limits_text(spec):
 
 def get_test(pk):
     return get_object_or_404(
-        AnalyticalTest.objects.select_related("lot", "sample", "batch", "parent", "investigation"),
+        AnalyticalTest.objects.select_related(
+            "lot", "sample", "batch", "parent", "investigation", *PULL
+        ),
         pk=pk,
     )
 
@@ -479,7 +496,8 @@ def test_detail(request, pk):
         obs.is_current = obs.pk not in superseded
         obs.in_limits = spec.conforms(obs.reading)
     user_roles = roles(request.user)
-    is_open = test.state == "open" and test.lot.state == "quarantine"
+    subject_closed = services.subject_refusal(test)
+    is_open = test.state == "open" and subject_closed is None
     current = [o for o in observations if o.is_current]
     current_count = len(current)
     # Reported by a contract laboratory: every current replicate carries its evidence.
@@ -493,7 +511,9 @@ def test_detail(request, pk):
     # A supplier's result proposed or accepted in place of this test: it takes no laboratory
     # work until that is withdrawn on the lot record.
     supplier_label = (
-        supplier_standing(test.lot).get(test.test_code) if test.state == "open" else None
+        supplier_standing(test.lot).get(test.test_code)
+        if test.state == "open" and test.lot_id is not None
+        else None
     )
     test.supplier_result = supplier_label
     is_open = is_open and supplier_label is None
@@ -507,6 +527,7 @@ def test_detail(request, pk):
             "page_title": test.label,
             "test": test,
             "spec": spec,
+            "subject_closed": subject_closed,
             "observations": observations,
             "current_count": current_count,
             "batch_status": batch_status,
@@ -549,7 +570,7 @@ def observation_new(request, pk):
     require_role(request.user, "analyst")
     test = get_test(pk)
     back = reverse("analytical:test_detail", args=[test.pk])
-    if test.state != "open" or test.lot.state != "quarantine":
+    if test.state != "open" or services.subject_refusal(test):
         return unavailable(request, "This test is not accepting observations.", back)
     if refusal := services.supplier_refusal(test):
         return unavailable(request, refusal, back)
@@ -656,7 +677,7 @@ def contract_result(request, pk):
     back = reverse("analytical:test_detail", args=[test.pk])
     current = list(test.current_observations().order_by("replicate", "pk"))
     refusal = (
-        services.quarantine_refusal(test.lot)
+        services.subject_refusal(test)
         or services.contract_refusal(test, current)
         or services.supplier_refusal(test)
     )
@@ -754,7 +775,7 @@ def test_batch(request, pk):
     method = test.spec.method
     back = reverse("analytical:test_detail", args=[test.pk])
     refusal = (
-        services.quarantine_refusal(test.lot)
+        services.subject_refusal(test)
         or services.batching_refusal(test)
         or services.supplier_refusal(test)
     )
@@ -810,10 +831,11 @@ def test_submit(request, test):
         messages.error(request, " ".join(exc.messages))
         return redirect("analytical:test_detail", pk=test.pk)
     if investigation:
+        held = f"stability pull {test.pull.label}" if test.pull_id else f"lot {test.lot.number}"
         messages.warning(
             request,
-            f"Out of specification: {investigation.label} opened and lot {test.lot.number} "
-            "is held until it is concluded.",
+            f"Out of specification: {investigation.label} opened and {held} is held until "
+            "it is concluded.",
         )
         return redirect("analytical:investigation_detail", pk=investigation.pk)
     messages.success(request, "Results submitted for independent review.")
@@ -825,7 +847,7 @@ def test_submit(request, test):
 def test_return(request, pk):
     require_role(request.user, "reviewer")
     test = get_test(pk)
-    refusal = services.quarantine_refusal(test.lot) or services.return_refusal(request.user, test)
+    refusal = services.subject_refusal(test) or services.return_refusal(request.user, test)
     if refusal:
         return unavailable(request, refusal, reverse("analytical:test_detail", args=[test.pk]))
     form = RevisionReasonForm(request.POST or None, initial={"expected_revision": test.revision})
@@ -856,7 +878,7 @@ def test_review(request, pk):
     test = get_test(pk)
     # Preflight with the service's own predicate so no PIN form is offered for an impossible
     # signature; the signing service rechecks everything under lock.
-    refusal = services.quarantine_refusal(test.lot) or services.review_refusal(request.user, test)
+    refusal = services.subject_refusal(test) or services.review_refusal(request.user, test)
     if refusal:
         return unavailable(request, refusal, reverse("analytical:test_detail", args=[test.pk]))
     form = SigningForm(request.POST or None, initial={"expected_revision": test.revision})
@@ -964,7 +986,7 @@ def batch_detail(request, pk):
             "status": status,
             "checks": checks,
             "corrections": corrections,
-            "tests": batch.tests.select_related("lot", "sample").order_by("pk"),
+            "tests": batch.tests.select_related("lot", "sample", *PULL).order_by("pk"),
             "history": history(batch),
             "signatures": signatures(batch),
             "frozen": frozen,
@@ -1127,14 +1149,19 @@ def investigation_crumbs(inv, current=None):
 
 def get_investigation(pk):
     return get_object_or_404(
-        Investigation.objects.select_related("lot", "test", "test__sample", "opened_by"), pk=pk
+        Investigation.objects.select_related(
+            "lot", "test", "test__sample", "opened_by", *(f"test__{name}" for name in PULL)
+        ),
+        pk=pk,
     )
 
 
 def investigation_summary(inv):
     return [
         ("Investigation", f"{inv.label} · {inv.get_phase_display()}"),
-        ("Lot", inv.lot.number),
+        ("Lot and stability pull", inv.test.subject_text)
+        if inv.lot_id is None
+        else ("Lot", inv.lot.number),
         ("Trigger", inv.trigger),
         ("Record revision", inv.revision),
     ]
@@ -1146,7 +1173,7 @@ def investigation_detail(request, pk):
     inv = get_investigation(pk)
     user_roles = roles(request.user)
     original = inv.test
-    tests = [original, *inv.tests.select_related("sample").order_by("pk")]
+    tests = [original, *inv.tests.select_related("sample", *PULL).order_by("pk")]
     for test in tests:
         test.values = readings_text(test)
     return render(
@@ -1234,15 +1261,19 @@ def escalate(request, pk):
 def authorize(request, pk):
     require_role(request.user, "quality")
     inv = get_investigation(pk)
-    refusal = services.quarantine_refusal(inv.lot) or services.authorize_refusal(
+    refusal = services.subject_refusal(inv.test) or services.authorize_refusal(
         request.user, inv, inv.test
     )
     if refusal:
         return unavailable(
             request, refusal, reverse("analytical:investigation_detail", args=[inv.pk])
         )
-    used = AnalyticalTest.objects.filter(sample__lot=inv.lot_id).values("sample_id")
-    samples = Sample.objects.filter(lot_id=inv.lot_id).exclude(pk__in=used).order_by("-pk")
+    if inv.lot_id is None:
+        # A stability pull has no other sample: only a retest of what was pulled.
+        samples = None
+    else:
+        used = AnalyticalTest.objects.filter(sample__lot=inv.lot_id).values("sample_id")
+        samples = Sample.objects.filter(lot_id=inv.lot_id).exclude(pk__in=used).order_by("-pk")
     form = RetestForm(
         request.POST or None, samples=samples, initial={"expected_revision": inv.revision}
     )
@@ -1279,7 +1310,7 @@ def authorize(request, pk):
 def conclude(request, pk):
     require_role(request.user, "quality")
     inv = get_investigation(pk)
-    refusal = services.quarantine_refusal(inv.lot) or services.conclude_refusal(
+    refusal = services.subject_refusal(inv.test) or services.conclude_refusal(
         request.user, inv, inv.test, list(inv.tests.all())
     )
     if refusal:

@@ -31,6 +31,13 @@ settings.ANALYTICAL_SUPPLIER_RESULTS names the source (``lot``, ``standing``,
 is never an observation: the lot gate counts a signed acceptance as the answer to its
 requirement, and a test of that requirement takes no result while a proposal or an acceptance
 stands. Without the setting no supplier result answers a requirement.
+
+settings.ANALYTICAL_STABILITY_PULLS names the source of stability pulls (``requirements``,
+``refusal``, ``lock``). A test belongs to the testing of a lot or to a stability pull, and for
+a pull's test that source stands where the lot stands otherwise: it states the requirements
+(the acceptance criteria of the pull's protocol), says why a pull takes no more testing, and
+locks the pulls a transition changes so that every evidence change advances their revision.
+Without the setting no pull is tested here.
 """
 
 import hashlib
@@ -686,6 +693,32 @@ def resolve(lot):
         return {}, [str(exc)]
     except RequirementHold as hold:
         return {}, hold.reasons
+    return _accepted(raw)
+
+
+def stability_pulls():
+    """The configured source of stability pulls (settings.ANALYTICAL_STABILITY_PULLS); without
+    one, no pull is tested here."""
+    path = getattr(settings, "ANALYTICAL_STABILITY_PULLS", "")
+    if not path:
+        raise ValidationError("Stability testing is not configured; pulls are not tested here.")
+    return import_string(path)()
+
+
+def resolve_pull(pull):
+    """``resolve`` for a stability pull: ({test_code: payload}, hold reasons) for the tests of
+    its time point, each with the acceptance criterion of the protocol's specification."""
+    try:
+        raw = stability_pulls().requirements(pull)
+    except ValidationError as exc:
+        return {}, list(exc.messages)
+    except RequirementHold as hold:
+        return {}, hold.reasons
+    return _accepted(raw)
+
+
+def _accepted(raw):
+    """Split provider payloads into the ones testing can execute and the reasons for the rest."""
     accepted, reasons = {}, []
     for code, payload in raw.items():
         if payload is None:

@@ -26,7 +26,14 @@ from core.services import require_role
 from core.uploads import size_text
 
 from .models import AnalyticalTest, RawDataFile
-from .services import ANALYST, _bump, _lock_lots, _touch, supplier_refusal
+from .services import (
+    ANALYST,
+    _bump,
+    _lock_subjects,
+    _touch,
+    subject_refusal,
+    supplier_refusal,
+)
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 DEFAULT_MAX_BYTES = 10 * 1024 * 1024
@@ -71,7 +78,7 @@ def attach_raw_file(*, actor, test, upload, description):
     digest = hashlib.sha256(content).hexdigest()
     with transaction.atomic():
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
-        (lot,) = _lock_lots(test.lot_id)
+        subjects = _lock_subjects(test)
         if test.state != AnalyticalTest.State.OPEN:
             raise ValidationError("This test is not accepting raw data.")
         # Raw data is laboratory work: none is added beside a supplier's result that stands.
@@ -101,7 +108,7 @@ def attach_raw_file(*, actor, test, upload, description):
             uploaded_by=actor,
         )
         _touch(test)
-        _bump(lot)
+        _bump(*subjects)
         record_event(
             actor=actor,
             action="rawdata.attached",
@@ -149,9 +156,13 @@ class RawFileForm(StyledForm):
 
 
 def _crumbs(test):
+    if test.pull_id is not None:
+        subject = (test.pull.label, reverse("stability:pull_detail", args=[test.pull_id]))
+    else:
+        subject = (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id]))
     return [
         ("Testing", reverse("analytical:test_list")),
-        (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id])),
+        subject,
         (test.label, reverse("analytical:test_detail", args=[test.pk])),
         ("Attach raw data", None),
     ]
@@ -161,9 +172,14 @@ def _crumbs(test):
 @require_http_methods(["GET", "POST"])
 def raw_file_new(request, pk):
     require_role(request.user, ANALYST)
-    test = get_object_or_404(AnalyticalTest.objects.select_related("lot", "sample"), pk=pk)
+    test = get_object_or_404(
+        AnalyticalTest.objects.select_related(
+            "lot", "sample", "pull__study__lot", "pull__timepoint__condition"
+        ),
+        pk=pk,
+    )
     back = reverse("analytical:test_detail", args=[test.pk])
-    if test.state != AnalyticalTest.State.OPEN or test.lot.state != "quarantine":
+    if test.state != AnalyticalTest.State.OPEN or subject_refusal(test):
         messages.warning(request, "This test is not accepting raw data.")
         return redirect(back)
     if refusal := supplier_refusal(test):
@@ -207,7 +223,7 @@ def raw_file_new(request, pk):
             "cancel_url": back,
             "summary": [
                 ("Test", f"{test.label} ({test.test_code})"),
-                ("Lot and sample", f"{test.lot.number} / {test.sample.reference}"),
+                ("Lot and stability pull" if test.pull_id else "Lot and sample", test.subject_text),
                 ("Record revision", test.revision),
                 ("Size limit", size_text(max_bytes())),
             ],

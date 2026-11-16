@@ -430,8 +430,17 @@ class RetestForm(SigningForm):
     field_order = ["kind", "sample", "reason", "signature_username", "pin", "expected_revision"]
 
     def __init__(self, *args, samples, **kwargs):
+        """``samples`` are the untested samples a resample may use; ``None`` for the
+        investigation of a stability pull, which is retested on the material pulled."""
         super().__init__(*args, **kwargs)
-        self.fields["sample"].queryset = samples
+        if samples is None:
+            del self.fields["sample"]
+            self.fields["kind"].choices = [
+                (AnalyticalTest.Kind.RETEST.value, "Retest of the material that was pulled"),
+            ]
+            self.fields["kind"].initial = AnalyticalTest.Kind.RETEST.value
+        else:
+            self.fields["sample"].queryset = samples
 
 
 class ConcludeForm(SigningForm):

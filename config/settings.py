@@ -199,6 +199,11 @@ ANALYTICAL_BENCH = "config.integrations.LaboratoryBench"
 # The testing gate asks the lot record which supplier certificate results were accepted in place
 # of a test. Without this setting no supplier result answers a requirement.
 ANALYTICAL_SUPPLIER_RESULTS = "config.integrations.AcceptedSupplierResults"
+# A test belongs to the testing of a lot or to a stability pull. For a pull's tests the testing
+# module asks the stability module for the acceptance criteria of the protocol, whether the pull
+# still takes testing, and for the lock every evidence change takes. Without this setting no
+# pull is tested in the system.
+ANALYTICAL_STABILITY_PULLS = "config.integrations.StabilityPulls"
 # Replacing a lot's requirements during testing asks the testing module which of the lot's tests
 # carry over and which are superseded. Without this setting requirements cannot be replaced
 # once testing has started.

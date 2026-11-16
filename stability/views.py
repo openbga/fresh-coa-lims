@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from analytical import services as analytical
+from analytical.contracts import parse_requirement, resolve_pull
 from core.services import require_role
 from laboratory.ui import (
     access,
@@ -29,8 +31,8 @@ from laboratory.ui import (
     when,
 )
 
-from . import gates, services
-from .evidence import sample_evidence
+from . import gates, services, testing
+from .evidence import CONFORMS, FAILS, has_tests, pull_results, sample_evidence, study_results
 from .forms import (
     AnchorForm,
     CloseStudyForm,
@@ -71,6 +73,11 @@ def _pull_tone(pull, today):
     tone = {"overdue": "danger", "due": "warning", "upcoming": "neutral"}.get(timing)
     if tone is None:
         tone = {"pulled": "progress", "accepted": "success", "missed": "danger"}[pull.state]
+    if pull.outcome == FAILS:
+        # Accepted means the pull and its results were reviewed, not that the results conform.
+        return "Accepted · acceptance criteria not met", "danger"
+    if pull.outcome == CONFORMS:
+        return "Accepted · meets acceptance criteria", "success"
     return label, tone
 
 
@@ -95,6 +102,8 @@ def _pull_filter(queryset, key, today):
             return queryset.filter(scheduled, opens__gt=today)
         case "pulled" | "accepted" | "missed":
             return queryset.filter(state=key)
+        case "fails":
+            return queryset.filter(state=Pull.State.ACCEPTED, outcome=FAILS)
     return queryset
 
 
@@ -125,6 +134,12 @@ def overview(request):
             pulls.filter(state="pulled").count(),
             "info",
             f"{link}?status=pulled",
+        ),
+        (
+            "Pulls outside acceptance criteria",
+            pulls.filter(state="accepted", outcome=FAILS).count(),
+            "danger",
+            f"{link}?status=fails",
         ),
         (
             "Active studies",
@@ -166,7 +181,8 @@ def overview(request):
             "page_title": "Stability and retention",
             "tabs": section_tabs(request),
             "intro": "Protocol-driven pulls, reserve samples, retention obligations and holds. "
-            "Native scheduling is thin: link external stability systems where used.",
+            "A pull is tested in the system against the acceptance criteria of its protocol, "
+            "or linked to an external stability system where one is used.",
             "queues": [
                 {"label": label, "count": count, "tone": tone if count else "neutral", "href": href}
                 for label, count, tone, href in queues
@@ -266,11 +282,28 @@ def protocol_new(request):
 @login_required
 def protocol_detail(request, pk):
     access(request.user)
-    p = get_object_or_404(Protocol.objects.select_related("author"), pk=pk)
+    p = get_object_or_404(
+        Protocol.objects.select_related("author", "specification__material"), pk=pk
+    )
     user = request.user
     conditions = list(p.conditions.all())
     timepoints = list(p.timepoints.select_related("condition"))
     draft = p.state == Protocol.State.DRAFT
+    version, criteria = testing.criteria_now(p)
+    problems = [row["problem"] for row in criteria if row["problem"]]
+    notice = None
+    if problems and p.state != Protocol.State.SUPERSEDED:
+        consequence = (
+            "The protocol cannot be approved until this is resolved in the specification."
+            if draft
+            else "Tests cannot be assigned to its pulls until this is resolved in the "
+            "specification."
+        )
+        notice = {
+            "tone": "warning",
+            "label": "Criteria incomplete",
+            "text": f"{' '.join(dict.fromkeys(problems))} {consequence}",
+        }
     own_draft = draft and p.author_id == user.pk and can(user, *services.AUTHORS)
     actions = [
         action("Approve", reverse("stability:protocol_approve", args=[p.pk]), True)
@@ -299,6 +332,7 @@ def protocol_detail(request, pk):
                 external_link(p.document_url, p.document_ref) if p.document_url else p.document_ref,
             ),
             ("Test profile revision", p.test_profile_ref),
+            ("Acceptance criteria", _specification_cell(p)),
             ("Basis", p.basis),
             ("Author", str(p.author)),
             ("Approved", when(p.approved_at)),
@@ -306,6 +340,7 @@ def protocol_detail(request, pk):
             ("Revision", p.revision),
         ],
         actions=actions,
+        notice=notice,
         sections=[
             section(
                 "Storage conditions",
@@ -347,8 +382,54 @@ def protocol_detail(request, pk):
                 ],
                 "No timepoints yet.",
             ),
+            *(
+                [
+                    section(
+                        "Acceptance criteria in force",
+                        [
+                            ("Test", False),
+                            ("Name", False),
+                            ("Acceptance criterion", False),
+                            ("Method", False),
+                        ],
+                        [
+                            [
+                                row["code"],
+                                row["name"],
+                                status(row["problem"], "warning")
+                                if row["problem"]
+                                else row["acceptance"],
+                                row["method"],
+                            ]
+                            for row in criteria
+                        ],
+                        "Add timepoints to see the acceptance criterion of each test.",
+                        note=(
+                            f"As {p.specification.code} v{version.version} states them now. "
+                            if version
+                            else ""
+                        )
+                        + "Each pull's tests freeze the version in force when they are "
+                        "assigned, so a later version of the specification applies to "
+                        "later pulls.",
+                    )
+                ]
+                if p.specification_id
+                else []
+            ),
         ],
         related=[p],
+    )
+
+
+def _specification_cell(protocol):
+    specification = protocol.specification
+    if specification is None:
+        return "Not in the system: pulls link a sample or external evidence"
+    return cell(
+        f"{specification.code} · {specification.title} ({specification.material.code}, "
+        f"{specification.get_stage_display()}, scope {specification.scope})",
+        reverse("catalog:specification", args=[specification.pk]),
     )
 
 
@@ -423,6 +504,9 @@ def protocol_approve(request, pk):
         denial = "You authored this protocol, so you cannot approve it."
     elif p.state != Protocol.State.DRAFT:
         denial = "Only a draft protocol can be approved."
+    elif problems := testing.protocol_problems(p):
+        denial = " ".join(problems)
+    version, _ = testing.criteria_now(p)
     form = SigningForm(request.POST or None, initial={"expected_revision": p.revision})
     detail = reverse("stability:protocol_detail", args=[p.pk])
     return sign_page(
@@ -431,13 +515,24 @@ def protocol_approve(request, pk):
         title=f"Approve {p.identifier}",
         identifier=p.identifier,
         meaning="approved",
-        meaning_text="You approve the complete protocol: its conditions, timepoints and tests. "
+        meaning_text="You approve the complete protocol: its conditions, timepoints and tests, "
+        "and the specification that states their acceptance criteria where one is named. "
         "Earlier approved versions of this code are superseded.",
         button="Sign and approve",
         facts=[
             ("Product", p.product),
             ("Conditions", p.conditions.count()),
             ("Timepoints", p.timepoints.count()),
+            (
+                "Acceptance criteria",
+                (
+                    f"{p.specification.code}, v{version.version} in force now"
+                    if version
+                    else f"{p.specification.code}, no version in force"
+                )
+                if p.specification_id
+                else "Not in the system",
+            ),
             ("Author", str(p.author)),
             ("Content digest", p.content_digest[:12]),
         ],
@@ -581,12 +676,24 @@ def study_detail(request, pk):
     s = get_object_or_404(Study.objects.select_related("protocol", "lot", "created_by"), pk=pk)
     user = request.user
     today = timezone.localdate()
-    pulls = list(s.pulls.select_related("timepoint__condition", "pulled_by"))
+    pulls = list(s.pulls.select_related("timepoint__condition", "pulled_by", "sample"))
     actions = [
         action("Close study", reverse("stability:study_close", args=[s.pk]), True)
         if s.state == "active" and can(user, "quality") and s.created_by_id != user.pk
         else None
     ]
+    failing = [p for p in pulls if p.outcome == FAILS]
+    notice = None
+    if failing:
+        notice = {
+            "tone": "danger",
+            "label": "Criteria not met",
+            "text": "Results outside the acceptance criteria were confirmed at "
+            + ", ".join(str(p.timepoint) for p in failing)
+            + f". The record of lot {s.lot.number} is not changed by a stability result: "
+            "whether the lot or other lots need a hold or other action is for quality to "
+            "decide.",
+        }
     return record_page(
         request,
         identifier=s.identifier,
@@ -624,10 +731,97 @@ def study_detail(request, pk):
                 ],
                 [_pull_row(p, user, today) for p in pulls],
                 "No pulls scheduled.",
-            )
+            ),
+            *_comparison(pulls),
         ],
+        notice=notice,
         related=[s],
     )
+
+
+def _result_cell(test):
+    """One reported result as a status: the value, and in words when it does not conform."""
+    text = test.reportable_with_unit or "No result"
+    if test.conforms:
+        return status(text, "success")
+    return status(f"{text} · out of specification", "danger")
+
+
+def _comparison(pulls):
+    """One section for each storage condition: the tests as rows, the time points as columns
+    and each reviewed result beside the acceptance criterion it was judged against."""
+    tested = study_results(pulls)
+    if not tested:
+        return []
+    by_condition = {}
+    for pull in pulls:
+        by_condition.setdefault(pull.timepoint.condition, []).append(pull)
+    sections = []
+    for condition, members in by_condition.items():
+        members.sort(key=lambda p: (p.timepoint.interval_days, p.pk))
+        codes = []
+        for pull in members:
+            codes += [code for code in pull.timepoint.test_codes if code not in codes]
+        rows = []
+        for code in codes:
+            name, criteria, cells = code, {}, []
+            for pull in members:
+                found = tested.get(pull.pk)
+                row = next((r for r in found[1] if r["test_code"] == code), None) if found else None
+                if code not in pull.timepoint.test_codes:
+                    cells.append("")
+                elif row is None or not row["lineage"]:
+                    cells.append(status(*_untested(pull)))
+                else:
+                    spec = row["lineage"][0].spec
+                    name = f"{spec.name} ({code})"
+                    criteria.setdefault(spec.acceptance, []).append(pull.timepoint.label)
+                    if row["tests"]:
+                        results = [_result_cell(test) for test in row["tests"]]
+                        tone = "danger" if row["outcome"] == FAILS else "success"
+                        tone = tone if row["outcome"] else "progress"
+                        text = "; ".join(r["text"] for r in results)
+                        cells.append(status(text if row["outcome"] else f"{text} · open", tone))
+                    else:
+                        cells.append(status("In testing", "progress"))
+            if len(criteria) == 1:
+                criterion = next(iter(criteria))
+            else:
+                criterion = "; ".join(
+                    f"{text} ({', '.join(labels)})" for text, labels in criteria.items()
+                )
+            # The criterion shares the row heading, so that on a narrow screen the first
+            # results are in view beside the test they belong to.
+            rows.append([f"{name}: {criterion}" if criterion else name, *cells])
+        sections.append(
+            section(
+                f"Results · {condition.label}",
+                [
+                    ("Test and acceptance criterion", False),
+                    *((pull.timepoint.label, False) for pull in members),
+                ],
+                rows,
+                "No results yet.",
+                note=f"{condition.setpoint}. Reviewed results of the pulls tested in the "
+                "system, each judged against the acceptance criterion frozen on its test. "
+                "Where the criterion changed between time points, each one is listed with "
+                "the time points it applied to.",
+            )
+        )
+    return sections
+
+
+def _untested(pull):
+    """What a results cell says for a time point without tests of its own."""
+    if pull.state == Pull.State.MISSED:
+        return "Missed", "neutral"
+    if pull.state == Pull.State.SCHEDULED:
+        return "Not pulled yet", "neutral"
+    if pull.sample_id:
+        return f"Sample {pull.sample.reference}, tested with the lot", "neutral"
+    if pull.external_sample_ref or pull.evidence_ref:
+        return "External evidence", "neutral"
+    return "No test assigned", "neutral"
 
 
 @login_required
@@ -682,6 +876,7 @@ PULL_STATUS = [
     ("upcoming", "Upcoming"),
     ("pulled", "Awaiting acceptance"),
     ("accepted", "Accepted"),
+    ("fails", "Accepted, acceptance criteria not met"),
     ("missed", "Missed"),
 ]
 
@@ -744,7 +939,7 @@ def pull_detail(request, pk):
     p = get_object_or_404(
         Pull.objects.select_related(
             "study__lot",
-            "study__protocol",
+            "study__protocol__specification__material",
             "timepoint__condition",
             "pulled_by",
             "sample",
@@ -763,7 +958,14 @@ def pull_detail(request, pk):
         )
     if p.state == "scheduled" and today > p.window[1] and can(user, *services.AUTHORS):
         detail_actions.append(action("Mark missed", reverse("stability:pull_missed", args=[p.pk])))
-    if p.state == "pulled" and can(user, "analyst"):
+    tested = has_tests(p)
+    blockers, rows, outcome = pull_results(p) if tested else ([], [], "")
+    assignable, unassigned = _assignable(p, rows if tested else None)
+    if assignable and can(user, "analyst"):
+        detail_actions.append(
+            action("Assign tests", reverse("stability:pull_tests", args=[p.pk]), not tested)
+        )
+    if p.state == "pulled" and can(user, "analyst") and not tested:
         detail_actions.append(
             action("Link evidence", reverse("stability:pull_evidence", args=[p.pk]))
         )
@@ -772,6 +974,38 @@ def pull_detail(request, pk):
             action("Accept pull", reverse("stability:pull_accept", args=[p.pk]), True)
         )
     sections = []
+    notice = None
+    if tested:
+        sections.append(_tests_section(p, rows, blockers, outcome))
+        if FAILS in {row["outcome"] for row in rows}:
+            notice = {
+                "tone": "danger",
+                "label": "Criteria not met",
+                "text": "An investigation confirmed a result outside the acceptance criteria "
+                f"of this time point. The record of lot {p.study.lot.number} is not changed "
+                "by a stability result: whether the lot or other lots need a hold or other "
+                "action is for quality to decide.",
+            }
+    elif p.state == "pulled" and not p.sample_id and unassigned:
+        sections.append(
+            section(
+                "Tests",
+                [("Status", False)],
+                [[status(unassigned, "warning")]],
+                "",
+                note="This pull is not tested in the system.",
+            )
+        )
+    elif p.state == "pulled" and not p.sample_id and not p.evidence_ref:
+        sections.append(
+            section(
+                "Tests",
+                [("Status", False)],
+                [],
+                "No tests assigned yet. An analyst assigns the tests of this time point to "
+                "test the pull in the system, or links a sample or external evidence instead.",
+            )
+        )
     if p.state == "pulled" and p.sample_id:
         blockers, _ = sample_evidence(p.sample, p.timepoint.test_codes)
         sections.append(
@@ -822,16 +1056,93 @@ def pull_detail(request, pk):
             ("Deviation", p.deviation_reason),
             ("Missed reason", p.missed_reason),
             ("Accepted", when(p.accepted_at)),
+            ("Outcome", p.get_outcome_display()),
             ("Revision", p.revision),
         ],
         actions=detail_actions,
         sections=sections,
+        notice=notice,
         related=[p],
     )
 
 
+def _assignable(pull, rows=None):
+    """(whether tests can be assigned to the pull now, why not when it has none).
+
+    ``rows`` are the pull's results when it already has tests; it is then assignable only
+    while a test of its time point is still missing."""
+    if reason := testing.assignment_refusal(pull):
+        return False, "" if pull.state != Pull.State.PULLED else reason
+    if rows is not None and all(row["lineage"] for row in rows):
+        return False, ""
+    _, holds = resolve_pull(pull)
+    return not holds, " ".join(holds)
+
+
+def _test_state(test):
+    """The test's result and where it stands, as one status: the value first."""
+    result = test.reportable_with_unit
+    if test.state == "invalidated":
+        return status(f"{result} · invalidated" if result else "Invalidated", "neutral")
+    if test.state == "open":
+        return status("Open", "progress")
+    if test.conforms is False:
+        waiting = "awaiting review" if test.state == "submitted" else "reviewed"
+        return status(f"{result} · out of specification · {waiting}", "danger")
+    if test.state == "submitted":
+        return status(f"{result} · awaiting review", "info")
+    return status(f"{result} · conforms · reviewed", "success")
+
+
+def _tests_section(pull, rows, blockers, outcome):
+    """The pull's own tests, each with the criterion frozen on it, and what stands in the
+    way of accepting the pull."""
+    table = []
+    for row in rows:
+        for test in row["lineage"]:
+            spec = test.spec
+            table.append(
+                [
+                    cell(
+                        f"{test.label} · {spec.name} ({test.test_code})",
+                        reverse("analytical:test_detail", args=[test.pk]),
+                    ),
+                    _test_state(test),
+                    spec.acceptance,
+                    test.get_kind_display(),
+                ]
+            )
+        if not row["lineage"]:
+            table.append([row["test_code"], status("No test assigned", "warning"), "", ""])
+    if pull.state == Pull.State.ACCEPTED:
+        note = f"Accepted: {pull.get_outcome_display().lower()}."
+    elif blockers:
+        note = "The pull cannot be accepted yet: " + " ".join(blockers)
+    else:
+        label = dict(Pull.Outcome.choices)[outcome].lower()
+        note = f"Every test is reviewed: the pull {label}. A reviewer can accept it."
+    return section(
+        "Tests",
+        [
+            ("Test", False),
+            ("Result and status", False),
+            ("Acceptance criterion", False),
+            ("Kind", False),
+        ],
+        table,
+        "",
+        note=note + " Each test is recorded, reviewed and signed on its own page, against the "
+        "acceptance criterion frozen when it was assigned.",
+    )
+
+
 def _pull_context(pk):
-    pull = get_object_or_404(Pull.objects.select_related("study", "timepoint"), pk=pk)
+    pull = get_object_or_404(
+        Pull.objects.select_related(
+            "study__protocol__specification__material", "timepoint__condition", "sample"
+        ),
+        pk=pk,
+    )
     detail = reverse("stability:pull_detail", args=[pull.pk])
     trail = crumbs(
         ("Studies", reverse("stability:study_list")),
@@ -853,7 +1164,7 @@ def pull_record(request, pk):
             lambda: services.record_pull(actor=request.user, pull=pull, **form.cleaned_data),
         )
         if done:
-            messages.success(request, "Pull recorded; link its testing evidence.")
+            messages.success(request, "Pull recorded; assign its tests or link its evidence.")
             return redirect(detail)
     return form_page(
         request,
@@ -871,6 +1182,9 @@ def pull_record(request, pk):
 def pull_evidence(request, pk):
     require_role(request.user, "analyst")
     pull, detail, trail = _pull_context(pk)
+    if has_tests(pull):
+        messages.warning(request, services.TESTED_HERE)
+        return redirect(detail)
     form = EvidenceForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         done, _ = run_form(
@@ -892,6 +1206,67 @@ def pull_evidence(request, pk):
         cancel_url=detail,
         intro="Link the sample registered for testing, or the external stability system's "
         "sample and evidence references. Earlier links stay in the history.",
+    )
+
+
+@login_required
+def pull_tests(request, pk):
+    """Assign the tests of the pull's time point, showing the acceptance criteria that would
+    be frozen on them."""
+    require_role(request.user, "analyst")
+    pull, detail, trail = _pull_context(pk)
+    if reason := testing.assignment_refusal(pull):
+        messages.warning(request, reason)
+        return redirect(detail)
+    accepted, holds = resolve_pull(pull)
+    if holds:
+        messages.warning(request, "Tests cannot be assigned: " + " ".join(holds))
+        return redirect(detail)
+    existing = set(pull.tests.values_list("test_code", flat=True))
+    if not set(accepted) - existing:
+        messages.info(request, "Every test of this time point is already assigned.")
+        return redirect(detail)
+    form = ReasonForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        created, _ = run_form(
+            request,
+            form,
+            lambda: analytical.assign_pull_tests(
+                actor=request.user, pull=pull, reason=form.cleaned_data["reason"]
+            ),
+        )
+        if created is not None:
+            messages.success(request, f"Assigned {len(created)} test(s) to the pull.")
+            return redirect(detail)
+    criteria = []
+    for code, payload in accepted.items():
+        spec = parse_requirement(payload)
+        criteria.append(
+            {
+                "code": code,
+                "name": spec.name,
+                "acceptance": spec.acceptance,
+                "method": f"{spec.method.code} revision {spec.method.revision}",
+                "replicates": spec.replicates,
+                "assigned": code in existing,
+            }
+        )
+    specification = pull.study.protocol.specification
+    source = next(iter(accepted.values()))["source"]
+    return render(
+        request,
+        "stability/pull_tests.html",
+        {
+            "page_title": f"Assign tests · {pull.timepoint}",
+            "crumbs": [*trail, ("Assign tests", None)],
+            "pull": pull,
+            "criteria": criteria,
+            "specification": specification,
+            "source": source,
+            "form": form,
+            "cancel_url": detail,
+        },
+        status=422 if request.method == "POST" and form.errors else 200,
     )
 
 
@@ -933,6 +1308,40 @@ def pull_accept(request, pk):
         )
     elif pull.state != Pull.State.PULLED:
         denial = "This pull is not awaiting acceptance."
+    tested = has_tests(pull)
+    results = []
+    meaning_text = "You reviewed the pull, its evidence and the linked testing outcome."
+    if tested:
+        blockers, rows, outcome = pull_results(pull)
+        if blockers and not denial:
+            denial = "Testing is not complete: " + " ".join(blockers)
+        for row in rows:
+            for test in row["tests"]:
+                results.append(
+                    (
+                        f"{test.spec.name} ({test.test_code})",
+                        status(
+                            f"{test.label}: {test.reportable_with_unit} against "
+                            f"{test.spec.acceptance}",
+                            "success" if test.conforms else "danger",
+                        ),
+                    )
+                )
+        if outcome:
+            results.append(
+                (
+                    "Outcome recorded with your signature",
+                    status(
+                        dict(Pull.Outcome.choices)[outcome],
+                        "success" if outcome == CONFORMS else "danger",
+                    ),
+                )
+            )
+        meaning_text = (
+            "You reviewed the pull and the reviewed results of its tests. Your signature "
+            "records how they compare with the acceptance criteria and freezes them with "
+            "the pull; it does not change the record of the lot."
+        )
     form = SigningForm(request.POST or None, initial={"expected_revision": pull.revision})
     return sign_page(
         request,
@@ -940,12 +1349,18 @@ def pull_accept(request, pk):
         title=f"Accept pull · {pull.timepoint}",
         identifier=f"{pull.study.identifier}-P{pull.pk}",
         meaning="reviewed",
-        meaning_text="You reviewed the pull, its evidence and the linked testing outcome.",
+        meaning_text=meaning_text,
         button="Sign and review",
         facts=[
             ("Required tests", ", ".join(pull.timepoint.test_codes)),
             ("Pulled on", day(pull.pulled_on)),
-            ("Sample", pull.sample.reference if pull.sample_id else pull.external_sample_ref),
+            (
+                "Evidence",
+                "Tested in the system"
+                if tested
+                else (pull.sample.reference if pull.sample_id else pull.external_sample_ref),
+            ),
+            *results,
             ("Deviation", pull.deviation_reason),
         ],
         revision=pull.revision,

@@ -1236,7 +1236,10 @@ def use_list(request):
         if apps.is_installed("analytical"):
             tests = apps.get_model("analytical", "AnalyticalTest").objects
             by_test = tests.filter(
-                Q(sample__reference__icontains=q) | Q(lot__number__icontains=q)
+                Q(sample__reference__icontains=q)
+                | Q(lot__number__icontains=q)
+                | Q(pull__study__identifier__icontains=q)
+                | Q(pull__study__lot__number__icontains=q)
             ).annotate(key=Cast("pk", CharField()))
             match |= Q(
                 context_type="analytical.analyticaltest", context_id__in=by_test.values("key")

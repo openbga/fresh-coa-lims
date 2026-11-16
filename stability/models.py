@@ -1,9 +1,10 @@
 """Stability studies, reserve samples, retention obligations and holds.
 
-Protocols, studies and pulls reuse the foundation lot/sample identities. Native scheduling is
-deliberately thin: a controlled protocol, the pulls it implies, and links to the testing/review
-spine or to an external stability system. Controlled fields are frozen by PostgreSQL triggers
-(migration 0002); every lifecycle change bumps `revision`.
+Protocols, studies and pulls reuse the foundation lot identity. Native scheduling is
+deliberately thin: a controlled protocol and the pulls it implies. A pull is tested in the
+system (its tests belong to the pull, never to the lot's record), or it links a sample of a lot
+still in quarantine or an external stability system. Controlled fields are frozen by PostgreSQL
+triggers (migration 0002); every lifecycle change bumps `revision`.
 """
 
 import calendar
@@ -44,6 +45,15 @@ class Protocol(models.Model):
     document_url = evidence_url()
     test_profile_ref = models.CharField(
         max_length=200, blank=True, help_text="Stable specification/test-profile revision."
+    )
+    specification = models.ForeignKey(
+        "catalog.Specification",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="The specification whose approved version in force states the acceptance "
+        "criteria of the protocol's tests. Without one, pulls are not tested in the system.",
     )
     basis = models.TextField(
         help_text="Why these conditions and schedule apply. No universal defaults are assumed."
@@ -173,6 +183,10 @@ class Pull(models.Model):
         ACCEPTED = "accepted", "Accepted"
         MISSED = "missed", "Missed"
 
+    class Outcome(models.TextChoices):
+        CONFORMS = "conforms", "Meets the acceptance criteria"
+        FAILS = "fails", "Does not meet the acceptance criteria"
+
     study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="pulls")
     timepoint = models.ForeignKey(ProtocolTimepoint, on_delete=models.PROTECT, related_name="+")
     due_date = models.DateField()
@@ -207,6 +221,13 @@ class Pull(models.Model):
     deviation_reason = models.TextField(blank=True)
     missed_reason = models.TextField(blank=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    # Set when a pull tested in the system is accepted: how its reviewed results compare with
+    # the acceptance criteria frozen on its tests, and the results the signature rests on.
+    # Blank for a pull accepted on a linked sample or on external evidence.
+    # The database keeps both defaults, so a release that does not know the columns can still
+    # insert pulls while both are running.
+    outcome = models.CharField(max_length=8, choices=Outcome, blank=True, db_default="")
+    result_evidence = models.JSONField(default=dict, db_default={}, blank=True)
     revision = models.PositiveIntegerField(default=1)
 
     class Meta:
@@ -217,6 +238,16 @@ class Pull(models.Model):
                 fields=["sample"],
                 condition=models.Q(sample__isnull=False),
                 name="pull_sample_unique",
+            ),
+            # An outcome and its evidence belong to an accepted pull, together or not at all.
+            models.CheckConstraint(
+                condition=models.Q(outcome="", result_evidence={})
+                | (
+                    models.Q(state="accepted")
+                    & ~models.Q(outcome="")
+                    & ~models.Q(result_evidence={})
+                ),
+                name="pull_outcome_when_accepted",
             ),
         ]
 

@@ -4,7 +4,8 @@
 {% block page_meta %}
 <ul class="vr-page-meta">
   <li>{% include "analytical/_investigation_status.html" with plain=True %}</li>
-  <li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></li>
+  {% if inv.lot_id %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></li>
+  {% else %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.pull.label }}</a> · lot <span class="vr-id">{{ inv.test.source_lot.number }}</span></li>{% endif %}
   <li>Opened <time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i T" }}</time></li>
   <li>Revision {{ inv.revision }}</li>
 </ul>
@@ -16,7 +17,11 @@
 {% endblock %}
 {% block content %}
 {% if inv.is_open %}
+{% if inv.lot_id %}
 <div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Lot held" tone="hold" plain=True %}<div>{{ inv.trigger }}. Lot {{ inv.lot.number }} cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.</div></div>
+{% else %}
+<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Pull held" tone="hold" plain=True %}<div class="text-break">{{ inv.trigger }}. Stability pull {{ inv.test.pull.label }} cannot be accepted until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported. The record of lot {{ inv.test.source_lot.number }} is not changed by this investigation: whether the lot needs a hold or other action is for quality to decide.</div></div>
+{% endif %}
 {% else %}
 <section class="card mb-3" aria-labelledby="conclusion-heading">
   <div class="card-header"><h2 class="card-title" id="conclusion-heading">Conclusion</h2></div>
@@ -37,7 +42,7 @@
         <tbody>{% for t in tests %}<tr>
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
           <td>{% if forloop.first %}Original result{% else %}{{ t.get_kind_display }}{% endif %}</td>
-          <td class="vr-id">{{ t.sample.reference }}</td>
+          <td class="vr-id">{{ t.sample_text }}</td>
           <td>{{ t.values|default:"—" }}</td>
           <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
           <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>

@@ -18,6 +18,7 @@ urlpatterns = [
     path("pulls/", views.pull_list, name="pull_list"),
     path("pulls/<int:pk>/", views.pull_detail, name="pull_detail"),
     path("pulls/<int:pk>/record/", views.pull_record, name="pull_record"),
+    path("pulls/<int:pk>/tests/", views.pull_tests, name="pull_tests"),
     path("pulls/<int:pk>/evidence/", views.pull_evidence, name="pull_evidence"),
     path("pulls/<int:pk>/missed/", views.pull_missed, name="pull_missed"),
     path("pulls/<int:pk>/accept/", views.pull_accept, name="pull_accept"),

@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
 
+from catalog.models import Specification
 from laboratory.eligibility import equipment_eligibility
 from laboratory.forms import (
     DATE,
@@ -25,7 +26,24 @@ from .models import (
 __all__ = ["ReasonForm", "SigningForm"]
 
 
+class SpecificationChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return (
+            f"{obj.code} · {obj.title} ({obj.material.code}, {obj.get_stage_display()}, "
+            f"scope {obj.scope})"
+        )
+
+
 class ProtocolForm(forms.ModelForm):
+    specification = SpecificationChoiceField(
+        queryset=Specification.objects.none(),
+        required=False,
+        label="Acceptance criteria (specification)",
+        help_text="The specification whose approved version in force states the acceptance "
+        "criterion of each test, for example the shelf-life specification of the product. "
+        "Pulls are then tested in the system. Leave empty to link samples or external "
+        "evidence instead. It cannot be changed later; a new protocol version names another.",
+    )
     reason = reason_field(max_length=2000)
 
     class Meta:
@@ -37,9 +55,16 @@ class ProtocolForm(forms.ModelForm):
             "document_ref",
             "document_url",
             "test_profile_ref",
+            "specification",
             "basis",
         ]
         widgets = {"basis": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["specification"].queryset = Specification.objects.select_related(
+            "material"
+        ).order_by("code")
 
 
 class ConditionForm(forms.ModelForm):

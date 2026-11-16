@@ -3,6 +3,11 @@
 Same contract as the other domain modules: authorize on the server, lock and recheck current
 state, and commit state, attributed audit event and any signature in one transaction.
 Independence: whoever authored, pulled or placed something cannot be the signer for it.
+
+A pull is tested in the system (`testing`, with the tests assigned and worked in the testing
+module) or linked to a sample of its lot or to external evidence, never both. Accepting a
+pull tested in the system records how its reviewed results compare with the acceptance
+criteria frozen on its tests and freezes those results with the signature.
 """
 
 import hashlib
@@ -21,7 +26,8 @@ from laboratory.models import Qualification, ResourceUse
 from laboratory.services import lock_account
 from quality.models import Lot, Sample
 
-from .evidence import sample_evidence
+from . import testing
+from .evidence import frozen_results, has_tests, pull_results, sample_evidence, test_author_ids
 from .models import (
     Hold,
     Protocol,
@@ -102,6 +108,8 @@ def create_protocol(*, actor, code, reason, **values):
     latest = Protocol.objects.filter(code=code).order_by("-version").first()
     if latest and latest.state == Protocol.State.DRAFT:
         raise ValidationError(f"{latest.identifier} is still a draft; approve or leave it.")
+    # ``values`` may name the specification that states the acceptance criteria; like the
+    # rest of the header it is fixed from here on (a new version names another).
     protocol = Protocol(
         code=code, version=latest.version + 1 if latest else 1, author=actor, **values
     )
@@ -181,6 +189,10 @@ def approve_protocol(*, actor, pin, protocol, expected_revision, reason):
             raise ValidationError("Every storage condition needs at least one timepoint.")
         if protocol_digest(locked) != locked.content_digest:
             raise ValidationError("Protocol content changed. Reload and review before signing.")
+        # A protocol that names a specification is approved only while the version in force
+        # states every test of every time point, with a method in force.
+        if problems := testing.protocol_problems(locked):
+            raise ValidationError(problems)
         with connection.cursor() as cursor:
             cursor.execute("SELECT pg_advisory_xact_lock(%s)", [PROTOCOL_LOCK])
         for older in Protocol.objects.select_for_update().filter(
@@ -228,6 +240,8 @@ def start_study(*, actor, identifier, protocol, lot, container_closure, start_da
     if protocol.state != Protocol.State.APPROVED:
         raise ValidationError("Studies start only on the current approved protocol revision.")
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
+    if problem := testing.material_problem(protocol, lot):
+        raise ValidationError(problem)
     rules = lot.rules
     study = Study(
         identifier=identifier,
@@ -369,6 +383,12 @@ def record_pull(
     return pull
 
 
+TESTED_HERE = (
+    "This pull is tested in the system: its own tests are its evidence. A pull is tested in "
+    "the system or linked to other evidence, never both."
+)
+
+
 @transaction.atomic
 def attach_pull_evidence(
     *,
@@ -389,6 +409,8 @@ def attach_pull_evidence(
     study = _lock(Study, pull.study)
     if study.state != Study.State.ACTIVE or pull.state != Pull.State.PULLED:
         raise ValidationError("Evidence can be linked only to a pulled, unaccepted pull.")
+    if has_tests(pull):
+        raise ValidationError(TESTED_HERE)
     sample = _resolve_sample(study, sample_reference)
     if sample is not None:
         _check_pull_sample(pull, sample)
@@ -440,9 +462,10 @@ def mark_pull_missed(*, actor, pull, reason):
 
 
 def pull_author_ids(pull):
-    """Users who may not accept the pull: its puller, everyone who ever linked its evidence and,
-    for a linked sample, the sample's creator and every data or investigation author of its
-    tests."""
+    """Users who may not accept the pull: its puller, everyone who ever linked its evidence,
+    for a linked sample the sample's creator and every data or investigation author of its
+    tests, and for a pull tested in the system every data or investigation author of the
+    pull's own tests."""
     from analytical.gates import data_author_ids, investigation_author_ids
     from analytical.models import AnalyticalTest, Investigation
 
@@ -461,6 +484,7 @@ def pull_author_ids(pull):
         for test in AnalyticalTest.objects.filter(sample_id=pull.sample_id):
             ids |= data_author_ids(test)
         ids |= investigation_author_ids(Investigation.objects.filter(test__sample=pull.sample_id))
+    ids |= test_author_ids(pull)
     ids.discard(None)
     return ids
 
@@ -474,14 +498,25 @@ def accept_pull(*, actor, pin, pull, expected_revision, reason):
             raise PermissionDenied(
                 "You cannot accept a pull you pulled, documented or produced test data for."
             )
-        if locked.sample_id:
+        if has_tests(locked):
+            # Tested in the system. Every evidence change of the pull's tests advanced this
+            # pull's revision under its lock, so what is read here is what the signer saw.
+            blockers, _, outcome = pull_results(locked)
+            if blockers or not outcome:
+                raise ValidationError("Testing is not complete: " + " ".join(blockers))
+            locked.outcome = outcome
+            locked.result_evidence = frozen_results(locked)
+        elif locked.sample_id:
             _check_pull_sample(locked, locked.sample)
             codes = list(locked.timepoint.test_codes)
             blockers, _ = sample_evidence(locked.sample, codes, _pull_start(locked))
             if blockers:
                 raise ValidationError("Testing is not complete: " + " ".join(blockers))
         elif not (locked.external_sample_ref and locked.evidence_ref):
-            raise ValidationError("Link a sample or external stability evidence first.")
+            raise ValidationError(
+                "Assign and complete the pull's tests, or link a sample or external "
+                "stability evidence first."
+            )
         locked.state = Pull.State.ACCEPTED
         locked.accepted_at = timezone.now()
 
