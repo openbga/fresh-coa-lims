@@ -31,15 +31,14 @@
   {% if tests %}
   <div class="vr-table-wrap">
     <table class="table vr-table" aria-labelledby="tests-heading">
-      <thead><tr><th scope="col">Test</th><th scope="col">Code</th><th scope="col">Sample</th><th scope="col">Status</th><th scope="col">Outcome</th></tr></thead>
+      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Sample</th></tr></thead>
       <tbody>
         {% for row in tests %}
         <tr>
-          <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a></th>
-          <td>{{ row.test_code }}</td>
-          <td>{{ row.sample|default:"—" }}</td>
+          <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a><br>{{ row.test_code }}</th>
           <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted{% endif %}</td>
           <td>{% if row.conforms is True %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% elif row.conforms is False %}{% include "includes/status.html" with label="Out of specification" tone="danger" plain=True %}{% else %}—{% endif %}</td>
+          <td>{{ row.sample|default:"—" }}</td>
         </tr>
         {% endfor %}
       </tbody>
