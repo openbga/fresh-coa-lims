@@ -147,13 +147,9 @@ class RawFileForm(forms.Form):
 
 
 def _crumbs(test):
-    if test.pull_id is not None:
-        subject = (test.pull.label, reverse("stability:pull_detail", args=[test.pull_id]))
-    else:
-        subject = (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id]))
     return [
         ("Testing", reverse("analytical:test_list")),
-        subject,
+        (test.subject_page[0], test.subject_url),
         (test.label, reverse("analytical:test_detail", args=[test.pk])),
         ("Attach raw data", None),
     ]
@@ -165,7 +161,7 @@ def raw_file_new(request, pk):
     require_role(request.user, ANALYST)
     test = get_object_or_404(
         AnalyticalTest.objects.select_related(
-            "lot", "sample", "pull__study__lot", "pull__timepoint__condition"
+            "lot", "sample", "pull__study__lot", "pull__timepoint__condition", "reassessment__lot"
         ),
         pk=pk,
     )
@@ -214,7 +210,7 @@ def raw_file_new(request, pk):
             "cancel_url": back,
             "summary": [
                 ("Test", f"{test.label} ({test.test_code})"),
-                ("Lot and stability pull" if test.pull_id else "Lot and sample", test.subject_text),
+                (test.subject_heading, test.subject_text),
                 ("Record revision", test.revision),
                 ("Size limit", size_text(max_bytes())),
             ],

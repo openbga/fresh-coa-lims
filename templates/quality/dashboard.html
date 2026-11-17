@@ -18,7 +18,7 @@
     {% endfor %}
   </div>
 {% endpanel %}
-{% record_layout aside_label="Stability and laboratory" %}
+{% record_layout aside_label="Retest, stability and laboratory" %}
 {% fill lead %}
 {% panel title="Recently received lots" heading_id="recent-heading" table=True %}
   {% fill actions %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:lot_list' %}">Material lots</a>{% endfill %}
@@ -39,7 +39,7 @@
 {% endpanel %}
 {% endfill %}
 {% fill aside %}
-{% panel title="Stability and laboratory" heading_id="gates-heading" %}
+{% panel title="Retest, stability and laboratory" heading_id="gates-heading" %}
   <ul class="vr-queues">{% for queue in gates %}{% include "quality/includes/queue.html" with queue=queue only %}{% endfor %}</ul>
 {% endpanel %}
 {% endfill %}

@@ -7,6 +7,7 @@ from . import (
     certificate_views,
     dashboard,
     dates_views,
+    reassessment_views,
     rejection_views,
     views,
 )
@@ -22,6 +23,31 @@ urlpatterns = [
     path("lots/<int:pk>/receipt/new/", views.receipt_new, name="receipt_new"),
     path("lots/<int:pk>/receipt/correct/", views.receipt_correct, name="receipt_correct"),
     path("lots/<int:pk>/dates/", dates_views.lot_dates, name="lot_dates"),
+    path(
+        "lots/<int:pk>/reassessments/new/",
+        reassessment_views.reassessment_new,
+        name="reassessment_new",
+    ),
+    path(
+        "reassessments/<int:pk>/",
+        reassessment_views.reassessment_detail,
+        name="reassessment_detail",
+    ),
+    path(
+        "reassessments/<int:pk>/tests/",
+        reassessment_views.reassessment_tests,
+        name="reassessment_tests",
+    ),
+    path(
+        "reassessments/<int:pk>/conclude/",
+        reassessment_views.reassessment_conclude,
+        name="reassessment_conclude",
+    ),
+    path(
+        "reassessments/<int:pk>/withdraw/",
+        reassessment_views.reassessment_withdraw,
+        name="reassessment_withdraw",
+    ),
     path(
         "lots/<int:pk>/supplier-certificates/new/",
         certificate_views.certificate_new,

@@ -119,15 +119,19 @@ def status_tone(status):
 
 
 def tests_in_progress(revision):
-    """How many open or awaiting-review tests of lots in quarantine, or of stability pulls
-    being tested, are frozen to this method version. Read through the app registry: the
-    catalog does not depend on testing. Zero for a specification or a sampling plan, which a
-    lot keeps as a whole."""
+    """How many open or awaiting-review tests of lots in quarantine, of stability pulls being
+    tested or of open reassessments are frozen to this method version. Read through the app
+    registry: the catalog does not depend on testing. Zero for a specification or a sampling
+    plan, which a lot keeps as a whole."""
     if revision._meta.label_lower != "catalog.methodrevision" or not apps.is_installed(
         "analytical"
     ):
         return 0
-    in_progress = Q(lot__state="quarantine") | Q(pull__state="pulled", pull__study__state="active")
+    in_progress = (
+        Q(lot__state="quarantine")
+        | Q(pull__state="pulled", pull__study__state="active")
+        | Q(reassessment__state="open")
+    )
     return (
         apps.get_model("analytical", "AnalyticalTest")
         .objects.filter(

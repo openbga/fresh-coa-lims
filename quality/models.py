@@ -202,6 +202,111 @@ class LotDates(models.Model):
         return self.expiry_on is not None or self.retest_on is not None
 
 
+class Reassessment(models.Model):
+    """A released lot's material examined again, typically when its retest date is near or
+    reached, on a sample taken for it.
+
+    Its tests belong to it and name no lot, so the lot's record, dates and disposition stay as
+    they were signed. A quality person concludes it with a signature: the material is suitable
+    for use until a later retest date (never after the expiry date), or its use ends. A
+    reassessment started in error is withdrawn. One reassessment of a lot is open at a time;
+    after a reassessment that ended its use the lot takes no other.
+    """
+
+    class State(models.TextChoices):
+        OPEN = "open", "Open"
+        CONCLUDED = "concluded", "Concluded"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    class Outcome(models.TextChoices):
+        SUITABLE = "suitable", "Suitable for use until a new retest date"
+        NOT_SUITABLE = "not_suitable", "Not suitable: its use ends"
+
+    lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="reassessments")
+    reason = models.TextField(help_text="Why the material is examined again.")
+    sample_reference = models.CharField("Sample reference", max_length=80, unique=True)
+    sampled_on = models.DateField("Date sampled")
+    quantity = models.DecimalField(max_digits=14, decimal_places=4)
+    quantity_unit = models.CharField(max_length=8, choices=QUANTITY_UNITS)
+    containers = models.CharField(
+        "Containers sampled",
+        max_length=200,
+        help_text="Which containers of the lot were sampled, and where the material is stored.",
+    )
+    # The lot's dates in force when the reassessment started: what it examines the material
+    # against, as ``dates.in_force`` read them.
+    dates_basis = models.JSONField()
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=12, choices=State, default=State.OPEN)
+    outcome = models.CharField(max_length=14, choices=Outcome, blank=True, default="")
+    retest_on = models.DateField("New retest date", null=True, blank=True)
+    # Frozen with the conclusion: the results it rests on, as ``analytical.outcomes`` read them.
+    result_evidence = models.JSONField(default=dict, blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["lot"], condition=Q(state="open"), name="reassessment_one_open"
+            ),
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="reassessment_quantity"),
+            models.CheckConstraint(
+                condition=~Q(reason__regex=r"^\s*$")
+                & ~Q(sample_reference__regex=r"^\s*$")
+                & ~Q(containers__regex=r"^\s*$"),
+                name="reassessment_stated",
+            ),
+            # Each state carries exactly the marks of the step that reached it.
+            models.CheckConstraint(
+                condition=Q(
+                    state="open",
+                    outcome="",
+                    retest_on__isnull=True,
+                    result_evidence={},
+                    decided_at__isnull=True,
+                    decision_reason="",
+                )
+                | (
+                    Q(state="concluded", decided_at__isnull=False)
+                    & ~Q(result_evidence={})
+                    & ~Q(decision_reason__regex=r"^\s*$")
+                    & (
+                        Q(outcome="suitable", retest_on__isnull=False)
+                        | Q(outcome="not_suitable", retest_on__isnull=True)
+                    )
+                )
+                | (
+                    Q(
+                        state="withdrawn",
+                        outcome="",
+                        retest_on__isnull=True,
+                        result_evidence={},
+                        decided_at__isnull=False,
+                    )
+                    & ~Q(decision_reason__regex=r"^\s*$")
+                ),
+                name="reassessment_steps",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.label} of {self.lot}"
+
+    @property
+    def label(self):
+        return f"RA-{self.pk}"
+
+    @property
+    def quantity_text(self):
+        return plain(self.quantity)
+
+
 class SupplierCertificate(models.Model):
     """What a supplier's certificate of analysis states for a lot. Append-only.
 

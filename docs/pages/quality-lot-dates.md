@@ -88,7 +88,7 @@ Records the expiry date and the retest date of a lot's material while the lot is
 - **Independence**: everyone who recorded or corrected the lot's dates, including the recorder of a record that was later corrected, is an author of the lot's data. They cannot sign its disposition, its rejection or its cancellation, decide between its specifications or replace its requirements, even with the quality role. A certificate that prints the dates counts them among its authors, so they cannot issue or amend it either.
 - **Why the revision matters**: the revision increase refuses a disposition page opened before the change; the signer reviews the dates as they now stand.
 - **Rule set requirement**: a rule set may require dates through its `material_dates` policy key (expiry date, retest date, one of them, or both). The release is refused while a required date is missing. This page does not refuse a record that lacks a required date.
-- **Release**: the release is also refused after the expiry date and from the retest date on, comparing with the local date, and freezes the dates in force (see Sign lot disposition).
+- **Release**: the release is also refused after the expiry date and from the retest date on, comparing with the local date, and freezes the dates in force (see Sign lot disposition). After release the recorded dates are never changed; a reassessment of the released lot may give it a later retest date in force (see Reassessment record).
 - Not enforced by this page: that the dates match the supplier's documents or an assigned shelf life; the basis is the recorder's statement.
 
 ## Related pages
@@ -96,5 +96,6 @@ Records the expiry date and the retest date of a lot's material while the lot is
 - Lot record (where this page starts and returns)
 - Sign lot disposition (the dates it checks and freezes)
 - Reject lot, Cancel lot received in error (freeze the dates in force)
+- Start reassessment; Reassessment record (a released lot's retest date in force)
 - [Rule sets](/rules/): the `material_dates` policy key
 - [Material lots](/lots/)

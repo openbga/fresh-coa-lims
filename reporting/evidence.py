@@ -12,6 +12,7 @@ import json
 from datetime import UTC
 
 from django.apps import apps
+from django.utils import timezone
 
 from core.models import ElectronicSignature
 from quality.models import Lot
@@ -212,33 +213,50 @@ def _statement(item):
 
 def _dates(lot):
     """The lot's expiry and retest dates in force, for a lot that has any (None otherwise, so
-    the evidence of a lot without dates keeps its shape), and whether they are the ones its
-    release froze."""
-    from quality.models import LotDates
+    the evidence of a lot without dates keeps its shape), and whether the record they come from
+    is the one its release froze. A reassessment that gave the lot a later retest date is named
+    with it (``reassessment``), and one that ended its use is stated (``use_ended``): both keys
+    appear only when there is one."""
+    from quality import dates
 
-    record = LotDates.objects.filter(lot_id=lot.pk, replaced_by__isnull=True).first()
-    if record is None or (record.expiry_on is None and record.retest_on is None):
+    found = dates.in_force(lot)
+    record = found.record
+    if not found.stated and found.use_ended is None:
         return None
     stored = lot.disposition_evidence or {}
     # Only a native release freezes evidence; the development-only manual path keeps none, so
     # there is nothing to compare with (None).
     frozen = None
     if "assignment_id" in stored:
-        frozen = (stored.get("dates") or {}).get("id") == record.pk
-    return {
-        "id": record.pk,
-        "expiry_on": record.expiry_on.isoformat() if record.expiry_on else None,
-        "retest_on": record.retest_on.isoformat() if record.retest_on else None,
-        "basis": record.basis,
+        frozen = (stored.get("dates") or {}).get("id") == (record.pk if record else None)
+    result = {
+        "id": record.pk if record else None,
+        "expiry_on": found.expiry_on.isoformat() if found.expiry_on else None,
+        "retest_on": found.retest_on.isoformat() if found.retest_on else None,
+        "basis": record.basis if record else "",
         "frozen_at_release": frozen,
     }
+    for key, item in (("reassessment", found.reassessment), ("use_ended", found.use_ended)):
+        if item is not None:
+            result[key] = {
+                "id": item.pk,
+                "label": item.label,
+                "concluded_on": timezone.localdate(item.decided_at).isoformat(),
+            }
+    return result
 
 
 def _dates_author_ids(lot):
-    """Everyone who recorded or corrected the lot's dates, replaced records included."""
+    """Everyone who recorded or corrected the lot's dates, replaced records included, and
+    everyone who started, tested or investigated the reassessment that set the retest date in
+    force."""
+    from quality import dates, reassessment
     from quality.models import LotDates
 
-    return set(LotDates.objects.filter(lot_id=lot.pk).values_list("recorded_by_id", flat=True))
+    ids = set(LotDates.objects.filter(lot_id=lot.pk).values_list("recorded_by_id", flat=True))
+    if (item := dates.in_force(lot).reassessment) is not None:
+        ids |= reassessment.author_ids(item)
+    return ids
 
 
 def date_blockers(dates, on):
@@ -249,6 +267,11 @@ def date_blockers(dates, on):
     if not dates:
         return []
     problems = []
+    if ended := dates.get("use_ended"):
+        problems.append(
+            f"The lot's use ended with reassessment {ended['label']}; no certificate is issued "
+            "for it."
+        )
     if dates.get("frozen_at_release") is False:
         problems.append("The lot's expiry and retest dates are not those its release froze.")
     expiry, retest = dates.get("expiry_on"), dates.get("retest_on")
@@ -421,8 +444,6 @@ def blockers(evidence):
     for hold in evidence.get("holds") or []:
         if hold.get("status") not in CLEARED_HOLD_STATES:
             problems.append(f"Open hold: {hold.get('description') or hold.get('id')}.")
-    from django.utils import timezone
-
     problems += date_blockers(evidence.get("dates"), timezone.localdate())
     return problems
 

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load ui %}
 {% comment %}Out-of-specification investigations, newest first; open ones by default. Context: page_title, tabs, page_obj, query, filters (InvestigationFilterForm), filtered.{% endcomment %}
-{% block page_intro %}<p class="vr-page-intro">Out-of-specification investigations. An open investigation holds its lot, or its stability pull, until quality signs a conclusion.</p>{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Out-of-specification investigations. An open investigation holds its lot, its stability pull or its reassessment until quality signs a conclusion.</p>{% endblock %}
 {% block content %}
 {% panel title="Investigations" heading_id="inv-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter investigations" q=query search_label="Find" placeholder="Lot, study or test code" inline=filters active=filtered %}
@@ -12,7 +12,7 @@
         <tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a></th>
           <td class="vr-nowrap">{% include "analytical/_investigation_status.html" with inv=inv only %}</td>
-          <td>{% if inv.lot_id %}<a href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a>{% else %}<a href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.source_lot.number }}</a>{% endif %}<span class="vr-sub"><a href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}{% if not inv.lot_id %} · stability pull {{ inv.test.pull.label }}{% endif %}</span></td>
+          <td>{% if inv.lot_id %}<a href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a>{% else %}<a href="{{ inv.test.subject_url }}">{{ inv.test.source_lot.number }}</a>{% endif %}<span class="vr-sub"><a href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}{% if not inv.lot_id %} · {{ inv.test.material_text }}{% endif %}</span></td>
           <td class="vr-wrap">{{ inv.trigger }}</td>
           <td class="vr-nowrap">{{ inv.opened_at|when }}</td>
         </tr>

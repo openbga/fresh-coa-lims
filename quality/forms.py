@@ -10,10 +10,11 @@ from core.forms import LocalDateTimeInput, SignatureIdentityForm, SigningFieldOr
 from core.lookups import RemoteSelect
 from core.models import RuleSet
 from core.services import APPLIES_TO, applies_at
+from laboratory.forms import SigningForm as RevisionSigningForm
 from suppliers.models import Supplier
 
 from . import certificates
-from .models import Lot, ReceiptCondition, ReceiptSource, Sample
+from .models import Lot, Reassessment, ReceiptCondition, ReceiptSource, Sample
 from .rejection import REFERENCE_MAX, RejectionGrounds
 from .services import RECEIPT_FIELDS
 
@@ -503,3 +504,61 @@ class DatesForm(GroupedForm):
     current = forms.IntegerField(required=False, widget=forms.HiddenInput)
     reason = reason_field("Reason")
     groups = [("Dates", ["expiry_on", "retest_on", "basis"]), ("Change control", ["reason"])]
+
+
+class ReassessmentForm(GroupedForm):
+    """Start the reassessment of a released lot with the sample taken for it."""
+
+    sample_reference = forms.CharField(
+        label="Sample reference",
+        max_length=80,
+        help_text="The identifier on the sample taken for the reassessment.",
+    )
+    sampled_on = forms.DateField(
+        label="Date sampled",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        initial=timezone.localdate,
+    )
+    quantity = forms.DecimalField(label="Quantity taken", max_digits=14, decimal_places=4)
+    quantity_unit = forms.ChoiceField(label="Quantity unit", choices=QUANTITY_UNITS)
+    containers = forms.CharField(
+        label="Containers sampled",
+        max_length=200,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Which containers of the lot were sampled, and where the lot is stored.",
+    )
+    reason = reason_field("Why the material is examined again")
+    groups = [
+        ("Sample", ["sample_reference", "sampled_on", "quantity", "quantity_unit", "containers"]),
+        ("Reason", ["reason"]),
+    ]
+
+
+class ReassessmentTestsForm(forms.Form):
+    """Assign a reassessment's tests. ``criteria`` is the token of the acceptance criteria the
+    page shows; the service refuses the assignment when the criteria in force differ from it."""
+
+    criteria = forms.CharField(widget=forms.HiddenInput, max_length=64)
+    reason = reason_field("Reason")
+
+
+class ReassessmentConclusionForm(RevisionSigningForm):
+    """Conclude a reassessment. The service decides whether the outcome is possible."""
+
+    outcome = forms.ChoiceField(
+        label="Outcome", choices=Reassessment.Outcome.choices, widget=forms.RadioSelect
+    )
+    retest_on = forms.DateField(
+        label="New retest date",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="For a suitable outcome: after today, and not after the lot's expiry date.",
+    )
+
+    def clean(self):
+        data = super().clean()
+        if data.get("outcome") == Reassessment.Outcome.SUITABLE and not data.get("retest_on"):
+            self.add_error("retest_on", "Enter the new retest date.")
+        if data.get("outcome") == Reassessment.Outcome.NOT_SUITABLE and data.get("retest_on"):
+            self.add_error("retest_on", "A reassessment that ends the material's use sets no date.")
+        return data

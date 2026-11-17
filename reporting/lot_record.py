@@ -78,7 +78,7 @@ def _tests(c):
 
 
 def _all_tests(c):
-    return c.ids("tests") + c.ids("stability_tests")
+    return c.ids("tests") + c.ids("stability_tests") + c.ids("reassessment_tests")
 
 
 def _of_tests(name):
@@ -90,7 +90,7 @@ def _investigations(c):
 
 
 def _batches(c):
-    tests = c.records("tests") + c.records("stability_tests")
+    tests = c.records("tests") + c.records("stability_tests") + c.records("reassessment_tests")
     return Q(pk__in={r.batch_id for r in tests if r.batch_id})
 
 
@@ -142,6 +142,7 @@ LOT_SECTIONS = (
     Section("reserves", "Reserve samples", "stability.ReserveSample", _lot),
     Section("retention", "Retention obligations", "stability.RetentionObligation", _lot),
     Section("holds", "Holds", "stability.Hold", _lot),
+    Section("reassessments", "Reassessments", "quality.Reassessment", _lot),
     Section("tests", "Tests", "analytical.AnalyticalTest", _tests),
     # A stability pull's tests name no lot: they are not part of the lot's release testing, but
     # they are part of its record.
@@ -150,6 +151,13 @@ LOT_SECTIONS = (
         "Tests of stability pulls",
         "analytical.AnalyticalTest",
         _in("pull", "pulls"),
+    ),
+    # So do a reassessment's tests: the lot's record after release.
+    Section(
+        "reassessment_tests",
+        "Tests of reassessments",
+        "analytical.AnalyticalTest",
+        _in("reassessment", "reassessments"),
     ),
     Section("observations", "Observations", "analytical.Observation", _of_tests("test")),
     Section("raw_files", "Raw-data files", "analytical.RawDataFile", _of_tests("test")),
