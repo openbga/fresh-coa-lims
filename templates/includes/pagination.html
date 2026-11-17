@@ -22,7 +22,7 @@ Usage: {% pagination page_obj=page_obj noun="audit events" filtered=filtered %}
       {% for key, values in request.GET.lists %}{% if key != "page" and key != "per_page" %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endif %}{% endfor %}
       <label class="vr-count text-nowrap" for="per-page-{{ noun|default:'records'|slugify }}">Rows per page</label>
       {% page_size_field paginator.per_page noun as page_size %}{{ page_size }}
-      <button class="btn btn-sm btn-outline-secondary" type="submit">Show</button>
+      <button class="btn btn-sm btn-outline-secondary" type="submit" data-vr-autosubmit-fallback>Show</button>
     </form>
     {% endif %}
     {% if paginator.num_pages > 1 %}

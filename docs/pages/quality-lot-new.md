@@ -78,7 +78,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - Lot record (opened after saving).
 - [Suppliers](/suppliers/)
 - [Rule sets](/rules/)

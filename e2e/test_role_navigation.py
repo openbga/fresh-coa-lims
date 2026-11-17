@@ -28,6 +28,7 @@ def test_menu_after_sign_in(live_server, django_user_model, artifacts, roles):
     expected = ["Signature PIN", "Account access"]
     if roles:
         expected = [
+            "Dashboard",
             "Lots",
             "Sampling",
             "Testing",

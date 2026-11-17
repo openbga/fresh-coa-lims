@@ -90,4 +90,4 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 - Lot requirements and sampling (where requirements are assigned).
 - [Holds](/stability/holds/)
 - [Suppliers](/suppliers/)
-- [Material lots](/)
+- [Material lots](/lots/)

@@ -2,9 +2,9 @@
 title: Testing: QC batches
 urls: analytical:batch_list
 views: analytical.views.batch_list
-templates: analytical/batch_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_qc_status.html
+templates: analytical/batch_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_qc_status.html
 models: analytical.QCBatch
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,8 +21,8 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 
 - **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Testing" and the **New QC batch** button for analysts, with the introduction below.
-- **Filter bar**: **Find**, **Status**, **Apply**, **Clear filters** when filtered.
-- **Table** (caption "QC batches, newest first"): Batch, QC status, Method, Created, Created by. Footer count and pager.
+- **Filter bar**: **Find**, **Status** (default "All batches"), **Apply**, **Clear all** when filtered.
+- **Table** (caption "QC batches, newest first"): Batch, QC status, Method, Created, Created by. Footer: "Showing X–Y of N batches", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No QC batches yet" (with **New QC batch** for analysts) and "No batches match these filters".
 
 ## Actions
@@ -30,7 +30,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New QC batch** | User holds analyst | Analyst | Opens the New QC batch form |
-| **Apply** / **Clear filters** | Always / filtered | Any viewer | Applies or removes filters |
+| **Apply** / **Clear all** | Always / filtered | Any viewer | Applies or removes filters |
 | Batch number link | Each row | Any viewer | Opens the batch |
 
 ## Fields
@@ -46,7 +46,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 ## Rules and hidden logic
 
 - **QC status**: Failed if any current check is outside its limits; Incomplete if any check has no current result (and none failed); otherwise Passed.
-- **Order and paging**: newest first; 30 per page.
+- **Order and paging**: newest first; 25 rows per page by default, or 50 or 100 through **Rows per page**.
 - **Unknown status value** is treated as All batches.
 
 ## Related pages

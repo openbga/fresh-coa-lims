@@ -83,4 +83,4 @@ In the table, "Test" stands for the name of each requirement, for example "Assay
 - Supplier result acceptance record (to withdraw an acceptance that no longer stands); Propose supplier result in place of a test.
 - Lot record; Lot requirements and sampling.
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

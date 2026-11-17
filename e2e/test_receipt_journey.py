@@ -4,6 +4,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import AuditEvent
@@ -61,27 +62,29 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
 
         # The analyst receives a lot; incomplete receipt details are refused and kept on screen.
         login("analyst")
+        page.goto(live_server.url + "/lots/")
         page.locator(".vr-page-actions").get_by_role("link", name="New material lot").click()
         expect(page.locator('#vr-nav [aria-current="page"]')).to_have_text("Lots")
         field("Lot number").fill("SYN-BROWSER-R-001")
         field("Material").fill("Synthetic botanical extract")
-        field("Rule set").select_option(label="synthetic v1")
-        field("Source").select_option(label="Received from a supplier")
+        pick(field("Rule set"), label="synthetic v1")
+        pick(field("Source"), label="Received from a supplier")
         field("Supplier lot number").fill("SUP-LOT-SYN-001")
         field("Delivery or batch document").fill("DN-SYN-0042")
         field("Quantity received").fill("125.50")
-        field("Quantity unit").select_option(label="kg")
+        pick(field("Quantity unit"), label="kg")
         field("Number of containers").fill("5")
         field("Containers").fill("25 kg fibre drums")
-        field("Examination on receipt").select_option(label="Discrepancy found")
+        pick(field("Examination on receipt"), label="Discrepancy found")
         field("Reason").fill("Synthetic delivery received")
         page.get_by_role("button", name="Receive lot", exact=True).click()
         expect(page.get_by_role("alert")).to_contain_text("Your entries were kept.")
         expect(page.get_by_text("Select the supplier the lot was received from.")).to_be_visible()
         expect(page.get_by_text("Describe the discrepancy found on receipt.")).to_be_visible()
         expect(field("Lot number")).to_have_value("SYN-BROWSER-R-001")
-        page.get_by_label("Supplier", exact=True).select_option(
-            label="sup-syn-001 · Synthetic Ingredients Supply"
+        pick(
+            page.get_by_label("Supplier", exact=True),
+            label="sup-syn-001 · Synthetic Ingredients Supply",
         )
         field("Examination notes").fill("Synthetic drum 3 arrived with a torn outer label.")
         page.screenshot(path=str(artifacts / "receipt-new-lot-desktop.png"), full_page=True)
@@ -145,13 +148,14 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         # An auditor traces the lot from the supplier and from the supplier's lot number, and
         # cannot change either.
         login("auditor")
+        page.goto(live_server.url + "/lots/")
         page.get_by_label("Find lot").fill("sup-lot-syn-002")
-        page.get_by_role("button", name="Search", exact=True).click()
+        page.get_by_role("button", name="Apply", exact=True).click()
         row = page.get_by_role("row", name=re.compile("SYN-BROWSER-R-001"))
         expect(row).to_contain_text("Synthetic Ingredients Supply")
         expect(row).to_contain_text("SUP-LOT-SYN-002")
         page.get_by_label("Find lot").fill("sup-lot-syn-001")  # The replaced record is not found.
-        page.get_by_role("button", name="Search", exact=True).click()
+        page.get_by_role("button", name="Apply", exact=True).click()
         expect(page.get_by_text("No material lots match these filters")).to_be_visible()
         nav.get_by_role("link", name="Suppliers", exact=True).click()
         expect(page.get_by_role("link", name="New supplier")).to_have_count(0)

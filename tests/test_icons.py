@@ -9,7 +9,6 @@ are the brand mark (static/img/mark.svg) and the sign-in illustration, both file
 import re
 from pathlib import Path
 
-import pytest
 from django.conf import settings
 
 from tests.test_ui_standards import strip_comments, templates
@@ -100,13 +99,8 @@ def test_css_svg_images_are_bootstrap_images():
     assert not unknown, f"SVG data URIs that are not on the allowlist: {unknown}"
 
 
-@pytest.mark.xfail(
-    reason="includes/status.html stays plain HTML until the certificate PDF has its own status "
-    "markup (components and reports); then the CSS ::before shapes go",
-    strict=False,
-)
 def test_status_glyphs_are_icons_not_css_shapes():
     css = APP_CSS.read_text()
     assert not re.search(r"\.vr-status[^{]*::(?:before|after)", css)
     status = (ROOT / "templates/includes/status.html").read_text()
-    assert re.search(r'{%\s*icon\s+name=|includes/icon\.html" with name=', status)
+    assert re.search(r"{%\s*icon\s+name=glyph", status)

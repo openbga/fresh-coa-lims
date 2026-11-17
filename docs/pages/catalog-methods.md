@@ -4,7 +4,7 @@ urls: catalog:methods
 views: catalog.views.method_list
 templates: catalog/method_list.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,9 +22,9 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 - **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
-- **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear filters** when filtered.
+- **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear all** when filtered.
 - **Table**: Method (code link, sortable), Title, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
-- **Footer**: "Showing X–Y of N methods", with Previous / Next when there are several pages.
+- **Footer**: "Showing X–Y of N methods", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No methods yet" ("Add the first method and link its controlled procedure and suitability evidence.") with **New method** for quality; "No methods match these filters" ("Change or clear the filters.") with **Clear filters**.
 
 ## Actions
@@ -48,7 +48,7 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 ## Rules and hidden logic
 
 - **Order**: code ascending by default; `sort` accepts code or -code.
-- **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
+- **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Permissions**: read roles checked on the server; New method also enforced on its own page.
 - **Not enforced by this page**: "Has approved version" does not mean the version is effective now.
 

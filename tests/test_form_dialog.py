@@ -14,9 +14,15 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
+from accounts.services import ROLES
 from catalog.models import Material
 from core.form_dialog import FormDialogMiddleware
-from core.form_surfaces import FORM_SURFACES, form_presentation, form_route_patterns
+from core.form_surfaces import (
+    FORM_SURFACES,
+    _route_patterns,
+    form_presentation,
+    form_route_patterns,
+)
 
 DIALOG = {"X-VR-Form": "1"}
 PASSWORD = "Synthetic-dialog-login-2026!"
@@ -70,7 +76,7 @@ def test_page_requests_and_other_responses_pass_unchanged():
 
 
 def test_route_patterns_match_their_own_urls_only():
-    patterns = form_route_patterns()
+    patterns = _route_patterns()
     assert len(patterns) == len(FORM_SURFACES)
     for name in FORM_SURFACES:
         path = reverse(name)
@@ -170,3 +176,33 @@ def test_dialog_fragment_has_no_shell_and_no_history(client, person):
     assert b"data-vr-form-page" in fragment
     assert b"<!doctype html>" not in fragment
     assert b"vr-timeline" not in fragment and b"vr-history-item" not in fragment
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", sorted(FORM_SURFACES))
+def test_dialog_roles_match_the_view(client, person, name):
+    """Each route's listed roles are exactly the roles its view lets in."""
+    allowed = set(FORM_SURFACES[name][1])
+    for role in sorted(allowed):
+        client.force_login(person(f"synthetic_dialog_{role}", role))
+        assert client.get(reverse(name)).status_code == 200, (name, role)
+    others = sorted(ROLES - allowed)
+    client.force_login(person("synthetic_dialog_others", *others))
+    assert client.get(reverse(name)).status_code == 403, (name, others)
+
+
+@pytest.mark.django_db
+def test_a_page_lists_only_the_dialog_routes_the_user_may_open(person):
+    from django.contrib.auth.models import AnonymousUser
+
+    assert form_route_patterns(AnonymousUser()) == []
+    admin = person("synthetic_dialog_admin", "admin")
+    listed = {e["pattern"] for e in form_route_patterns(admin)}
+    expected = {e["pattern"] for e in _route_patterns() if "admin" in FORM_SURFACES[e["name"]][1]}
+    assert listed == expected
+    assert not any(re.fullmatch(p, reverse("analytical:batch_new")) for p in listed)
+    analyst = person("synthetic_dialog_analyst", "analyst")
+    assert any(
+        re.fullmatch(e["pattern"], reverse("analytical:batch_new"))
+        for e in form_route_patterns(analyst)
+    )

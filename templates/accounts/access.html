@@ -7,7 +7,7 @@
   <p>You are signed in as <strong>{{ user.username }}</strong>.</p>
   <ul>{% for role in laboratory_roles %}<li>{{ role }}</li>{% endfor %}</ul>
   <p>Each action still requires its designated role and independent review where applicable.</p>
-  <p class="mb-0"><a href="{% url 'quality:lot_list' %}">Open workspace</a></p>
+  <p class="mb-0"><a href="{% url 'quality:dashboard' %}">Open workspace</a></p>
 {% endpanel %}
 {% else %}
 {% notice tone="warning" label="No role" class="mb-3" %}<p>You are signed in as <strong>{{ user.username }}</strong>. Your account has no laboratory role. Ask your organization's account administrator to assign the role appropriate to your work. Give them your username, <strong>{{ user.username }}</strong>.</p><p class="mb-0">Signing in or holding superuser status does not grant laboratory access. You can sign out using the top bar while access is arranged.</p>{% endnotice %}

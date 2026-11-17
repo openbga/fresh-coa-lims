@@ -14,7 +14,7 @@ from django.test import Client, RequestFactory
 from django.urls import reverse
 
 from core.models import UserPreference
-from core.preferences import MAX_PREFERENCES, clean, for_request
+from core.preferences import MAX_PREFERENCES, clean
 
 pytestmark = pytest.mark.django_db
 
@@ -116,6 +116,10 @@ def test_clean_accepts_only_the_declared_shapes():
     assert clean("nav.collapsed", True) is True
     assert clean("nav.collapsed", "yes") is None
     assert clean("other", True) is None
+    assert clean("pagedocs.open", False) is False
+    assert clean("pagedocs.width", 420) == 420
+    assert clean("pagedocs.width", 279) is None and clean("pagedocs.width", 961) is None
+    assert clean("pagedocs.width", True) is None and clean("pagedocs.width", "420") is None
 
 
 def test_saving_needs_sign_in_and_a_csrf_token(person):
@@ -151,24 +155,24 @@ def test_sidebar_state_tag(client, person):
     assert page_prefs(client) == {"nav.collapsed": True}
 
 
-def test_settings_are_read_once_per_sign_in(client, person):
+def test_a_change_shows_on_the_next_page_of_every_session(client, person):
     user = person("syn-pref-g")
     client.force_login(user)
+    other = Client()
+    other.force_login(user)  # the same person on another workstation
     assert post(client, "nav.collapsed", True).status_code == 204
-    UserPreference.objects.filter(user=user).delete()  # only the session copy remains
-    assert page_prefs(client) == {"nav.collapsed": True}
-    client.logout()
-    client.force_login(user)  # a new sign-in reads the database again
+    assert page_prefs(other) == {"nav.collapsed": True}
+    UserPreference.objects.filter(user=user).delete()
     assert page_prefs(client) == {}
 
 
-def test_session_copy_of_another_user_is_never_used(person):
-    first, second = person("syn-pref-h"), person("syn-pref-i")
-    UserPreference.objects.create(user=first, key="nav.collapsed", value=True)
-    request = RequestFactory().get("/")
-    request.user = second
-    request.session = {"vr_preferences": {"user": first.pk, "prefs": {"nav.collapsed": True}}}
-    assert for_request(request) == {}
+def test_settings_saved_at_the_same_moment_are_all_kept(client, person):
+    user = person("syn-pref-h")
+    client.force_login(user)
+    # Two requests of one page (open the panel, set its width) each save their own key.
+    assert post(client, "pagedocs.open", True).status_code == 204
+    assert post(client, "pagedocs.width", 500).status_code == 204
+    assert page_prefs(client) == {"pagedocs.open": True, "pagedocs.width": 500}
 
 
 def test_page_size_and_sort_persist_per_user_and_list(client, person):
@@ -199,3 +203,14 @@ def test_a_preference_never_opens_a_page(client, person):
     )
     client.force_login(user)
     assert client.get(reverse("laboratory:equipment_list")).status_code == 403
+
+
+def test_documentation_panel_state_is_a_personal_setting(client, person):
+    user = person("syn-pref-m")
+    client.force_login(user)
+    assert post(client, "pagedocs.open", True).status_code == 204
+    assert post(client, "pagedocs.width", 512).status_code == 204
+    assert post(client, "pagedocs.width", 5000).status_code == 400
+    assert page_prefs(client) == {"pagedocs.open": True, "pagedocs.width": 512}
+    client.force_login(person("syn-pref-n"))
+    assert page_prefs(client) == {}

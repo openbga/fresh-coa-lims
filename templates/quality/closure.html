@@ -71,16 +71,16 @@
 {% endif %}
 {% if closure.possible or denied %}
 {% if decision == "rejected" %}{% firstof "Sign rejection" as sign_title %}{% else %}{% firstof "Sign cancellation" as sign_title %}{% endif %}
-{% panel title=sign_title heading_id="sign-title" %}
+{% signature_card title=sign_title %}
+    {% fill summary %}{% if not denied %}<p>Your signature records the meaning <strong>{{ decision }}</strong> for lot <strong class="vr-id">{{ lot.number }}</strong> at record revision <strong class="vr-id">{{ lot.revision }}</strong>, with what this page shows. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If the lot's record changes before you sign, signing fails and you review it again.</p>
+    <p class="mb-0">Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>{% endif %}{% endfill %}
     {% if denied %}
     {% notice tone="warning" label="Not permitted" blocking=True %}<div class="text-break">{{ denied }} Independence cannot be bypassed by any role, including administrators.</div>{% endnotice %}
     <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
     {% else %}
-    <p>Your signature records the meaning <strong>{{ decision }}</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>, with what this page shows. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If the lot's record changes before you sign, signing fails and you review it again.</p>
-    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
-    {% form_page form=form cancel_url=cancel_url submit_label=button destructive=True autocomplete_off=True %}{% endform_page %}
+    {% form_page form=form cancel_url=cancel_url submit_label=button submit_icon="vector-pen" destructive=True autocomplete_off=True %}{% endform_page %}
     {% endif %}
-{% endpanel %}
+{% endsignature_card %}
 {% endif %}
 {% endblock %}
 {% block record_foot %}{% record_foot identifier=lot.number %}{% endblock %}

@@ -1,33 +1,29 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Sampling plans. Context: page_title, tabs, page_obj, query, sort, filtered, can_edit.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Approved sampling plans state how many containers and how much material to sample for each material and stage.</p>{% endblock %}
-{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'sampling:plan_new' %}">New sampling plan</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'sampling:plan_new' %}">{% icon name="plus-lg" %}New sampling plan</a>{% endif %}{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="list-heading">
-  <h2 class="visually-hidden" id="list-heading">Sampling plans</h2>
-  {% include "catalog/includes/toolbar.html" with label="Filter sampling plans" placeholder="Code, title or material" %}
-  {% if page_obj.paginator.count %}
+{% panel title="Sampling plans" heading_id="list-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter sampling plans" q=query placeholder="Code, title or material" sort=sort active=filtered %}
+  {% if can_edit %}{% url 'sampling:plan_new' as create_url %}{% endif %}
+  {% list_results items=page_obj noun="sampling plans" filtered=filtered sizes=True clear_url=request.path empty_title="No sampling plans yet" empty_body="Create the plan for a material and stage." action_url=create_url action_label="New sampling plan" no_results_body="Change or clear the filters." %}
   <div class="vr-table-wrap">
-    <table class="table table-hover vr-table">
-      <thead><tr>{% include "catalog/includes/sort.html" with label="Plan" key="code" current=sort %}<th scope="col">Material</th><th scope="col">Stage</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th></tr></thead>
+    <table class="table table-hover vr-table" aria-labelledby="list-heading">
+      <thead><tr>{% sort_header label="Plan" asc="code" desc="-code" sort=sort %}<th scope="col">Material</th><th scope="col">Stage</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th></tr></thead>
       <tbody>
         {% for plan in page_obj %}
         <tr>
-          <th scope="row"><a href="{% url 'sampling:plan' plan.pk %}">{{ plan.code }}</a><br><span class="text-body-secondary">{{ plan.title }}</span></th>
+          <th scope="row"><a href="{% url 'sampling:plan' plan.pk %}">{{ plan.code }}</a><br><span class="vr-muted">{{ plan.title }}</span></th>
           <td>{{ plan.material.code }}</td>
           <td>{{ plan.get_stage_display }}</td>
           <td class="text-end">{{ plan.versions }}</td>
-          <td>{% if plan.approved %}{% include "includes/status.html" with label="Has approved version" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="No approved version" tone="warning" plain=True %}{% endif %}{% if plan.drafts %}<br>{% include "includes/status.html" with label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
+          <td>{% if plan.approved %}{% status label="Has approved version" tone="success" plain=True %}{% else %}{% status label="No approved version" tone="warning" plain=True %}{% endif %}{% if plan.drafts %}<br>{% status label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% include "catalog/includes/pagination.html" with noun="sampling plans" %}
-  {% elif filtered %}
-  {% include "catalog/includes/empty.html" with kind="no-results" title="No sampling plans match these filters" body="Change or clear the filters." clear_url=request.path %}
-  {% else %}
-  {% if can_edit %}{% url 'sampling:plan_new' as create_url %}{% endif %}
-  {% include "catalog/includes/empty.html" with title="No sampling plans yet" body="Create the plan for a material and stage." action_url=create_url action_label="New sampling plan" %}
-  {% endif %}
-</section>
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

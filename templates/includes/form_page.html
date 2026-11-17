@@ -19,7 +19,7 @@ Parameters:
   cancel_url, cancel_label   where Cancel returns (the record when editing, the list when
                   creating) and its words (default "Cancel")
   cancel_hook     optional data attribute name on the Cancel link (e.g. "signature-cancel")
-  submit_label, destructive, secondary, no_submit   the action row ({% form_actions %})
+  submit_label, submit_icon, destructive, secondary, no_submit   the action row ({% form_actions %})
   id, class       optional id and extra classes on the form
 Parts ({% fill name %} ... {% endfill %}):
   note            the note's extra sentences when they need tags or values (instead of note=)
@@ -37,5 +37,5 @@ Usage:
     {% for field in form.hidden_fields %}{{ field }}{% endfor %}
   </fieldset>
   {% endif %}
-  {% form_actions cancel_url=cancel_url cancel_label=cancel_label cancel_hook=cancel_hook submit_label=submit_label destructive=destructive secondary=secondary no_submit=no_submit %}{{ slots.actions }}{% endform_actions %}
+  {% form_actions cancel_url=cancel_url cancel_label=cancel_label cancel_hook=cancel_hook submit_label=submit_label destructive=destructive secondary=secondary no_submit=no_submit submit_icon=submit_icon %}{{ slots.actions }}{% endform_actions %}
 </form>

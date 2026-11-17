@@ -54,5 +54,5 @@ No PIN verification or electronic signature is created. The signature PIN, roles
 ## Related pages
 
 - [Account access](/accounts/access/)
-- [Material lots](/)
+- [Material lots](/lots/)
 - [Signature PIN](/signature-pin/)

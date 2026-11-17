@@ -101,6 +101,12 @@
   opacity: 1;
 }
 
+/* Disabled: muted text and a dashed outline, never a faded control. */
+.ts-wrapper.disabled.form-select,
+.ts-wrapper.disabled.form-control {
+  border-style: dashed;
+}
+
 /* The chevron is a Bootstrap Icons symbol (controls.js), not the stylesheet's background image. */
 .vr-ts-caret {
   position: absolute;
@@ -108,9 +114,10 @@
   right: var(--vr-space-3);
   display: inline-flex;
   color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
   pointer-events: none;
   transform: translateY(-50%);
-  transition: transform 0.15s var(--vr-ease);
+  transition: transform var(--vr-motion-fast) var(--vr-ease);
 }
 
 .ts-wrapper.dropdown-active .vr-ts-caret {
@@ -118,7 +125,7 @@
 }
 
 .ts-wrapper.disabled .vr-ts-caret {
-  opacity: 0.5;
+  color: var(--vr-text-muted);
 }
 
 /* Clear button (controls.js addClear): beside the chevron, never moving it. The space is kept
@@ -140,14 +147,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--vr-space-6);
-  height: var(--vr-space-6);
+  width: calc(var(--vr-space-6) + var(--vr-space-0-5));
+  height: calc(var(--vr-space-6) + var(--vr-space-0-5));
   padding: 0;
   background: transparent;
   color: var(--vr-text-muted);
   border: 0;
   border-radius: var(--vr-radius-pill);
-  font-size: var(--vr-font-size-5);
+  font-size: var(--vr-font-size-4);
   opacity: 0;
   transform: translateY(-50%);
   transition: opacity var(--vr-motion-fast) ease-out;
@@ -190,10 +197,16 @@
   }
 }
 
-/* Chosen items of a multi-select: pills with a remove button. */
+/* Chosen items of a multi-select: pills with a remove button. The search input shrinks beside
+   the chips instead of taking a row of its own. */
 .ts-wrapper.multi .ts-control {
   padding-left: var(--vr-space-1-5);
   cursor: text;
+}
+
+.ts-wrapper.multi .ts-control > input {
+  flex: 1 1 0;
+  min-width: var(--vr-space-12);
 }
 
 .ts-wrapper.multi .ts-control > div,
@@ -207,7 +220,7 @@
   color: var(--vr-text);
   border: 0;
   border-radius: var(--vr-radius-pill);
-  font-size: var(--vr-font-size-1);
+  font-size: var(--vr-font-size-2);
   font-weight: var(--vr-font-weight-bold);
 }
 
@@ -284,7 +297,7 @@
   display: flex;
   align-items: center;
   gap: var(--vr-space-2);
-  padding: var(--vr-space-1-5) var(--vr-space-2-5);
+  padding: var(--vr-space-2) var(--vr-space-3);
   color: var(--vr-text);
   border-radius: var(--vr-radius-lg);
 }
@@ -299,7 +312,7 @@
   padding: var(--vr-space-2) var(--vr-space-2-5) var(--vr-space-1);
   background: transparent;
   color: var(--vr-text-muted);
-  font-size: var(--vr-font-size-1);
+  font-size: var(--vr-font-size-3);
   font-weight: var(--vr-font-weight-bold);
 }
 
@@ -359,8 +372,37 @@
   padding: 0 var(--vr-space-2) 0 var(--vr-space-8);
 }
 
+.ts-dropdown .dropdown-input:focus,
+.plugin-dropdown_input.focus .ts-dropdown .dropdown-input {
+  border-color: var(--vr-focus);
+  box-shadow: var(--vr-field-focus-ring);
+}
+
+/* The empty choice ("Choose a …") is a way back to no value, not a value: muted, never ticked. */
+.ts-dropdown .option[data-value=""] {
+  color: var(--vr-text-muted);
+  font-weight: var(--vr-font-weight-regular);
+}
+
+.ts-dropdown .option[data-value=""] .vr-ts-check {
+  display: none;
+}
+
 .ts-dropdown .vr-ts-meta {
   color: var(--vr-text-muted);
+}
+
+/* A remote list while it loads: an hourglass and "Searching…", muted. */
+.ts-dropdown .vr-ts-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-2) var(--vr-space-3);
+  color: var(--vr-text-muted);
+}
+
+.ts-dropdown .spinner {
+  display: none;
 }
 
 /* A select in a table cell (entry grids) stays wide enough to read its value. */
@@ -425,7 +467,7 @@
 
 .vr-popover {
   z-index: var(--vr-z-menu);
-  padding: var(--vr-space-3);
+  padding: var(--vr-space-3-5);
   background: var(--vr-raised);
   color: var(--vr-text);
   border: 0;
@@ -442,12 +484,12 @@
 }
 
 .vr-datepicker {
-  width: 18rem;
+  width: 18.5rem;
   max-width: calc(100vw - 1rem);
 }
 
 .vr-datepicker.vr-datetime {
-  width: 20rem;
+  width: 20.5rem;
 }
 
 /* The calendar itself: Vanilla Calendar's layout sheet, coloured here. */
@@ -465,8 +507,8 @@
 
 .vr-datepicker [data-vc="month"],
 .vr-datepicker [data-vc="year"] {
-  color: var(--vr-text);
-  font-size: var(--vr-font-size-3);
+  color: var(--vr-text-strong);
+  font-size: var(--vr-font-size-4);
   font-weight: var(--vr-font-weight-bold);
 }
 
@@ -477,15 +519,19 @@
   justify-content: center;
   width: var(--vr-control-height-sm);
   height: var(--vr-control-height-sm);
-  color: var(--vr-text-muted);
-  border-radius: var(--vr-radius-lg);
+  background: var(--vr-button-secondary);
+  color: var(--vr-text);
+  border-radius: var(--vr-radius-pill);
 }
 
 .vr-datepicker [data-vc-arrow]::before {
   content: none;
 }
 
-.vr-datepicker [data-vc-arrow]:hover,
+.vr-datepicker [data-vc-arrow]:hover {
+  background: var(--vr-button-secondary-hover);
+}
+
 .vr-datepicker [data-vc="month"]:hover,
 .vr-datepicker [data-vc="year"]:hover {
   background: var(--vr-surface-hover);
@@ -494,18 +540,19 @@
 
 .vr-datepicker [data-vc-week-day] {
   color: var(--vr-text-muted);
-  font-size: var(--vr-font-size-1);
+  font-size: var(--vr-font-size-3);
   font-weight: var(--vr-font-weight-bold);
 }
 
 .vr-datepicker [data-vc-date-btn],
 .vr-datepicker [data-vc-months-month],
 .vr-datepicker [data-vc-years-year] {
-  min-height: 2rem;
+  min-height: 2.2857rem; /* 32px days on the 14px desktop root */
   background: transparent;
   color: var(--vr-text);
   border-radius: var(--vr-radius-lg);
-  font-size: var(--vr-font-size-2);
+  font-family: var(--vr-font-data);
+  font-size: var(--vr-font-size-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -560,7 +607,10 @@
 }
 
 .vr-time-row label {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-1);
   font-weight: var(--vr-font-weight-bold);
+  text-transform: uppercase;
 }
 
 .vr-time-row .vr-time {
@@ -568,6 +618,7 @@
   height: var(--vr-control-height-sm);
   min-height: 0;
   text-align: center;
+  font-family: var(--vr-font-data);
   font-variant-numeric: tabular-nums;
 }
 
@@ -589,9 +640,15 @@
    Text inputs with a numeric keypad: right-aligned tabular digits, no spinners. With a unit, the
    input group is the one field box; the input and the unit inside it have no box of their own. */
 
-.vr-number {
+.vr-number,
+.vr-date-input .vr-date-text {
   text-align: right;
+  font-family: var(--vr-font-data);
   font-variant-numeric: tabular-nums;
+}
+
+.vr-date-input .vr-date-text {
+  text-align: left;
 }
 
 .vr-table .vr-number {
@@ -622,8 +679,8 @@
 
 .input-group:has(> .vr-number) > .input-group-text {
   color: var(--vr-text-muted);
-  font-size: var(--vr-font-size-2);
-  font-weight: var(--vr-font-weight-bold);
+  font-size: var(--vr-font-size-3);
+  font-weight: var(--vr-font-weight-medium);
 }
 
 .input-group:has(> .vr-number) > .input-group-text:last-child {
@@ -653,6 +710,10 @@
   display: none;
 }
 
+.vr-file-field.vr-file-ready .vr-file-name {
+  display: block;
+}
+
 .vr-file-ready {
   position: relative;
 }
@@ -673,58 +734,130 @@
   gap: var(--vr-space-1);
   margin: 0;
   padding: var(--vr-space-6) var(--vr-space-4);
-  background: var(--vr-surface);
+  background: var(--vr-surface-2);
   color: var(--vr-text-muted);
   border-radius: var(--vr-radius-xl);
-  box-shadow: var(--vr-shadow-panel);
+  outline: var(--vr-border-width-md) dashed var(--vr-border-strong); /* the one dashed line */
+  outline-offset: calc(-1 * var(--vr-border-width-md));
   text-align: center;
   cursor: pointer;
 }
 
-.vr-file-ready .vr-drop:hover,
+.vr-file-ready .vr-drop:hover {
+  outline-color: var(--vr-border-strong-hover);
+}
+
 .vr-file-ready .vr-drop.vr-drop-over {
-  background: var(--vr-surface-hover);
+  background: var(--vr-selection);
+  outline-color: var(--vr-focus);
 }
 
 .vr-file-ready:has(.vr-file-native:focus-visible) .vr-drop {
-  box-shadow: var(--vr-field-focus-ring);
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  box-shadow: 0 0 0 var(--vr-halo-width) var(--vr-focus-halo);
 }
 
 .vr-file-ready:has(.vr-file-native[aria-invalid="true"]) .vr-drop {
-  box-shadow: var(--vr-field-invalid-ring);
+  outline-color: var(--vr-danger-border);
 }
 
 .vr-file-ready:has(.vr-file-native:disabled) .vr-drop {
+  color: var(--vr-text-muted);
   cursor: default;
-  opacity: 0.6;
 }
 
 .vr-drop .vr-icon {
+  margin-bottom: var(--vr-space-1);
   color: var(--vr-ink);
   font-size: var(--vr-font-size-8);
 }
 
 .vr-drop-title {
   color: var(--vr-pen);
-  font-weight: var(--vr-font-weight-semibold);
+  font-weight: var(--vr-font-weight-bold);
   text-decoration: underline;
 }
 
-.vr-drop-hint {
-  font-size: var(--vr-font-size-1);
+.vr-drop-text {
+  color: var(--vr-text-strong);
+  font-weight: var(--vr-font-weight-bold);
 }
 
-.vr-file-ready .vr-file-name {
-  display: block;
-  margin: var(--vr-space-1-5) 0 0;
-  color: var(--vr-text-muted);
+.vr-drop-hint {
   font-size: var(--vr-font-size-2);
+}
+
+/* The chosen file: a row with its icon, name, size and a remove button (controls.js). The live
+   text (.vr-file-name) names it for assistive technology only. */
+.vr-file-ready .vr-file-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vr-file-rows:not(:empty) {
+  margin-top: var(--vr-space-2);
+}
+
+.vr-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2-5);
+  padding: var(--vr-space-2) var(--vr-space-2) var(--vr-space-2) var(--vr-space-3);
+  background: var(--vr-surface-2);
+  color: var(--vr-text);
+  border-radius: var(--vr-radius-lg);
+}
+
+.vr-file-row + .vr-file-row {
+  margin-top: var(--vr-space-1);
+}
+
+.vr-file-row > .vr-icon {
+  flex: none;
+  color: var(--vr-text-muted);
+}
+
+.vr-file-label {
+  min-width: 0;
+  font-weight: var(--vr-font-weight-semibold);
   overflow-wrap: anywhere;
 }
 
-.vr-file-chosen .vr-file-name {
+.vr-file-size {
+  margin-left: auto;
+  color: var(--vr-text-muted);
+  font-family: var(--vr-font-data);
+  font-size: var(--vr-font-size-2);
+  white-space: nowrap;
+}
+
+.vr-file-remove {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-control-height-sm);
+  height: var(--vr-control-height-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--vr-text-muted);
+  border: 0;
+  border-radius: var(--vr-radius-pill);
+}
+
+.vr-file-remove:hover {
+  background: var(--vr-surface-hover);
   color: var(--vr-text);
-  font-weight: var(--vr-font-weight-semibold);
+}
+
+.vr-file-remove:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: 0;
 }
 
 .vr-file-current {
@@ -779,6 +912,27 @@ input[type="search"]::-webkit-search-decoration {
   height: 100%;
 }
 
+/* ---- Tooltips (Bootstrap; controls.js turns every title into one) -------------------------- */
+
+.tooltip {
+  --bs-tooltip-bg: var(--vr-text-strong);
+  --bs-tooltip-color: var(--vr-surface);
+  --bs-tooltip-border-radius: var(--vr-radius);
+  --bs-tooltip-font-size: var(--vr-font-size-3);
+  --bs-tooltip-max-width: 17.1429rem; /* 240px on the 14px desktop root */
+  --bs-tooltip-opacity: 1;
+  font-weight: var(--vr-font-weight-semibold);
+}
+
+.tooltip .tooltip-inner {
+  box-shadow: var(--vr-shadow-raised);
+}
+
+/* A tooltip only describes: it never covers a control from the pointer. */
+.tooltip {
+  pointer-events: none;
+}
+
 /* ================================================================ Shell: collapsible sidebar
 
    static/js/sidebar.js: from 992px the staff menu folds into an icon rail (.vr-nav-collapsed on
@@ -827,17 +981,22 @@ input[type="search"]::-webkit-search-decoration {
 
   .vr-nav-collapsed .vr-sidenav .offcanvas-body {
     padding-right: 0;
-    padding-left: var(--vr-space-2);
+    padding-left: 0;
   }
 
   .vr-nav-collapsed .vr-nav-toggle > .vr-icon {
     transform: rotate(180deg);
   }
 
-  /* Icons only: the label and count leave the layout but stay in the accessibility tree. */
+  /* Icons only, 40px square items centred in the rail; the current item keeps its solid fill.
+     The label and count leave the layout but stay in the accessibility tree. */
   .vr-nav-collapsed .vr-nav-toggle,
   .vr-nav-collapsed .vr-navlink {
     justify-content: center;
+    width: 2.8571rem; /* 40px on the 14px desktop root */
+    min-height: 2.8571rem;
+    margin-right: auto;
+    margin-left: auto;
     padding: 0;
   }
 
@@ -851,18 +1010,21 @@ input[type="search"]::-webkit-search-decoration {
     white-space: nowrap;
   }
 
-  /* Group headings become a short rule in their area's line colour. */
+  /* Group labels are hidden (still read as the list's name); space separates the groups. */
   .vr-nav-collapsed .vr-nav-heading {
-    justify-content: center;
-    gap: 0;
-    margin: var(--vr-space-1) 0;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
     padding: 0;
-    font-size: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .vr-nav-collapsed .vr-nav-list + .vr-nav-section,
   .vr-nav-collapsed .vr-nav-section + .vr-nav-section {
-    margin-top: var(--vr-space-2);
+    margin-top: var(--vr-space-4);
   }
 }
 
@@ -871,11 +1033,4 @@ input[type="search"]::-webkit-search-decoration {
   .vr-nav-toggle > .vr-icon {
     transition: none;
   }
-}
-
-/* The rail's label tooltips: the shell's current-item colours. */
-.vr-nav-tooltip {
-  --bs-tooltip-bg: var(--vr-shell-current);
-  --bs-tooltip-color: var(--vr-on-shell-current);
-  --bs-tooltip-font-size: var(--vr-font-size-2);
 }

@@ -4,7 +4,7 @@ urls: sampling:plans
 views: sampling.views.plan_list
 templates: sampling/plan_list.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,9 +22,9 @@ Lists sampling plans: how many containers and how much material to sample for ea
 - **Section tabs**: Lots, Sampling plans. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Sampling" and the **New sampling plan** button for quality, with the introduction below.
 - **Intro**: "Approved sampling plans state how many containers and how much material to sample for each material and stage."
-- **Filter bar**: **Search** (placeholder "Code, title or material"), **Apply**, **Clear filters** when filtered.
+- **Filter bar**: **Search** (placeholder "Code, title or material"), **Apply**, **Clear all** when filtered.
 - **Table**: Plan (code link with title, sortable), Material, Stage, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
-- **Footer**: "Showing X–Y of N sampling plans".
+- **Footer**: "Showing X–Y of N sampling plans", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No sampling plans yet" ("Create the plan for a material and stage.") with **New sampling plan** for quality; "No sampling plans match these filters" with **Clear filters**.
 
 ## Actions
@@ -49,7 +49,7 @@ Lists sampling plans: how many containers and how much material to sample for ea
 ## Rules and hidden logic
 
 - **Order**: code ascending by default; code or -code.
-- **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
+- **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **One plan per material and stage** (database constraint).
 - **Not enforced by this page**: "Has approved version" does not mean the version is effective now.
 

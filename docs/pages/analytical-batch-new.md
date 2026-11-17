@@ -4,7 +4,7 @@ urls: analytical:batch_new
 views: analytical.views.batch_new
 templates: analytical/form.html
 models: analytical.QCBatch
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Create a QC batch for one approved batch-method revision: the revision in force,
 ## Layout
 
 - Heading "New QC batch"; form: **Batch number**, **Method revision**, **Reason**, **Cancel**, **Create batch**.
-- When neither a method in force nor an earlier revision needed by tests in progress is available the form shows "No approved batch method is available; batches are held."
+- When neither a method in force nor an earlier revision needed by tests in progress is available, the page shows the blocking notice "On hold: No approved batch method is available; batches are held." and **Back to the list** instead of the form.
 
 ## Actions
 

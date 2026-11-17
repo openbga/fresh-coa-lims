@@ -19,6 +19,7 @@ class NavItem:
     icon: str
     namespaces: tuple[str, ...] = ()  # every page of these URL namespaces marks the item
     views: tuple[str, ...] = ()  # further view names ("core:rules") that mark it
+    except_views: tuple[str, ...] = ()  # pages of its namespaces that belong to another item
     requires: str = ""  # context flag that must be true to show the item
 
 
@@ -35,10 +36,17 @@ SECTIONS = (
         "work",
         "Work",
         (
-            NavItem("Lots", "quality:lot_list", "clipboard-check", ("quality",)),
-            NavItem("Sampling", "sampling:lots", "droplet", ("sampling",)),
-            NavItem("Testing", "analytical:test_list", "clipboard-data", ("analytical",)),
-            NavItem("Stability", "stability:overview", "archive", ("stability",)),
+            NavItem("Dashboard", "quality:dashboard", "house", views=("quality:dashboard",)),
+            NavItem(
+                "Lots",
+                "quality:lot_list",
+                "box-seam",
+                ("quality",),
+                except_views=("quality:dashboard",),
+            ),
+            NavItem("Sampling", "sampling:lots", "eyedropper", ("sampling",)),
+            NavItem("Testing", "analytical:test_list", "clipboard2-data", ("analytical",)),
+            NavItem("Stability", "stability:overview", "thermometer-half", ("stability",)),
             NavItem("Laboratory", "laboratory:overview", "tools", ("laboratory",)),
         ),
         requires="can_view_workspace",
@@ -47,7 +55,7 @@ SECTIONS = (
         "configuration",
         "Configuration",
         (
-            NavItem("Specifications", "catalog:specifications", "file-earmark-text", ("catalog",)),
+            NavItem("Specifications", "catalog:specifications", "file-earmark-ruled", ("catalog",)),
             NavItem("Suppliers", "suppliers:list", "truck", ("suppliers",)),
             NavItem(
                 "Rule sets", "core:rules", "list-check", views=("core:rules", "core:rule_approve")
@@ -59,8 +67,8 @@ SECTIONS = (
         "records",
         "Records",
         (
-            NavItem("Certificates", "reporting:list", "patch-check", ("reporting",)),
-            NavItem("Validation", "validation:use_list", "journal-text", ("validation",)),
+            NavItem("Certificates", "reporting:list", "file-earmark-check", ("reporting",)),
+            NavItem("Validation", "validation:use_list", "ui-checks", ("validation",)),
             NavItem(
                 "Audit trail",
                 "core:audit",
@@ -94,7 +102,7 @@ SECTIONS = (
             NavItem(
                 "Sign-in announcement",
                 "accounts:announcement",
-                "info-circle",
+                "megaphone",
                 views=("accounts:announcement",),
                 requires="can_manage_accounts",
             ),
@@ -125,7 +133,8 @@ def nav_sections(request, flags):
                 "label": item.label,
                 "url": reverse(item.url_name),
                 "icon": item.icon,
-                "current": namespace in item.namespaces or view_name in item.views,
+                "current": view_name not in item.except_views
+                and (namespace in item.namespaces or view_name in item.views),
             }
             for item in section.items
             if _flag(flags, item.requires)

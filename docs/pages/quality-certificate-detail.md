@@ -95,4 +95,4 @@ Shows one supplier certificate of a lot: the current record of what the certific
 - Supplier record; Sign lot disposition.
 - [Holds](/stability/holds/)
 - [Audit trail](/audit/)
-- [Material lots](/)
+- [Material lots](/lots/)

@@ -4,7 +4,7 @@ urls: core:rule_approve
 views: core.views.rule_approve
 templates: core/form.html
 models: core.RuleSet, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -18,10 +18,11 @@ Independently review a draft rule revision and sign its approval so lots can use
 
 ## Layout
 
-- Title "Approve <code vN>", a signing statement (signer, meaning approved), facts: Rule policy, Applies to (additional rule sets only), Author, Effective interval, Revision.
+- Breadcrumbs Rule sets › the title "Approve <code vN>".
+- **Revision being approved** card: a signing statement (signer, meaning approved), facts: Rule policy, Applies to (additional rule sets only), Author, Effective interval, Revision.
 - **Applies to** (only when the policy states `applies_to`): "In addition to a lot's own rule set, every lot whose requirements are assigned for:" followed by what the policy names ("materials …;", "stages …;", "scopes …;"), "each one named must match.", then "A dimension not named matches every lot. It applies to a lot from the next time its requirements are assigned or replaced."
 - **Retired versions** (information alert, when this revision overlaps approved versions of the same code): "This version overlaps the effective period of N approved version(s) of the rule set. Your signature also retires it/them:" then each version with "never applies: this version takes over before it starts" "stops applying on <time>" (this version's start, when it is still ahead) or "stops applying at the moment of your signature, because this version's start has already passed". When lots in quarantine are on a retired version, the line adds "N lot(s) in quarantine is/are on it: from then on its/their requirements are assigned again (before testing has started) or replaced with a signature (once it has) under this version before further tests are assigned and before disposition. Results already recorded can still be reviewed and an investigation concluded." The alert ends "A retired version keeps its approved policy and signature."
-- The form and **Sign approval**.
+- **Sign approval** card: the required-fields note, the form, **Cancel** (back to Rule sets, nothing signed) and **Sign approval**.
 
 ## Actions
 

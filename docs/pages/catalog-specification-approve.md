@@ -4,7 +4,7 @@ urls: catalog:specification_approve
 views: catalog.views.specification_approve
 templates: catalog/approve.html
 models: catalog.SpecificationRevision, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ Independent review and electronic signature that approves a draft specification 
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, specification code, "Version N", Approve.
-- **Header line**: the version, "record revision N" and its status.
+- **Header line**: its status, the version and "Record revision N".
 - **Content being approved**: Material, Stage and scope, Effective, Basis, Author, and the tests table (or "No tests yet. Approval requires at least one test.").
 - **Sign approval**: the statement of what your signature means ("approved", the record revision, the resulting revision and a content hash), "Signer:" with your name and username, and a link "Enroll or change your signature PIN".
 - **Retires earlier** (information alert above the signer line, when this version overlaps approved versions): "This version overlaps the effective period of N approved version(s). Your signature also retires it/them:" then each version with "never applies: this version takes over before it starts", "stops applying on <time>" (this version's start, when it is still ahead) or "stops applying at the moment of your signature, because this version's start has already passed"; then "A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned; quality decides for each lot in testing whether to replace them."

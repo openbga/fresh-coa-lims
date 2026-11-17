@@ -68,4 +68,4 @@ Withdraws a supplier result that was proposed or accepted in place of a test, wh
 - Supplier certificate record (to propose the result again); Propose supplier result in place of a test.
 - Lot record; Lot testing.
 - [Signature PIN](/signature-pin/)
-- [Material lots](/)
+- [Material lots](/lots/)

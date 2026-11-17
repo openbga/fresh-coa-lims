@@ -83,7 +83,8 @@ def test_native_observation_to_signed_certificate(live_server, integrated, artif
             sign(
                 data["people"]["approver"], "Independent synthetic QC disposition", "Sign approved"
             )
-            expect(page.get_by_text("Released", exact=True)).to_be_visible()
+            meta = page.locator(".vr-page-meta")
+            expect(meta.get_by_text("Released", exact=True)).to_be_visible()
             page.get_by_role("link", name="Issue certificate of analysis", exact=True).click()
             expect(page.get_by_text("Preview, not issued", exact=True)).to_be_visible()
             page.get_by_role("link", name="Continue to signing", exact=True).click()

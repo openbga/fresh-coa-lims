@@ -1,4 +1,4 @@
-{% comment %}
+{% load ui %}{% comment %}
 Replaces a table or panel body when there is nothing to show. Rendered by {% empty_state %}
 ({% load ui %}); lists use {% list_results %}, which picks the state.
 Parameters:
@@ -6,9 +6,11 @@ Parameters:
   title, body   one short heading, one or two sentences of guidance
   action_url, action_label   next step (e.g. create the first record)
   clear_url     for no-results and error: URL without filters; renders "Clear filters"
+A decorative glyph opens it: inbox (empty), funnel (no-results), x-circle-fill (error).
 Usage: {% empty_state title="No samples recorded" body="Add a sample to record results." %}
 {% endcomment %}
-<div class="vr-empty" data-kind="{{ kind|default:'empty' }}"{% if kind == 'error' %} role="alert"{% endif %}>
+<div class="vr-empty" data-kind="{{ kind }}"{% if kind == 'error' %} role="alert"{% endif %}>
+  <span class="vr-empty-icon">{% icon name=glyph %}</span>
   <p class="vr-empty-title">{{ title }}</p>
   {% if body %}<p class="vr-empty-body">{{ body }}</p>{% endif %}
   {% if action_url or clear_url %}

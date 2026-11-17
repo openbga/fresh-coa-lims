@@ -2,7 +2,7 @@
 title: Test record
 urls: analytical:test_detail
 views: analytical.views.test_detail
-templates: analytical/test_detail.html, analytical/_resources.html, analytical/_raw_files.html, analytical/_history.html, analytical/_test_status.html, analytical/_qc_status.html
+templates: analytical/test_detail.html, analytical/_resources.html, analytical/_raw_files.html, includes/signature_list.html, includes/history_panel.html, analytical/_test_status.html, analytical/_qc_status.html
 models: analytical.AnalyticalTest, analytical.Observation, analytical.RawDataFile, analytical.QCBatch, analytical.Investigation, laboratory.ContractApproval, quality.SupplierResultAcceptance, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
 ---
@@ -30,8 +30,8 @@ One analytical test: its frozen specification, replicate observations (made here
 - **Observations** ("N of M"): Replicate, Value (unit in the heading) and Within limits for numeric and count tests, or Result and As expected for qualitative tests, then Original record, Recorded, and **Correct**. For a calculated method the value heading reads "Calculated value" ("Value" when a contract laboratory reported the result). Under each observation a line shows, for a calculated method, **How it was calculated** (each input with its value and unit, the formula, the method revision and the rounding), and **Equipment and lots** (the instruments and lots recorded with it, or "Not recorded"). A replicate reported by a contract laboratory shows instead **Reported by** (laboratory code and name, report number and date) and **Approval relied on** (CLA-n, method, validity dates, evidence reference and, when the approval has one, "scope: TEXT"), and has no **Correct** link. A qualitative result shows what was observed under it. Superseded values are struck through and marked "superseded"; corrections are marked "correction". Empty state "No observations yet": "This method runs in a QC batch. Add the test to an open batch before recording results, or record the result a contract laboratory reported." when the method needs a batch and none is assigned, otherwise "Record each replicate with the location of its original record."
 - **Submit form** (analysts, when all replicates are present and QC is ready): Reason and **Submit for review**. Otherwise a note explains why submission or review is blocked.
 - **Specification and result** panel: Test code, Specification revision with snapshot hash, Acceptance, Method (with a note when each result must record equipment or lots; for a reported result "Performed by the contract laboratory; its instruments and lots are in its report."), Calculation (calculated methods: formula, inputs with units, result unit and rounding; for a reported result "Not applied here: the value was entered as the contract laboratory reported it."), Replicates, Tested by (reported results only), QC batch, Mean (not shown for qualitative tests), Reportable, Submitted by, Replaces, Linked tests.
-- **Raw data files** (count): File, Size, SHA-256 (shortened), Description, Attached (who and when) and **Download**; **Attach raw data** below the list. Empty state "No raw data attached".
-- **Electronic signatures** and **History** (a long structured value in a change is shortened to "structured record with N entries, kept in full in the audit trail").
+- **Raw data files** (count): File, Size, SHA-256 (shortened), Description, Attached (who and when) and **Download**; **Attach raw data** at the right of the card header. Empty state "No raw data attached".
+- **Electronic signatures** (count): one line per signature with signer, meaning, server time, the record revision it binds and the start of the content hash; "No signatures yet. …" when there are none. **History** (a long structured value in a change is shortened to "structured record with N entries, kept in full in the audit trail").
 
 ## Actions
 

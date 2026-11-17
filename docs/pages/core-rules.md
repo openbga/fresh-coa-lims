@@ -70,6 +70,6 @@ List rule set revisions (required tests, signature meanings, whether a supplier'
 ## Related pages
 
 - Approve rule revision.
-- [Material lots](/): lots choose an approved rule revision; additional rule sets are not offered there.
+- [Material lots](/lots/): lots choose an approved rule revision; additional rule sets are not offered there.
 - [Lots](/sampling/): Lot requirements and sampling shows the additional rule sets frozen for a lot.
 - [Suppliers](/suppliers/): supplier qualifications are recorded on each supplier record.

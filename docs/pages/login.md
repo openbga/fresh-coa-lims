@@ -58,7 +58,7 @@ A sign-in through the provider returns here with an error message when it fails:
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - [Account access](/accounts/access/)
 - [Change password](/accounts/password/)
 - [Organization sign-in](/accounts/single-sign-on/), where you link your organization account.

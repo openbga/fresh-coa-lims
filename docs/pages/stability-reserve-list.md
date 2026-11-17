@@ -4,7 +4,7 @@ urls: stability:reserve_list
 views: stability.views.reserve_list
 templates: ops/list.html
 models: stability.ReserveSample
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,7 +21,7 @@ Identified reserve samples with quantity against the minimum multiple of one tes
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and a **New reserve sample** button for Analyst, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (reserve identifier or lot number, contains, case-insensitive) and **Status** (All, Below minimum quantity). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (reserve identifier or lot number, contains, case-insensitive) and **Status** (All, Below minimum quantity). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Reserve (links to the record), Lot, Quantity, Retained, Location, Quantity check. Quantity is the retained amount with its unit. Sort by Retained (newest first by default), Reserve (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record a reserve sample to track its quantity, retention and holds."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
@@ -31,7 +31,7 @@ Identified reserve samples with quantity against the minimum multiple of one tes
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New reserve sample** | Your role can create it | Analyst, Quality | Opens the New reserve sample form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

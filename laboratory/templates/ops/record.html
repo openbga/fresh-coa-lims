@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, facts, primary_action, actions, more_actions, sections, signatures, history, notice.{% endcomment %}
+{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, facts, primary_action, actions, more_actions, schedule, sections, signatures, history, notice.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% include "ops/_cell.html" with cell=state only %}</li><li class="vr-id">{{ identifier }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% for action in actions %}<a class="btn btn-outline-secondary" href="{{ action.href }}">{{ action.label }}</a>{% endfor %}{% more_actions %}{% for action in more_actions %}<li><a class="dropdown-item" href="{{ action.href }}">{{ action.label }}</a></li>{% endfor %}{% endmore_actions %}{% if primary_action %}<a class="btn btn-primary" href="{{ primary_action.href }}">{{ primary_action.label }}</a>{% endif %}{% endblock %}
@@ -9,6 +9,14 @@
 {% panel title="Details" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts">{% for label, value in facts %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endfor %}</dl>
 {% endpanel %}
+{% if schedule %}
+{% panel title="Pull schedule" heading_id="schedule-heading" table=True class="mb-3" %}
+  <div class="vr-table-wrap"><table class="table vr-table vr-schedule" aria-labelledby="schedule-heading">
+    <thead><tr><th scope="col">Storage condition</th>{% for column in schedule.columns %}<th scope="col">{{ column.label }}<div class="vr-muted small"><time datetime="{{ column.date }}">{{ column.date }}</time></div></th>{% endfor %}</tr></thead>
+    <tbody>{% for row in schedule.rows %}<tr><th scope="row">{{ row.condition.label }}<div class="vr-muted small">{{ row.condition.setpoint }}</div></th>{% for cell in row.cells %}<td{% if cell.due_now %} class="vr-due-now"{% endif %}>{% if cell %}<a href="{{ cell.href }}">{% status label=cell.label tone=cell.tone plain=True %}</a>{% else %}<span class="vr-muted" aria-label="none">—</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% endif %}
 {% for section in sections %}{% with heading_id=section.title|slugify|add:"-heading" %}
 {% panel title=section.title heading_id=heading_id table=True class="mb-3" %}
   {% if section.note %}<p class="vr-muted mb-2">{{ section.note }}</p>{% endif %}

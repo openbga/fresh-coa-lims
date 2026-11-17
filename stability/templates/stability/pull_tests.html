@@ -1,21 +1,15 @@
 {% extends "base.html" %}
-{% comment %}Assign the tests of a stability pull: the acceptance criteria that will be frozen, then a reason.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% load ui %}
+{% comment %}Assign the tests of a stability pull: the acceptance criteria that will be frozen, then a reason. Context: page_title, crumbs, pull, specification, source, criteria, form, cancel_url.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">Assigning creates one test for each test of this time point. Each test freezes the acceptance criterion and the method version shown here, and is then recorded, reviewed and signed like any other test. The tests belong to the pull: the record of lot <span class="vr-id">{{ pull.study.lot.number }}</span> is not changed.</p>{% endblock %}
 {% block content %}
-<section class="card vr-table-card mb-3" aria-labelledby="criteria-heading">
-  <div class="card-header"><h2 class="card-title h5 mb-0" id="criteria-heading">Acceptance criteria of the protocol</h2></div>
-  <div class="card-body">
-    <p class="text-body-secondary mb-2 text-break">From specification <a href="{% url 'catalog:specification' specification.pk %}">{{ specification.code }}</a>, named by protocol {{ pull.study.protocol.identifier }}, as its approved version in force states them now (<span class="vr-id text-wrap text-break">{{ source }}</span>).</p>
-    <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="criteria-heading">
-      <thead><tr><th scope="col">Test</th><th scope="col">Acceptance criterion</th><th scope="col">Method</th><th scope="col" class="text-end">Replicates</th><th scope="col">Assigned</th></tr></thead>
-      <tbody>{% for item in criteria %}<tr><th scope="row">{{ item.name }} <span class="vr-muted">({{ item.code }})</span></th><td>{{ item.acceptance }}</td><td>{{ item.method }}</td><td class="text-end">{{ item.replicates }}</td><td>{% if item.assigned %}Already assigned{% else %}{% include "includes/status.html" with label="To be assigned" tone="info" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
-    </table></div>
-  </div>
-</section>
-<form class="vr-form" method="post" novalidate>
-  {% csrf_token %}
-  <div class="vr-form-section vr-narrow">{{ form }}</div>
-  <div class="vr-form-actions"><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Cancel</a><button class="btn btn-primary" type="submit">Assign tests</button></div>
-</form>
+{% panel title="Acceptance criteria of the protocol" heading_id="criteria-heading" table=True class="mb-3" %}
+  <p class="vr-muted mb-2 text-break">From specification <a href="{% url 'catalog:specification' specification.pk %}">{{ specification.code }}</a>, named by protocol {{ pull.study.protocol.identifier }}, as its approved version in force states them now (<span class="vr-id text-wrap text-break">{{ source }}</span>).</p>
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="criteria-heading">
+    <thead><tr><th scope="col">Test</th><th scope="col">Acceptance criterion</th><th scope="col">Method</th><th scope="col" class="text-end">Replicates</th><th scope="col">Assigned</th></tr></thead>
+    <tbody>{% for item in criteria %}<tr><th scope="row">{{ item.name }} <span class="vr-muted">({{ item.code }})</span></th><td>{{ item.acceptance }}</td><td>{{ item.method }}</td><td class="text-end">{{ item.replicates }}</td><td>{% if item.assigned %}Already assigned{% else %}{% status label="To be assigned" tone="info" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% form_page form=form cancel_url=cancel_url submit_label="Assign tests" %}{% endform_page %}
 {% endblock %}

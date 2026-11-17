@@ -1,13 +1,14 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from core.grids import paginate
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 from quality.models import Lot, Sample
@@ -41,16 +42,8 @@ from .forms import (
 from .models import AnalyticalTest, Investigation, Observation, QCBatch, QCResult
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
-PAGE_SIZE = 30
 # What a page shows of the stability pull a test belongs to: its study, lot and time point.
 PULL = ("pull__study__lot", "pull__timepoint__condition")
-
-
-def query_params(request):
-    """Current filters without the page number, ready for '?{{ params }}page=N'."""
-    params = request.GET.copy()
-    params.pop("page", None)
-    return params.urlencode() + "&" if params else ""
 
 
 def access(user):
@@ -159,7 +152,10 @@ def unavailable(request, message, url):
     return redirect(url)
 
 
-def action_page(request, form, *, title, submit, crumbs, cancel_url, record=None, summary=None):
+def action_page(
+    request, form, *, title, submit, crumbs, cancel_url, record=None, summary=None, held=""
+):
+    """An action form; `held` is why the action cannot be taken now (shown instead of the form)."""
     return render(
         request,
         "analytical/form.html",
@@ -171,6 +167,7 @@ def action_page(request, form, *, title, submit, crumbs, cancel_url, record=None
             "cancel_url": cancel_url,
             "record": record,
             "summary": summary or [],
+            "held": held,
         },
         status=422 if request.method == "POST" else 200,
     )
@@ -214,6 +211,35 @@ TEST_FILTERS = {
 }
 
 
+class TestFilterForm(forms.Form):
+    """The test list's status filter; the search box is the toolbar's own (q)."""
+
+    state = forms.ChoiceField(
+        label="Status",
+        choices=[(key, label) for key, (label, _) in TEST_FILTERS.items()],
+        required=False,
+    )
+
+
+class BatchFilterForm(forms.Form):
+    """The QC batch list's status filter."""
+
+    state = forms.ChoiceField(
+        label="Status", choices=[("", "All batches"), *QCBatch.State.choices], required=False
+    )
+
+
+class InvestigationFilterForm(forms.Form):
+    """The investigation list's status filter: open investigations unless another is chosen."""
+
+    state = forms.ChoiceField(
+        label="Status",
+        choices=[("open", "Open"), ("closed", "Closed"), ("all", "All investigations")],
+        required=False,
+        initial="open",
+    )
+
+
 def mark_supplier_results(tests):
     """Set ``supplier_result`` on each open test whose requirement a supplier's certificate
     result is proposed or accepted for: such a test is not work waiting to be done."""
@@ -231,9 +257,10 @@ def mark_supplier_results(tests):
 @login_required
 def test_list(request):
     access(request.user)
-    state = request.GET.get("state", "")
-    if state not in TEST_FILTERS:
-        state = ""
+    filters = TestFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every test
+        filters = TestFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     query = request.GET.get("q", "").strip()
     tests = AnalyticalTest.objects.select_related("lot", "sample", "batch", *PULL).filter(
         TEST_FILTERS[state][1]
@@ -247,7 +274,7 @@ def test_list(request):
             | Q(test_code__icontains=query)
         )
     tests = tests.order_by("-created_at", "-pk")
-    page_obj = Paginator(tests, PAGE_SIZE).get_page(request.GET.get("page"))
+    page_obj = paginate(request, tests)
     mark_supplier_results(page_obj)
     return render(
         request,
@@ -257,10 +284,8 @@ def test_list(request):
             "tabs": tabs(request, "analytical:test_list"),
             "page_obj": page_obj,
             "query": query,
-            "state": state,
-            "states": [(key, label) for key, (label, _) in TEST_FILTERS.items()],
+            "filters": filters,
             "filtered": bool(query or state),
-            "params": query_params(request),
         },
     )
 
@@ -268,16 +293,17 @@ def test_list(request):
 @login_required
 def batch_list(request):
     access(request.user)
-    state = request.GET.get("state", "")
+    filters = BatchFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every batch
+        filters = BatchFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     batches = QCBatch.objects.select_related("created_by")
-    if state in QCBatch.State.values:
+    if state:
         batches = batches.filter(state=state)
-    else:
-        state = ""
     query = request.GET.get("q", "").strip()
     if query:
         batches = batches.filter(Q(number__icontains=query) | Q(method_code__icontains=query))
-    page = Paginator(batches, PAGE_SIZE).get_page(request.GET.get("page"))
+    page = paginate(request, batches)
     for batch in page:
         batch.status, _ = batch.qc_status()
     return render(
@@ -288,11 +314,9 @@ def batch_list(request):
             "tabs": tabs(request, "analytical:batch_list"),
             "page_obj": page,
             "query": query,
-            "state": state,
-            "states": QCBatch.State.choices,
+            "filters": filters,
             "filtered": bool(query or state),
             "can_create": "analyst" in roles(request.user),
-            "params": query_params(request),
         },
     )
 
@@ -300,7 +324,11 @@ def batch_list(request):
 @login_required
 def investigation_list(request):
     access(request.user)
-    state = request.GET.get("state", "open")
+    filters = InvestigationFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every investigation
+        filters = InvestigationFilterForm({"state": "all"})
+        filters.is_valid()
+    state = filters.cleaned_data["state"] or "open"
     investigations = Investigation.objects.select_related(
         "lot", "test", *(f"test__{name}" for name in PULL)
     )
@@ -308,8 +336,6 @@ def investigation_list(request):
         investigations = investigations.exclude(phase="closed")
     elif state == "closed":
         investigations = investigations.filter(phase="closed")
-    else:
-        state = "all"
     query = request.GET.get("q", "").strip()
     if query:
         investigations = investigations.filter(
@@ -324,11 +350,10 @@ def investigation_list(request):
         {
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:investigation_list"),
-            "page_obj": Paginator(investigations, PAGE_SIZE).get_page(request.GET.get("page")),
+            "page_obj": paginate(request, investigations),
             "query": query,
-            "state": state,
+            "filters": filters,
             "filtered": bool(query) or state != "open",
-            "params": query_params(request),
         },
     )
 
@@ -955,8 +980,6 @@ def batch_new(request):
         if batch:
             messages.success(request, f"QC batch {batch.number} created.")
             return redirect("analytical:batch_detail", pk=batch.pk)
-    if not methods and not earlier:
-        form.add_error(None, "No approved batch method is available; batches are held.")
     return action_page(
         request,
         form,
@@ -964,6 +987,9 @@ def batch_new(request):
         submit="Create batch",
         crumbs=[("QC batches", reverse("analytical:batch_list")), ("New QC batch", None)],
         cancel_url=reverse("analytical:batch_list"),
+        held=""
+        if methods or earlier
+        else "No approved batch method is available; batches are held.",
     )
 
 

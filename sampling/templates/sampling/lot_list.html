@@ -1,31 +1,28 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Lots for requirement assignment and sampling. Context: page_title, tabs, page_obj, query, filters (LotFilterForm), sort, filtered.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold.</p>{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="list-heading">
-  <h2 class="visually-hidden" id="list-heading">Lots</h2>
-  {% include "catalog/includes/toolbar.html" with label="Filter lots" placeholder="Lot number or material" %}
-  {% if page_obj.paginator.count %}
+{% panel title="Lots" heading_id="list-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter lots" q=query placeholder="Lot number or material" inline=filters sort=sort active=filtered %}
+  {% url 'quality:lot_list' as lots_url %}
+  {% list_results items=page_obj noun="lots" filtered=filtered sizes=True clear_url=request.path empty_title="No lots received yet" empty_body="Receive a material lot first; it then appears here for requirement assignment and sampling." action_url=lots_url action_label="Go to lots" no_results_body="Change or clear the filters." %}
   <div class="vr-table-wrap">
-    <table class="table table-hover vr-table">
-      <thead><tr>{% include "catalog/includes/sort.html" with label="Lot" key="number" current=sort %}<th scope="col">Material as received</th><th scope="col">Lot status</th><th scope="col">Requirements</th><th scope="col" class="text-end">Samples</th></tr></thead>
+    <table class="table table-hover vr-table" aria-labelledby="list-heading">
+      <thead><tr>{% sort_header label="Lot" asc="number" desc="-number" sort=sort %}<th scope="col">Material as received</th><th scope="col">Lot status</th><th scope="col">Requirements</th><th scope="col" class="text-end">Samples</th></tr></thead>
       <tbody>
         {% for lot in page_obj %}
         <tr>
           <th scope="row"><a href="{% url 'sampling:lot' lot.pk %}">{{ lot.number }}</a></th>
           <td>{{ lot.material }}</td>
           <td>{{ lot.state|capfirst }}</td>
-          <td>{% if lot.requirement_status == "ready" %}{% include "includes/status.html" with label="Assigned" tone="success" plain=True %}{% elif lot.requirement_status == "hold" %}{% include "includes/status.html" with label="Applicability hold" tone="hold" plain=True %}{% else %}{% include "includes/status.html" with label="Not assigned" tone="warning" plain=True %}{% endif %}</td>
+          <td>{% if lot.requirement_status == "ready" %}{% status label="Assigned" tone="success" plain=True %}{% elif lot.requirement_status == "hold" %}{% status label="Applicability hold" tone="hold" plain=True %}{% else %}{% status label="Not assigned" tone="warning" plain=True %}{% endif %}</td>
           <td class="text-end">{{ lot.sampled }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% include "catalog/includes/pagination.html" with noun="lots" %}
-  {% elif filtered %}
-  {% include "catalog/includes/empty.html" with kind="no-results" title="No lots match these filters" body="Change or clear the filters." clear_url=request.path %}
-  {% else %}
-  {% include "catalog/includes/empty.html" with title="No lots received yet" body="Receive a material lot first; it then appears here for requirement assignment and sampling." action_url="/" action_label="Go to lots" %}
-  {% endif %}
-</section>
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

@@ -4,7 +4,7 @@ urls: quality:sample_new
 views: quality.views.sample_new
 templates: quality/form.html
 models: quality.Sample, quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -17,14 +17,14 @@ Record a sample taken from a quarantined lot so results can be recorded against 
 
 ## Layout
 
-- Title "Add sample · <lot number>", the form, **Add sample** and **Cancel**.
+- Breadcrumbs Lots › the lot number, the title "Add sample · <lot number>", the required-fields note, the form, **Cancel** and **Add sample**.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Add sample** | Always | Analyst | Creates the sample and returns to the lot record |
-| **Cancel** | Always | Any | Returns to Material lots without saving |
+| **Cancel** | Always | Any | Returns to the lot record without saving |
 
 ## Fields
 

@@ -736,6 +736,41 @@ def _pull_row(pull, user, today):
     ]
 
 
+def _schedule(pulls, today):
+    """The study's pulls as a grid: one row per storage condition, one column per time point
+    (its label and planned date), each cell the pull's status; None where a condition has no
+    pull at that time point."""
+    columns = sorted(
+        {(p.timepoint.interval_days, p.timepoint.label): p.due_date for p in pulls}.items()
+    )
+    conditions = {}
+    for pull in pulls:
+        row = conditions.setdefault(pull.timepoint.condition, {})
+        row[(pull.timepoint.interval_days, pull.timepoint.label)] = pull
+    rows = []
+    for condition, by_column in conditions.items():
+        cells = []
+        for key, _ in columns:
+            pull = by_column.get(key)
+            if pull is None:
+                cells.append(None)
+                continue
+            label, tone = _pull_tone(pull, today)
+            cells.append(
+                {
+                    "label": label,
+                    "tone": tone,
+                    "href": reverse("stability:pull_detail", args=[pull.pk]),
+                    "due_now": pull.timing(today)[0] == "due",
+                }
+            )
+        rows.append({"condition": condition, "cells": cells})
+    return {
+        "columns": [{"label": label, "date": day(date)} for (_, label), date in columns],
+        "rows": rows,
+    }
+
+
 def timing_closed(pull, today):
     return today > pull.window[1]
 
@@ -767,6 +802,7 @@ def study_detail(request, pk):
     return record_page(
         request,
         identifier=s.identifier,
+        schedule=_schedule(pulls, today) if pulls else None,
         title=f"{s.protocol.product} · {s.lot.number}",
         crumbs=crumbs(("Studies", reverse("stability:study_list")), (s.identifier, None)),
         state=_study_state(s),

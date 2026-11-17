@@ -62,4 +62,4 @@ One certificate of analysis series: its status, every issued version with who si
 ## Related pages
 
 - [Certificates of analysis](/reports/)
-- Certificate version, Amend certificate, the lot record ([Material lots](/)).
+- Certificate version, Amend certificate, the lot record ([Material lots](/lots/)).

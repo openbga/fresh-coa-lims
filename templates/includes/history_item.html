@@ -1,4 +1,4 @@
-{% comment %}
+{% load ui %}{% comment %}
 One entry of a record's history (docs/ui-standards.md): what happened, when, who, and the reason
 where one was required. Items sit in <ol class="vr-timeline">, newest last, in the record page's
 History panel ({% history_panel %}). Rendered by {% history_item %} ({% load ui %}).
@@ -13,21 +13,26 @@ Parameters:
   detail    optional extra line of plain text under the actor
   extra     optional template name rendered at the end of the item in the caller's context (so it
             sees the loop variable), for recorded values, evidence or signatures
+  icon      Bootstrap Icons name in the entry's circle (default clock-history; arrow-repeat for a
+            retest, pencil-square for a correction)
 Usage:
   <ol class="vr-timeline">
     {% for event in history %}{% history_item title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
   </ol>
 {% endcomment %}
 <li class="vr-history-item">
-  <div class="vr-timeline-head"><span class="vr-timeline-title">{{ title }}</span>{% if at %}
-    <time class="vr-timeline-meta" datetime="{{ at|date:'c' }}">{{ at|date:"Y-m-d H:i T" }}</time>{% endif %}</div>
-  {% if changes %}
-  <ul class="vr-timeline-body vr-history-changes">
-    {% for label, before, after in changes %}<li><strong>{{ label }}:</strong> <del class="vr-prior">{{ before|default:"blank" }}</del> <span aria-hidden="true">→</span><span class="visually-hidden">changed to</span> {{ after|default:"blank" }}</li>{% endfor %}
-  </ul>
-  {% endif %}
-  {% if reason %}<p class="vr-timeline-body">{{ reason|linebreaksbr }}</p>{% endif %}
-  {% if actor %}<p class="vr-timeline-meta">{% if by %}{{ by }} {% endif %}{{ actor.get_full_name|default:actor.get_username }}</p>{% endif %}
-  {% if detail %}<p class="vr-timeline-meta">{{ detail }}</p>{% endif %}
-  {% if extra %}{{ extra }}{% endif %}
+  <span class="vr-timeline-icon">{% firstof icon "clock-history" as glyph %}{% icon name=glyph %}</span>
+  <div class="vr-timeline-main">
+    <div class="vr-timeline-head"><span class="vr-timeline-title">{{ title }}</span></div>
+    {% if changes %}
+    <ul class="vr-timeline-body vr-history-changes">
+      {% for label, before, after in changes %}<li><strong>{{ label }}:</strong> <del class="vr-prior">{{ before|default:"blank" }}</del> <span aria-hidden="true">→</span><span class="visually-hidden">changed to</span> {{ after|default:"blank" }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if reason %}<p class="vr-timeline-body">{{ reason|linebreaksbr }}</p>{% endif %}
+    {% if actor %}<p class="vr-timeline-meta">{% if by %}{{ by }} {% endif %}{{ actor.get_full_name|default:actor.get_username }}</p>{% endif %}
+    {% if detail %}<p class="vr-timeline-meta">{{ detail }}</p>{% endif %}
+    {% if extra %}{{ extra }}{% endif %}
+  </div>
+  {% if at %}<time class="vr-timeline-time vr-timeline-meta" datetime="{{ at|date:'c' }}">{{ at|date:"Y-m-d H:i T" }}</time>{% endif %}
 </li>

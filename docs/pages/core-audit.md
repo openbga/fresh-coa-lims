@@ -4,7 +4,7 @@ urls: core:audit
 views: core.views.audit
 templates: core/audit.html
 models: core.AuditEvent, core.AuditReview
-reviewed: 2026-11-12
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,21 +19,22 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Layout
 
-- **Filters** card: six filters, **Filter**, **Clear filters**, **Export filtered CSV**.
-- Count line: "N matching events" and the review scope note.
+- **Toolbar** at the top of the events card: six filters, **Apply**, **Export filtered CSV**, and **Clear all** when a filter is set; under them "Dates include the entire day in the deployment time zone."
+- Count line (when events match): "N matching events" and the review scope note.
 - **Events table**: Select (reviewers only), Time / actor, Action / record, Original / new values (expand "Inspect values"), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
-- **Review conclusion** box and **Record independent review** for quality/auditor users; paging for all viewers.
-- Empty: "No events match these filters…" when filtered, else "No audit events recorded yet."
+- **Review conclusion** box and **Record independent review** for quality/auditor users, under the table.
+- **Footer** for all viewers: "Showing X–Y of N audit events" and, with more than one page, first, previous, "Page N of M", next and last page buttons.
+- Empty: "No events match these filters" with "Clear or adjust the filters to inspect other records." and **Clear filters** when filtered; "These filters cannot be applied" when a filter is invalid; else "No audit events recorded yet".
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Filter** | Always | Admin, quality, auditor | Reloads with the filters applied |
-| **Clear filters** | Always | Admin, quality, auditor | Removes all filters |
+| **Apply** | Always | Admin, quality, auditor | Reloads with the filters applied |
+| **Clear all** / **Clear filters** | A filter is set | Admin, quality, auditor | Removes all filters |
 | **Export filtered CSV** | Always | Admin, quality, auditor | Downloads `audit.csv` of all matching events (all pages); not a review |
 | **Record independent review** | Quality/auditor role | Quality, auditor | Records one review over the checked events; "Independent review recorded for N events." |
-| **Previous** / **Next** | More pages | Admin, quality, auditor | Moves a page; keeps filters |
+| First / previous / next / last page | More pages | Admin, quality, auditor | Moves to that page; keeps filters |
 
 ## Fields
 
@@ -67,5 +68,5 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - [Rule sets](/rules/)

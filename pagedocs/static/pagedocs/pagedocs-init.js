@@ -1,17 +1,12 @@
-// Page documentation: restore the saved open state and width before the first paint so the
-// layout does not jump. pagedocs.js owns the behaviour; this only sets two root hooks.
+// Page documentation: apply the saved width before the first paint so the layout does not jump.
+// The open state and width are the signed-in person's preferences (core/preferences.py); the
+// shell renders them on <html> (class "pagedocs-open", data-pagedocs-width). pagedocs.js owns the
+// behaviour; this only turns the width into the CSS variable (CSSOM, allowed by the CSP).
 (function () {
   "use strict";
-  try {
-    var root = document.documentElement;
-    var width = parseInt(localStorage.getItem("freshcoa-pagedocs-width"), 10);
-    if (width >= 280 && width <= 960) {
-      root.style.setProperty("--pagedocs-width", width + "px");
-    }
-    if (localStorage.getItem("freshcoa-pagedocs-open") === "1") {
-      root.classList.add("pagedocs-open");
-    }
-  } catch (error) {
-    // Storage blocked: the panel starts closed at its default width.
+  var root = document.documentElement;
+  var width = parseInt(root.getAttribute("data-pagedocs-width"), 10);
+  if (width >= 280 && width <= 960) {
+    root.style.setProperty("--pagedocs-width", width + "px");
   }
 })();

@@ -100,7 +100,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
 ## Related pages
 
 - [Lots](/sampling/)
-- [Material lots](/)
+- [Material lots](/lots/)
 - Assign requirements, Decide conflicting requirements, Replace lot requirements, Record sampling, Correct sampling.
 - Specification version (from a specification link). [Rule sets](/rules/)
 - Test record (from a test listed under Replaced).

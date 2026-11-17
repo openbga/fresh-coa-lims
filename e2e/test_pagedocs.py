@@ -1,10 +1,33 @@
-"""Documentation panel matches navigation and remembers accessible resize controls."""
+"""Documentation panel matches navigation and remembers accessible resize controls.
+
+Its open state and width are the signed-in person's preferences, kept on the server
+(core/preferences.py), never in the browser: lab workstations are shared."""
 
 import re
+import time
 
 import pytest
 from django.contrib.auth.models import Group
+from helpers import db_call
 from playwright.sync_api import expect, sync_playwright
+
+from core.models import UserPreference
+
+
+def saved(user, key, expected, timeout=5.0):
+    """The server-side preference once the page's background save has arrived (read off the
+    Playwright thread)."""
+
+    def stored():
+        rows = UserPreference.objects.filter(user=user, key=key)
+        return rows.values_list("value", flat=True).first()
+
+    deadline = time.monotonic() + timeout
+    while True:
+        value = db_call(stored)
+        if value == expected or time.monotonic() > deadline:
+            return value
+        time.sleep(0.1)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -28,6 +51,7 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             page.get_by_label(re.compile(r"^Password\b")).fill(password)
             page.get_by_role("button", name="Sign in", exact=True).click()
             expect(page).to_have_url(live_server.url + "/")
+            page.goto(live_server.url + "/lots/")  # the lot list's documentation
             toggle = page.get_by_role("button", name="Page documentation", exact=True)
             panel = page.get_by_role("complementary", name="Page documentation", exact=True)
             expect(panel).not_to_be_visible()
@@ -78,8 +102,9 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             page.mouse.up()
             resized_width = int(splitter.get_attribute("aria-valuenow"))
             assert resized_width > original_width + 64
-            assert page.evaluate("localStorage.getItem('freshcoa-pagedocs-width')") == str(
-                resized_width
+            assert saved(user, "pagedocs.width", resized_width) == resized_width
+            assert (
+                page.evaluate("Object.keys(localStorage).filter(k => k.includes('pagedocs'))") == []
             )
             page.reload()
             expect(panel).to_be_visible()
@@ -127,7 +152,7 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             expect(panel).not_to_be_visible()
             expect(toggle).to_be_focused()
             expect(page.locator("#main")).to_have_js_property("inert", False)
-            assert page.evaluate("localStorage.getItem('freshcoa-pagedocs-open')") == "0"
+            assert saved(user, "pagedocs.open", False) is False
             toggle.click()
             expect(page.locator("#main")).to_have_js_property("inert", True)
             # Growing past the breakpoint restores the side-by-side page with the panel open.

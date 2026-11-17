@@ -79,4 +79,4 @@ Proposes that one result stated on a supplier's certificate stands in for the la
 - Supplier qualification record; Supplier record.
 - Lot record; Lot testing.
 - [Rule sets](/rules/)
-- [Material lots](/)
+- [Material lots](/lots/)

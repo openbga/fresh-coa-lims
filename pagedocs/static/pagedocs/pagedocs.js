@@ -4,8 +4,11 @@
 (function () {
   "use strict";
 
-  var OPEN_KEY = "freshcoa-pagedocs-open";
-  var WIDTH_KEY = "freshcoa-pagedocs-width";
+  // Open state and width are the signed-in person's preferences, kept on the server
+  // (core/preferences.py "pagedocs.open" and "pagedocs.width"): lab workstations are shared.
+  // Earlier versions kept them in this browser under these keys; init() moves them once.
+  var LEGACY_OPEN_KEY = "freshcoa-pagedocs-open";
+  var LEGACY_WIDTH_KEY = "freshcoa-pagedocs-width";
   var MIN = 280;
   var LIMIT = 960;
   var DEFAULT = 400;
@@ -17,19 +20,32 @@
   var panel, body, splitter, fullLink, loadedPath, request;
   var formDialog, home; // the shared form dialog (static/js/form-dialog.js) and the panel's place
 
-  function store(key, value) {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error) {
-      // Storage blocked: the choice applies to this page only.
+  function saved(key) {
+    return window.vrPreferences ? window.vrPreferences.get(key) : null;
+  }
+
+  function save(key, value) {
+    if (window.vrPreferences) {
+      window.vrPreferences.set(key, value); // refused or offline: applies to this page only
     }
   }
 
-  function read(key) {
+  // The values an earlier version kept in this browser become the preferences of the person
+  // signed in now, unless they have their own, and leave the browser.
+  function migrateLegacy() {
     try {
-      return localStorage.getItem(key);
+      var open = localStorage.getItem(LEGACY_OPEN_KEY);
+      var width = parseInt(localStorage.getItem(LEGACY_WIDTH_KEY), 10);
+      if (open !== null && saved("pagedocs.open") === null) {
+        save("pagedocs.open", open === "1");
+      }
+      if (!isNaN(width) && width >= MIN && width <= LIMIT && saved("pagedocs.width") === null) {
+        save("pagedocs.width", width);
+      }
+      localStorage.removeItem(LEGACY_OPEN_KEY);
+      localStorage.removeItem(LEGACY_WIDTH_KEY);
     } catch (error) {
-      return null;
+      // Storage blocked: nothing to move.
     }
   }
 
@@ -52,8 +68,8 @@
   }
 
   function currentWidth() {
-    var saved = parseInt(read(WIDTH_KEY), 10);
-    return clamp(isNaN(saved) ? DEFAULT : saved);
+    var width = saved("pagedocs.width");
+    return clamp(typeof width === "number" ? width : DEFAULT);
   }
 
   function clamp(width) {
@@ -68,7 +84,7 @@
     splitter.setAttribute("aria-valuenow", String(width));
     splitter.setAttribute("aria-valuetext", width + " pixels wide");
     if (persist) {
-      store(WIDTH_KEY, String(width));
+      save("pagedocs.width", width);
     }
   }
 
@@ -240,7 +256,7 @@
 
   function open(focusAfter) {
     root.classList.add("pagedocs-open");
-    store(OPEN_KEY, "1");
+    save("pagedocs.open", true);
     setWidth(currentWidth(), false);
     syncCovered();
     load(focusAfter);
@@ -249,7 +265,7 @@
   function close() {
     var hadFocus = panel.contains(document.activeElement);
     root.classList.remove("pagedocs-open");
-    store(OPEN_KEY, "0");
+    save("pagedocs.open", false);
     syncCovered();
     syncLinks();
     var toggle = (docked() ? formDialog : document).querySelector("[data-pagedocs-toggle]");
@@ -287,7 +303,7 @@
       splitter.removeEventListener("pointerup", end);
       splitter.removeEventListener("pointercancel", end);
       root.classList.remove("pagedocs-resizing");
-      store(WIDTH_KEY, splitter.getAttribute("aria-valuenow"));
+      save("pagedocs.width", parseInt(splitter.getAttribute("aria-valuenow"), 10));
     }
     splitter.addEventListener("pointermove", move);
     splitter.addEventListener("pointerup", end);
@@ -412,22 +428,7 @@
       document.body.addEventListener(name, navigated);
     });
 
-    // Another tab opened, closed or resized the panel.
-    window.addEventListener("storage", function (event) {
-      if (event.key === OPEN_KEY) {
-        if (event.newValue === "1" && !isOpen()) {
-          root.classList.add("pagedocs-open");
-          syncCovered();
-          navigated();
-        } else if (event.newValue !== "1" && isOpen()) {
-          root.classList.remove("pagedocs-open");
-          syncCovered();
-          syncLinks();
-        }
-      } else if (event.key === WIDTH_KEY) {
-        setWidth(currentWidth(), false);
-      }
-    });
+    migrateLegacy();
   }
 
   if (document.readyState === "loading") {

@@ -18,10 +18,10 @@ and whether it wraps a body. Every tag renders its template in a context of its 
   - its documented reads (`reads`): page variables taken from the caller's context, each only when
     the caller does not pass it as a parameter;
   - request, user and csrf_token.
-A block tag's body renders first, in the page's context. {% fill name %} ... {% endfill %},
-written directly inside the tag (not inside an {% if %}), renders into the named part
-(slots.<name>) instead of the body. The body and each part are stripped of surrounding
-whitespace, so an empty body is falsy.
+The output is stripped of surrounding whitespace. A block tag's body renders first, in the page's
+context. {% fill name %} ... {% endfill %}, written directly inside the tag (not inside an
+{% if %}), renders into the named part (slots.<name>) instead of the body. The body and each part
+are stripped of surrounding whitespace, so an empty body is falsy.
 tests/test_include_isolation.py renders every component with decoy page variables.
 """
 
@@ -123,7 +123,9 @@ class ComponentNode(template.Node):
             values.setdefault(name, context.get(name, ""))
         if spec.derive:
             values.update(spec.derive(values, body, slots, self.nodelist is not None))
-        return engine.get_template(spec.template).render(context.new(values))
+        # Stripped: an include's header comment and final newline would otherwise put stray
+        # whitespace around inline components (an icon before a status label).
+        return mark_safe(engine.get_template(spec.template).render(context.new(values)).strip())
 
 
 def compile_component(name, spec):
@@ -186,6 +188,31 @@ def history_panel_values(values, body, slots, has_body):
     }
 
 
+# The one Bootstrap Icons glyph per status tone (includes/status.html).
+STATUS_GLYPHS = {
+    "neutral": "circle",
+    "info": "circle-fill",
+    "progress": "circle-half",
+    "success": "check-circle-fill",
+    "warning": "exclamation-triangle-fill",
+    "danger": "x-circle-fill",
+    "hold": "pause-circle-fill",
+}
+
+
+def status_values(values, body, slots, has_body):
+    tone = values["tone"] if values["tone"] in STATUS_GLYPHS else "neutral"
+    return {"tone": tone, "glyph": "" if values["print"] else STATUS_GLYPHS[tone]}
+
+
+def empty_state_values(values, body, slots, has_body):
+    kind = values["kind"] or "empty"
+    return {"kind": kind, "glyph": EMPTY_GLYPHS.get(kind, "inbox")}
+
+
+EMPTY_GLYPHS = {"empty": "inbox", "no-results": "funnel", "error": "x-circle-fill"}
+
+
 def form_actions_values(values, body, slots, has_body):
     return {"extra": body}
 
@@ -214,6 +241,9 @@ COMPONENTS = {
         body="block",
         derive=heading_values,
     ),
+    "signature_card": Component(
+        I + "signature_card.html", ("title", "heading_id", "hook", "class"), body="block"
+    ),
     "panel_section": Component(I + "panel_section.html", ("rule", "class"), body="block"),
     "list_results": Component(
         I + "list_results.html",
@@ -235,13 +265,13 @@ COMPONENTS = {
         ("form", "formset", "formset_label", "action", "multipart", "note", "times",
          "no_required_note", "cancel_url", "cancel_label", "cancel_hook", "submit_label",
          "destructive", "secondary", "no_submit", "method", "id", "class", "autocomplete_off",
-         "hook"),
+         "hook", "submit_icon"),
         body="block",
     ),
     "form_actions": Component(
         I + "form_actions.html",
         ("cancel_url", "cancel_label", "cancel_hook", "submit_label", "destructive", "secondary",
-         "no_submit", "name", "value"),
+         "no_submit", "name", "value", "submit_icon"),
         body="block",
         derive=form_actions_values,
     ),
@@ -262,7 +292,9 @@ COMPONENTS = {
     ),
     # Single components
     "icon": Component(I + "icon.html", ("name", "class")),
-    "status": Component(I + "status.html", ("label", "tone", "plain", "title", "print")),
+    "status": Component(
+        I + "status.html", ("label", "tone", "plain", "title", "print"), derive=status_values
+    ),
     "brand": Component(I + "brand.html", ("href", "name", "compact", "variant")),
     "breadcrumbs": Component(
         I + "breadcrumbs.html",
@@ -278,6 +310,7 @@ COMPONENTS = {
     "empty_state": Component(
         I + "empty_state.html",
         ("kind", "title", "body", "action_url", "action_label", "clear_url"),
+        derive=empty_state_values,
     ),
     "filter_chips": Component(I + "filter_chips.html", ("chips",)),
     "form_errors": Component(I + "form_errors.html", ("form", "formset", "formset_label")),
@@ -312,12 +345,14 @@ COMPONENTS = {
     ),
     "history_item": Component(
         I + "history_item.html",
-        ("title", "at", "actor", "by", "reason", "changes", "detail", "extra"),
+        ("title", "at", "actor", "by", "reason", "changes", "detail", "extra", "icon"),
         caller_templates=("extra",),
     ),
     "signature_list": Component(
         I + "signature_list.html", ("signatures", "subject", "numbered", "empty", "hash")
     ),
+    "kind_tag": Component(I + "kind_tag.html", ("label",)),
+    "route": Component(I + "route.html", ("stages", "label", "micro", "summary")),
     "page_toc": Component(I + "page_toc.html", ("items", "label")),
     "record_foot": Component(I + "record_foot.html", ("identifier",)),
     "app_footer": Component(I + "app_footer.html", ("centered",), reads=("source_code_url",)),
@@ -345,6 +380,7 @@ def page_size_field(per_page, noun):
         {
             "id": f"per-page-{slugify(noun or 'records')}",
             "class": "form-select form-select-sm w-auto",
+            "data-vr-autosubmit": "",  # app.js submits on change; Show stays for no-JS
         }
     )
     return form["per_page"]

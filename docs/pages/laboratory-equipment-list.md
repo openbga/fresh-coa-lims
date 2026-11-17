@@ -4,7 +4,7 @@ urls: laboratory:equipment_list
 views: laboratory.views.equipment_list
 templates: ops/list.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.Qualification
-reviewed: 2026-11-14
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,7 +21,7 @@ Find equipment and see at a glance whether it is fit for use today.
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New equipment** button for Analyst, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Asset (links to the record), Description, Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness (the Fitness sort orders by service state, then asset, not by the label text). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Register an instrument to track calibration, qualification and use.", with **New equipment** for roles that can register); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
@@ -31,7 +31,7 @@ Find equipment and see at a glance whether it is fit for use today.
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New equipment** | Your role can create it | Analyst, Quality | Opens the New equipment form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

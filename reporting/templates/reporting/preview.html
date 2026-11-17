@@ -1,6 +1,8 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% if amending %}{% url 'reporting:detail' report.pk as record_url %}{% include "includes/breadcrumbs.html" with section="Certificates" section_url=list_url record=report.number record_url=record_url current="Amend" %}{% else %}{% include "includes/breadcrumbs.html" with section="Certificates" section_url=list_url record=lot.number current="Review certificate" %}{% endif %}{% endblock %}
-{% block page_meta %}<p class="vr-page-meta">{% include "includes/status.html" with label="Preview, not issued" tone="info" %} Evidence <span class="vr-id text-wrap text-break">{{ evidence_hash|slice:":16" }}</span></p>{% endblock %}
+{% load ui %}
+{% comment %}Review a certificate's evidence before signing its issue or amendment; nothing is issued here. Context: page_title, lot, report, latest, amending, changed, reports, snapshot, evidence_hash, blockers, conflict, can_sign.{% endcomment %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% if amending %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current="Amend" %}{% else %}{% breadcrumbs section="Certificates" section_url=list_url record=lot.number current="Review certificate" %}{% endif %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% status label="Preview, not issued" tone="info" %}</li><li>Evidence <span class="vr-id text-wrap text-break">{{ evidence_hash|slice:":16" }}</span></li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
   {% if can_sign and not blockers and not conflict %}
     {% if amending %}<a class="btn btn-primary" href="{% url 'reporting:amend_sign' report.pk %}?evidence={{ evidence_hash }}">Continue to signing</a>
@@ -9,40 +11,19 @@
 {% endblock %}
 {% block content %}
 {% if blockers %}
-<div class="alert alert-danger" role="alert">
-  {% include "includes/status.html" with label="Cannot issue" tone="danger" plain=True %}
-  <div>
-    <p class="mb-1">This certificate cannot be issued until these are resolved:</p>
-    <ul class="mb-0 ps-3">{% for problem in blockers %}<li>{{ problem }}</li>{% endfor %}</ul>
-  </div>
-</div>
+{% notice tone="danger" label="Cannot issue" blocking=True %}<p class="mb-1">This certificate cannot be issued until these are resolved:</p><ul class="mb-0 ps-3">{% for problem in blockers %}<li>{{ problem }}</li>{% endfor %}</ul>{% endnotice %}
 {% elif conflict %}
-<div class="alert alert-warning" role="alert">
-  {% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}
-  <div>You authored records on this lot, so you cannot issue its certificate. Another quality user must sign.</div>
-</div>
+{% notice tone="warning" label="Not permitted" blocking=True %}You authored records on this lot, so you cannot issue its certificate. Another quality user must sign.{% endnotice %}
 {% elif not can_sign %}
-<div class="alert alert-info" role="status">
-  {% include "includes/status.html" with label="Read only" tone="info" plain=True %}
-  <div>Only users with the quality role can issue or amend certificates.</div>
-</div>
+{% notice tone="info" label="Read only" %}Only users with the quality role can issue or amend certificates.{% endnotice %}
 {% endif %}
 {% if amending %}
-<div class="alert alert-info" role="status">
-  {% include "includes/status.html" with label="Amendment" tone="info" plain=True %}
-  <div>
-    Replaces version {{ latest.number }}, which stays on record unchanged.
-    {% if changed %}Evidence sections changed since then: {{ changed|join:", " }}.{% else %}The evidence is unchanged since version {{ latest.number }}; amend only to correct certificate remarks or wording.{% endif %}
-  </div>
-</div>
+{% notice tone="info" label="Amendment" %}Replaces version {{ latest.number }}, which stays on record unchanged. {% if changed %}Evidence sections changed since then: {{ changed|join:", " }}.{% else %}The evidence is unchanged since version {{ latest.number }}; amend only to correct certificate remarks or wording.{% endif %}{% endnotice %}
 {% endif %}
 {% if not amending and reports %}
-<section class="card mb-3" aria-labelledby="existing-heading">
-  <div class="card-header"><h2 class="card-title" id="existing-heading">Certificates already opened for this lot</h2></div>
-  <div class="card-body">
-    <ul class="mb-0">{% for r in reports %}<li><a href="{% url 'reporting:detail' r.pk %}">{{ r.number }}</a> · {{ r.recipient|default:"General" }} · {{ r.status_label }}</li>{% endfor %}</ul>
-  </div>
-</section>
+{% panel title="Certificates already opened for this lot" heading_id="existing-heading" class="mb-3" %}
+  <ul class="mb-0">{% for r in reports %}<li><a href="{% url 'reporting:detail' r.pk %}">{{ r.number }}</a> · {{ r.recipient|default:"General" }} · {{ r.status_label }}</li>{% endfor %}</ul>
+{% endpanel %}
 {% endif %}
-{% include "reporting/_certificate.html" %}
+{% include "reporting/_certificate.html" with snapshot=snapshot only %}
 {% endblock %}

@@ -74,15 +74,15 @@ Every colour, length, size, weight, line height, radius, shadow and layer comes 
 | Scale | Tokens | Use |
 |---|---|---|
 | Space | `--vr-space-0-5` … `--vr-space-20` (0.125–5rem) | margins, padding, gaps, offsets |
-| Font size | `--vr-font-size-1` … `-9` (0.75–1.75rem) | 3 body on desktop panels, 6 panel titles, 9 page title |
-| Weight | `--vr-font-weight-regular`, `-medium`, `-semibold`, `-bold`, `-heavy` | bold for headings |
+| Font size | `--vr-font-size-1` … `-9` (0.75–2.1429rem) | 2 labels and panel titles, 4 tables and buttons, 5 body and fields, 8 dialog titles, 9 page title |
+| Weight | `--vr-font-weight-regular`, `-medium`, `-semibold`, `-bold`, `-heavy` | heavy for page, dialog and panel titles |
 | Line height | `--vr-line-height-tight`, `-snug`, `-base` | |
-| Radius | `--vr-radius-xs`, `-sm`, `--vr-radius`, `-lg`, `-xl`, `-menu`, `-pill` | |
+| Radius | `--vr-radius-xs`, `-sm`, `-tag`, `--vr-radius`, `-lg`, `-menu`, `-xl`, `-dialog`, `-main`, `-pill` | lg controls, xl panels, dialog dialogs, pill status |
 | Lines | `--vr-border-width` (`-md`, `-lg`, `-xl`), `--vr-focus-width`, `--vr-focus-offset` | |
-| Shadow | `--vr-shadow-panel`, `-raised`, `-dialog` | none in print |
+| Shadow | `--vr-shadow-panel`, `-raised`, `-dialog`, `-button`, `-scroll-top`, `-scroll-bottom` | none in print |
 | Layer | `--vr-z-below` … `--vr-z-skip` | one ladder around Bootstrap's own layers |
 
-Bootstrap's semantic colours (`primary`, `secondary`, `info`, `success`, `warning`, `danger`, with their `-rgb`, `-text-emphasis`, `-bg-subtle` and `-border-subtle` forms, buttons and table rows) are mapped onto the status tones, so a Bootstrap class never shows a stock colour. Muted text is `.vr-muted`, the only way. Values may change with the design direction; names and scales stay.
+Bootstrap's semantic colours (`primary`, `secondary`, `info`, `success`, `warning`, `danger`, with their `-rgb`, `-text-emphasis`, `-bg-subtle` and `-border-subtle` forms, buttons and table rows) are mapped onto the status tones, so a Bootstrap class never shows a stock colour. Muted text is `.vr-muted`, the only way. One family is used on screen, Archivo (vendored, OFL), with a data voice of tabular, slashed-zero figures for identifiers, dates, counts and results; its ascent and descent are corrected once at `@font-face` so labels centre. Separation is by surface colour, never by lines: the only lines are field outlines, checkbox edges, focus rings, the invalid outline, the file drop zone and the QC flow line. One accent, petrol, marks the action, the current place and the flow; status is a tinted pill with its icon and text. Signing keeps its own solid band.
 
 ## Components
 

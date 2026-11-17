@@ -13,7 +13,7 @@ from core.grids import paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, require_role
 
-from . import certificates, reliance, services
+from . import certificates, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
 from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
@@ -77,12 +77,16 @@ def lot_list(request):
                 )
             )
         )
+    page_obj = paginate(request, route.annotate_route(lots))
+    for lot in page_obj:
+        lot.route = route.list_route(lot)
+        lot.route_summary = route.summary(lot.route)
     return render(
         request,
         "quality/lot_list.html",
         {
             "page_title": "Material lots",
-            "page_obj": paginate(request, lots),
+            "page_obj": page_obj,
             "query": query,
             "filters": filters,
             "filtered": bool(query or state),
@@ -102,6 +106,17 @@ def lot_detail(request, pk):
     corrected = {receipt.corrects_id for receipt in receipts}
     receipt = next((r for r in receipts if r.pk not in corrected), None)
     can_record = request.user.groups.filter(name="analyst").exists()
+    from analytical import gates
+
+    blockers, _, tests, investigations = gates.lot_status(lot)
+    tests_by_pk = {test.pk: test for test in tests}
+    open_investigations = []
+    for investigation in sorted(investigations.values(), key=lambda i: i.pk):
+        if investigation.is_open:
+            investigation.held_test = tests_by_pk.get(investigation.test_id)
+            open_investigations.append(investigation)
+    reports = list(lot.reports.all())
+    acceptances = reliance.lot_acceptances(lot)
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -118,14 +133,25 @@ def lot_detail(request, pk):
             "certificates": certificates.lot_summary(lot),
             "supplied": receipt is not None and receipt.source == ReceiptSource.SUPPLIER,
             "certificate_blocker": certificates.recording_requirements(lot)[1],
-            "acceptances": reliance.lot_acceptances(lot),
+            "acceptances": acceptances,
+            "supplier_accepted": any(item.state == "accepted" for item in acceptances),
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             # The exported record includes the audit trail, so it needs a role that reads it.
             "can_export": request.user.groups.filter(name__in=AUDIT_READ_ROLES).exists(),
-            "reports": lot.reports.all(),
+            "reports": reports,
+            "issued": any(report.state == "issued" for report in reports),
+            "blockers": blockers,
+            "open_investigations": open_investigations,
+            "route": route.route(
+                lot,
+                assignment=assignment,
+                tests=tests,
+                investigations=investigations.values(),
+                reports=reports,
+            ),
             "assignment": assignment,
             "samples": lot.samples.prefetch_related("results__analyst"),
             "signatures": lot_signatures,

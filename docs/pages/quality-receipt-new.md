@@ -77,4 +77,4 @@ Adds receipt details to a quarantined lot that has none: a lot received before r
 - Correct receipt details.
 - [Suppliers](/suppliers/)
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Dashboard: the QC flow as work queues (lanes Lots, Samples, Results, Review, Disposition, Certificates), recently received lots and the stability and laboratory gates. Context: lanes (quality.dashboard.Lane), total, recent (lots with route and route_summary), gates (queues), can_receive.{% endcomment %}
+{% block page_dateline %}{% dateline %}{% endblock %}
+{% block page_actions %}{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">{% icon name="plus-lg" %}New material lot</a>{% endif %}{% endblock %}
+{% block content %}
+{% panel title="Work in progress" heading_id="flow-heading" count=total %}
+  <nav class="vr-flow-band" aria-label="Work in progress by stage">
+    {% for lane in lanes %}<a class="vr-flow-segment" href="#lane-{{ lane.key }}"{% if not lane.total %} data-zero{% endif %}><span class="vr-flow-count">{{ lane.total }}</span><span class="vr-flow-label">{{ lane.label }}</span></a>{% endfor %}
+  </nav>
+  <div class="vr-lanes">
+    {% for lane in lanes %}
+    <section class="vr-lane" id="lane-{{ lane.key }}" aria-labelledby="lane-{{ lane.key }}-title">
+      <div class="vr-lane-head"><span class="vr-lane-icon">{% icon name=lane.icon %}</span><h3 class="vr-lane-title" id="lane-{{ lane.key }}-title">{{ lane.label }}</h3></div>
+      <ul class="vr-queues">{% for queue in lane.queues %}{% include "quality/includes/queue.html" with queue=queue only %}{% endfor %}</ul>
+    </section>
+    {% if not forloop.last %}<span class="vr-lane-arrow" aria-hidden="true">{% icon name="chevron-right" %}</span>{% endif %}
+    {% endfor %}
+  </div>
+{% endpanel %}
+{% record_layout aside_label="Stability and laboratory" %}
+{% fill lead %}
+{% panel title="Recently received lots" heading_id="recent-heading" table=True %}
+  {% fill actions %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:lot_list' %}">Material lots</a>{% endfill %}
+  {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
+  {% list_results items=recent noun="material lots" empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" %}
+  <div class="vr-table-wrap">
+    <table class="table table-hover vr-table" aria-labelledby="recent-heading">
+      <thead><tr><th scope="col">Lot</th><th scope="col">Status</th><th scope="col">Material</th><th scope="col">Where it is</th></tr></thead>
+      <tbody>{% for lot in recent %}<tr>
+        <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
+        <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}</td>
+        <td class="vr-wrap">{{ lot.material }}</td>
+        <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% endlist_results %}
+{% endpanel %}
+{% endfill %}
+{% fill aside %}
+{% panel title="Stability and laboratory" heading_id="gates-heading" %}
+  <ul class="vr-queues">{% for queue in gates %}{% include "quality/includes/queue.html" with queue=queue only %}{% endfor %}</ul>
+{% endpanel %}
+{% endfill %}
+{% endrecord_layout %}
+{% endblock %}

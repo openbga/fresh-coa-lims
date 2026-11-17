@@ -15,26 +15,31 @@ from functools import cache
 
 from django.urls import URLResolver, get_resolver
 
-# view name -> dialog size (lg: one column of fields; xl: wide forms and entry grids)
+# view name -> (dialog size, roles that may open it). lg: one column of fields; xl: wide forms
+# and entry grids. The roles repeat the view's own require_role check; they only decide which
+# routes a page lists for the dialog, so a role never sees a create action it lacks, and the view
+# still authorizes every request. tests/test_form_dialog.py proves each list matches its view.
+QUALITY = ("quality",)
 FORM_SURFACES = {
-    "quality:lot_new": "lg",
-    "sampling:plan_new": "xl",
-    "catalog:specification_new": "xl",
-    "catalog:method_new": "lg",
-    "catalog:material_new": "lg",
-    "suppliers:new": "lg",
-    "stability:protocol_new": "lg",
-    "stability:study_new": "lg",
-    "stability:reserve_new": "lg",
-    "stability:obligation_new": "lg",
-    "stability:hold_new": "lg",
-    "laboratory:equipment_new": "lg",
-    "laboratory:qualification_new": "lg",
-    "laboratory:reagent_new": "lg",
-    "laboratory:contract_laboratory_new": "lg",
-    "laboratory:use_new": "lg",
-    "validation:rehearsal_new": "lg",
-    "reporting:new": "lg",
+    "quality:lot_new": ("lg", ("analyst",)),
+    "analytical:batch_new": ("lg", ("analyst",)),
+    "sampling:plan_new": ("xl", QUALITY),
+    "catalog:specification_new": ("xl", QUALITY),
+    "catalog:method_new": ("lg", QUALITY),
+    "catalog:material_new": ("lg", QUALITY),
+    "suppliers:new": ("lg", QUALITY),
+    "stability:protocol_new": ("lg", ("analyst", "quality")),
+    "stability:study_new": ("lg", ("analyst", "quality")),
+    "stability:reserve_new": ("lg", ("analyst", "quality")),
+    "stability:obligation_new": ("lg", ("analyst", "quality")),
+    "stability:hold_new": ("lg", ("analyst", "reviewer", "quality")),
+    "laboratory:equipment_new": ("lg", ("analyst", "quality")),
+    "laboratory:qualification_new": ("lg", ("analyst", "reviewer", "quality")),
+    "laboratory:reagent_new": ("lg", ("analyst", "quality")),
+    "laboratory:contract_laboratory_new": ("lg", QUALITY),
+    "laboratory:use_new": ("lg", ("analyst",)),
+    "validation:rehearsal_new": ("lg", ("quality", "admin")),
+    "reporting:new": ("lg", QUALITY),
 }
 
 FORM_HEADER = "X-VR-Form"
@@ -48,16 +53,28 @@ class FormSurface:
 def surface_for_request(request):
     """Presentation metadata for an already resolved request, or None."""
     match = getattr(request, "resolver_match", None)
-    size = FORM_SURFACES.get(match.view_name) if match is not None else None
-    return FormSurface(size) if size else None
+    surface = FORM_SURFACES.get(match.view_name) if match is not None else None
+    return FormSurface(surface[0]) if surface else None
 
 
 def is_dialog_request(request):
     return request.headers.get(FORM_HEADER) == "1"
 
 
+def form_route_patterns(user=None):
+    """The listed routes the user's roles may open (none when signed out), for the page."""
+    if user is None or not user.is_authenticated:
+        return []
+    roles = set(user.groups.values_list("name", flat=True))
+    return [
+        {"pattern": route["pattern"], "size": route["size"]}
+        for route in _route_patterns()
+        if roles & set(FORM_SURFACES[route["name"]][1])
+    ]
+
+
 @cache
-def form_route_patterns():
+def _route_patterns():
     """JavaScript-compatible path regexes of the listed routes, from Django's own routes.
 
     The application's converters use regex syntax shared by Python and JavaScript; Python's
@@ -79,7 +96,7 @@ def form_route_patterns():
             pattern = re.sub(r"\(\?P<[^>]+>", "(?:", prefix + regex).replace(r"\Z", "$")
             if not pattern.endswith("$"):
                 pattern += "$"
-            result.append({"pattern": "^/" + pattern, "size": FORM_SURFACES[name]})
+            result.append({"name": name, "pattern": "^/" + pattern, "size": FORM_SURFACES[name][0]})
 
     visit(get_resolver())
     return result
@@ -95,7 +112,7 @@ def form_presentation(request):
     form_dialog = bool(surface and is_dialog_request(request))
     return {
         "form_surface": surface,
-        "form_route_patterns": form_route_patterns(),
+        "form_route_patterns": form_route_patterns(getattr(request, "user", None)),
         "form_dialog": form_dialog,
         "form_surface_layout": (
             "layouts/form_fragment.html" if form_dialog else "layouts/document.html"

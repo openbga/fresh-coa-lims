@@ -4,7 +4,7 @@ urls: quality:result_new
 views: quality.views.result_new
 templates: quality/form.html
 models: quality.Result, quality.Sample, quality.Lot, core.RuleSet
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -18,14 +18,14 @@ Development-only fallback for entering one foundation result with manual limits 
 
 ## Layout
 
-- Title "Record result · <sample reference>", the form, **Record result** and **Cancel**.
+- Breadcrumbs Lots › the lot number, the title "Record result · <sample reference>", the required-fields note, the form, **Cancel** and **Record result**.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record result** | Always | Analyst | DEBUG and unassigned lot only: saves the result as Recorded and returns to the lot record; otherwise refused |
-| **Cancel** | Always | Any | Returns to Material lots without saving |
+| **Cancel** | Always | Any | Returns to the lot record without saving |
 
 ## Fields
 

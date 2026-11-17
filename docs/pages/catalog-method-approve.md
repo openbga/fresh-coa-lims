@@ -4,7 +4,7 @@ urls: catalog:method_approve
 views: catalog.views.method_approve
 templates: catalog/approve.html
 models: catalog.MethodRevision, catalog.MethodCalculationInput, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ Independent review and electronic signature that approves a draft method version
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code, "Version N · Approve".
-- **Header line**: the version, "record revision N" and its status.
+- **Header line**: its status, the version and "Record revision N".
 - **Content being approved**: Method, Technique, Controlled procedure, Suitability, Effective, QC batch, Instrument, Reagent or standard, Summary (when entered), Author, the batch QC checks table when the method runs in a batch, and the Calculation (formula, result unit and decimals, inputs; "No calculation. Results are entered directly." when there is none).
 - **Sign approval**: the statement of what your signature means ("approved", the record revision, the resulting revision and a content hash), "Signer:" with your name and username, and a link "Enroll or change your signature PIN".
 - **Retires earlier** (information alert above the signer line, when this version overlaps approved versions): "This version overlaps the effective period of N approved version(s). Your signature also retires it/them:" then each version with "never applies: this version takes over before it starts", "stops applying on <time>" (this version's start, when it is still ahead) or "stops applying at the moment of your signature, because this version's start has already passed"; when open or awaiting-review tests of lots in quarantine, or of stability pulls being tested (pulled, not accepted, study active), are frozen to a retired version, "N test(s) in progress is/are frozen to it and keep(s) it.", and for a method that runs in a QC batch "A QC batch of that version can still be created for them, and for nothing else."; then "A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned; quality decides for each lot in testing whether to replace them."

@@ -2,9 +2,9 @@
 title: QC batch record
 urls: analytical:batch_detail
 views: analytical.views.batch_detail
-templates: analytical/batch_detail.html, analytical/_resources.html, analytical/_history.html, analytical/_qc_status.html, analytical/_test_status.html
+templates: analytical/batch_detail.html, analytical/_resources.html, includes/signature_list.html, includes/history_panel.html, analytical/_qc_status.html, analytical/_test_status.html
 models: analytical.QCBatch, analytical.QCResult, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -24,8 +24,8 @@ One QC batch: its method's QC checks and results, the tests run in it, and rejec
 - **Alert** when open and failed: "Tests in this batch cannot be submitted or reviewed. Correct a transcription error with a reason, or have a reviewer reject the batch: ..."
 - **QC checks**: Check (name and code), Acceptance ("≥ lower and ≤ upper unit"), Result, Status (Not recorded, Passes, Fails), Equipment and lots, Original record with recorder and time, and **Record** or **Correct**. Below it **Corrections**: code, struck-through old value → new value, reason, and the equipment and lots of the correction when recorded.
 - Note "QC entries are frozen once a test in this batch is submitted."
-- **Tests in this batch**: Test, Lot, Sample, Code, Status (for a stability test: the study's lot, and the pull with the note "stability pull" in place of the sample); empty "No tests in this batch".
-- **Electronic signatures** and **History**.
+- **Tests in this batch**: Test (with its kind as a tag when it is not an original), Lot, Sample, Code, Status (for a stability test: the study's lot, and the pull with the note "stability pull" in place of the sample); empty "No tests in this batch".
+- **Electronic signatures** (count): one line per signature with signer, meaning, server time, the record revision it binds and the start of the content hash. **History**: the attributed audit events, oldest first.
 
 ## Actions
 

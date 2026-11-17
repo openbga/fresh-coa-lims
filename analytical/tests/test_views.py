@@ -405,3 +405,15 @@ def test_authorize_and_conclude_preflight(client, people, assigned):
     _refused(client, authorize_url, "This investigation is closed.")
     assert not ElectronicSignature.objects.filter(signer=people["quality2"]).exists()
     _no_credential_effects()
+
+
+def test_new_batch_without_a_batch_method_says_batches_are_held(client, people, monkeypatch):
+    """No approved batch method: the page opens with a blocking notice, not a server error."""
+    monkeypatch.setattr("analytical.views.batch_methods", dict)
+    monkeypatch.setattr("analytical.views.services.earlier_batch_methods", list)
+    login(client, people["analyst"])
+    response = client.get(reverse("analytical:batch_new"))
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "No approved batch method is available; batches are held." in body
+    assert 'role="alert"' in body

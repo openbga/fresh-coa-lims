@@ -4,7 +4,7 @@ urls: stability:study_detail
 views: stability.views.study_detail
 templates: ops/record.html
 models: stability.Study, stability.Pull, analytical.AnalyticalTest, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,6 +21,7 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 - **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons.
 - **Details**: the facts below.
+- **Pull schedule** (when the study has pulls): one row per storage condition (label and setpoint), one column per time point (label and planned date); each cell is that pull's status and links to the pull, "—" where the condition has no pull at that time point. A cell whose pull is due now is marked.
 - **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due, Overdue, Pulled, Accepted, Missed; an accepted pull tested in the system reads "Accepted · meets acceptance criteria" or "Accepted · acceptance criteria not met"), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
 - **Notice** "Criteria not met" (danger), when a pull of the study was accepted with the outcome "does not meet": it lists the time points and says the record of the lot is not changed by a stability result and that any hold or other action is for quality to decide.
 - **Results · <condition>** (one for each storage condition that has a pull tested in the system): rows are the condition's time points by interval, each linking to its pull; columns are the tests, each headed "<name> (<code>): <acceptance criterion>". A cell shows the reviewed result with unit (green), "<result> · out of specification" (red), "<result> · open" or "In testing" while undecided, and for a time point without tests "Missed", "Not pulled yet", "Sample <reference>, tested with the lot", "External evidence" or "No test assigned". Where the criterion changed between time points, the heading names the test only and each result adds "(against <criterion>)". Time points are rows so that the table grows down the page and a phone shows every result. Empty: "No results yet."

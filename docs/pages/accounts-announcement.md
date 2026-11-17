@@ -4,7 +4,7 @@ urls: accounts:announcement
 views: accounts.views.announcement
 templates: accounts/announcement.html, accounts/includes/announcement.html
 models: accounts.LoginAnnouncement, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -31,7 +31,7 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 | Cancel | With the form | Reloads the page with the saved values; nothing changes |
 | Enroll or change your signature PIN | Always | Opens Signature PIN |
 | Inspect recorded values | Each history entry | Shows the status, title and text before and after that change |
-| Previous / Next | History has an adjacent page | Moves one page of history |
+| First / previous / next / last page | History has more than one page | Moves through the history |
 
 ## Fields
 

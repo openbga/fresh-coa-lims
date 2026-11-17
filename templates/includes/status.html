@@ -1,7 +1,9 @@
-{% comment %}
-Status label: text plus a tone glyph, so colour is never the only cue. Rendered by {% status %}
-({% load ui %}). Also included directly by reporting/_certificate.html (screen and PDF), so its
-markup stays plain HTML without other tags.
+{% load ui %}{% comment %}
+Status label: a Bootstrap Icons glyph per tone plus text, so colour is never the only cue. Rendered
+by {% status %} ({% load ui %}), which picks the glyph (core/templatetags/ui.py STATUS_GLYPHS:
+neutral circle, info circle-fill, progress circle-half, success check-circle-fill, warning
+exclamation-triangle-fill, danger x-circle-fill, hold pause-circle-fill). A direct include, as
+older printed templates do, renders no glyph.
 Parameters:
   label  visible text (e.g. lot.get_state_display)
   tone   neutral | info | progress | success | warning | danger | hold
@@ -11,4 +13,4 @@ Parameters:
          and data-tone only, never an icon from the external sprite
 Usage: {% status label="Quarantine" tone="hold" %}
 {% endcomment %}
-<span class="vr-status{% if plain %} vr-status-plain{% endif %}" data-tone="{{ tone|default:'neutral' }}"{% if title %} title="{{ title }}"{% endif %}>{{ label }}</span>
+<span class="vr-status{% if plain %} vr-status-plain{% endif %}" data-tone="{{ tone|default:'neutral' }}"{% if title %} title="{{ title }}"{% endif %}>{% if glyph %}{% icon name=glyph class="vr-status-glyph" %}{% endif %}{{ label }}</span>

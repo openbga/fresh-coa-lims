@@ -4,7 +4,7 @@ urls: suppliers:list
 views: suppliers.views.supplier_list
 templates: suppliers/list.html
 models: suppliers.Supplier, quality.LotReceipt
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,9 +22,9 @@ The supplier register: the companies that lots are received from. The receipt de
 - **Sidebar**: **Suppliers** is in the **Configuration** section, between Specifications and Rule sets.
 - **Header**: title "Suppliers" and the **New supplier** button for quality, with the introduction below.
 - **Intro**: "Companies that lots are received from. The register records who a supplier is; it does not qualify a supplier or reduce testing. A qualification is a separate signed record on the supplier's page."
-- **Filter bar**: **Search** (placeholder "Code, name or location"), **Apply**, **Clear filters** when a search is set.
+- **Filter bar**: **Search** (placeholder "Code, name or location"), **Apply**, **Clear all** when a search is set.
 - **Table**: Supplier (code), Name, Location, Lots received (count), Created (date). Supplier and Name headers sort.
-- **Footer**: "Showing X–Y of N suppliers", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear.
+- **Footer**: "Showing X–Y of N suppliers", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No suppliers yet" ("A lot received from a supplier names one from this register. A quality user adds the first supplier.") with **New supplier** for quality; "No suppliers match these filters" ("Search covers codes, names and locations. Change or clear the filters.") with **Clear filters**.
 
 ## Actions
@@ -34,7 +34,7 @@ The supplier register: the companies that lots are received from. The receipt de
 | **New supplier** | Quality role | Quality | Opens the New supplier form |
 | Supplier code link | One per row | Any viewer | Opens the supplier record |
 | **Apply** | Always | Any viewer | Reloads the list with the search, from page 1, keeping the sort |
-| **Clear filters** | A search is set | Any viewer | Removes the search and returns to the default order |
+| **Clear all** | A search is set | Any viewer | Removes the search and returns to the default order |
 | Supplier / Name header | Table shown | Any viewer | Sorts ascending; activating the sorted header again reverses it |
 | **Previous** / **Next** | More than one page | Any viewer | Moves one page; keeps the search and sort |
 
@@ -52,7 +52,7 @@ The supplier register: the companies that lots are received from. The receipt de
 ## Rules and hidden logic
 
 - **Order**: code ascending by default. Sort keys: code and name, each ascending or descending; equal names are ordered by code.
-- **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
+- **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Lots received**: counts only current receipt details. A receipt record that a correction replaced is not counted, so a lot corrected to another supplier moves from one count to the other.
 - **Immutable**: a supplier cannot be edited or deleted after creation (database trigger). There is no edit, retire or delete action.
 - **Qualifications are not shown here**: the list does not say whether a supplier holds a qualification. Open the supplier record to see its qualifications and to record one.
@@ -62,4 +62,4 @@ The supplier register: the companies that lots are received from. The receipt de
 
 - New supplier.
 - Supplier record (qualifications are recorded and listed there).
-- [Material lots](/)
+- [Material lots](/lots/)

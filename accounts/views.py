@@ -1106,7 +1106,7 @@ def password_change(request):
                     f"{timezone.localtime(found.created_at):%Y-%m-%d}) for sign-in. "
                     "If you do not recognize it, unlink it on Organization sign-in.",
                 )
-            return redirect("quality:lot_list")
+            return redirect("quality:dashboard")
         except (ValidationError, PermissionDenied) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     return render(

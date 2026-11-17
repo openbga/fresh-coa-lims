@@ -280,6 +280,17 @@
   document.addEventListener("DOMContentLoaded", function () { markLowPriorityColumns(document); });
   document.addEventListener("htmx:load", function (event) { markLowPriorityColumns(event.detail.elt); });
 
+  // Dashboard band: each stage's segment grows with its open work (CSSOM, so the content security
+  // policy's style-src 'self' holds; the markup carries the count as text).
+  function sizeFlowBand(scope) {
+    (scope || document).querySelectorAll(".vr-flow-segment").forEach(function (segment) {
+      var count = parseInt((segment.querySelector(".vr-flow-count") || {}).textContent, 10);
+      segment.style.flexGrow = String(Math.max(isNaN(count) ? 1 : count, 1));
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { sizeFlowBand(document); });
+
   // After a failed submission, put keyboard focus on the first field with an error.
   document.addEventListener("DOMContentLoaded", function () {
     var invalid = document.querySelector("form [aria-invalid=true]");

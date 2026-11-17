@@ -78,10 +78,10 @@ def test_user_without_laboratory_role_is_denied_everywhere(login, people, lot):
 def test_empty_and_filtered_empty_states(login, people):
     client = login("quality")
     page = client.get(reverse("reporting:list")).content.decode()
-    assert "No certificates of analysis yet." in page
+    assert "No certificates of analysis yet" in page
     assert "New certificate of analysis" in page
     page = client.get(reverse("reporting:list") + "?q=zzz").content.decode()
-    assert "No certificates match these filters." in page
+    assert "No certificates match these filters" in page
     assert "Clear filters" in page
 
 

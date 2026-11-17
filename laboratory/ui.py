@@ -317,9 +317,11 @@ def record_page(
     sections=(),
     related=(),
     notice=None,
+    schedule=None,
     status_code=200,
 ):
-    """`related` are objects whose signatures and audit history appear on the page.
+    """`related` are objects whose signatures and audit history appear on the page. `schedule`
+    (a stability study's pulls as a condition by time point grid) is shown before `sections`.
 
     The header shows at most one primary action (last) and three others; the rest go under
     More (docs/ui-standards.md)."""
@@ -342,6 +344,7 @@ def record_page(
             "signatures": signatures_for(*related),
             "history": history_for(*related),
             "notice": notice,
+            "schedule": schedule,
         },
         status=status_code,
     )

@@ -3,17 +3,17 @@
 {% comment %}Signing page; static/js/signature-dialog.js opens the panel marked data-signature-dialog as a modal dialog labelled by #sign-title. Opening it never signs. Context from laboratory.ui.sign_page: page_title, identifier, meaning, meaning_text, button, facts, revision, form, cancel_url, crumbs, denial.{% endcomment %}
 {% block breadcrumbs %}{% if crumbs %}{% breadcrumbs crumbs=crumbs %}{% endif %}{% endblock %}
 {% block content %}{% if not denial %}{% firstof "signature-dialog" as dialog_hook %}{% endif %}
-{% panel title=page_title heading_id="sign-title" hook=dialog_hook %}
-  <p>Record <strong>{{ identifier }}</strong>, revision <strong>{{ revision }}</strong>. {{ meaning_text }}</p>
+{% signature_card title=page_title hook=dialog_hook %}
+  {% fill summary %}<p>Record <strong>{{ identifier }}</strong>, revision <strong>{{ revision }}</strong>. {{ meaning_text }}</p>
   <dl class="vr-facts mb-3">{% for label, value in facts %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endfor %}</dl>
+  {% if not denial %}<p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>. Your signature records <strong>{{ meaning }}</strong>; the server records the execution time and binds the signature to revision {{ revision|add:"1" }}, the revision this transition produces.</p>
+  <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endif %}{% endfill %}
   {% if denial %}
   {% notice tone="danger" label="Not permitted" blocking=True %}{{ denial }}{% endnotice %}
   <a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to record</a>
   {% else %}
-  <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>. Your signature records <strong>{{ meaning }}</strong>; the server records the execution time and binds the signature to revision {{ revision|add:"1" }}, the revision this transition produces.</p>
-  <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
-  {% form_page form=form cancel_url=cancel_url cancel_hook="signature-cancel" submit_label=button autocomplete_off=True %}{% endform_page %}
+  {% form_page form=form cancel_url=cancel_url cancel_hook="signature-cancel" submit_label=button submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
   {% endif %}
-{% endpanel %}
+{% endsignature_card %}
 {% endblock %}
 {% block extra_js %}{% if not denial %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endif %}{% endblock %}

@@ -13,6 +13,7 @@ pytestmark = pytest.mark.django_db
 
 WORKSPACE_PATHS = {
     "/",
+    "/lots/",
     "/sampling/",
     "/testing/",
     "/stability/",
@@ -94,7 +95,7 @@ def test_menu_matches_destination_access(client, django_user_model, roles, staff
         destination = client.get(path)
         if path in expected:
             assert destination.status_code == 200, path
-        elif path == "/":
+        elif path in ("/", "/lots/"):  # the dashboard and the lot list send role-less accounts on
             assert destination.status_code == 302
             assert destination.url == reverse("accounts:access")
         else:

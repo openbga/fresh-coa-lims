@@ -1,18 +1,13 @@
 {% extends "base.html" %}
-{% comment %}Action form page. Context: page_title, form, submit_label, crumbs, cancel_url, summary.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% load ui %}
+{% comment %}Action form page. Context: page_title, form, submit_label, crumbs, cancel_url, summary; held: why the action cannot be taken now (a blocking notice instead of the form).{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block content %}
-{% if summary %}<section class="card mb-3" aria-label="Record"><div class="card-body">{% include "analytical/_summary.html" %}</div></section>{% endif %}
-<form class="vr-form" method="post" novalidate>
-  {% csrf_token %}
-  <p class="vr-form-note">Fields marked <span class="vr-req" aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. The server records the time and your identity.</p>
-  <fieldset class="vr-form-section">
-    <legend class="visually-hidden">{{ page_title }}</legend>
-    {{ form }}
-  </fieldset>
-  <div class="vr-form-actions">
-    <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
-    <button class="btn btn-primary" type="submit">{{ submit_label }}</button>
-  </div>
-</form>
+{% if summary %}{% panel title="Record" heading_id="record-heading" class="mb-3" %}{% include "analytical/_summary.html" with summary=summary only %}{% endpanel %}{% endif %}
+{% if held %}
+{% notice tone="hold" label="On hold" blocking=True %}{{ held }}{% endnotice %}
+<p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to the list</a></p>
+{% else %}
+{% form_page form=form cancel_url=cancel_url submit_label=submit_label note="The server records the time and your identity." %}{% endform_page %}
+{% endif %}
 {% endblock %}

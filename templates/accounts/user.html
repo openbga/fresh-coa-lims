@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load ui %}
 {% comment %}One account (admin): identity, roles, status, credentials, the signed account actions and the account's history (newest first). Context: target, evidence, two_factor, single_sign_on, single_sign_on_configured, single_sign_on_issuer, actions [(label, url)], history (a page of audit events).{% endcomment %}
+{% block page_title_class %} vr-data{% endblock %}
 {% block breadcrumbs %}{% url 'accounts:user_list' as users_url %}{% breadcrumbs section="Users and roles" section_url=users_url current=target.username %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% if target.is_active %}{% status label="Active" tone="success" %}{% else %}{% status label="Inactive" tone="neutral" %}{% endif %}</li><li>{{ evidence.roles|join:", "|default:"No role assigned" }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% for label, url in actions %}{% if forloop.counter <= 3 %}<a class="btn btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endif %}{% endfor %}{% if actions|length > 3 %}{% more_actions %}{% for label, url in actions %}{% if forloop.counter > 3 %}<li><a class="dropdown-item" href="{{ url }}">{{ label }}</a></li>{% endif %}{% endfor %}{% endmore_actions %}{% endif %}{% endblock %}

@@ -1,5 +1,5 @@
-{% comment %}Batch QC status. Parameters: status (passed | failed | incomplete), state, plain.{% endcomment %}
-{% if state == "rejected" %}{% include "includes/status.html" with label="Rejected" tone="neutral" plain=plain %}
-{% elif status == "passed" %}{% include "includes/status.html" with label="QC passed" tone="success" plain=plain %}
-{% elif status == "failed" %}{% include "includes/status.html" with label="QC failed" tone="danger" plain=plain %}
-{% else %}{% include "includes/status.html" with label="QC incomplete" tone="warning" plain=plain %}{% endif %}
+{% load ui %}{% comment %}Batch QC status. Include with status=... (passed | failed | incomplete) state=... plain=... only.{% endcomment %}
+{% if state == "rejected" %}{% status label="Rejected" tone="neutral" plain=plain %}
+{% elif status == "passed" %}{% status label="QC passed" tone="success" plain=plain %}
+{% elif status == "failed" %}{% status label="QC failed" tone="danger" plain=plain %}
+{% else %}{% status label="QC incomplete" tone="warning" plain=plain %}{% endif %}

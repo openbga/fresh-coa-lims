@@ -1,33 +1,30 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
-{% block page_meta %}<p class="vr-page-meta">{% include "catalog/includes/revision_status.html" with status=revision.status %} · record revision {{ revision.revision }} · {{ spec.title }}</p>{% endblock %}
+{% load ui %}
+{% comment %}One specification version: facts, tests and acceptance criteria, signatures and history. Context: page_title, revision, spec, tests, signatures, history, is_draft, can_edit, can_approve, crumbs.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "catalog/includes/revision_status.html" with status=revision.status only %}</li><li>Record revision {{ revision.revision }}</li><li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_edit %}<a class="btn btn-outline-secondary" href="{% url 'catalog:test_new' revision.pk %}">Add test</a><a class="btn btn-outline-secondary" href="{% url 'catalog:specification_withdraw' revision.pk %}">Withdraw draft</a>{% endif %}
 {% if can_approve %}<a class="btn btn-primary" href="{% url 'catalog:specification_approve' revision.pk %}">Review and approve</a>{% endif %}
 {% endblock %}
 {% block content %}
-{% if is_draft and can_edit and not can_approve %}<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Independent approval" tone="info" plain=True %}<div>You authored or edited this draft, so another quality approver must sign it.</div></div>{% endif %}
-{% if revision.status == "approved" %}<div class="alert alert-success" role="status">{% include "includes/status.html" with label="Frozen" tone="success" plain=True %}<div>This approved version and its tests cannot be changed. Content hash <span class="vr-id">{{ revision.approved_hash }}</span>.</div></div>{% endif %}
-<section class="card mb-3" aria-labelledby="facts-heading">
-  <div class="card-header"><h2 class="card-title" id="facts-heading">Version facts</h2></div>
-  <div class="card-body"><dl class="vr-facts mb-0">
-    <div><dt>Material</dt><dd>{{ spec.material }}</dd></div>
-    <div><dt>Stage and scope</dt><dd>{{ spec.get_stage_display }} · {{ spec.scope }}</dd></div>
-    <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
-    <div><dt>Basis</dt><dd>{{ revision.basis|linebreaksbr }}</dd></div>
-    <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
-    <div><dt>Reason for version</dt><dd>{{ revision.change_reason|linebreaksbr }}</dd></div>
-  </dl></div>
-</section>
-<section class="card vr-table-card mb-3" aria-labelledby="tests-heading">
-  <div class="card-header"><h2 class="card-title" id="tests-heading">Tests and acceptance criteria</h2></div>
-  {% if tests %}{% include "catalog/includes/tests_table.html" with remove=can_edit %}
-  {% else %}{% if can_edit %}{% url 'catalog:test_new' revision.pk as add_url %}{% endif %}{% include "catalog/includes/empty.html" with title="No tests yet" body="Approval requires at least one test with an approved method." action_url=add_url action_label="Add test" %}{% endif %}
-</section>
-<section class="card mb-3" aria-labelledby="sig-heading">
-  <div class="card-header"><h2 class="card-title" id="sig-heading">Signatures</h2></div>
-  <div class="card-body">{% include "catalog/includes/signatures.html" %}</div>
-</section>
-{% include "catalog/includes/history.html" %}
+{% if is_draft and can_edit and not can_approve %}{% notice tone="info" label="Independent approval" %}You authored or edited this draft, so another quality approver must sign it.{% endnotice %}{% endif %}
+{% if revision.status == "approved" %}{% notice tone="success" label="Frozen" %}This approved version and its tests cannot be changed. Content hash <span class="vr-id">{{ revision.approved_hash }}</span>.{% endnotice %}{% endif %}
+{% panel title="Version facts" heading_id="facts-heading" class="mb-3" %}
+  <dl class="vr-facts mb-0">
+    {% fact label="Material" value=spec.material %}
+    {% fact label="Stage and scope" %}{{ spec.get_stage_display }} · {{ spec.scope }}{% endfact %}
+    {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
+    {% fact label="Basis" %}{{ revision.basis|linebreaksbr }}{% endfact %}
+    {% fact label="Author" value=revision.author.get_full_name|default:revision.author.username %}
+    {% fact label="Reason for version" %}{{ revision.change_reason|linebreaksbr }}{% endfact %}
+  </dl>
+{% endpanel %}
+{% panel title="Tests and acceptance criteria" heading_id="tests-heading" table=True class="mb-3" %}
+  {% if can_edit %}{% url 'catalog:test_new' revision.pk as add_url %}{% endif %}
+  {% list_results items=tests empty_title="No tests yet" empty_body="Approval requires at least one test with an approved method." action_url=add_url action_label="Add test" %}{% include "catalog/includes/tests_table.html" with tests=tests remove=can_edit only %}{% endlist_results %}
+{% endpanel %}
+{% panel title="Signatures" heading_id="sig-heading" class="mb-3" %}{% signature_list signatures=signatures hash=True %}{% endpanel %}
+{% history_panel events=history empty_title="No recorded history" %}{% endhistory_panel %}
 {% endblock %}
-{% block record_foot %}{% include "includes/record_foot.html" with identifier=revision %}{% endblock %}
+{% block record_foot %}{% record_foot identifier=revision %}{% endblock %}

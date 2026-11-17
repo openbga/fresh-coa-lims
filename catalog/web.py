@@ -85,7 +85,7 @@ def form_status(request, form):
 
 
 def page(request, queryset):
-    """The requested page at the requested rows per page (core.grids, {% pagination sizes=True %})."""
+    """The requested page at the requested rows per page (core.grids.paginate)."""
     return grids.paginate(request, queryset)
 
 

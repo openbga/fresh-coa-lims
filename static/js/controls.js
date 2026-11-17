@@ -18,7 +18,7 @@
   }
 
   var LONG_LIST = 8; // more options than this: the menu gets a search box
-  var GAP = 4; // px between a control and its floating menu
+  var GAP = 6; // px between a control and its floating menu
   var MARGIN = 8; // px a floating menu keeps from the viewport edge
   var floating = new Set(); // open menus and popovers, repositioned on scroll and resize
 
@@ -389,6 +389,9 @@
         },
         no_results: function (data, escape) {
           return '<div class="no-results">No matches for “' + escape(data.input) + "”.</div>";
+        },
+        loading: function () {
+          return '<div class="vr-ts-loading">' + icon("hourglass-split") + "Searching…</div>";
         },
         loading_more: function () {
           return '<div class="loading-more-results">Loading more…</div>';
@@ -798,9 +801,6 @@
         self.set(now.date, now.time + (self.seconds ? ":" + now.second : ""));
         self.close(true);
       });
-      shortcut("Today", "secondary", function () {
-        self.pickDate(labClock(self.zone).date, self.parts().time);
-      });
     } else {
       shortcut("Today", "secondary", function () {
         self.set(labClock(self.zone).date);
@@ -1027,11 +1027,44 @@
     var input = zone.querySelector("input[type=file]");
     var name = zone.querySelector("[data-vr-file-name]");
     var drop = zone.querySelector(".vr-drop");
+    // The chosen files as rows (icon, name, size, remove); the live text says the same for
+    // assistive technology.
+    var rows = document.createElement("div");
+    rows.className = "vr-file-rows";
+    name.after(rows);
     function show() {
       var files = Array.prototype.slice.call(input.files || []);
       name.textContent = files.length ? files.map(function (file) {
         return file.name + " (" + sizeText(file.size) + ")";
       }).join(", ") : name.getAttribute("data-vr-file-empty");
+      rows.replaceChildren();
+      files.forEach(function (file) {
+        var row = document.createElement("div");
+        row.className = "vr-file-row";
+        row.setAttribute("aria-hidden", "true"); // the live text above names the file
+        var label = document.createElement("span");
+        label.className = "vr-file-label";
+        label.textContent = file.name;
+        var size = document.createElement("span");
+        size.className = "vr-file-size";
+        size.textContent = sizeText(file.size);
+        row.append(fragment(icon("file-earmark")), label, size);
+        rows.append(row);
+      });
+      if (files.length && !input.disabled) {
+        var remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "vr-file-remove";
+        remove.setAttribute("aria-label", "Remove " + (files.length > 1 ? "the chosen files" : files[0].name));
+        remove.append(fragment(icon("x")));
+        remove.addEventListener("click", function () {
+          input.value = "";
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          input.focus();
+        });
+        rows.lastChild.append(remove);
+        rows.lastChild.removeAttribute("aria-hidden"); // keeps the button reachable
+      }
       zone.classList.toggle("vr-file-chosen", files.length > 0);
     }
     var hint = zone.querySelector(".vr-drop-hint");
@@ -1115,8 +1148,72 @@
     if (!element.matches(FOCUSABLE) && !element.matches("time")) {
       element.tabIndex = 0;
     }
-    window.bootstrap.Tooltip.getOrCreateInstance(element, { container: element.closest(".modal") || "body" });
+    window.bootstrap.Tooltip.getOrCreateInstance(element, {
+      container: element.closest(".modal") || "body",
+      trigger: "manual", // shown by the listeners below
+    });
+    tipped.add(element);
   }
+
+  var tipped = new WeakSet(); // elements whose tooltip the listeners below show and hide
+
+  // When a tooltip shows: on pointer hover, and on keyboard focus only (:focus-visible), so focus
+  // a script returns to a button after a mouse action does not pop its tooltip over the page.
+  // Any pointer press elsewhere or Escape hides it (WCAG 1.4.13); tooltips never take clicks.
+  function tippedOf(target) {
+    var element = target && target.closest ? target.closest("[data-bs-original-title]") : null;
+    return element && tipped.has(element) ? element : null;
+  }
+
+  function tip(element) {
+    return window.bootstrap.Tooltip.getInstance(element);
+  }
+
+  function hideTooltips(except) {
+    document.querySelectorAll(".tooltip.show").forEach(function (tip) {
+      var owner = document.querySelector("[aria-describedby~='" + tip.id + "']");
+      var instance = owner && window.bootstrap.Tooltip.getInstance(owner);
+      if (instance && instance !== except) {
+        instance.hide();
+      }
+    });
+  }
+
+  document.addEventListener("mouseover", function (event) {
+    var element = tippedOf(event.target);
+    if (element && !element.contains(event.relatedTarget) && tip(element)) {
+      hideTooltips(tip(element));
+      tip(element).show();
+    }
+  });
+  document.addEventListener("mouseout", function (event) {
+    var element = tippedOf(event.target);
+    if (element && !element.contains(event.relatedTarget) && tip(element) &&
+        !(document.activeElement === element && element.matches(":focus-visible"))) {
+      tip(element).hide();
+    }
+  });
+  document.addEventListener("focusin", function (event) {
+    var element = tippedOf(event.target);
+    if (element === event.target && tip(element) && element.matches(":focus-visible")) {
+      hideTooltips(tip(element));
+      tip(element).show();
+    }
+  });
+  document.addEventListener("focusout", function (event) {
+    var element = tippedOf(event.target);
+    if (element === event.target && tip(element)) {
+      tip(element).hide();
+    }
+  });
+  document.addEventListener("pointerdown", function () { hideTooltips(null); }, true);
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && document.querySelector(".tooltip.show")) {
+      hideTooltips(null); // the dialog around it, if any, still gets its Escape on the next press
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
 
   // A script may set a new title later: move it into the tooltip.
   document.addEventListener("show.bs.tooltip", function (event) {

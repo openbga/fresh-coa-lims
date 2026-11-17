@@ -26,9 +26,13 @@ Full standard: `docs/ui-standards.md`.
 - Icons are Bootstrap Icons only, from `static/img/icons.svg` as `i-<name>`, rendered through
   `{% include "includes/icon.html" with name="…" %}` and paired with visible or visually hidden
   text. Never draw or invent an icon. Exceptions: the brand mark and the sign-in art.
-- Controls are Bootstrap form components through the Django widget templates in
-  `templates/django/forms/widgets/`; forms build on `core.forms.StyledForm`. Validation is
-  server-side in the Django form and errors render inline.
+- Controls are Django form fields rendered through the widget templates in
+  `templates/django/forms/widgets/`; `static/js/controls.js` enhances them (Tom Select, date
+  popover, decimal/unit, file drop zone). Never write a raw `<select>`, date/number/file `<input>`
+  or `<datalist>` in a page (`tests/test_controls.py`). Growing model lists use
+  `core.lookups.RemoteSelect`. Per-user presentation settings use `core/preferences.py`
+  (`window.vrPreferences`), not `localStorage`. Validation is server-side in the Django form and
+  errors render inline.
 - Signing uses the shared signature dialog (`templates/signatures/`, `static/js/signature-dialog.js`)
   as a view of a server-enforced transition; never offer self-review.
 - No toasts. One primary action per page header.

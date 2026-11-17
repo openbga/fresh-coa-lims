@@ -4,7 +4,7 @@ urls: stability:pull_list
 views: stability.views.pull_list
 templates: ops/list.html
 models: stability.Pull
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,7 +21,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and the introduction "Scheduled pulls across active and closed studies, oldest due first."
-- **Toolbar**: **Search** (study ID or lot number) and **Status** (All, Overdue, Due now, Upcoming, Awaiting acceptance, Accepted, Accepted, acceptance criteria not met, Missed); Search is a contains match, case-insensitive. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (study ID or lot number) and **Status** (All, Overdue, Due now, Upcoming, Awaiting acceptance, Accepted, Accepted, acceptance criteria not met, Missed); Search is a contains match, case-insensitive. **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Pull (study identifier, condition and timepoint label; links to the pull record), Due, Window ("from to to" dates), Status, Tests (required test codes). Sort by Due (default; ties by pk), Study (study ID, then due date) or Status (stored state). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Pulls appear when a study starts on an approved protocol."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
@@ -30,7 +30,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

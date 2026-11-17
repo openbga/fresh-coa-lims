@@ -4,7 +4,7 @@ urls: sampling:lots
 views: sampling.views.lot_list
 templates: sampling/lot_list.html
 models: quality.Lot, sampling.LotAssignment, sampling.SamplingRecord
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,10 +22,10 @@ Lists received lots with their requirement status and sample count, so analysts 
 - **Section tabs**: Lots, Sampling plans. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Sampling", followed by the introduction.
 - **Intro**: "Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold."
-- **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear filters** when filtered.
+- **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear all** when filtered.
 - **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples.
 - **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned".
-- **Footer**: "Showing X–Y of N lots".
+- **Footer**: "Showing X–Y of N lots", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No lots received yet" ("Receive a material lot first; it then appears here for requirement assignment and sampling.") with a **Go to lots** button; "No lots match these filters" with **Clear filters**.
 
 ## Actions
@@ -51,12 +51,12 @@ Lists received lots with their requirement status and sample count, so analysts 
 
 - **Order**: default is newest received first. Sort keys: lot number ascending or descending; the default is not a header toggle.
 - **Latest assignment only**: Requirements and the Status filter use each lot's most recent assignment.
-- **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
+- **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Quarantined and released lots** are both listed.
 - Labels differ slightly: the filter says "Requirements assigned", the table says "Assigned".
 
 ## Related pages
 
 - [Sampling plans](/sampling/plans/)
-- [Material lots](/)
+- [Material lots](/lots/)
 - Lot requirements and sampling (record page).

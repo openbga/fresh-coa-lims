@@ -66,4 +66,4 @@ The page has no hidden field. The server checks the record itself when saving.
 - Lot record; Sign lot disposition.
 - Supplier result acceptance record; Withdraw supplier result.
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

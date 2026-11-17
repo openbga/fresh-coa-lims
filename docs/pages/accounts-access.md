@@ -55,7 +55,7 @@ The operator's `assign_roles` command replaces the complete role set. Include ev
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - [Users and roles](/accounts/users/)
 - [Change password](/accounts/password/)
 - [Two-factor sign-in](/accounts/two-factor/)

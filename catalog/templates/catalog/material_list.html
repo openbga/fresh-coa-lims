@@ -1,14 +1,16 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Controlled materials. Context: page_title, tabs, page_obj, query, sort, filtered, can_edit.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Controlled materials and products that specifications and sampling plans apply to.</p>{% endblock %}
-{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:material_new' %}">New material</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:material_new' %}">{% icon name="plus-lg" %}New material</a>{% endif %}{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="list-heading">
-  <h2 class="visually-hidden" id="list-heading">Materials</h2>
-  {% include "catalog/includes/toolbar.html" with label="Filter materials" placeholder="Code or name" %}
-  {% if page_obj.paginator.count %}
+{% panel title="Materials" heading_id="list-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter materials" q=query placeholder="Code or name" sort=sort active=filtered %}
+  {% if can_edit %}{% url 'catalog:material_new' as create_url %}{% endif %}
+  {% list_results items=page_obj noun="materials" filtered=filtered sizes=True clear_url=request.path empty_title="No materials yet" empty_body="Create the first controlled material or product." action_url=create_url action_label="New material" no_results_body="Change or clear the filters." %}
   <div class="vr-table-wrap">
-    <table class="table table-hover vr-table">
-      <thead><tr>{% include "catalog/includes/sort.html" with label="Material" key="code" current=sort %}{% include "catalog/includes/sort.html" with label="Name" key="name" current=sort %}<th scope="col">Kind</th><th scope="col" class="text-end">Specifications</th><th scope="col">Created</th></tr></thead>
+    <table class="table table-hover vr-table" aria-labelledby="list-heading">
+      <thead><tr>{% sort_header label="Material" asc="code" desc="-code" sort=sort %}{% sort_header label="Name" asc="name" desc="-name" sort=sort %}<th scope="col">Kind</th><th scope="col" class="text-end">Specifications</th><th scope="col">Created</th></tr></thead>
       <tbody>
         {% for material in page_obj %}
         <tr>
@@ -22,12 +24,6 @@
       </tbody>
     </table>
   </div>
-  {% include "catalog/includes/pagination.html" with noun="materials" %}
-  {% elif filtered %}
-  {% include "catalog/includes/empty.html" with kind="no-results" title="No materials match these filters" body="Change or clear the filters." clear_url=request.path %}
-  {% else %}
-  {% if can_edit %}{% url 'catalog:material_new' as create_url %}{% endif %}
-  {% include "catalog/includes/empty.html" with title="No materials yet" body="Create the first controlled material or product." action_url=create_url action_label="New material" %}
-  {% endif %}
-</section>
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

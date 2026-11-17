@@ -44,6 +44,7 @@ DIMENSIONS = {
     "background-image",  # gradient stops that draw a decorative image (the sheet's punched holes)
     "transform",
     "--bs-offcanvas-width",  # the phone navigation sheet's width
+    "--bs-tooltip-max-width",  # a tooltip's line length
     "--vr-sheet-margin",  # the sign-in sheet's punched margin
     "--pagedocs-width",  # the help drawer's default width; pagedocs.js stores the user's own
     # Keyboard scrolling clears a sticky column or the sticky action row: their sizes.

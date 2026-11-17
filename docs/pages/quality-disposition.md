@@ -4,7 +4,7 @@ urls: quality:disposition
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: laboratory.ContractApproval, quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, suppliers.SupplierQualification, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 
 ## Layout
 
-- A signing dialog (a plain card without JavaScript): meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
+- Breadcrumbs Lots › the lot number › the title. A signing dialog (a plain card without JavaScript), headed with the title: meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
 - **Supplier certificate notice**: above the form, one warning for each supplier certificate of the lot that is not withdrawn and states a result which does not meet the specification (see Rules). It is information only.
 - **Supplier result notice**: above the form, one warning for each supplier result that was accepted in place of a laboratory test and still stands (see Rules). It is information only.
 - **Contract laboratory notice**: above the form, one warning for each test of the lot whose result was reported by a contract laboratory under an approval that has been revoked since (see Rules). It is information only.

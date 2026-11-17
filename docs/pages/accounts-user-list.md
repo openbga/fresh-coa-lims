@@ -4,7 +4,7 @@ urls: accounts:user_list
 views: accounts.views.user_list
 templates: accounts/users.html
 models: accounts.User, accounts.SecurityKey, auth.Group
-reviewed: 2026-11-16
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -17,17 +17,17 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 ## Layout
 
-The header has **Create account**. A filter card is followed by the matching-account count, a table with Account, Identity, Roles, Status, Two-factor sign-in and Last sign-in, then paging. Empty text distinguishes **No accounts found.** from **No accounts match these filters. Clear or adjust them.**
+The header has **New account**. The accounts card opens with the filter toolbar (Find account, Role, Status, Two-factor sign-in, **Apply**, and **Clear all** when a filter is set), then a table with Account, Identity, Roles, Status (Active or Inactive, with "Password change required" below when it applies), Two-factor sign-in and Last sign-in, then the footer "Showing X–Y of N accounts" with paging. Empty states: **No accounts found** with **New account**; **No accounts match these filters** with "Clear or adjust the filters." and **Clear filters**; **These filters cannot be applied** for an invalid filter.
 
 ## Actions
 
 | Action | Shown when | Result |
 |---|---|---|
-| Create account | Always | Opens signed account creation |
-| Filter | Always | Applies all entered filters and returns to page 1 |
-| Clear filters | Always | Restores the unfiltered list |
+| New account | Always | Opens signed account creation |
+| Apply | Always | Applies all entered filters and returns to page 1 |
+| Clear all / Clear filters | A filter is set | Restores the unfiltered list |
 | Account username | Each row | Opens the account record |
-| Previous / Next | An adjacent page exists | Moves one page while retaining filters |
+| First / previous / next / last page | More than one page | Moves to that page while retaining filters |
 
 ## Fields
 
@@ -53,5 +53,5 @@ All accounts are listed by username, including inactive accounts and those witho
 ## Related pages
 
 - [Account access](/accounts/access/)
-- [Create account](/accounts/users/new/)
+- [New account](/accounts/users/new/)
 - Account record, opened through a username.

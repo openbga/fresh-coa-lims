@@ -58,7 +58,7 @@ Downloads one lot's complete record as a single ZIP file, to keep or to hand ove
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - Lot record (the lot page, which opens this page from **Export record**).
 - [Audit trail](/audit/)
 - Certificate version (each issued version included in the package).

@@ -5,6 +5,8 @@ Keys and the values they accept:
   page:<view name>        {"per_page": 25 | 50 | 100, "sort": "<-column>"}, the middleware below
                           (config/settings.py MIDDLEWARE, after authentication)
   nav.collapsed           true | false, static/js/sidebar.js
+  pagedocs.open           true | false, the page documentation panel (pagedocs.js)
+  pagedocs.width          PAGEDOCS_WIDTH pixels, the panel's width (pagedocs.js)
 
 Every value is checked when written and again when read: a value that no longer fits (an old
 format, a column that was removed) is ignored and the page falls back to its defaults.
@@ -27,7 +29,10 @@ GRID_KEY = re.compile(r"^grid:[a-z0-9_.-]{1,80}:v\d{1,3}$")
 PAGE_KEY = re.compile(r"^page:[a-z0-9_:-]{1,100}$")
 COLUMN_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 SORT = re.compile(r"^-?[a-z0-9_]{1,40}$")
-CLIENT_KEYS = re.compile(r"^(grid:|nav\.)")  # what the page hands to its scripts
+CLIENT_KEYS = re.compile(r"^(grid:|nav\.|pagedocs\.)")  # what the page hands to its scripts
+# Settings the browser may write besides grid layouts (page size and sort are server-set).
+CLIENT_SETTINGS = {"nav.collapsed", "pagedocs.open", "pagedocs.width"}
+PAGEDOCS_WIDTH = range(280, 961)  # pagedocs.js MIN..LIMIT
 
 
 def _columns(value):
@@ -54,44 +59,32 @@ def clean(key, value):
         if isinstance(value.get("sort"), str) and SORT.match(value["sort"]):
             cleaned["sort"] = value["sort"]
         return cleaned or None
-    if key == "nav.collapsed":
+    if key in ("nav.collapsed", "pagedocs.open"):
         return value if isinstance(value, bool) else None
+    if key == "pagedocs.width":
+        valid = isinstance(value, int) and not isinstance(value, bool) and value in PAGEDOCS_WIDTH
+        return value if valid else None
     return None
 
 
-SESSION_KEY = "vr_preferences"
-
-
 def for_request(request):
-    """All valid preferences of the signed-in user.
+    """All valid preferences of the signed-in user, read once per request (one indexed query).
 
-    Read from the database once per sign-in and kept in the session, which every request loads
-    anyway, so pages make no extra query. save() updates both. Another session of the same user
-    sees a change made elsewhere from its next sign-in.
+    Read from the database rather than a session copy: two settings saved at the same moment
+    (the panel's open state and width) would otherwise race to overwrite each other's copy, and
+    another session of the same user sees a change on its next page.
     """
     if hasattr(request, "_vr_preferences"):
         return request._vr_preferences
     prefs = {}
     user = getattr(request, "user", None)
-    session = getattr(request, "session", None)
     if user is not None and user.is_authenticated:
-        cached = session.get(SESSION_KEY) if session is not None else None
-        if isinstance(cached, dict) and cached.get("user") == user.pk:
-            stored = cached.get("prefs", {}).items()
-        else:
-            stored = UserPreference.objects.filter(user=user).values_list("key", "value")
+        stored = UserPreference.objects.filter(user=user).values_list("key", "value")
         for key, value in stored:
             if (valid := clean(key, value)) is not None:
                 prefs[key] = valid
-        if session is not None and cached != {"user": user.pk, "prefs": prefs}:
-            session[SESSION_KEY] = {"user": user.pk, "prefs": prefs}
     request._vr_preferences = prefs
     return prefs
-
-
-def _remember(request, prefs):
-    if getattr(request, "session", None) is not None:
-        request.session[SESSION_KEY] = {"user": request.user.pk, "prefs": dict(prefs)}
 
 
 def save(request, key, value):
@@ -100,7 +93,6 @@ def save(request, key, value):
     if value is None:
         UserPreference.objects.filter(user=request.user, key=key).delete()
         prefs.pop(key, None)
-        _remember(request, prefs)
         return
     if clean(key, value) != value:
         raise ValueError(f"Not a valid value for {key!r}.")
@@ -111,7 +103,6 @@ def save(request, key, value):
         raise ValueError("Too many saved preferences.")
     UserPreference.objects.update_or_create(user=request.user, key=key, defaults={"value": value})
     prefs[key] = value
-    _remember(request, prefs)
 
 
 @login_required
@@ -123,7 +114,7 @@ def preference(request):  # core:preference, /preferences/ (static/js/preference
     try:
         data = json.loads(request.body)
         key, value = data["key"], data["value"]
-        if not isinstance(key, str) or not (GRID_KEY.match(key) or key == "nav.collapsed"):
+        if not isinstance(key, str) or not (GRID_KEY.match(key) or key in CLIENT_SETTINGS):
             raise ValueError("Unknown preference.")
         save(request, key, value)
     except (ValueError, KeyError, TypeError) as error:

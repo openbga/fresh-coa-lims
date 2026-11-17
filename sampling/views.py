@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -47,11 +48,21 @@ from .models import (
 )
 
 SECTION = "Sampling"
-STATUS_FILTERS = [
-    ("ready", "Requirements assigned"),
-    ("hold", "Applicability hold"),
-    ("none", "Not assigned"),
-]
+
+
+class LotFilterForm(forms.Form):
+    """The sampling lot list's requirements filter; the search box is the toolbar's own (q)."""
+
+    status = forms.ChoiceField(
+        label="Status",
+        choices=[
+            ("", "All statuses"),
+            ("ready", "Requirements assigned"),
+            ("hold", "Applicability hold"),
+            ("none", "Not assigned"),
+        ],
+        required=False,
+    )
 
 
 def tabs(current):
@@ -83,6 +94,29 @@ def form_page(request, form, *, title, crumbs, cancel_url, submit_label, intro="
 # Lots ------------------------------------------------------------------------------------------
 
 
+def with_choices(conflicts, form_id=""):
+    """Give each conflict ``options``: its statements paired with the radio inputs of the field
+    ``choice-<test code>``, rendered through the shared radio widget and checked for the scope
+    already chosen. ``forms.chosen_scopes`` reads the submitted choices back; ``form_id`` names
+    the form the inputs belong to when they sit outside it."""
+    form = forms.Form(auto_id="%s")
+    attrs = {"form": form_id} if form_id else {}
+    for conflict in conflicts:
+        name = f"choice-{conflict['code']}"
+        chosen = conflict.get("chosen")
+        form.fields[name] = forms.ChoiceField(
+            choices=[(item["scope"], item["scope"]) for item in conflict["candidates"]],
+            widget=forms.RadioSelect(attrs=attrs),
+            required=False,
+            initial=next(
+                (i["scope"] for i in conflict["candidates"] if chosen and chosen in i["scopes"]),
+                None,
+            ),
+        )
+        conflict["options"] = list(zip(form[name], conflict["candidates"], strict=True))
+    return conflicts
+
+
 @login_required
 def lot_list(request):
     read_access(request)
@@ -92,15 +126,16 @@ def lot_list(request):
         sampled=Count("sampling_records", filter=Q(sampling_records__corrects__isnull=True)),
     )
     query = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "")
+    filters = LotFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every lot
+        filters = LotFilterForm()
+    status = filters.cleaned_data["status"] if filters.is_bound else ""
     if query:
         lots = lots.filter(Q(number__icontains=query) | Q(material__icontains=query))
     if status == "none":
         lots = lots.filter(requirement_status__isnull=True)
-    elif status in AssignmentStatus.values:
+    elif status:
         lots = lots.filter(requirement_status=status)
-    else:
-        status = ""
     lots, sort = sorted_by(
         request,
         lots,
@@ -115,8 +150,7 @@ def lot_list(request):
             "tabs": tabs("Lots"),
             "page_obj": page(request, lots),
             "query": query,
-            "status": status,
-            "statuses": STATUS_FILTERS,
+            "filters": filters,
             "sort": sort,
             "filtered": bool(query or status),
         },
@@ -351,6 +385,7 @@ def decide(request, pk):
         _reissue(form, lot, preview.basis)
     for conflict in preview.conflicts:
         conflict["chosen"] = choices.get(conflict["code"], "")
+    with_choices(preview.conflicts, form_id="decision-form")
     return render(
         request,
         "sampling/decide.html",
@@ -451,6 +486,7 @@ def replace(request, pk):
         }
         for item in decided
     ] + [{**conflict, "chosen": ""} for conflict in preview.conflicts]
+    with_choices(differing)
     listed = {conflict["code"] for conflict in differing}
     carried = sorted((c, scope) for c, scope in preview.choices.items() if c not in listed)
     # A signature submitted while a test still waits for a choice signs nothing.

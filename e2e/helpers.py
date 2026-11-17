@@ -5,9 +5,11 @@ Import as ``from helpers import ...`` (e2e/pytest.ini puts this directory on the
 """
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 
+from django.db import connections
 from django.urls import reverse
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page, expect, sync_playwright
@@ -18,6 +20,23 @@ from tests.test_integrated_journey import PASSWORD, PIN, observed_test
 
 DESKTOP = {"width": 1280, "height": 900}
 ACTION_TIMEOUT_MS = 10_000  # a missing element fails in seconds, not after half a minute
+
+
+def db_call(callback):
+    """Keep Django ORM work off Playwright's synchronous event-loop thread.
+
+    Django refuses database queries from a thread running an event loop (SynchronousOnlyOperation);
+    the callback runs in a worker thread, which closes its connections when done.
+    """
+
+    def work():
+        try:
+            return callback()
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(work).result()
 
 
 @contextmanager

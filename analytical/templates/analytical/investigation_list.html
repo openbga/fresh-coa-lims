@@ -1,23 +1,20 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Out-of-specification investigations, newest first; open ones by default. Context: page_title, tabs, page_obj, query, filters (InvestigationFilterForm), filtered.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Out-of-specification investigations. An open investigation holds its lot, or its stability pull, until quality signs a conclusion.</p>{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="inv-heading">
-  <h2 class="visually-hidden" id="inv-heading">Investigations</h2>
-  <form method="get" class="vr-grid-toolbar" role="search">
-    <div class="vr-field"><label class="form-label" for="q">Find</label><input id="q" class="form-control" name="q" value="{{ query }}" placeholder="Lot, study or test code"></div>
-    <div class="vr-field"><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="open"{% if state == "open" %} selected{% endif %}>Open</option><option value="closed"{% if state == "closed" %} selected{% endif %}>Closed</option><option value="all"{% if state == "all" %} selected{% endif %}>All investigations</option></select></div>
-    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">{% include "includes/icon.html" with name="funnel" %}Apply</button>{% if filtered %}<a class="btn btn-link" href="{{ request.path }}">Show open</a>{% endif %}</div>
-  </form>
-  {% if page_obj.paginator.count %}
+{% panel title="Investigations" heading_id="inv-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter investigations" q=query search_label="Find" placeholder="Lot, study or test code" inline=filters active=filtered %}
+  {% list_results items=page_obj noun="investigations" filtered=filtered sizes=True clear_url=request.path empty_title="No open investigations" empty_body="A submitted out-of-specification result opens an investigation automatically." no_results_title="No investigations match" no_results_body="Search covers lot numbers, stability study identifiers and test codes." %}
   <div class="vr-table-wrap">
-    <table class="table table-hover vr-table">
+    <table class="table table-hover vr-table" aria-labelledby="inv-heading">
       <caption class="visually-hidden">Investigations, newest first</caption>
       <thead><tr><th scope="col">Investigation</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Test</th><th scope="col">Trigger</th><th scope="col">Opened</th></tr></thead>
       <tbody>
         {% for inv in page_obj %}
         <tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a></th>
-          <td>{% include "analytical/_investigation_status.html" with plain=True %}</td>
+          <td>{% include "analytical/_investigation_status.html" with inv=inv plain=True only %}</td>
           <td>{% if inv.lot_id %}<a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a>{% else %}<span class="vr-id">{{ inv.test.source_lot.number }}</span> · <a class="vr-id" href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.pull.label }}</a> <span class="vr-muted small">stability pull</span>{% endif %}</td>
           <td><a class="vr-id" href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}</td>
           <td>{{ inv.trigger }}</td>
@@ -27,11 +24,6 @@
       </tbody>
     </table>
   </div>
-  {% include "analytical/_pager.html" with noun="investigations" %}
-  {% elif filtered %}
-  {% include "analytical/_empty.html" with kind="no-results" title="No investigations match" body="Search covers lot numbers, stability study identifiers and test codes." clear_url=request.path %}
-  {% else %}
-  {% include "analytical/_empty.html" with title="No open investigations" body="A submitted out-of-specification result opens an investigation automatically." %}
-  {% endif %}
-</section>
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

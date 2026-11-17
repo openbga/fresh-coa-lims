@@ -2,9 +2,9 @@
 title: Investigation record
 urls: analytical:investigation_detail
 views: analytical.views.investigation_detail
-templates: analytical/investigation_detail.html, analytical/_history.html, analytical/_investigation_status.html, analytical/_test_status.html
+templates: analytical/investigation_detail.html, includes/signature_list.html, includes/history_panel.html, analytical/_investigation_status.html, analytical/_test_status.html
 models: analytical.Investigation, analytical.InvestigationEntry, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -25,7 +25,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 - **Open**: alert "Lot held" with the trigger. For a stability test the alert is "Pull held": the trigger, "Stability pull <pull> cannot be accepted until quality signs a conclusion.", the retest rule, and that the record of the lot is not changed by the investigation (whether the lot needs a hold or other action is for quality to decide). **Closed**: **Conclusion** card (Outcome, Assignable cause, Conclusion, Closed).
 - **Results and lineage** ("N of M retests used"): Test, Kind, Sample (the stability pull for a stability test), Replicates, Reportable, Status. First row is "Original result".
 - **Investigation record**: dated entries; empty "No laboratory assessment yet".
-- **Electronic signatures** and **History**.
+- **Electronic signatures** (count): one line per signature with signer, meaning, server time, the record revision it binds and the start of the content hash. **History**: the attributed audit events, oldest first.
 
 ## Actions
 

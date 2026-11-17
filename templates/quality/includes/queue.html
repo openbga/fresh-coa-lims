@@ -1,0 +1,4 @@
+{% load ui %}{% comment %}One dashboard queue row. Include with only: {% include "quality/includes/queue.html" with queue=queue only %}. queue: quality.dashboard.Queue (label, count, oldest, tone, status, url). A zero queue stays visible and muted.{% endcomment %}<li class="vr-queue"{% if not queue.count %} data-zero{% endif %}>
+  <div class="vr-queue-head">{% if queue.url %}<a class="vr-queue-label" href="{{ queue.url }}">{{ queue.label }}</a>{% else %}<span class="vr-queue-label">{{ queue.label }}</span>{% endif %}<span class="vr-queue-count"{% if not queue.count %} data-zero{% endif %}>{{ queue.count }}</span></div>
+  {% if queue.count %}<div class="vr-queue-meta">{% if queue.status %}{% status label=queue.status tone=queue.tone %}{% endif %}{% if queue.oldest %}<span class="vr-queue-oldest">Oldest <time datetime="{{ queue.oldest|date:'c' }}">{{ queue.oldest|date:"Y-m-d" }}</time></span>{% endif %}</div>{% endif %}
+</li>

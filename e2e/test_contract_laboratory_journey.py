@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from analytical import services as analytical
@@ -67,7 +68,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             page.set_viewport_size({"width": 1440, "height": 1000})
 
         def fill_report(date):
-            page.get_by_label("Contract laboratory").select_option(index=1)
+            pick(page.get_by_label("Contract laboratory"), index=1)
             field("Report number").fill(REPORT)
             field("Date of the report").fill(date.isoformat())
             field("Where the report is kept").fill("DMS-SYN-CLR-0042")
@@ -172,7 +173,8 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             goto("quality:lot_detail", lot.pk)
             page.get_by_role("link", name="Review disposition", exact=True).click()
             sign(people["approver"], "Independent synthetic QC disposition", "Sign approved")
-            expect(page.get_by_text("Released", exact=True)).to_be_visible()
+            meta = page.locator(".vr-page-meta")
+            expect(meta.get_by_text("Released", exact=True)).to_be_visible()
             page.get_by_role("link", name="Issue certificate of analysis", exact=True).click()
             printed = (
                 "Tested by contract laboratory Synthetic Contract Analytics, Synthetic City, "

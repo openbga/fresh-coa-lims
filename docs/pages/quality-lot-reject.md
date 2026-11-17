@@ -69,4 +69,4 @@ Quality signs the rejection of a lot in quarantine: the lot did not meet its req
 - Sign lot disposition (releasing instead)
 - Cancel lot received in error
 - [Signature PIN](/signature-pin/)
-- [Material lots](/)
+- [Material lots](/lots/)

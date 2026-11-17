@@ -7,40 +7,96 @@
 <meta name="description" content="Lot {{ snapshot.lot.number }}">
 <meta name="dcterms.created" content="{{ snapshot.report.issued_at }}">
 <meta name="dcterms.modified" content="{{ snapshot.report.issued_at }}">
+{% comment %}
+Line print style for the issued certificate (reporting/render.py serves the font and the status
+glyphs; nothing else loads). One light palette from the Line print column: black text, muted
+#3d4741, table-head fill #f2f2f0, wells #f2f4f3, row rules #b9c4be. Meaning never rests on colour:
+statuses print text plus a black glyph chosen by the recorded tone. Every printed word comes from
+reporting/_certificate.html and this file's existing lines; layout only.
+{% endcomment %}
 <style>
+  @font-face {
+    font-family: "Archivo";
+    src: url("certfont:archivo-latin-wdth-wght.woff2") format("woff2");
+    font-weight: 400 900;
+    font-stretch: 100% 125%;
+  }
   @page {
     size: A4;
-    margin: 14mm 15mm 18mm;
-    @bottom-left { content: string(docid); font-size: 8pt; color: #444; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #444; }
+    margin: 19mm 16mm 18mm;
+    @top-left { content: element(brand); vertical-align: bottom; padding-bottom: 4mm; }
+    @bottom-left { content: string(docid); font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 7pt; word-spacing: 0.04em; color: #3d4741; font-variant-numeric: tabular-nums slashed-zero; vertical-align: top; padding-top: 4mm; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 7pt; font-weight: 700; word-spacing: 0.04em; color: #000; font-variant-numeric: tabular-nums; vertical-align: top; padding-top: 4mm; }
   }
-  html { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; font-size: 9pt; color: #000; background: #fff; line-height: 1.35; }
+  /* Archivo's word space is narrow enough that text extraction (search, copy, screen readers) runs
+     words together; a hair of extra word spacing keeps every space recoverable. */
+  html { font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 8.5pt; font-weight: 400; line-height: 1.4; word-spacing: 0.04em; color: #000; background: #fff; }
+  body { margin: 0; }
+  p { margin: 0 0 2mm; }
+  strong { font-weight: 700; }
+
+  /* Running brand (every page) and the page-1 identity. */
+  .brand { position: running(brand); margin: 0; font-size: 7pt; font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; text-transform: uppercase; color: #000; }
+  .ids { margin: 0 0 1mm; font-size: 7.5pt; color: #3d4741; font-variant-numeric: tabular-nums slashed-zero; }
   .docid { string-set: docid content(); }
-  .ids { font-size: 8pt; color: #444; margin: 0 0 2mm; }
-  h2 { font-size: 17pt; margin: 1mm 0 3mm; }
-  h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; border-bottom: 0.75pt solid #000; padding-bottom: 1mm; break-after: avoid; }
-  .brand { font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; color: #444; font-weight: bold; }
-  .notice { border: 0.75pt solid #444; padding: 1.5mm 2.5mm; margin: 2mm 0; font-weight: bold; }
+  .notice { margin: 3mm 0 0; padding: 2mm 3mm; border: 0.75pt solid #000; border-radius: 2mm; font-weight: 700; }
+
+  .card, .card-header, .card-body { margin: 0; padding: 0; border: 0; }
+  h2 { margin: 0 0 1mm; font-size: 19pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
+  .cert-id { font-stretch: 100%; font-variant-numeric: tabular-nums slashed-zero; }
+  .card-header { margin-bottom: 5mm; }
+
+  /* Section titles: uppercase panel titles, no rules between things. */
+  h3, details > summary { display: block; margin: 6mm 0 2mm; font-size: 7.5pt; font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; text-transform: uppercase; color: #000; break-after: avoid; }
+  details > summary::marker { content: none; }
+  details > summary { list-style: none; }
+
+  /* Fact lists: uppercase label column, data voice values. */
   dl.vr-facts { margin: 0; }
-  dl.vr-facts > div { display: flex; gap: 3mm; margin-bottom: 1mm; }
-  dl.vr-facts dt { width: 32mm; flex: none; font-weight: bold; font-size: 8pt; color: #333; }
-  dl.vr-facts dd { margin: 0; flex: 1; overflow-wrap: anywhere; }
-  .card-header { margin: 0; padding: 0; }
-  table { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm; }
+  dl.vr-facts > div { display: flex; gap: 4mm; padding: 1.2mm 0; break-inside: avoid; }
+  dl.vr-facts dt { flex: none; width: 34mm; padding-top: 0.4mm; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3d4741; }
+  dl.vr-facts dd { flex: 1; margin: 0; font-weight: 500; overflow-wrap: break-word; font-variant-numeric: tabular-nums slashed-zero; }
+  /* Material and lot: two equal tracks, label over value. */
+  dl.cert-key { display: flex; flex-wrap: wrap; column-gap: 6mm; row-gap: 2.5mm; }
+  dl.cert-key > div { display: block; flex: 0 0 47%; padding: 0; }
+  dl.cert-key dt { width: auto; margin-bottom: 0.8mm; }
+  dl.cert-key dd { display: block; font-size: 9.5pt; font-weight: 600; }
+
+  /* The decision and the amendment sit in quiet wells. */
+  .cert-decision, .cert-amendment { margin: 0 0 2mm; padding: 3mm 4mm; background: #f2f4f3; border-radius: 2.5mm; break-inside: avoid; }
+  .cert-decision { font-size: 9.5pt; }
+  .cert-amendment p { margin: 0; }
+  .cert-amendment p + p { margin-top: 1mm; }
+  .vr-muted { color: #3d4741; }
+  .small { font-size: 7.5pt; }
+  .d-block { display: block; }
+  ul { margin: 0 0 2mm; padding-left: 4mm; }
+  li { margin-bottom: 1mm; break-inside: avoid; }
+
+  /* Tables: filled head with rounded ends, light rule under rows only. */
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1mm 0 3mm; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
-  th, td { text-align: left; vertical-align: top; padding: 1mm 1.5mm; border-bottom: 0.4pt solid #888; font-size: 8pt; overflow-wrap: anywhere; }
-  thead th { background: #e6e6e6; border-top: 0.5pt solid #000; border-bottom: 0.5pt solid #000; }
+  th, td { padding: 1.6mm 2mm; text-align: left; vertical-align: top; font-size: 7.5pt; overflow-wrap: break-word; font-variant-numeric: tabular-nums slashed-zero; }
+  thead th { padding-top: 1.4mm; padding-bottom: 1.4mm; background: #f2f2f0; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3d4741; }
+  thead th:first-child { border-radius: 1.5mm 0 0 1.5mm; }
+  thead th:last-child { border-radius: 0 1.5mm 1.5mm 0; }
+  tbody th, tbody td { border-bottom: 0.5pt solid #b9c4be; }
+  tbody th[scope="row"] { font-weight: 700; }
   .text-end { text-align: right; }
-  .vr-status { font-weight: bold; }
-  .vr-id { font-family: "DejaVu Sans Mono", monospace; font-size: 7pt; overflow-wrap: anywhere; white-space: normal; }
+  td.text-end { white-space: nowrap; font-weight: 700; }
+
+  /* Status: text plus a black glyph from the recorded tone. */
+  .vr-status { font-weight: 700; white-space: nowrap; }
+  .vr-status[data-tone]::before { content: ""; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.35em; vertical-align: -0.12em; background: center / contain no-repeat; }
+  .vr-status[data-tone="success"]::before { background-image: url("certicon:check-circle-fill"); }
+  .vr-status[data-tone="warning"]::before { background-image: url("certicon:exclamation-triangle-fill"); }
+  .vr-status[data-tone="danger"]::before { background-image: url("certicon:x-circle-fill"); }
+
+  /* Technical identifiers: code voice, wraps anywhere. */
   details { break-inside: avoid; }
-  details > summary { font-weight: bold; margin-bottom: 1mm; }
-  .d-block { display: block; }
-  .vr-muted { color: #444; }
-  .small { font-size: 8pt; }
-  p { margin: 1mm 0 2mm; }
-  .card, .card-body { border: 0; padding: 0; margin: 0; }
+  .vr-id { font-family: "DejaVu Sans Mono", monospace; font-size: 6.5pt; overflow-wrap: anywhere; white-space: normal; }
+  details dl.vr-facts dt { width: 46mm; }
 </style>
 </head>
 <body>

@@ -14,7 +14,7 @@ from core.forms import PINForm, SignForm
 
 ROOT = Path(settings.BASE_DIR)
 WIDGETS = ROOT / "templates/django/forms/widgets"
-SKIP_DIRS = {".venv", "node_modules", "staticfiles", ".local", ".git", "vendor", "website"}
+SKIP_DIRS = {".venv", "node_modules", "staticfiles", ".local", ".git", "build"}
 
 NATIVE = re.compile(
     r"<select\b|<datalist\b"
@@ -24,8 +24,10 @@ NATIVE = re.compile(
 
 
 def project_templates():
-    for path in ROOT.rglob("*.html"):
-        if SKIP_DIRS.intersection(path.relative_to(ROOT).parts) or path.is_relative_to(WIDGETS):
+    """Django templates only: files under a templates/ directory (never runtime output)."""
+    for path in ROOT.rglob("templates/**/*.html"):
+        parts = path.relative_to(ROOT).parts
+        if SKIP_DIRS.intersection(parts) or path.is_relative_to(WIDGETS):
             continue
         yield path
 

@@ -1,8 +1,9 @@
 {% load ui %}{% comment %}
 Signature manifestations beside a signed record (docs/ui-standards.md, Signing and review): for
 each electronic signature its signer, meaning, server time and the record revision it binds.
-Rendered by {% signature_list %} ({% load ui %}). Each item carries data-signature-meaning and
-data-signature-revision as stable hooks.
+Rendered by {% signature_list %} ({% load ui %}) as history wells (ol.vr-timeline) with the
+vector-pen signature icon. Each item carries data-signature-meaning and data-signature-revision as
+stable hooks.
 Parameters:
   signatures  core.ElectronicSignature rows, oldest first
   subject     the record kind the revision belongs to, e.g. "Lot" or "Result" (default "Record")
@@ -12,6 +13,13 @@ Parameters:
   empty       sentence shown when there are none (default "Not signed.")
 Usage: {% signature_list signatures=signatures subject="Lot" empty="No lot disposition signature yet." %}
 {% endcomment %}
-{% if signatures %}<ul class="vr-signatures">{% for sig in signatures %}
-  <li class="vr-signature" data-signature-meaning="{{ sig.meaning }}" data-signature-revision="{{ sig.revision }}">{% status label="Signed" tone="success" plain=True %} <strong>{{ sig.signer_name }}</strong> · {{ sig.meaning }} · <time datetime="{{ sig.signed_at|date:'c' }}">{{ sig.signed_at|date:"Y-m-d H:i:s T" }}</time> · {{ subject|default:"Record" }}{% if numbered %} {{ sig.object_id }}{% endif %} revision {{ sig.revision }}{% if hash %} · <span class="vr-id" title="SHA-256 of the signed content">{{ sig.content_hash|truncatechars:13 }}</span>{% endif %}</li>
-{% endfor %}</ul>{% else %}<p class="mb-0">{{ empty|default:"Not signed." }}</p>{% endif %}
+{% if signatures %}<ol class="vr-timeline vr-signatures">{% for sig in signatures %}
+  <li class="vr-history-item vr-signature" data-signature-meaning="{{ sig.meaning }}" data-signature-revision="{{ sig.revision }}">
+    <span class="vr-timeline-icon vr-sign-icon">{% icon name="vector-pen" %}</span>
+    <div class="vr-timeline-main">
+      <div class="vr-timeline-head"><span class="vr-timeline-title"><span class="visually-hidden">Signed: </span><strong>{{ sig.meaning }}</strong></span></div>
+      <p class="vr-timeline-meta">{{ sig.signer_name }} · {{ subject|default:"Record" }}{% if numbered %} {{ sig.object_id }}{% endif %} revision {{ sig.revision }}{% if hash %} · <span class="vr-id" title="SHA-256 of the signed content">{{ sig.content_hash|truncatechars:13 }}</span>{% endif %}</p>
+    </div>
+    <time class="vr-timeline-time vr-timeline-meta" datetime="{{ sig.signed_at|date:'c' }}">{{ sig.signed_at|date:"Y-m-d H:i:s T" }}</time>
+  </li>
+{% endfor %}</ol>{% else %}<p class="mb-0">{{ empty|default:"Not signed." }}</p>{% endif %}

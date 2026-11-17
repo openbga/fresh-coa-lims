@@ -4,7 +4,7 @@ urls: quality:review
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: quality.Result, quality.Lot, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Independently review one foundation (manual-limit) result and sign it with meani
 
 ## Layout
 
-- A signing dialog (a plain card without JavaScript): meaning, lot number, the result's record revision, the result (test, value, unit, limits), the signer, a link to enrol or change the PIN, the form, **Sign reviewed** and **Cancel**. Focus starts in the PIN field or on the error.
+- Breadcrumbs Lots › the lot number › the title. A signing dialog (a plain card without JavaScript), headed with the title: meaning, lot number, the result's record revision, the result (test, value, unit, limits), the signer, a link to enrol or change the PIN, the form, **Sign reviewed** and **Cancel**. Focus starts in the PIN field or on the error.
 
 ## Actions
 

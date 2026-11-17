@@ -6,6 +6,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from catalog.tests.factories import (
@@ -88,8 +89,8 @@ def test_intended_use_and_rehearsal_are_recorded_and_accepted(
         for box in page.get_by_role("checkbox").all():
             box.check()
         owner = f"{qa_a.get_full_name()} ({qa_a.username})"
-        field("Process owner").select_option(label=owner)
-        field("System owner").select_option(label=owner)
+        pick(field("Process owner"), label=owner)
+        pick(field("System owner"), label=owner)
         field("Validation report").fill("VAL-SYN-001 rev 1")
         field("Reason").fill("Synthetic validation completed")
         page.get_by_role("button", name="Record intended use", exact=True).click()
@@ -130,7 +131,7 @@ def test_intended_use_and_rehearsal_are_recorded_and_accepted(
         sign_out()
         login(admin)
         page.goto(base + reverse("validation:rehearsal_new"))
-        field("Rehearsal of").select_option(label="Upgrade")
+        pick(field("Rehearsal of"), label="Upgrade")
         field("Title").fill("Synthetic upgrade rehearsal")
         field("Performed on").fill("2026-11-01")
         field("Environment").fill("Isolated synthetic copy")

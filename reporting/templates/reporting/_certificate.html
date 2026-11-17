@@ -1,14 +1,16 @@
-{% load reporting_tags %}
-{# Renders a frozen snapshot (or live evidence for a preview). Never reads live records. #}
+{% load reporting_tags ui %}
+{# Renders a frozen snapshot (or live evidence for a preview). Never reads live records. The cert-* classes are hooks for the PDF stylesheet (reporting/pdf/certificate.html) only. #}
 <article class="card mb-3" aria-labelledby="cert-title">
-  <div class="card-header"><h2 class="card-title" id="cert-title">Certificate of analysis{% if snapshot.report %} · {{ snapshot.report.number }} version {{ snapshot.report.version }}{% else %} · preview{% endif %}</h2></div>
+  <div class="card-header"><h2 class="card-title" id="cert-title">Certificate of analysis{% if snapshot.report %} · <span class="cert-id">{{ snapshot.report.number }} version {{ snapshot.report.version }}</span>{% else %} · preview{% endif %}</h2></div>
   <div class="card-body">
     {% if snapshot.report.kind == "amendment" %}
+    <div class="cert-amendment">
     <p class="mb-1"><strong>Amended certificate.</strong> Replaces version {{ snapshot.report.amends_version }}; the earlier version remains on record.</p>
     <p>Reason for amendment: {{ snapshot.report.reason }}</p>
+    </div>
     {% endif %}
     <h3 class="h6 fw-bold mt-4">Material and lot</h3>
-    <dl class="vr-facts">
+    <dl class="vr-facts cert-key">
       <div><dt>Lot number</dt><dd>{{ snapshot.lot.number }}</dd></div>
       <div><dt>Material</dt><dd>{{ snapshot.lot.material }}</dd></div>
       {% if snapshot.report %}<div><dt>Issued to</dt><dd>{{ snapshot.report.recipient|default:"General certificate (no named recipient)" }}</dd></div>{% endif %}
@@ -16,9 +18,9 @@
     </dl>
     <h3 class="h6 fw-bold mt-4">Decision</h3>
     {% if snapshot.disposition %}
-    <p>Laboratory QC disposition: <strong>approved</strong> (lot state {{ snapshot.lot.state }}), signed by {{ snapshot.disposition.signer_name }} on {{ snapshot.disposition.signed_at|stamp }}, binding lot record revision {{ snapshot.disposition.revision }}.</p>
+    <p class="cert-decision">Laboratory QC disposition: <strong>approved</strong> (lot state {{ snapshot.lot.state }}), signed by {{ snapshot.disposition.signer_name }} on {{ snapshot.disposition.signed_at|stamp }}, binding lot record revision {{ snapshot.disposition.revision }}.</p>
     {% else %}
-    <p>No signed QC disposition is recorded.</p>
+    <p class="cert-decision">No signed QC disposition is recorded.</p>
     {% endif %}
     <p class="vr-muted small">This certificate reports the laboratory QC disposition and test results only. It is not the manufacturer's batch release or qualified-person certification.</p>
     <h3 class="h6 fw-bold mt-4">Applied rules, specification and methods</h3>
@@ -51,7 +53,7 @@
             <td>{% for rep in r.replicates %}{{ rep.value }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
             <td class="text-end">{{ r.reportable }}{% if r.unit %} {{ r.unit }}{% endif %}</td>
             <td>{% if r.acceptance %}{{ r.acceptance }}{% else %}{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}{% endif %}</td>
-            <td>{% if r.review %}{{ r.review.signer }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not reviewed" tone="warning" plain=True %}{% endif %}</td>
+            <td>{% if r.review %}{{ r.review.signer }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% status label="Not reviewed" tone="warning" plain=True print=True %}{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -71,7 +73,7 @@
             <td class="vr-wrap">{{ s.stated.method }}<span class="d-block vr-muted">Limits stated: {{ s.stated.limits }}</span></td>
             <td class="vr-wrap">{{ s.criterion }}</td>
             <td class="vr-wrap">{{ s.certificate.number }} dated {{ s.certificate.issued_on }}, issued by {{ s.certificate.issued_by }}<span class="d-block vr-muted">Supplier {{ s.supplier.name }}, {{ s.supplier.location }}. Qualification {{ s.qualification.label }}: {{ s.qualification.evidence_ref }}.</span></td>
-            <td>{% if s.signature %}{{ s.signature.signer }}<br><time class="vr-muted">{{ s.signature.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not accepted" tone="warning" plain=True %}{% endif %}</td>
+            <td>{% if s.signature %}{{ s.signature.signer }}<br><time class="vr-muted">{{ s.signature.signed_at|stamp }}</time>{% else %}{% status label="Not accepted" tone="warning" plain=True print=True %}{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -91,9 +93,9 @@
             <td class="text-end">{{ r.value }}</td>
             <td>{{ r.unit }}</td>
             <td>{{ r.lower_limit }} to {{ r.upper_limit }} {{ r.unit }}</td>
-            <td>{% if r.conforms %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Out of limits" tone="danger" plain=True %}{% endif %}</td>
+            <td>{% if r.conforms %}{% status label="Conforms" tone="success" plain=True print=True %}{% else %}{% status label="Out of limits" tone="danger" plain=True print=True %}{% endif %}</td>
             <td>{{ r.analyst }}</td>
-            <td>{% if r.review %}{{ r.review.signer_name }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% include "includes/status.html" with label="Not reviewed" tone="warning" plain=True %}{% endif %}</td>
+            <td>{% if r.review %}{{ r.review.signer_name }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% status label="Not reviewed" tone="warning" plain=True print=True %}{% endif %}</td>
           </tr>
         {% endfor %}
         </tbody>

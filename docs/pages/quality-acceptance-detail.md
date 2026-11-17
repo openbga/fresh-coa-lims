@@ -77,4 +77,4 @@ One result of a supplier's certificate proposed or accepted in place of the labo
 - Supplier qualification record; Supplier record.
 - Lot testing; Sign lot disposition.
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

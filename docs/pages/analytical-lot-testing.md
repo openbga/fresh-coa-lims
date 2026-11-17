@@ -4,7 +4,7 @@ urls: analytical:lot_testing
 views: analytical.views.lot_testing
 templates: analytical/lot_testing.html, analytical/_test_status.html, analytical/_investigation_status.html
 models: quality.Lot, quality.Sample, quality.SupplierResultAcceptance, analytical.AnalyticalTest, analytical.Investigation
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 - **Header**: "LOT testing", lot status (Quarantine or the lot's state), material, Rule set, Lot revision; **Lot record** button.
 - **Analytical evidence for QC disposition**: either **Blocked** with the list "QC disposition cannot be approved until these are resolved:" or **Complete**.
 - **Supplier results accepted in place of tests** (only when the lot has a signed acceptance that still stands), with their number: "These requirements are answered for the whole lot by a result stated on the supplier's certificate. They are not tested here; a test assigned for one stays open and takes no result while the acceptance stands.", then a table: Acceptance, Test, Supplier's result, Supplier certificate, Acceptance and specification, Accepted by.
-- **One card per sample** (collection order): sample reference, test count, **Assign required tests**, collection time, and a table: Test, Code, Kind, Status, Reportable, Acceptance and specification. Empty: "No tests assigned".
+- **One card per sample** (collection order): sample reference, test count, **Assign required tests**, collection time, and a table: Test (with its kind as a tag when it is not an original: Retest, Resample, Rerun after QC failure, Repeat under replaced requirements), Code, Status, Reportable, Acceptance and specification. Empty: "No tests assigned".
 - **No samples**: "No samples recorded" with a **Lot record** link.
 - **Investigations**: list with status and trigger, or "No investigations".
 
@@ -66,7 +66,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 ## Related pages
 
 - [Testing: tests](/testing/)
-- [Material lots](/)
+- [Material lots](/lots/)
 - Lot record, Test record, Investigation record.
 - Lot requirements and sampling; Decide conflicting requirements and Replace lot requirements (quality).
 - Supplier result acceptance record.

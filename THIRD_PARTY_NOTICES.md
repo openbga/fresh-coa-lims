@@ -30,4 +30,5 @@ version, files and verified tarball integrity.
 | DataTables 3.1.5 (core and Bootstrap 5 integration) / ColReorder 3.1.2 | MIT; https://datatables.net/license/mit; retain `static/vendor/datatables/License.txt` |
 | Tom Select 2.7.0 (including bundled Sifter and microplugin) | Apache-2.0; https://github.com/orchidjs/tom-select/blob/v2.7.0/LICENSE; retain `static/vendor/tom-select/LICENSE` and the file headers |
 | Vanilla Calendar Pro 3.4.0 | MIT; https://github.com/uvarov-frontend/vanilla-calendar-pro/blob/v3.4.0/LICENSE; retain `static/vendor/vanilla-calendar-pro-3.4.0/LICENSE` and the file header |
+| Archivo 2.001 (Latin subset, static/vendor/archivo-2.001/) | SIL OFL 1.1; Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo); retain `static/vendor/archivo-2.001/Archivo-OFL.txt` |
 | Playwright / pytest-playwright (optional test tools) | Apache-2.0; https://github.com/microsoft/playwright-python/blob/main/LICENSE |

@@ -65,4 +65,4 @@ Quality signs the cancellation of a lot that was recorded in error, such as a de
 - Lot record (opens after signing and when refused)
 - Reject lot (when the material was handled but cannot be used)
 - [Signature PIN](/signature-pin/)
-- [Material lots](/)
+- [Material lots](/lots/)

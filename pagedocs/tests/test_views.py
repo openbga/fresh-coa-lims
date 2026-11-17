@@ -20,7 +20,7 @@ def doc_url(path):
 
 def test_fragment_for_documented_page(client, analyst):
     client.force_login(analyst)
-    response = client.get(doc_url("/"), **FRAGMENT)
+    response = client.get(doc_url("/lots/"), **FRAGMENT)
     assert response.status_code == 200
     body = response.content.decode()
     assert 'data-pagedocs-for="quality:lot_list"' in body
@@ -45,7 +45,7 @@ def test_unknown_or_foreign_paths_are_not_documented(client, analyst, path):
 
 
 def test_fragment_requires_sign_in(client):
-    response = client.get(doc_url("/"), **FRAGMENT)
+    response = client.get(doc_url("/lots/"), **FRAGMENT)
     assert response.status_code == 403
     assert "Material lots" not in response.content.decode()
 

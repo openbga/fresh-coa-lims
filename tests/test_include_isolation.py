@@ -100,6 +100,7 @@ CASES = {
     "history_item": '{% load ui %}{% history_item title="Received" at=when %}',
     "history_panel": "{% load ui %}{% history_panel events=no_events %}{% endhistory_panel %}",
     "icon": '{% load ui %}{% icon name="x" %}',
+    "kind_tag": '{% load ui %}{% kind_tag label="Retest" %}',
     "list_results": '{% load ui %}{% list_results items=no_events noun="lots" %}'
     "<table></table>{% endlist_results %}",
     "messages": "{% load ui %}{% messages %}",
@@ -116,9 +117,11 @@ CASES = {
     "record_layout": '{% load ui %}{% record_layout aside_label="Next" %}{% fill lead %}Lead'
     "{% endfill %}Rest{% endrecord_layout %}",
     "required_note": "{% load ui %}{% required_note %}",
+    "route": "{% load ui %}{% route stages=no_events %}",
     "row_select": '{% load ui %}{% row_select name="events" value=1 %}',
     "section_tabs": "{% load ui %}{% section_tabs tabs=no_events %}",
     "select_all": '{% load ui %}{% select_all name="events" label="All" %}',
+    "signature_card": '{% load ui %}{% signature_card title="Sign" %}Form{% endsignature_card %}',
     "signature_list": "{% load ui %}{% signature_list signatures=no_events %}",
     "sort_header": '{% load ui %}{% sort_header label="Lot" asc="number" '
     'desc="-number" sort="number" %}',

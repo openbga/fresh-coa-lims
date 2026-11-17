@@ -76,4 +76,4 @@ Corrects the receipt details of a quarantined lot by adding a linked, newer reco
 - Record receipt details (for a lot without receipt details).
 - [Suppliers](/suppliers/)
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

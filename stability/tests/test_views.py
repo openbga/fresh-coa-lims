@@ -485,3 +485,15 @@ def test_oversized_protocol_preselection_is_ignored(client, people):
     client.force_login(people["analyst"])
     response = client.get(reverse("stability:study_new"), {"protocol": "9" * 5000})
     assert response.status_code == 200
+
+
+def test_study_record_shows_the_pull_schedule_by_condition_and_time_point(client, people):
+    study = started_study(people)  # pulls due at day 30 (overdue), 100 (due now), 180 (upcoming)
+    client.force_login(people["auditor"])
+    body = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
+    assert "Pull schedule" in body
+    for pull in study.pulls.all():
+        assert reverse("stability:pull_detail", args=[pull.pk]) in body
+        assert pull.timepoint.label in body and pull.due_date.isoformat() in body
+    assert body.count('class="vr-due-now"') == 1  # only the pull due now
+    assert "Overdue" in body and "Upcoming" in body

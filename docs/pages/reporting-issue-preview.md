@@ -63,4 +63,4 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 ## Related pages
 
 - [New certificate of analysis](/reports/new/)
-- Sign and issue certificate (follows from this page), the certificate record, [Material lots](/).
+- Sign and issue certificate (follows from this page), the certificate record, [Material lots](/lots/).

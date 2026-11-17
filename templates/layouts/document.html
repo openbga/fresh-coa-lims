@@ -12,6 +12,7 @@ Application document and staff shell. Block contract (docs/ui-standards.md):
   page_dateline  overview pages: {% dateline %}
   breadcrumbs    record, form, action and document pages: {% breadcrumbs %}
   page_heading   <h1> text; defaults to {{ page_title }}
+  page_title_class  " vr-data" when the title is a record identifier (not widened)
   page_meta      record pages: {% page_meta %} key facts under the title
   page_actions   page buttons, right of the title: at most one .btn-primary, placed last; further
                  actions in {% more_actions %}
@@ -24,7 +25,7 @@ dialog it renders through layouts/form_fragment.html instead (templates/base.htm
 Every page ends with {% app_footer %} outside <main>.
 {% endcomment %}
 
-<html lang="en" data-bs-theme="light">
+{% if user.is_authenticated %}{% preference "pagedocs.open" as docs_open %}{% preference "pagedocs.width" as docs_width %}{% endif %}<html lang="en" data-bs-theme="light"{% if docs_open %} class="pagedocs-open"{% endif %}{% if docs_width %} data-pagedocs-width="{{ docs_width }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -61,7 +62,7 @@ Every page ends with {% app_footer %} outside <main>.
 <body class="{% block body_class %}vr-app{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% if user.is_authenticated %} data-vr-user="{{ user.pk }}"{% endif %} data-vr-icons="{% static 'img/icons.svg' %}">
   <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
   {% block body %}
-  {% url 'quality:lot_list' as home_url %}
+  {% url 'quality:dashboard' as home_url %}
   {% block topbar %}
   <header class="vr-topbar">
     <button class="btn btn-sm vr-topbar-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#vr-nav" aria-controls="vr-nav" aria-label="Menu">{% icon name="list" %}<span class="d-none d-sm-inline">Menu</span></button>
@@ -95,7 +96,7 @@ Every page ends with {% app_footer %} outside <main>.
         {% block breadcrumbs %}{% endblock %}
         <div class="vr-page-header-row">
           <div>
-            <h1 class="vr-page-title">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            <h1 class="vr-page-title{% block page_title_class %}{% endblock %}">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
             {% block page_meta %}{% endblock %}
           </div>
           <div class="vr-page-actions">{% block page_actions %}{% endblock %}</div>

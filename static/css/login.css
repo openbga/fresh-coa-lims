@@ -3,7 +3,7 @@
   display: grid;
   min-height: 100vh;
   min-height: 100svh;
-  background: var(--vr-band);
+  background: var(--vr-topbar-bg);
 }
 
 .vr-login-scene {
@@ -69,7 +69,7 @@
     position: relative;
     display: block;
     min-height: 100%;
-    background-color: var(--vr-band);
+    background-color: var(--vr-topbar-bg);
     background-image: url("../img/login-manufacturing-day.webp");
     background-position: center bottom;
     background-size: cover;

@@ -1,16 +1,17 @@
 import logging
 import re
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
+from core.grids import paginate
 from core.models import AuditEvent
 from quality.models import Lot
 
@@ -35,6 +36,21 @@ STATUS_FILTERS = {
     "issued": Q(state="issued", version_count=1),
     "amended": Q(state="issued", version_count__gt=1),
 }
+
+
+class ReportFilterForm(forms.Form):
+    """The certificate list's status filter; the search box is the toolbar's own (q)."""
+
+    status = forms.ChoiceField(
+        label="Status",
+        choices=[
+            ("", "All statuses"),
+            ("draft", "Not issued"),
+            ("issued", "Issued"),
+            ("amended", "Amended"),
+        ],
+        required=False,
+    )
 
 
 def has_role(user, *roles):
@@ -67,7 +83,10 @@ def report_list(request):
     services.require_reader(request.user)
     reports = Report.objects.select_related("lot")
     query = request.GET.get("q", "").strip()
-    status = request.GET.get("status", "")
+    filters = ReportFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every certificate
+        filters = ReportFilterForm()
+    status = filters.cleaned_data["status"] if filters.is_bound else ""
     if query:
         reports = reports.filter(
             Q(number__icontains=query)
@@ -75,31 +94,22 @@ def report_list(request):
             | Q(lot__material__icontains=query)
             | Q(recipient__icontains=query)
         )
-    if status in STATUS_FILTERS:
+    if status:
         reports = reports.filter(STATUS_FILTERS[status])
     sort = request.GET.get("sort", "-created")
     key = SORTS.get(sort.lstrip("-"), "created_at")
     reports = reports.order_by(("-" if sort.startswith("-") else "") + key, "-id")
-    page = Paginator(reports, 25).get_page(request.GET.get("page"))
-    params = request.GET.copy()
-    params.pop("page", None)
     return render(
         request,
         "reporting/report_list.html",
         {
             "page_title": "Certificates of analysis",
-            "page_obj": page,
+            "page_obj": paginate(request, reports),
             "query": query,
-            "status": status,
+            "filters": filters,
             "sort": sort,
             "filtered": bool(query or status),
-            "querystring": params.urlencode(),
             "can_issue": has_role(request.user, services.ISSUE_ROLE),
-            "status_choices": [
-                ("draft", "Not issued"),
-                ("issued", "Issued"),
-                ("amended", "Amended"),
-            ],
         },
     )
 
