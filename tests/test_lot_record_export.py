@@ -706,3 +706,48 @@ def test_a_missing_font_stops_the_export_and_records_nothing(released, monkeypat
     with pytest.raises(RenderError, match="font"):
         export(released)
     assert AuditEvent.objects.count() == before
+
+
+def test_blank_structured_values_print_as_a_dash():
+    """An empty structured value prints as a dash, as "How to read this record" says; record.json
+    keeps the value itself."""
+    from analytical.models import AnalyticalTest
+
+    field = AnalyticalTest._meta.get_field("not_completed_record")
+    for blank in ({}, []):
+        printed = lot_record._printed_value(
+            AnalyticalTest(not_completed_record=blank), field, None, {}, {}
+        )
+        assert printed == {"text": "—"}
+    filled = lot_record._printed_value(
+        AnalyticalTest(not_completed_record={"cause": "equipment"}), field, None, {}, {}
+    )
+    assert filled["block"] and '"cause": "equipment"' in filled["text"]
+
+
+def test_signature_meanings_print_in_words():
+    """The printed record shows a signature meaning as the screen does ("not completed"), not
+    as its stored code; the code stays in record.json."""
+    from django.template.loader import render_to_string
+
+    record = {
+        "title": "T-1 assay",
+        "ref": "analytical.analyticaltest:1",
+        "rows": [],
+        "part": "lot",
+        "events": 1,
+        "entered": True,
+        "later": 0,
+        "signatures": [
+            {
+                "name": "Synthetic approver",
+                "meaning": "not_completed",
+                "signed_at": "2026-11-17 12:00:00 UTC",
+                "revision": 2,
+                "content_hash": "a" * 64,
+                "outcome": "intact",
+            }
+        ],
+    }
+    html = render_to_string("reporting/pdf/_lot_record_entry.html", {"record": record})
+    assert "<td>not completed</td>" in html and "not_completed" not in html

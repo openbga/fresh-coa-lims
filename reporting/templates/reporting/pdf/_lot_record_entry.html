@@ -1,4 +1,4 @@
-<div class="record">
+{% load ui %}<div class="record">
 <h3>{{ record.title }} <span class="vr-id vr-muted">{{ record.ref }}</span></h3>
 <table class="fields">
   <tbody>
@@ -10,7 +10,7 @@
 <table>
   <thead><tr><th scope="col" class="w22">Signed by</th><th scope="col" class="w16">Meaning</th><th scope="col" class="w17">Date and time (UTC)</th><th scope="col" class="num w9">Revision</th><th scope="col">Signed content SHA-256</th></tr></thead>
   <tbody>
-    {% for signature in record.signatures %}<tr><td>{{ signature.name }}</td><td>{{ signature.meaning }}</td><td>{{ signature.signed_at }}</td><td class="num">{{ signature.revision }}</td><td><span class="vr-id">{{ signature.content_hash }}</span>{% if signature.outcome != "intact" %}<br><strong>Does not match the signed content</strong>{% endif %}</td></tr>{% endfor %}
+    {% for signature in record.signatures %}<tr><td>{{ signature.name }}</td><td>{{ signature.meaning|meaning }}</td><td>{{ signature.signed_at }}</td><td class="num">{{ signature.revision }}</td><td><span class="vr-id">{{ signature.content_hash }}</span>{% if signature.outcome != "intact" %}<br><strong>Does not match the signed content</strong>{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>
 {% endif %}

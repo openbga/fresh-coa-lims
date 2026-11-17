@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.html import format_html
 from django.views.decorators.http import require_http_methods
 
 from core.grids import Column, paginate
@@ -179,6 +180,8 @@ def action_page(
 def sign_page(
     request, form, *, title, submit, meaning, record, record_label, crumbs, cancel_url, summary
 ):
+    # The card's first sentence states the record revision; the facts do not repeat it.
+    summary = [item for item in summary if item[0] != "Record revision"]
     return render(
         request,
         "analytical/sign.html",
@@ -509,11 +512,43 @@ def test_crumbs(test, current=None):
 
 
 def test_summary(test):
+    """The test an action page applies to, as the test record shows it: the test number, name
+    and code chip; the lot with its sample (or stability pull) under it; the specification as
+    code and version with the requirement's hash; the acceptance criterion."""
     spec = test.spec
+    under = (
+        f"stability pull {test.pull.label}" if test.pull_id else f"sample {test.sample.reference}"
+    )
     return [
-        ("Test", f"{test.label} · {spec.name} ({test.test_code})"),
-        ("Lot and stability pull" if test.pull_id else "Lot and sample", test.subject_text),
-        ("Specification", f"{spec.source} · {spec.acceptance}"),
+        (
+            "Test",
+            format_html(
+                '<span class="vr-id">{}</span> {} <code class="vr-code">{}</code>',
+                test.label,
+                spec.name,
+                test.test_code,
+            ),
+        ),
+        (
+            "Lot and stability pull" if test.pull_id else "Lot and sample",
+            format_html(
+                '<span class="vr-nowrap">{}</span><small class="vr-nowrap">{}</small>',
+                test.source_lot.number,
+                under,
+            ),
+        ),
+        (
+            "Specification",
+            format_html(
+                '<code class="vr-code" title="{}">{}</code><small><code class="vr-code" '
+                'title="{}">{}</code></small>',
+                spec.source,
+                source_label(spec.source),
+                test.requirement_hash,
+                test.requirement_hash[:12],
+            ),
+        ),
+        ("Acceptance", spec.acceptance),
         ("Record revision", test.revision),
     ]
 
@@ -771,6 +806,7 @@ def test_not_completed(request, pk):
                         if test.observations.exists() or files
                         else "It holds no reading or file, so it will not count toward the "
                         "specification's retests.",
+                        True,
                     )
                 ]
                 if test.investigation_id
@@ -779,6 +815,7 @@ def test_not_completed(request, pk):
             (
                 "What follows",
                 FOLLOW_UP_TEXT[follow].format(investigation=investigation, subject=subject),
+                True,
             ),
         ],
     )

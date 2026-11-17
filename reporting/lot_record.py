@@ -605,8 +605,8 @@ def _printed_value(obj, f, c, people, names):
         if not entry:
             return {"text": "No content."}
         return {"text": f"File {entry['path']}, {entry['size']} bytes, SHA-256 {entry['sha256']}"}
-    if value is None or value == "":
-        return {"text": "—"}
+    if value is None or value == "" or (isinstance(f, models.JSONField) and value in ({}, [])):
+        return {"text": "—"}  # blank, as "How to read this record" says; record.json keeps it
     if _is_reference(f):
         label = label_of(f.related_model)
         if label == USER_LABEL:

@@ -75,8 +75,6 @@
     {% fact label="Manufacturer" %}{% if receipt.manufacturer %}{{ receipt.manufacturer }}{% if receipt.manufacturer_location %}, {{ receipt.manufacturer_location }}{% endif %}{% else %}Not stated{% endif %}{% endfact %}
     {% if receipt.manufacturer_lot %}{% fact label="Manufacturer lot number" value=receipt.manufacturer_lot %}{% endif %}{% endif %}
     {% fact label="Delivery or batch document" value=receipt.shipment_ref %}
-    {% fact label="Date received" %}<time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time>{% endfact %}
-    {% fact label="Quantity received" %}{{ receipt.quantity_text }} {{ receipt.quantity_unit }}{% endfact %}
     {% fact label="Containers" %}{{ receipt.containers }} · {{ receipt.container_description }}{% endfact %}
     {% fact label="Examination on receipt" %}{% if receipt.has_discrepancy %}{% status label=receipt.get_condition_display tone="warning" %}{% else %}{% status label=receipt.get_condition_display tone="success" %}{% endif %}{% if receipt.condition_notes %}<br>{{ receipt.condition_notes|linebreaksbr }}{% endif %}{% endfact %}
   </dl>
@@ -159,7 +157,7 @@
           {% for t in sample.native_tests %}
           <tr>
             <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}</th>
-            <td>{{ t.test_code }}</td>
+            <td>{% code value=t.test_code %}</td>
             <td>{% include "analytical/_test_status.html" with test=t plain=True only %}</td>
             <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% if t.spec.unit %} <span class="vr-muted small">{{ t.spec.unit }}</span>{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
           </tr>
