@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, facts, primary_action, actions, more_actions, schedule, sections, signatures, history, notice.{% endcomment %}
+{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, meta (the muted line), facts, primary_action, actions, more_actions, schedule, sections, signatures, history, notice.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% include "ops/_cell.html" with cell=state only %}</li><li class="vr-id">{{ identifier }}</li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if state.tone %}{% status label=state.text tone=state.tone size="lg" %}{% else %}{% include "ops/_cell.html" with cell=state only %}{% endif %}</li><li>{% code value=identifier %}</li>{% fill line %}{% for label, value in meta %}{{ label }} <strong>{{ value }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}{% endfill %}{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% for action in actions %}<a class="btn btn-outline-secondary" href="{{ action.href }}">{{ action.label }}</a>{% endfor %}{% more_actions %}{% for action in more_actions %}<li><a class="dropdown-item" href="{{ action.href }}">{{ action.label }}</a></li>{% endfor %}{% endmore_actions %}{% if primary_action %}<a class="btn btn-primary" href="{{ primary_action.href }}">{{ primary_action.label }}</a>{% endif %}{% endblock %}
 {% block content %}
 {% if notice %}{% if notice.tone == "danger" or notice.tone == "warning" %}{% notice tone=notice.tone label=notice.label blocking=True %}{{ notice.text }}{% endnotice %}{% else %}{% notice tone=notice.tone label=notice.label %}{{ notice.text }}{% endnotice %}{% endif %}{% endif %}
@@ -13,7 +13,7 @@
 {% panel title="Pull schedule" heading_id="schedule-heading" table=True class="mb-3" %}
   <div class="vr-table-wrap"><table class="table vr-table vr-schedule" aria-labelledby="schedule-heading">
     <thead><tr><th scope="col">Storage condition</th>{% for column in schedule.columns %}<th scope="col">{{ column.label }}<div class="vr-muted small"><time datetime="{{ column.date }}">{{ column.date }}</time></div></th>{% endfor %}</tr></thead>
-    <tbody>{% for row in schedule.rows %}<tr><th scope="row">{{ row.condition.label }}<div class="vr-muted small">{{ row.condition.setpoint }}</div></th>{% for cell in row.cells %}<td{% if cell.due_now %} class="vr-due-now"{% endif %}>{% if cell %}<a href="{{ cell.href }}">{% status label=cell.label tone=cell.tone plain=True %}</a>{% else %}<span class="vr-muted" aria-label="none">—</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    <tbody>{% for row in schedule.rows %}<tr><th scope="row">{{ row.condition.label }}<div class="vr-muted small">{{ row.condition.setpoint }}</div></th>{% for cell in row.cells %}<td>{% if cell %}<a href="{{ cell.href }}">{% status label=cell.label tone=cell.tone %}</a>{% else %}<span class="vr-muted" aria-label="none">—</span>{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
   </table></div>
 {% endpanel %}
 {% endif %}
@@ -29,12 +29,12 @@
 {% endpanel %}
 {% endwith %}{% endfor %}
 {% panel title="Signatures" heading_id="signatures-heading" table=True class="mb-3" %}
-  {% list_results items=signatures empty_title="No signatures yet" %}
+  {% if signatures %}
   <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="signatures-heading">
     <thead><tr><th scope="col">Signer</th><th scope="col">Meaning</th><th scope="col">Signed (server time)</th><th scope="col">Record</th><th scope="col" class="text-end">Bound revision</th><th scope="col">Content hash</th></tr></thead>
-    <tbody>{% for s in signatures %}<tr data-signature-meaning="{{ s.meaning }}" data-signature-revision="{{ s.revision }}"><th scope="row">{{ s.signer_name }}</th><td>{{ s.meaning|capfirst }}</td><td><time datetime="{{ s.signed_at|date:'c' }}">{{ s.signed_at|date:"Y-m-d H:i:s T" }}</time></td><td>{{ s.object_type }} {{ s.object_id }}</td><td class="text-end">{{ s.revision }}</td><td><code>{{ s.content_hash|slice:":12" }}</code></td></tr>{% endfor %}</tbody>
+    <tbody>{% for s in signatures %}<tr data-signature-meaning="{{ s.meaning }}" data-signature-revision="{{ s.revision }}"><th scope="row">{{ s.signer_name }}</th><td>{{ s.meaning|capfirst }}</td><td>{{ s.signed_at|when:"seconds" }}</td><td>{{ s.object_type }} {{ s.object_id }}</td><td class="text-end vr-data">{{ s.revision }}</td><td>{% code value=s.content_hash hash=True %}</td></tr>{% endfor %}</tbody>
   </table></div>
-  {% endlist_results %}
+  {% else %}<p class="vr-muted mb-0">No signatures yet.</p>{% endif %}
 {% endpanel %}
 {% history_panel events=history empty_title="No history recorded" %}{% for event in history %}{% history_item title=event.action|action_label action=event.action at=event.occurred_at actor=event.actor reason=event.reason changes=event.changes %}{% endfor %}{% endhistory_panel %}
 {% endblock %}

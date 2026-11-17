@@ -97,6 +97,33 @@
       }
     }
   }
+  // Tables: content is never cut off silently. A table wider than its panel must sit in a scroll
+  // container (.vr-table-wrap); nothing may clip it, and no cell may clip its own content
+  // (ellipsis text carries its full text in a tooltip and is not a cell clip).
+  for (const table of document.querySelectorAll('.vr-main table')) {
+    if (!visible(table)) continue;
+    const t = table.getBoundingClientRect();
+    let scroller = null, clipper = null;
+    for (let a = table.parentElement; a && a !== document.body; a = a.parentElement) {
+      const s = getComputedStyle(a);
+      if (/(auto|scroll)/.test(s.overflowX)) { scroller = a; break; }
+      if (/(hidden|clip)/.test(s.overflowX)) { clipper = a; break; }
+    }
+    const card = table.closest('.card');
+    if (clipper && t.right > clipper.getBoundingClientRect().right + tolerance) {
+      problems.push(`table clipped by ${label(clipper).slice(0, 40)}: ${Math.round(t.width)}px in ${Math.round(clipper.getBoundingClientRect().width)}px`);
+    }
+    if (!scroller && !clipper && card && t.right > card.getBoundingClientRect().right + tolerance) {
+      problems.push(`table overflows its panel without scrolling: ${label(table).slice(0, 40)}`);
+    }
+    for (const cell of table.querySelectorAll('td, th')) {
+      if (!visible(cell)) continue;
+      if (/(hidden|clip)/.test(getComputedStyle(cell).overflowX) && cell.scrollWidth > cell.clientWidth + tolerance) {
+        problems.push(`table cell clipped: "${cell.innerText.trim().slice(0, 40)}"`);
+      }
+    }
+  }
+
   // Collapsible panels, closed: the head's title sits with the same inset above and below.
   for (const details of document.querySelectorAll('details.card')) {
     if (!visible(details)) continue;

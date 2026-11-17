@@ -26,6 +26,7 @@ from .ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -84,7 +85,7 @@ def _uses_section(uses, total, *, with_approval):
                 use.report_number,
                 day(use.report_date),
                 *([cell(use.approval.label, _approval_url(use.approval))] if with_approval else []),
-                str(use.used_by),
+                person(use.used_by),
             ]
         )
     note = (
@@ -288,7 +289,7 @@ def contract_laboratory_detail(request, pk):
             ("Code", laboratory.code),
             ("Name", laboratory.name),
             ("Location", laboratory.location),
-            ("Added by", str(laboratory.created_by)),
+            ("Added by", person(laboratory.created_by)),
             ("Added", when(laboratory.created_at)),
         ],
         actions=[
@@ -368,7 +369,7 @@ def _approval_facts(approval, *, approve):
         ("Evidence", approval.evidence_ref),
         ("Evidence link", external_link(approval.evidence_url)),
         ("Scope", approval.scope_note),
-        ("Recorded by", str(approval.recorded_by)),
+        ("Recorded by", person(approval.recorded_by)),
     ]
     if not approve:
         facts.append(("Accepted reports that relied on it", approval.uses.count()))
@@ -410,7 +411,7 @@ def contract_approval_detail(request, pk):
             ("Evidence reference", approval.evidence_ref),
             ("Evidence link", external_link(approval.evidence_url)),
             ("Scope", approval.scope_note),
-            ("Recorded by", str(approval.recorded_by)),
+            ("Recorded by", person(approval.recorded_by)),
             ("Recorded", when(approval.recorded_at)),
             ("Approved", when(approval.approved_at)),
             ("Revoked", when(approval.revoked_at)),

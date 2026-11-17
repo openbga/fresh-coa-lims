@@ -24,6 +24,7 @@ from laboratory.ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     section,
     sign_page,
@@ -205,7 +206,7 @@ def use_list(request):
             [
                 cell(item.label, use_url(item), sub=item.title),
                 status(label, tone),
-                str(item.recorded_by),
+                person(item.recorded_by),
                 day(timezone.localdate(item.recorded_at)),
                 day(timezone.localdate(item.accepted_at)) if item.accepted_at else "",
                 _drift_text(rows_now, finding) if current and item.pk == current.pk else "",
@@ -420,7 +421,7 @@ def use_detail(request, pk):
         ("Validation report", acceptance.validation_ref),
         ("Validation report link", external_link(acceptance.validation_url)),
         ("Known issues and conditions", acceptance.open_issues),
-        ("Recorded by", str(acceptance.recorded_by)),
+        ("Recorded by", person(acceptance.recorded_by)),
         ("Recorded", stamp(acceptance.recorded_at)),
         ("Accepted", stamp(acceptance.accepted_at)),
         ("Accepted release", _release_text(acceptance.accepted_release))
@@ -530,7 +531,7 @@ def use_accept(request, pk):
                 "Supersedes",
                 f"{current.label}, accepted {stamp(current.accepted_at)}" if current else "None",
             ),
-            ("Recorded by", str(acceptance.recorded_by)),
+            ("Recorded by", person(acceptance.recorded_by)),
         ],
         revision=acceptance.revision,
         cancel_url=detail,
@@ -713,7 +714,7 @@ def _files_section(files):
             item.description,
             cell(size_text(item.size), numeric=True),
             item.sha256,
-            str(item.uploaded_by),
+            person(item.uploaded_by),
             stamp(item.uploaded_at),
         ]
         for item in files
@@ -749,7 +750,7 @@ def _rehearsal_facts(rehearsal):
         ("Outcome", rehearsal.get_outcome_display()),
         ("Observations", rehearsal.observations),
         ("Issues and actions", rehearsal.issues_and_actions),
-        ("Recorded by", str(rehearsal.recorded_by)),
+        ("Recorded by", person(rehearsal.recorded_by)),
     ]
     return [fact for fact in facts if fact]
 

@@ -211,6 +211,14 @@ def day(value):
     return value.isoformat() if value else ""
 
 
+def person(user):
+    """A person as the app names them everywhere (as the lot record does): full name, else the
+    username; blank for nobody."""
+    if user is None:
+        return ""
+    return user.get_full_name() or user.get_username()
+
+
 def status(label, tone="neutral"):
     return cell(label, tone=tone)
 
@@ -401,10 +409,12 @@ def record_page(
     related=(),
     notice=None,
     schedule=None,
+    meta=(),
     status_code=200,
 ):
     """`related` are objects whose signatures and audit history appear on the page. `schedule`
     (a stability study's pulls as a condition by time point grid) is shown before `sections`.
+    `meta` is the muted line under the title: (label, value) pairs such as the record revision.
 
     The header shows at most one primary action (last) and three others; the rest go under
     More (docs/ui-standards.md)."""
@@ -428,6 +438,7 @@ def record_page(
             "history": history_for(*related),
             "notice": notice,
             "schedule": schedule,
+            "meta": [(label, value) for label, value in meta if value not in (None, "")],
         },
         status=status_code,
     )
@@ -553,7 +564,7 @@ def impact_row(use, resolved):
         detail.get("state", ""),
         detail.get("result", ""),
         cell(str(detail["tests"]), numeric=True) if batch else "",
-        str(use.used_by),
+        person(use.used_by),
     ]
 
 

@@ -56,6 +56,7 @@ from .ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -335,7 +336,7 @@ def equipment_detail(request, pk):
                 external_link(c.certificate_url, c.certificate_ref or c.certificate_url)
                 if c.certificate_url
                 else c.certificate_ref,
-                str(c.recorded_by),
+                person(c.recorded_by),
                 cell("Accept", reverse("laboratory:calibration_accept", args=[c.pk]))
                 if offer
                 else "",
@@ -412,7 +413,7 @@ def equipment_detail(request, pk):
                     work_cell(u, recent_work),
                     u.activity,
                     u.test_code,
-                    str(u.used_by),
+                    person(u.used_by),
                 ]
                 for u in uses
             ],
@@ -457,7 +458,7 @@ def equipment_detail(request, pk):
             ("Qualification required", "Yes" if item.requires_qualification else "No"),
             ("Service state", status(item.get_state_display(), _tone(not out_of_service))),
             ("Last status change", when(item.status_changed_at)),
-            ("Changed by", str(item.status_changed_by or "")),
+            ("Changed by", person(item.status_changed_by)),
             ("Revision", item.revision),
         ],
         actions=actions,
@@ -614,7 +615,7 @@ def calibration_list(request):
             day(c.due_date),
             status(c.get_outcome_display(), "success" if c.outcome == "pass" else "danger"),
             status(c.get_state_display(), "success" if c.state == "accepted" else "progress"),
-            str(c.recorded_by),
+            person(c.recorded_by),
             cell("Accept", reverse("laboratory:calibration_accept", args=[c.pk]))
             if c.state == "recorded"
             and c.recorded_by_id != request.user.pk
@@ -705,7 +706,7 @@ def calibration_accept(request, pk):
             ("Outcome", status(cal.get_outcome_display(), _tone(cal.outcome == "pass"))),
             ("Reference standard", cal.standard_ref),
             ("Tolerance note", cal.tolerance_note),
-            ("Recorded by", str(cal.recorded_by)),
+            ("Recorded by", person(cal.recorded_by)),
         ],
         revision=cal.revision,
         cancel_url=reverse("laboratory:equipment_detail", args=[cal.equipment_id]),
@@ -878,7 +879,7 @@ def qualification_detail(request, pk):
             ("Evidence reference", q.evidence_ref),
             ("Evidence link", external_link(q.evidence_url)),
             ("Scope", q.scope_note),
-            ("Recorded by", str(q.recorded_by)),
+            ("Recorded by", person(q.recorded_by)),
             ("Revision", q.revision),
         ],
         actions=actions,
@@ -1115,7 +1116,7 @@ def reagent_detail(request, pk):
                 if lot.certificate_url
                 else lot.certificate_ref,
             ),
-            ("Recorded by", str(lot.recorded_by)),
+            ("Recorded by", person(lot.recorded_by)),
             ("Released", when(lot.released_at)),
             ("Revision", lot.revision),
         ],
@@ -1138,7 +1139,7 @@ def reagent_detail(request, pk):
                 "Uses",
                 [("Used", False), ("Work", False), ("Activity", False), ("By", False)],
                 [
-                    [when(u.used_at), work_cell(u, lot_work), u.activity, str(u.used_by)]
+                    [when(u.used_at), work_cell(u, lot_work), u.activity, person(u.used_by)]
                     for u in lot_uses
                 ],
                 "No use recorded.",
@@ -1191,7 +1192,7 @@ def reagent_release(request, pk):
             ("Supplier lot", lot.lot_number),
             ("Expiry (last day of use)", day(lot.expiry_date)),
             ("Certificate", lot.certificate_ref),
-            ("Recorded by", str(lot.recorded_by)),
+            ("Recorded by", person(lot.recorded_by)),
         ],
         revision=lot.revision,
         cancel_url=detail,
@@ -1307,7 +1308,7 @@ def use_list(request):
                 work_cell(u, work),
                 u.activity,
                 u.test_code,
-                str(u.used_by),
+                person(u.used_by),
             ]
         )
     return list_page(

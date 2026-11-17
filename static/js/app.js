@@ -316,6 +316,35 @@
   document.addEventListener("DOMContentLoaded", function () { markLowPriorityColumns(document); });
   document.addEventListener("htmx:load", function (event) { markLowPriorityColumns(event.detail.elt); });
 
+  // A table wider than its panel scrolls inside it; mark the side(s) with more columns beyond the
+  // visible edge, so app.css fades that edge (nothing disappears silently).
+  function markScrollEdges(wrap) {
+    var more = wrap.scrollWidth > wrap.clientWidth + 1;
+    wrap.classList.toggle("vr-more-start", more && wrap.scrollLeft > 1);
+    wrap.classList.toggle("vr-more-end", more && wrap.scrollLeft + wrap.clientWidth < wrap.scrollWidth - 1);
+  }
+
+  function watchScrollEdges(scope) {
+    (scope || document).querySelectorAll(".vr-table-wrap").forEach(function (wrap) {
+      markScrollEdges(wrap);
+      if (wrap.dataset.vrEdgesReady === "true") {
+        return;
+      }
+      wrap.dataset.vrEdgesReady = "true";
+      wrap.addEventListener("scroll", function () { markScrollEdges(wrap); }, { passive: true });
+      if (window.ResizeObserver) {
+        var observer = new ResizeObserver(function () { markScrollEdges(wrap); });
+        observer.observe(wrap);
+        if (wrap.firstElementChild) {
+          observer.observe(wrap.firstElementChild); // the table (or DataTables' container) changing width
+        }
+      }
+    });
+  }
+
+  window.addEventListener("load", function () { watchScrollEdges(document); });
+  document.addEventListener("htmx:load", function (event) { watchScrollEdges(event.detail.elt); });
+
   // Shortened text keeps its full text in a tooltip: a one-line sub-line or name in a table cell
   // that ends in an ellipsis, or a value clamped to two lines, gains a title (controls.js turns
   // titles into the shared tooltip) while it is shortened. The full text stays in the DOM.

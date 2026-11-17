@@ -2169,7 +2169,23 @@ a.vr-navlink[aria-current="page"]:hover {
 .vr-table-wrap {
   position: relative; /* clips absolutely positioned descendants (visually hidden text) too */
   overflow-x: auto;
+  --vr-fade: var(--vr-space-8);
   scroll-padding-inline-start: 8rem; /* clear the sticky row identifier on keyboard focus */
+}
+
+/* A table wider than its panel scrolls inside it, never clipped: the scrollbar shows, and the
+   edge with more columns beyond it fades (app.js marks which side), so hidden columns are never
+   a silent loss. The mask reads only alpha: currentColor is just an opaque stop. */
+.vr-table-wrap.vr-more-end {
+  mask-image: linear-gradient(to right, currentColor calc(100% - var(--vr-fade)), transparent);
+}
+
+.vr-table-wrap.vr-more-start {
+  mask-image: linear-gradient(to left, currentColor calc(100% - var(--vr-fade)), transparent);
+}
+
+.vr-table-wrap.vr-more-start.vr-more-end {
+  mask-image: linear-gradient(to right, transparent, currentColor var(--vr-fade), currentColor calc(100% - var(--vr-fade)), transparent);
 }
 
 .vr-table {
@@ -2188,12 +2204,15 @@ a.vr-navlink[aria-current="page"]:hover {
   box-shadow: var(--vr-border-width) 0 0 var(--vr-row-fill);
 }
 
-/* The head row: one rounded fill, labels in small muted capitals. */
+/* The head row: one rounded fill, labels in small muted capitals. A long label wraps at its
+   spaces (never inside a word) rather than widening the table past its panel. */
 .vr-table > thead > tr > th {
   --vr-row-fill: var(--vr-th-bg);
   padding-top: var(--vr-space-2);
   padding-bottom: var(--vr-space-2);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: normal;
+  text-wrap: balance;
   vertical-align: middle;
 }
 
@@ -2344,7 +2363,7 @@ a.vr-navlink[aria-current="page"]:hover {
 }
 
 /* The stability pull schedule: storage conditions by time point; each cell is the pull's status,
-   linked to the pull. The cell of a pull due now takes the warning tone's fill. */
+   linked to the pull. Emphasis in tables is a pill, never a whole-cell fill. */
 .vr-schedule > tbody > tr > td {
   white-space: normal;
 }
@@ -2355,10 +2374,6 @@ a.vr-navlink[aria-current="page"]:hover {
 
 .vr-schedule > tbody > tr > td > a:hover .vr-status {
   text-decoration: underline;
-}
-
-.vr-schedule > tbody > tr > td.vr-due-now {
-  --vr-row-fill: var(--vr-warning-bg);
 }
 
 .vr-schedule > thead time {

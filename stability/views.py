@@ -24,6 +24,7 @@ from laboratory.ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -742,7 +743,7 @@ def _pull_row(pull, user, today):
         f"{day(pull.window[0])} to {day(pull.window[1])}",
         status(label, tone),
         cell(", ".join(pull.timepoint.test_codes)),
-        pull.pulled_by and str(pull.pulled_by) or "",
+        pull.pulled_by and person(pull.pulled_by) or "",
         cell(links[0][0], links[0][1]) if links else "",
     ]
 
@@ -772,7 +773,6 @@ def _schedule(pulls, today):
                     "label": label,
                     "tone": tone,
                     "href": reverse("stability:pull_detail", args=[pull.pk]),
-                    "due_now": pull.timing(today)[0] == "due",
                 }
             )
         rows.append({"condition": condition, "cells": cells})
@@ -848,7 +848,7 @@ def study_detail(request, pk):
             ("Container and closure", s.container_closure),
             ("Time zero", day(s.start_date)),
             ("Lot rule basis at start", s.rule_basis),
-            ("Started by", str(s.created_by)),
+            ("Started by", person(s.created_by)),
             ("Closed", when(s.closed_at)),
             ("Revision", s.revision),
         ],
@@ -1209,7 +1209,7 @@ def pull_detail(request, pk):
             ),
             ("Required tests", ", ".join(p.timepoint.test_codes)),
             ("Pulled on", day(p.pulled_on)),
-            ("Pulled by", str(p.pulled_by or "")),
+            ("Pulled by", person(p.pulled_by)),
             (
                 "Quantity",
                 f"{p.quantity.normalize():f} {p.quantity_unit}" if p.quantity is not None else "",
@@ -1711,7 +1711,7 @@ def reserve_detail(request, pk):
             ("One test set", f"{r.test_quantity.normalize():f} {r.quantity_unit}"),
             ("Multiple of test set", f"{r.multiple:.2f} (minimum {r.minimum_multiple})"),
             ("Retained on", day(r.retained_on)),
-            ("Recorded by", str(r.recorded_by)),
+            ("Recorded by", person(r.recorded_by)),
         ],
         actions=[
             action(
@@ -1751,7 +1751,7 @@ def reserve_detail(request, pk):
                         cell(h.identifier, reverse("stability:hold_detail", args=[h.pk])),
                         h.get_kind_display(),
                         _hold_state(h),
-                        str(h.placed_by),
+                        person(h.placed_by),
                     ]
                     for h in holds
                 ],
@@ -1966,7 +1966,7 @@ def hold_detail(request, pk):
             ("Kind", h.get_kind_display()),
             ("Reference", cell(h.reference, code=True) if h.reference else ""),
             ("Reason", h.reason),
-            ("Placed by", str(h.placed_by)),
+            ("Placed by", person(h.placed_by)),
             ("Placed", when(h.placed_at)),
             ("Released", when(h.released_at)),
             ("Revision", h.revision),

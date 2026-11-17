@@ -495,8 +495,10 @@ def test_study_record_shows_the_pull_schedule_by_condition_and_time_point(client
     for pull in study.pulls.all():
         assert reverse("stability:pull_detail", args=[pull.pk]) in body
         assert pull.timepoint.label in body and pull.due_date.isoformat() in body
-    assert body.count('class="vr-due-now"') == 1  # only the pull due now
-    assert "Overdue" in body and "Upcoming" in body
+    # Every cell is the same status label in its tone; no cell is filled.
+    assert "vr-due-now" not in body
+    assert 'data-tone="warning"' in body and "</svg>Due now</span>" in body
+    assert "</svg>Overdue</span>" in body and "</svg>Upcoming</span>" in body
 
 
 def test_pull_labels_match_the_filter_and_the_study_shows_its_next_pull(client, people):
