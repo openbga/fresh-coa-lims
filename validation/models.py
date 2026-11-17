@@ -104,6 +104,7 @@ class UseAcceptance(models.Model):
                     withdrawn_at__isnull=True,
                 )
                 | Q(
+                    ~Q(configuration_hash=""),
                     state="accepted",
                     configuration__isnull=False,
                     accepted_at__isnull=False,
@@ -112,6 +113,7 @@ class UseAcceptance(models.Model):
                     withdrawn_at__isnull=True,
                 )
                 | Q(
+                    ~Q(configuration_hash=""),
                     state="superseded",
                     configuration__isnull=False,
                     accepted_at__isnull=False,

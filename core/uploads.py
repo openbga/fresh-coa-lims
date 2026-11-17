@@ -29,6 +29,30 @@ def stored_bytes():
     )
 
 
+# Advisory lock that serializes the ceiling check of every upload (any constant unique to it).
+CEILING_LOCK = 681_241
+
+
+def refuse_over_ceiling(size):
+    """Refuse a file that would take the stored files past ``RAW_DATA_TOTAL_MAX_BYTES``.
+
+    Called inside the upload's transaction after its own row locks; the advisory lock makes
+    two uploads check and insert one after the other, whichever table they write to."""
+    from django.conf import settings
+    from django.core.exceptions import ValidationError
+    from django.db import connection
+
+    ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
+    if not ceiling:
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [CEILING_LOCK])
+    if stored_bytes() + size > ceiling:
+        raise ValidationError(
+            "This deployment has reached its storage limit for files. The file was not stored."
+        )
+
+
 def request_limit():
     """Largest body, in bytes, of a request that carries files."""
     return settings.RAW_DATA_MAX_BYTES + FORM_ALLOWANCE

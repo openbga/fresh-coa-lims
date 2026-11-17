@@ -426,3 +426,14 @@ def test_a_recorded_row_never_carries_what_a_signature_writes(people, configured
                 people["admin"].pk,
                 people["author"].pk,
             )
+
+
+def test_an_accepted_record_holds_its_frozen_configuration(people, configured):
+    recorded = record(people)
+    with pytest.raises(DatabaseError, match="holds its frozen configuration"):
+        raw_update(
+            "UPDATE validation_useacceptance SET state = 'accepted', accepted_at = now(), "
+            "configuration = '\"x\"'::jsonb, configuration_hash = 'abc', "
+            "revision = revision + 1 WHERE id = %s",
+            recorded.pk,
+        )

@@ -50,8 +50,8 @@ List the records of the laboratory's intended use of the system and show whether
 - **Notice** above the table, based on the one accepted record (at most one exists):
   - "No accepted intended use": none has been accepted yet.
   - "Changed since acceptance" (warning): the approved versions now in force differ from those the acceptance froze, or the running release is not the accepted one. It states the counts and: "Assess the changes under your change control; record and accept the intended use again when they change it."
-  - "Current acceptance": the configuration and release are those it froze.
-- When the deployment states no release (`SOURCE_REVISION` and `RENDER_GIT_COMMIT` both unset), now or at acceptance, the release cannot be compared: the notice is "Changed since acceptance" and the column reads, for example, "a release that cannot be compared", never "None".
+  - "Release not compared" (info): the approved configuration in force is the one it froze, but no release is stated now (`SOURCE_REVISION` and `RENDER_GIT_COMMIT` both unset) or none was stated at acceptance, so the release cannot be compared. The column reads "Release not compared". With configuration changes as well, the notice is "Changed since acceptance" and the column reads, for example, "1 change to the configuration and a release that cannot be compared".
+  - "Current acceptance" (success): the configuration and release are those it froze.
 - The comparison is made each time the page opens, from the approved versions in force now and the release the deployment reports (`SOURCE_REVISION`, else `RENDER_GIT_COMMIT`).
 - No work is held because of these records: nothing in the system is blocked by a changed configuration or by the lack of an acceptance.
 

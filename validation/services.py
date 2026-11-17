@@ -310,7 +310,11 @@ def owner_refusal(acceptance):
 
 def use_denial(actor, acceptance, *, accept):
     """Why this person cannot accept or withdraw this record now, or "". Repeated under lock."""
-    return use_state_refusal(acceptance) or use_person_refusal(actor, acceptance, accept=accept)
+    return (
+        use_state_refusal(acceptance)
+        or use_person_refusal(actor, acceptance, accept=accept)
+        or (owner_refusal(acceptance) if accept else "")
+    )
 
 
 def use_state_refusal(acceptance):
@@ -507,10 +511,9 @@ def file_denial(actor, rehearsal):
 def attach_rehearsal_file(*, actor, rehearsal, upload, description):
     """Store an uploaded file of evidence unchanged, with its checksum. The rehearsal's revision
     advances, so a signing page opened before shows the record as changed."""
-    from django.conf import settings
 
     from analytical.rawdata import clean_filename, max_bytes
-    from core.uploads import size_text, stored_bytes
+    from core.uploads import refuse_over_ceiling, size_text
 
     require_role(actor, *REHEARSAL_RECORDERS)
     description = (description or "").strip()
@@ -540,13 +543,7 @@ def attach_rehearsal_file(*, actor, rehearsal, upload, description):
             raise ValidationError(f"A rehearsal holds at most {MAX_FILES} files.")
         if existing.filter(sha256=digest).exists():
             raise ValidationError("This file content is already attached to this rehearsal.")
-        ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
-        if ceiling:
-            if stored_bytes() + len(content) > ceiling:
-                raise ValidationError(
-                    "This deployment has reached its storage limit for files. The file was "
-                    "not stored."
-                )
+        refuse_over_ceiling(len(content))
         stored = RehearsalFile.objects.create(
             rehearsal=locked,
             filename=filename,

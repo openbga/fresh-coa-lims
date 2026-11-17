@@ -83,33 +83,97 @@ def use_url(acceptance):
 
 
 def drift(acceptance, configuration=None, release=None):
-    """What changed since an accepted record was signed: (configuration rows, release text)."""
+    """What changed since an accepted record was signed: (configuration rows, release finding).
+
+    The release finding is ("", "") when the release is the accepted one, ("changed", text)
+    when another release runs, and ("unknown", text) when one of the two is not stated, so
+    the release cannot be compared."""
     configuration = configuration or services.configuration_in_force()
     release = services.running_release() if release is None else release
     rows = services.configuration_changes(acceptance.configuration, configuration)
-    moved = ""
-    if not release or not acceptance.accepted_release:
-        moved = (
-            "The deployment does not state its release (SOURCE_REVISION), so the running "
-            "release cannot be compared with the accepted one."
+    accepted = acceptance.accepted_release
+    if not release:
+        finding = (
+            "unknown",
+            "The deployment does not state its release (set SOURCE_REVISION), so the running "
+            "release cannot be compared with the accepted one.",
         )
-    elif release != acceptance.accepted_release:
-        moved = (
-            f"The running release ({_release_text(release)}) is not the accepted one "
-            f"({_release_text(acceptance.accepted_release)})."
+    elif not accepted:
+        finding = (
+            "unknown",
+            f"No release was stated when this record was accepted, so the running release "
+            f"({release}) cannot be compared with it.",
         )
-    return rows, moved
+    elif release != accepted:
+        finding = (
+            "changed",
+            f"The running release ({release}) is not the accepted one ({accepted}).",
+        )
+    else:
+        finding = ("", "")
+    return rows, finding
 
 
-def _drift_text(rows, moved):
+def _drift_text(rows, finding):
     parts = []
     if rows:
         parts.append(f"{len(rows)} change{'s' if len(rows) != 1 else ''} to the configuration")
-    if moved:
-        parts.append(
-            "a release that cannot be compared" if "cannot" in moved else "another release"
+    if finding[0] == "changed":
+        parts.append("another release")
+    if not parts:
+        return "Release not compared" if finding[0] == "unknown" else "None"
+    if finding[0] == "unknown":
+        parts.append("a release that cannot be compared")
+    return " and ".join(parts)
+
+
+def _acceptance_notice(acceptance, rows, finding, *, listing):
+    """The notice on the list and on the accepted record: changed, not comparable or current."""
+    accepted = (
+        f"{acceptance.label} was accepted on {day(timezone.localdate(acceptance.accepted_at))}."
+    )
+    if rows or finding[0] == "changed":
+        counted = (
+            f"{len(rows)} approved version{'s' if len(rows) != 1 else ''} in force differ from "
+            "those frozen at acceptance."
+            if rows
+            else ""
         )
-    return " and ".join(parts) if parts else "None"
+        return {
+            "tone": "warning",
+            "label": "Changed since acceptance",
+            "text": " ".join(
+                part
+                for part in (
+                    accepted if listing else "",
+                    counted,
+                    finding[1],
+                    "Assess the changes under your change control; record and accept the "
+                    "intended use again when they change it. No work is held.",
+                )
+                if part
+            ),
+        }
+    if finding[0] == "unknown":
+        return {
+            "tone": "info",
+            "label": "Release not compared",
+            "text": " ".join(
+                part
+                for part in (
+                    accepted if listing else "",
+                    "The approved configuration in force is the one it froze.",
+                    finding[1],
+                )
+                if part
+            ),
+        }
+    return {
+        "tone": "success",
+        "label": "Current acceptance",
+        "text": f"{accepted if listing else ''} The approved configuration and the release are "
+        "those it froze.".strip(),
+    }
 
 
 USE_STATUS = [(value, label) for value, label in UseAcceptance.State.choices]
@@ -132,7 +196,7 @@ def use_list(request):
         "-recorded",
     )
     current = services.current_acceptance()
-    rows_now, moved = drift(current) if current else ([], "")
+    rows_now, finding = drift(current) if current else ([], ("", ""))
     rows = []
     for item in page:
         label, tone = services.use_status(item)
@@ -144,7 +208,7 @@ def use_list(request):
                 str(item.recorded_by),
                 day(timezone.localdate(item.recorded_at)),
                 day(timezone.localdate(item.accepted_at)) if item.accepted_at else "",
-                _drift_text(rows_now, moved) if current and item.pk == current.pk else "",
+                _drift_text(rows_now, finding) if current and item.pk == current.pk else "",
             ]
         )
     if current is None:
@@ -153,23 +217,8 @@ def use_list(request):
             "label": "No accepted intended use",
             "text": "No record of the laboratory's intended use has been accepted yet.",
         }
-    elif rows_now or moved:
-        notice = {
-            "tone": "warning",
-            "label": "Changed since acceptance",
-            "text": f"{current.label} was accepted on "
-            f"{day(timezone.localdate(current.accepted_at))}. Since then: "
-            f"{_drift_text(rows_now, moved).lower()}. Assess the changes under your change "
-            "control; record and accept the intended use again when they change it.",
-        }
     else:
-        notice = {
-            "tone": "success",
-            "label": "Current acceptance",
-            "text": f"{current.label} was accepted on "
-            f"{day(timezone.localdate(current.accepted_at))}. The approved configuration and "
-            "the release are those it froze.",
-        }
+        notice = _acceptance_notice(current, rows_now, finding, listing=True)
     return list_page(
         request,
         template="validation/list.html",
@@ -326,26 +375,9 @@ def use_detail(request, pk):
     sections = [_assays_section(acceptance, configuration)]
     notice = {"tone": "info", "label": "What an acceptance does", "text": WHAT_ACCEPTANCE_DOES}
     if acceptance.state == UseAcceptance.State.ACCEPTED:
-        rows, moved = drift(acceptance, configuration, release)
+        rows, finding = drift(acceptance, configuration, release)
         sections.append(_changes_section(rows))
-        if rows or moved:
-            notice = {
-                "tone": "warning",
-                "label": "Changed since acceptance",
-                "text": " ".join(
-                    part
-                    for part in (
-                        f"{len(rows)} approved version{'s' if len(rows) != 1 else ''} in "
-                        "force differ from those frozen at acceptance."
-                        if rows
-                        else "",
-                        moved,
-                        "Assess them under your change control; record and accept the intended "
-                        "use again when they change it. No work is held.",
-                    )
-                    if part
-                ),
-            }
+        notice = _acceptance_notice(acceptance, rows, finding, listing=False)
     if acceptance.configuration:
         sections.append(
             _configuration_section(
@@ -444,11 +476,7 @@ def use_accept(request, pk):
         request.POST or None,
         initial={"expected_revision": acceptance.revision, "token": token},
     )
-    denial = services.use_denial(request.user, acceptance, accept=True) or (
-        services.owner_refusal(acceptance)
-        if acceptance.state == UseAcceptance.State.RECORDED
-        else ""
-    )
+    denial = services.use_denial(request.user, acceptance, accept=True)
     if not denial and missing:
         denial = (
             f"{', '.join(missing)} has no approved version in force. Withdraw this record and "

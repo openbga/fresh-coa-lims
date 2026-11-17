@@ -301,11 +301,22 @@ def test_a_release_the_deployment_does_not_state_is_not_called_unchanged(
     acceptance = accepted_use(people)
     client = login(client, people["auditor"])
     listing = client.get(reverse("validation:use_list")).content.decode()
-    assert "Changed since acceptance" in listing and "Current acceptance" not in listing
-    assert "a release that cannot be compared" in listing
-    body = client.get(reverse("validation:use_detail", args=[acceptance.pk])).content.decode()
-    assert "does not state its release (SOURCE_REVISION)" in body
+    assert "Release not compared" in listing and "Current acceptance" not in listing
+    assert "Changed since acceptance" not in listing
+    detail = reverse("validation:use_detail", args=[acceptance.pk])
+    body = client.get(detail).content.decode()
+    assert "does not state its release (set SOURCE_REVISION)" in body
     assert "Not stated by the deployment" in body
+    # A release stated later cannot be compared with an acceptance that recorded none.
+    monkeypatch.setenv("SOURCE_REVISION", "abc1234")
+    body = client.get(detail).content.decode()
+    assert "No release was stated when this record was accepted" in body
+    assert "does not state its release" not in body
+    # A configuration change is a change, whatever is known of the release.
+    approve(method_revision(people["author"], code="kf-water"), people["approver"])
+    listing = client.get(reverse("validation:use_list")).content.decode()
+    assert "Changed since acceptance" in listing
+    assert "1 change to the configuration and a release that cannot be compared" in listing
 
 
 def test_withdrawing_someone_elses_rehearsal_says_why(client, people):
@@ -318,3 +329,15 @@ def test_withdrawing_someone_elses_rehearsal_says_why(client, people):
     assert "Only the person who recorded the rehearsal" in response.content.decode()
     rehearsal.refresh_from_db()
     assert rehearsal.state == "recorded"
+
+
+def test_no_accept_button_while_an_owner_is_inactive(client, people, configured):
+    acceptance = recorded_use(people)
+    people["admin"].is_active = False
+    people["admin"].save()
+    client = login(client, people["approver"])
+    body = client.get(reverse("validation:use_detail", args=[acceptance.pk])).content.decode()
+    assert reverse("validation:use_accept", args=[acceptance.pk]) not in body
+    assert reverse("validation:use_withdraw", args=[acceptance.pk]) in body
+    page = client.get(reverse("validation:use_accept", args=[acceptance.pk]))
+    assert page.status_code == 403 and "no longer an active account" in page.content.decode()

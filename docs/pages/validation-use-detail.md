@@ -14,7 +14,7 @@ Show one record of the laboratory's intended use: its content, the supported ass
 ## Who can use it
 
 - Sign-in required. Roles allowed to view: Analyst, Reviewer, Quality, Admin, Auditor; others receive 403.
-- **Accept** is shown to a Quality user who did not record the record, while it awaits acceptance.
+- **Accept** is shown to a Quality user who did not record the record, while it awaits acceptance and its process owner and system owner are still active accounts with a working role.
 - **Withdraw** is shown to any Quality user, the recorder included, while it awaits acceptance.
 - The server checks both again on the action pages.
 
@@ -32,7 +32,7 @@ Show one record of the laboratory's intended use: its content, the supported ass
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Accept** | Awaiting acceptance, and you are Quality and did not record it | Quality | Opens the signing page |
+| **Accept** | Awaiting acceptance, you are Quality and did not record it, and both owners are still active | Quality | Opens the signing page |
 | **Withdraw** | Awaiting acceptance | Quality | Opens the withdrawal page |
 
 ## Fields
@@ -49,8 +49,8 @@ Show one record of the laboratory's intended use: its content, the supported ass
 
 ## Rules and hidden logic
 
-- **Notice**: "What an acceptance does" (info) says the acceptance records the decision that the system is fit for the use described, holds no work, and that changes are shown for the laboratory's own change control. On the accepted record it becomes "Changed since acceptance" (warning) when approved versions in force differ from the frozen ones or the running release differs from the accepted release. A superseded record shows "Superseded" with the later record and time; it is kept as accepted.
-- When the deployment states no release, now or at acceptance, the "Changed since acceptance" notice says: "The deployment does not state its release (SOURCE_REVISION), so the running release cannot be compared with the accepted one."
+- **Notice**: "What an acceptance does" (info) says the acceptance records the decision that the system is fit for the use described, holds no work, and that changes are shown for the laboratory's own change control. On the accepted record it becomes "Changed since acceptance" (warning) when approved versions in force differ from the frozen ones or the running release differs from the accepted release; "Release not compared" (info) when nothing else changed but a release is not stated now or was not stated at acceptance; otherwise "Current acceptance" (success). A superseded record shows "Superseded" with the later record and time; it is kept as accepted.
+- When the deployment states no release now, the notice says: "The deployment does not state its release (set SOURCE_REVISION), so the running release cannot be compared with the accepted one." When it states one now but none was stated at acceptance: "No release was stated when this record was accepted, so the running release (...) cannot be compared with it."
 - **Changes since acceptance** compares codes. Each code whose version in force is not the frozen one gets a row: "Another version in force", "No longer in force" or "Newly in force". The kinds are Rule set, Specification, Method, Sampling plan and Stability protocol.
 - The frozen configuration shows the SHA-256 of the frozen record and the time it applied.
 - Supersession: when a newer record is accepted, the one accepted before becomes Superseded. At most one record is accepted at a time (a database constraint).

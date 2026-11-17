@@ -275,8 +275,10 @@ def test_no_file_reaches_a_rehearsal_accepted_meanwhile(people):
             with transaction.atomic(), connection.cursor() as cursor:
                 cursor.execute(
                     "UPDATE validation_rehearsal SET state = 'accepted', accepted_at = now(), "
-                    "evidence = '[]'::jsonb, revision = revision + 1 WHERE id = %s",
-                    [recorded.pk],
+                    "evidence = (SELECT jsonb_agg(jsonb_build_object('id', id, 'sha256', sha256)) "
+                    "FROM validation_rehearsalfile WHERE rehearsal_id = %s), "
+                    "revision = revision + 1 WHERE id = %s",
+                    [recorded.pk, recorded.pk],
                 )
                 holding.set()
                 time.sleep(1)
@@ -309,3 +311,36 @@ def test_no_file_reaches_a_rehearsal_accepted_meanwhile(people):
         thread.join(20)
     assert "awaits acceptance" in str(outcome.get("error")), outcome
     assert not RehearsalFile.objects.filter(filename="late.bin").exists()
+
+
+def test_an_accepted_rehearsal_names_each_of_its_files(people):
+    recorded = rehearse(people["admin"])
+    attach(people["admin"], recorded)
+    attach(people["admin"], recorded, content=b"second")
+    for evidence in (
+        "'\"anything\"'",
+        "'[]'",
+        "(SELECT jsonb_agg(jsonb_build_object('id', id, "
+        "'sha256', sha256)) FROM validation_rehearsalfile WHERE id = (SELECT min(id) "
+        "FROM validation_rehearsalfile))",
+    ):
+        with pytest.raises(DatabaseError, match="names each of its evidence files"):
+            raw(
+                "UPDATE validation_rehearsal SET state = 'accepted', accepted_at = now(), "
+                f"evidence = {evidence}::jsonb, revision = revision + 1 WHERE id = %s",
+                recorded.pk,
+            )
+    assert accept(recorded, people["author"]).state == "accepted"
+
+
+def test_one_storage_ceiling_for_raw_data_and_evidence(people, settings):
+    from core.uploads import stored_bytes
+
+    recorded = rehearse(people["admin"])
+    attach(people["admin"], recorded, content=b"x" * 30)
+    assert stored_bytes() == 30
+    settings.RAW_DATA_TOTAL_MAX_BYTES = 40
+    with pytest.raises(ValidationError, match="storage limit for files"):
+        attach(people["admin"], recorded, content=b"y" * 11)
+    attach(people["admin"], recorded, content=b"z" * 10)
+    assert stored_bytes() == 40

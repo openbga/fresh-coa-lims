@@ -12,6 +12,10 @@ BEGIN
     RAISE EXCEPTION 'A record of the intended use advances its revision by one';
   END IF;
   IF OLD.state = 'recorded' AND NEW.state = 'accepted' THEN
+    IF jsonb_typeof(NEW.configuration) IS DISTINCT FROM 'object'
+       OR NEW.configuration_hash !~ '^[0-9a-f]{64}$' THEN
+      RAISE EXCEPTION 'An accepted record of the intended use holds its frozen configuration';
+    END IF;
     changed := ARRAY['state', 'revision', 'configuration', 'configuration_hash',
                      'accepted_release', 'accepted_at'];
   ELSIF OLD.state = 'recorded' AND NEW.state = 'withdrawn' THEN
@@ -72,6 +76,16 @@ BEGIN
   IF OLD.state = 'recorded' AND NEW.state = 'recorded' THEN
     changed := ARRAY['revision'];  -- evidence attached
   ELSIF OLD.state = 'recorded' AND NEW.state = 'accepted' THEN
+    -- The signature freezes the evidence: one entry for each file attached, by its checksum.
+    IF jsonb_typeof(NEW.evidence) IS DISTINCT FROM 'array'
+       OR jsonb_array_length(NEW.evidence) <> (SELECT count(*) FROM validation_rehearsalfile
+                                                WHERE rehearsal_id = NEW.id)
+       OR EXISTS (SELECT 1 FROM validation_rehearsalfile AS f
+                   WHERE f.rehearsal_id = NEW.id
+                     AND NOT NEW.evidence @> jsonb_build_array(
+                           jsonb_build_object('id', f.id, 'sha256', f.sha256))) THEN
+      RAISE EXCEPTION 'An accepted rehearsal names each of its evidence files';
+    END IF;
     changed := ARRAY['state', 'revision', 'accepted_at', 'evidence'];
   ELSIF OLD.state = 'recorded' AND NEW.state = 'withdrawn' THEN
     changed := ARRAY['state', 'revision', 'withdrawn_at'];
@@ -106,10 +120,11 @@ BEGIN
   IF TG_OP <> 'INSERT' THEN
     RAISE EXCEPTION 'Rehearsal evidence files are append-only';
   END IF;
-  -- FOR SHARE waits for an acceptance or withdrawal in progress and then reads the row as
-  -- it committed, so no file reaches a rehearsal that was accepted meanwhile.
+  -- The row lock waits for an acceptance or withdrawal in progress and then reads the row as
+  -- it committed, so no file reaches a rehearsal that was accepted meanwhile. It is the lock
+  -- the revision update below takes, so two writers queue instead of deadlocking.
   PERFORM 1 FROM validation_rehearsal
-   WHERE id = NEW.rehearsal_id AND state = 'recorded' FOR SHARE;
+   WHERE id = NEW.rehearsal_id AND state = 'recorded' FOR NO KEY UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Evidence is attached only while the rehearsal awaits acceptance';
   END IF;
