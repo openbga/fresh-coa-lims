@@ -97,6 +97,25 @@
       }
     }
   }
+  // Collapsible panels, closed: the head's title sits with the same inset above and below.
+  for (const details of document.querySelectorAll('details.card')) {
+    if (!visible(details)) continue;
+    const wasOpen = details.open;
+    details.open = false;
+    const summary = details.querySelector(':scope > summary');
+    const title = summary && summary.querySelector('.card-title');
+    if (title) {
+      const s = summary.getBoundingClientRect();
+      const t = title.getBoundingClientRect();
+      const above = t.top - s.top;
+      const below = s.bottom - t.bottom;
+      if (Math.abs(above - below) > tolerance) {
+        problems.push(`closed panel head off-centre: ${above.toFixed(1)}px above, ${below.toFixed(1)}px below "${title.innerText.trim().slice(0, 40)}"`);
+      }
+    }
+    details.open = wasOpen;
+  }
+
   // Fact words (section "Key facts"): a fact's label or value never breaks inside a word. Only
   // identifiers, codes and hashes (.vr-id, .vr-data, code, Bootstrap's .text-break) may break
   // where they must.

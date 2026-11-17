@@ -44,9 +44,9 @@ def paginate(request, queryset, default=PAGE_SIZES[0]):
 class Column:
     """One list column: key (stable data-vr-col id, never renamed), label (heading), optional
     asc/desc sort values (the view validates them), first ("desc" to sort newest first),
-    priority ("low", then "medium": hidden by default when the table would not fit), locked (always shown: the
-    row identifier), label_hidden (visually hidden heading, e.g. an Actions column), css (th
-    classes such as "text-end")."""
+    priority ("low", then "medium": hidden by default when the table would not fit), locked
+    (always shown: the row identifier), label_hidden (visually hidden heading, e.g. an Actions
+    column), css (th classes such as "text-end")."""
 
     key: str
     label: str

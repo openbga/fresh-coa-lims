@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_http_methods
 
 from catalog.web import form_status, run
@@ -358,9 +359,14 @@ def _changes_section(rows):
     )
 
 
+def _chip(text):
+    """A code kept whole on one line (Line code chip), for codes inside a sentence of facts."""
+    return format_html('<code class="vr-code">{}</code>', text)
+
+
 def _outside_text(acceptance, configuration):
     outside = services.outside_assays(acceptance.method_codes, configuration)
-    return ", ".join(outside) if outside else "None"
+    return format_html_join(", ", "{}", ((_chip(code),) for code in outside)) if outside else "None"
 
 
 @login_required
@@ -454,9 +460,11 @@ def _configuration_text(configuration):
     parts = []
     for key, label in services.KINDS:
         entries = configuration.get(key, [])
-        listed = ", ".join(f"{e['code']} v{e['version']}" for e in entries) or "none"
-        parts.append(f"{label}s: {listed}")
-    return "; ".join(parts)
+        listed = format_html_join(
+            ", ", "{}", ((_chip(f"{e['code']} v{e['version']}"),) for e in entries)
+        )
+        parts.append(format_html("{}s: {}", label, listed or "none"))
+    return format_html_join("; ", "{}", ((part,) for part in parts))
 
 
 @login_required
@@ -497,9 +505,13 @@ def use_accept(request, pk):
             ("Outside the intended use", acceptance.exclusions),
             (
                 "Supported assays",
-                ", ".join(
-                    f"{titles.get(e['code'], e['code'])} ({e['code']} v{e['version']})"
-                    for e in supported
+                format_html_join(
+                    ", ",
+                    "{} {}",
+                    (
+                        (titles.get(e["code"], e["code"]), _chip(f"{e['code']} v{e['version']}"))
+                        for e in supported
+                    ),
                 ),
             ),
             (
@@ -902,7 +914,11 @@ def rehearsal_accept(request, pk):
             *_rehearsal_facts(rehearsal),
             (
                 "Evidence files",
-                "; ".join(f"{f.filename} ({f.description}, SHA-256 {f.sha256})" for f in files)
+                format_html_join(
+                    "; ",
+                    '{} ({}, SHA-256 <code class="vr-code" title="{}">{}</code>)',
+                    ((f.filename, f.description, f.sha256, f.sha256[:12]) for f in files),
+                )
                 or "None",
             ),
         ],

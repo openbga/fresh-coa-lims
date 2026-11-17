@@ -1295,6 +1295,52 @@ textarea.form-control {
   gap: var(--vr-space-1);
 }
 
+/* A collapsible panel ({% panel collapsible=True %}): its head is the <summary>. Closed, the
+   title sits centred with the same inset above and below; open, the head joins its body like any
+   panel head. The chevron (a Bootstrap icon in the markup) turns when the panel opens. */
+details.card > summary.card-header {
+  padding-top: var(--vr-space-4);
+  padding-bottom: var(--vr-space-4);
+  border-radius: var(--vr-radius-xl);
+  cursor: pointer;
+  list-style: none;
+}
+
+details.card[open] > summary.card-header {
+  padding-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+details.card > summary.card-header::-webkit-details-marker {
+  display: none;
+}
+
+details.card > summary.card-header:hover .card-title {
+  color: var(--vr-pen);
+}
+
+details.card > summary.card-header:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: calc(-1 * var(--vr-focus-width));
+}
+
+.vr-panel-chevron {
+  margin-left: auto;
+  color: var(--vr-text-muted);
+  transition: transform var(--vr-motion-fast) var(--vr-ease);
+}
+
+details.card[open] > summary .vr-panel-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-panel-chevron {
+    transition: none;
+  }
+}
+
 .card-footer {
   background: transparent;
   border-top: 0;
