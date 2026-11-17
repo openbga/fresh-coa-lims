@@ -4,7 +4,7 @@ urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
 models: catalog.Method, catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -20,7 +20,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, Methods, method code. The method title is under the heading.
+- **Breadcrumbs**: Specifications and methods, Methods, method code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the method title.
 - **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Summary (only when entered), Controlled procedure, Suitability, Effective, QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Record revision, Author.
 - **Batch QC checks** (batch methods only): table Check, "Limits (inclusive)", with **Remove** on drafts for quality. Empty: "No QC checks yet. Approval requires at least one." **Add QC check** on drafts for quality.
 - **Calculation** (every version): formula, result unit and decimals, and a table Input, Unit with **Remove** on drafts for quality. Without a calculation: "No calculation. Results are entered directly." Without inputs: "No inputs yet. Approval requires one input for each name in the formula." On drafts for quality: **Set formula** (**Change formula** once set), **Add input** and, when there is a calculation, **Clear calculation**.

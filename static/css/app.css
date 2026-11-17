@@ -632,6 +632,13 @@ time,
   font-variant-numeric: tabular-nums slashed-zero;
 }
 
+/* Identifiers display verbatim: an uppercase role (panel title, fact label, table head, route
+   label) never changes their case or spacing. */
+:is(.vr-id, .vr-data, code, kbd, samp, [data-identifier]) {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .vr-id {
   color: var(--vr-text-strong);
   font-weight: var(--vr-font-weight-bold);
@@ -1953,6 +1960,7 @@ a.vr-navlink[aria-current="page"]:hover {
   font-weight: var(--vr-font-weight-bold);
   letter-spacing: 0;
   line-height: var(--vr-line-height-snug);
+  text-transform: none; /* a pill keeps its label's case, also inside an uppercase title */
   white-space: nowrap;
 }
 
@@ -2016,7 +2024,7 @@ a.vr-navlink[aria-current="page"]:hover {
 }
 
 /* Two pills in one cell stack, so the row stays within two lines. */
-.vr-table td > .vr-status + .vr-status {
+.vr-table td > .vr-status ~ .vr-status {
   margin-top: var(--vr-space-1);
 }
 

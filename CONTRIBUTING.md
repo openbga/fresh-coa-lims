@@ -60,9 +60,13 @@ Shared agent instructions live in `.agents/`. `.claude/skills` and `.claude/rule
 
 | Kind | File | Use |
 |---|---|---|
+| Skill | [`build-page`](.agents/skills/build-page/SKILL.md) | Building or changing any page, form, dialog or template: page types, `{% load ui %}` components, controls, lists, tokens, icons |
 | Skill | [`document-page`](.agents/skills/document-page/SKILL.md) | Writing or updating the in-app page documentation in `docs/pages/` |
+| Skill | [`project-code-review`](.agents/skills/project-code-review/SKILL.md) | The pre-PR gate: diff review against `AGENTS.md` and the UI rules, fixes, the CI checks, browser journeys, before/after screenshots |
 | Rule | [`backend.md`](.agents/rules/backend.md) | The helpers behind the backend rules: role checks, signed transitions, PIN handling, audit, revisions, exact decimals, migrations, tests and traceability |
-| Rule | [`frontend.md`](.agents/rules/frontend.md) | Short frontend rules: shared templates, tokens, icons, controls, signing dialog, page documentation |
+| Rule | [`frontend.md`](.agents/rules/frontend.md) | Short frontend rules: components, tokens, icons, controls, signing dialog, page documentation |
+
+Before/after screenshots for pull requests come from `scripts/ui_compare/capture.py` (see the `project-code-review` skill).
 
 ## Pull requests
 

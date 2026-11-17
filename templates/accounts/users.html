@@ -16,7 +16,7 @@
           <th scope="row"><a class="vr-row-link" href="{% url 'accounts:user_detail' target.pk %}">{{ target.username }}</a></th>
           <td>{{ target.get_full_name|default:"Not supplied" }}<br>{{ target.email }}</td>
           <td>{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}No role assigned{% endfor %}</td>
-          <td>{% if target.is_active %}{% status label="Active" tone="success" plain=True %}{% else %}{% status label="Inactive" tone="neutral" plain=True %}{% endif %}{% if target.password_change_required %}<br>Password change required{% endif %}</td>
+          <td>{% if target.is_active %}{% status label="Active" tone="success" plain=True %}{% else %}{% status label="Inactive" tone="neutral" plain=True %}{% endif %}{% if target.password_change_required %}<br>Password change required{% endif %}{% if target.pin_locked %}<br>{% status label="Signature PIN locked" tone="danger" plain=True %}{% endif %}{% if target.factor_stopped and target.has_app or target.factor_stopped and target.has_key %}<br>{% status label="Two-factor sign-in stopped" tone="danger" plain=True %}{% endif %}</td>
           <td>{% if target.has_app and target.has_key %}On: app and security key{% elif target.has_app %}On: app{% elif target.has_key %}On: security key{% else %}Off{% endif %}</td>
           <td class="vr-nowrap">{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</td>
         </tr>{% endfor %}

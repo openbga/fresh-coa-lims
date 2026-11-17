@@ -5,7 +5,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -28,9 +28,15 @@ SORTS = {
     "lot": "lot__number",
     "material": "lot__material",
     "recipient": "recipient",
-    "status": "version_count",
+    "status": "status_rank",
     "created": "created_at",
 }
+STATUS_RANK = Case(
+    When(~Q(state="issued"), then=Value(0)),
+    When(version_count=1, then=Value(1)),
+    default=Value(2),
+    output_field=IntegerField(),
+)
 STATUS_FILTERS = {
     "draft": Q(state="draft"),
     "issued": Q(state="issued", version_count=1),
@@ -98,7 +104,10 @@ def report_list(request):
         reports = reports.filter(STATUS_FILTERS[status])
     sort = request.GET.get("sort", "-created")
     key = SORTS.get(sort.lstrip("-"), "created_at")
-    reports = reports.order_by(("-" if sort.startswith("-") else "") + key, "-id")
+    # Status sorts by the label shown (Not issued, Issued, Amended), newest first within each.
+    reports = reports.annotate(status_rank=STATUS_RANK).order_by(
+        ("-" if sort.startswith("-") else "") + key, "-created_at", "-id"
+    )
     return render(
         request,
         "reporting/report_list.html",

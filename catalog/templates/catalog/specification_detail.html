@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A specification: where it applies, its versions and history. Context: page_title, spec, revisions, history, crumbs, can_edit.{% endcomment %}
+{% comment %}A specification: where it applies, its versions and history. Context: page_title, spec, revisions, in_force (the approved version in force now), history, crumbs, can_edit.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:specification_version_new' spec.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
 {% block content %}
 {% panel title="Applicability" heading_id="facts-heading" class="mb-3" %}

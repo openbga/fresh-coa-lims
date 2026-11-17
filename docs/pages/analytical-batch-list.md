@@ -38,7 +38,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Find | — | Text | No | Matches batch number or method code (case-insensitive) |
-| Status | `QCBatch.state` | All batches, Open, Rejected | No | Filter by batch state |
+| Status | `QCBatch.state`; QC status from the current QC results | All batches, Open, Rejected, QC failed, QC incomplete | No | Open and Rejected filter by batch state; QC failed and QC incomplete list the open batches whose QC status (as in the QC status column) is failed or incomplete |
 | QC status | `QCBatch.state` plus current QC results | QC passed, QC failed, QC incomplete, Rejected | — | Rejected batches show "Rejected"; otherwise derived from the method's QC checks |
 | Method | `QCBatch.method_code`, `method` | "code rev. N" | — | Method revision frozen into the batch |
 | Created / Created by | `QCBatch.created_at`, `created_by` | Date and time, user | — | Who created the batch and when |

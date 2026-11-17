@@ -12,20 +12,24 @@ paths:
 
 # Frontend rules
 
-Full standard: `docs/ui-standards.md`.
+Full standard: `docs/ui-standards.md`. Enforced by `tests/test_ui_standards.py`,
+`tests/test_css_tokens.py`, `tests/test_controls.py` and `tests/test_icons.py`.
 
-- Build pages from the shared templates: `templates/base.html`, `templates/layouts/` and
-  `templates/includes/*.html` (`field`, `form_errors`, `status`, `breadcrumbs`, `section_tabs`,
-  `history_item`, `record_foot`, …). Read an include's header comment before using it. Never copy
-  its markup into a page; ask its owner for a parameter instead.
-- TODO: name the `{% load ui %}` component registry here once `.local/team/components-contract.md`
-  is settled.
+- Build pages from the `{% load ui %}` components (`core/templatetags/ui.py`, `COMPONENTS`):
+  `panel`, `panel_section`, `list_results`, `grid_toolbar`, `sort_header`, `pagination`, `notice`,
+  `status`, `fact`, `page_meta`, `record_layout`, `form_page`, `form_actions`, `field`,
+  `signature_card`, `signature_list`, `history_panel`, `history_item`, `post_button`,
+  `confirm_dialog`, `more_actions`, `breadcrumbs`, `section_tabs`, `icon` and the shell pieces in
+  `templates/layouts/document.html`. Each tag's parameters are in the header comment of
+  `templates/includes/<name>.html`. Never `{% include %}` a component or copy its markup
+  (`tests/test_include_isolation.py`); add a parameter instead. Working order: the `build-page`
+  skill.
 - Colours, spacing, type, radius and shadow come only from the `--vr-*` tokens in the Tokens section
   of `static/css/app.css`, in light and dark. No hex/rgb/hsl, inline `style` or utilities that
   bypass the theme tokens.
 - Icons are Bootstrap Icons only, from `static/img/icons.svg` as `i-<name>`, rendered through
-  `{% include "includes/icon.html" with name="…" %}` and paired with visible or visually hidden
-  text. Never draw or invent an icon. Exceptions: the brand mark and the sign-in art.
+  `{% icon name="…" %}` (scripts: `window.vrUi.icon`) and paired with visible or visually hidden
+  text (`tests/test_icons.py`). Never draw or invent an icon. Exceptions: the brand mark and the sign-in art.
 - Controls are Django form fields rendered through the widget templates in
   `templates/django/forms/widgets/`; `static/js/controls.js` enhances them (Tom Select, date
   popover, decimal/unit, file drop zone). Never write a raw `<select>`, date/number/file `<input>`

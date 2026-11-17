@@ -1566,7 +1566,7 @@ def pull_accept(request, pk):
 def reserve_list(request):
     access(request.user)
     form, data = make_filter(request, [("below", "Below minimum quantity")])
-    queryset = ReserveSample.objects.select_related("lot")
+    queryset = ReserveSample.objects.select_related("lot").prefetch_related("obligations")
     if data.get("q"):
         q = data["q"]
         queryset = queryset.filter(Q(identifier__icontains=q) | Q(lot__number__icontains=q))
@@ -1588,6 +1588,8 @@ def reserve_list(request):
             status("Meets minimum", "success")
             if r.meets_minimum
             else status("Below minimum", "warning"),
+            day(_retain_through(r)),
+            status("Active", "hold") if gates.active_holds(r.lot, r).exists() else "",
         ]
         for r in page
     ]
@@ -1604,6 +1606,8 @@ def reserve_list(request):
             ("Retained", "retained", False),
             ("Location", None, False),
             ("Quantity check", None, False),
+            ("Retain through", None, False),
+            ("Hold", None, False),
         ],
         rows=rows,
         page=page,
@@ -1642,6 +1646,13 @@ def reserve_new(request):
         intro="Reserve records are immutable. The minimum multiple is prefilled from the "
         "researched drug and supplement rules; the quality owner confirms what applies.",
     )
+
+
+def _retain_through(reserve):
+    """The latest date an obligation of the reserve retains it to, or None while an obligation
+    has no anchor yet (its date is unknown) or there is none."""
+    dates = [o.retain_until for o in reserve.obligations.all()]
+    return max(dates) if dates and None not in dates else None
 
 
 def _obligation_row(o, user, today):
@@ -1723,7 +1734,7 @@ def reserve_detail(request, pk):
                     [
                         cell(h.identifier, reverse("stability:hold_detail", args=[h.pk])),
                         h.get_kind_display(),
-                        h.get_state_display(),
+                        _hold_state(h),
                         str(h.placed_by),
                     ]
                     for h in holds

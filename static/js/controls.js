@@ -250,7 +250,11 @@
               var page = Number(new URL(address, window.location.href).searchParams.get("page")) || 1;
               picker.setNextUrl(query, url(query, page + 1));
             }
+            var open = picker.isOpen;
             callback(data.results);
+            if (!open) {
+              picker.close(); // closed (Escape, a click away) while the page loaded: stay closed
+            }
           })
           .catch(function () {
             callback();
@@ -436,7 +440,31 @@
       picker.control_input.setAttribute("aria-label", "Filter options");
       picker.control_input.classList.add("form-control", "form-control-sm");
       picker.control_input.before(fragment(icon("search")));
+      keyOpen(picker);
     }
+  }
+
+  // A long or remote list keeps its search box in the menu, so the closed control opens with the
+  // keys of a native select (Enter, Space, Down, Alt+Down), and typing opens it and starts the
+  // search with that letter.
+  function keyOpen(picker) {
+    picker.control.addEventListener("keydown", function (event) {
+      if (picker.isOpen || picker.isDisabled || picker.isLocked || event.ctrlKey || event.metaKey) {
+        return;
+      }
+      var opener = event.key === "Enter" || event.key === " " || event.key === "ArrowDown";
+      var letter = event.key.length === 1 && !event.altKey && event.key !== " ";
+      if (!opener && !letter) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation(); // Tom Select would act on the same key again.
+      picker.open();
+      if (letter) {
+        picker.control_input.value = event.key;
+        picker.control_input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }, true); // Capture: before Tom Select's own handler on the same element.
   }
 
   // Free text with suggestions: SuggestInput renders <input data-vr-suggest list=…><datalist>.

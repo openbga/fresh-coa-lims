@@ -8,11 +8,12 @@ Commands you ran and what you checked by hand (journeys, roles, refused paths, l
 
 ## Before / after
 
-For visible changes: before (`develop`) and after (this branch) screenshots of synthetic data, light and dark. Delete this section when nothing visible changed.
+For visible changes: before (`develop`) and after (this branch) screenshots of synthetic data, light and dark, from `scripts/ui_compare/capture.py`. Delete this section when nothing visible changed.
 
 ## Checks
 
 - [ ] This pull request targets `develop`
+- [ ] Ran the `project-code-review` skill (or its checks by hand) and fixed what it found
 - [ ] `uv run ruff check .` and `uv run ruff format --check .` pass
 - [ ] `uv run python manage.py check` and `uv run python manage.py makemigrations --check --dry-run` pass
 - [ ] `uv run pytest -n auto` passes on PostgreSQL (and `collectstatic` was run first)

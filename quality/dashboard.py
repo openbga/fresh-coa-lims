@@ -247,7 +247,7 @@ def gates():
     """Stability and laboratory queues, from the same filters as their own overview pages."""
     from laboratory.eligibility import equipment_filter, equipment_queryset
     from laboratory.models import ReagentLot
-    from stability.models import Pull, Study
+    from stability.models import Hold, Pull, Study
     from stability.views import _pull_filter
 
     today = timezone.localdate()
@@ -277,6 +277,14 @@ def gates():
             tone="info",
             status="Awaiting acceptance",
             url=f"{pull_list}?status=pulled",
+        ),
+        queue(
+            "Active holds",
+            Hold.objects.filter(state=Hold.State.ACTIVE),
+            "placed_at",
+            tone="hold",
+            status="Active",
+            url=reverse("stability:hold_list") + "?status=active",
         ),
         queue(
             "Calibration overdue",

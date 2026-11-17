@@ -50,7 +50,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 ## Rules and hidden logic
 
-- **Order and paging**: default order is newest first by creation time (ties by newest record); 25 rows per page by default (50 or 100 through **Rows per page** or `per_page`); an out-of-range page shows the last page. Sorting by Status orders by number of issued versions. Unknown sort values fall back to creation time. The server filters, sorts and pages the whole list; the page accepts GET only.
+- **Order and paging**: default order is newest first by creation time (ties by newest record); 25 rows per page by default (50 or 100 through **Rows per page** or `per_page`); an out-of-range page shows the last page. Sorting by Status orders by the status shown (Not issued, Issued, Amended; reversed on a second click), newest first within each status. Unknown sort values fall back to creation time. The server filters, sorts and pages the whole list; the page accepts GET only.
 - **Draft records**: a record with status "Not issued" is created when a quality user submits the signing form for a released lot and holds no evidence. It stays if the signing fails. Draft records are listed to every viewer.
 - **Authorization**: access is checked on the server for every request; hidden buttons are not the control.
 

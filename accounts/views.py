@@ -788,9 +788,11 @@ def user_list(request):
     from django.db.models import Exists, OuterRef, Q
     from django_otp.plugins.otp_totp.models import TOTPDevice
 
+    from core.models import PINCredential
     from core.services import require_role
 
-    from .models import SecurityKey
+    from .models import LoginThrottle, SecurityKey
+    from .two_factor import CODE_FAILURE_LIMIT
 
     require_role(request.user, "admin")
 
@@ -820,6 +822,15 @@ def user_list(request):
         .annotate(
             has_app=Exists(TOTPDevice.objects.filter(user=OuterRef("pk"), confirmed=True)),
             has_key=Exists(SecurityKey.objects.filter(user=OuterRef("pk"))),
+            # The states the account page shows: a PIN lock and a stopped second factor.
+            pin_locked=Exists(
+                PINCredential.objects.filter(user=OuterRef("pk"), locked_until__gt=timezone.now())
+            ),
+            factor_stopped=Exists(
+                LoginThrottle.objects.filter(
+                    user_id=OuterRef("pk"), code_failures__gte=CODE_FAILURE_LIMIT
+                )
+            ),
         )
         .order_by("username")
     )

@@ -4,7 +4,7 @@ urls: catalog:specification
 views: catalog.views.specification_detail
 templates: catalog/specification_detail.html
 models: catalog.Specification, catalog.SpecificationRevision, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Shows one specification: what it applies to, all of its versions with status, ef
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, the specification code. The specification title is shown under the heading.
+- **Breadcrumbs**: Specifications and methods, the specification code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the specification title.
 - **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them)".
 - **Versions** table, newest version first: Version (link), Status, Effective, Tests, Author, Approval.
 - **Approval column**: each signature as "Signed", signer name, meaning, time, "record revision N" and a shortened content hash; "Not signed." when none.

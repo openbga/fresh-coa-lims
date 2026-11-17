@@ -4,7 +4,7 @@ urls: stability:reserve_detail
 views: stability.views.reserve_detail
 templates: ops/record.html
 models: stability.ReserveSample, stability.RetentionObligation, stability.Hold, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ A reserve sample with its retention obligations, holds and what currently preven
 - **Header**: breadcrumbs (Reserve samples, this reserve), title "Reserve of <lot number>", identifier, status label (Meets minimum or Below minimum) and action buttons.
 - **Details**: the facts below.
 - **Retention obligations**: anchor, anchor date, months, retain-through date, basis, status (Cleared or Retained) and a **Set anchor** link. Empty state: "No obligation recorded: applicability is unresolved, so nothing may be disposed of." A note says every obligation computes its own deadline and all must clear.
-- **Holds** on this reserve sample: hold (links to the hold), kind, state, placed by. Empty state: "No holds on this reserve sample."
+- **Holds** on this reserve sample: hold (links to the hold), kind, state (Active or Released label), placed by. Empty state: "No holds on this reserve sample."
 - **Disposal readiness**: every current blocking reason, or "Nothing currently blocks disposal. No disposal action exists in this system yet."
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."

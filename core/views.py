@@ -41,7 +41,20 @@ def pin(request):
             return redirect("core:pin")
         except ValidationError as exc:
             form.add_error(None, exc)
-    return render(request, "core/form.html", {"form": form, "page_title": "Signature PIN"})
+    from .models import PINCredential
+
+    return render(
+        request,
+        "core/form.html",
+        {
+            "form": form,
+            "page_title": "Signature PIN",
+            # The state the admin user page shows; never the encoded PIN.
+            "credential": PINCredential.objects.filter(user=request.user)
+            .only("failures", "locked_until")
+            .first(),
+        },
+    )
 
 
 @login_required

@@ -225,7 +225,15 @@ class BatchFilterForm(forms.Form):
     """The QC batch list's status filter."""
 
     state = forms.ChoiceField(
-        label="Status", choices=[("", "All batches"), *QCBatch.State.choices], required=False
+        label="Status",
+        choices=[
+            ("", "All batches"),
+            *QCBatch.State.choices,
+            # An open batch's QC status (analytical/_qc_status.html), worked out per batch.
+            ("failed", "QC failed"),
+            ("incomplete", "QC incomplete"),
+        ],
+        required=False,
     )
 
 
@@ -298,7 +306,11 @@ def batch_list(request):
         filters = BatchFilterForm()
     state = filters.cleaned_data["state"] if filters.is_bound else ""
     batches = QCBatch.objects.select_related("created_by")
-    if state:
+    if state in ("failed", "incomplete"):
+        # The QC status is computed from each batch's current results, not stored.
+        open_batches = batches.filter(state=QCBatch.State.OPEN)
+        batches = batches.filter(pk__in=[b.pk for b in open_batches if b.qc_status()[0] == state])
+    elif state:
         batches = batches.filter(state=state)
     query = request.GET.get("q", "").strip()
     if query:

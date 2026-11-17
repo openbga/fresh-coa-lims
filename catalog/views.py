@@ -5,6 +5,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from core.services import require_role
@@ -180,6 +181,7 @@ def specification_detail(request, pk):
             "page_title": spec.code,
             "spec": spec,
             "revisions": revisions,
+            "in_force": services.effective_revision(SpecificationRevision, spec, timezone.now()),
             "history": history(spec, *revisions),
             "crumbs": crumbs_for((spec.code, None)),
             "can_edit": can(request.user, services.AUTHOR_ROLE),
@@ -464,6 +466,7 @@ def method_detail(request, pk):
             "page_title": method.code,
             "method": method,
             "revisions": revisions,
+            "in_force": services.effective_revision(MethodRevision, method, timezone.now()),
             "history": history(method, *revisions),
             "crumbs": crumbs_for(("Methods", reverse("catalog:methods")), (method.code, None)),
             "can_edit": can_edit,

@@ -3,7 +3,7 @@ title: Dashboard
 urls: quality:dashboard
 views: quality.dashboard.dashboard
 templates: quality/dashboard.html, quality/includes/queue.html
-models: quality.Lot, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
+models: stability.Hold, quality.Lot, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
 reviewed: 2026-11-17
 summary: The home page. See what waits at each step from a received lot to its certificate of analysis, open a queue's list, and find recently received lots.
 ---
@@ -46,7 +46,7 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 - **Header**: title "Dashboard" with today's date and week (laboratory time zone), and **New material lot** for analysts.
 - **Work in progress** card, with the total of every queue: a band of six steps (Lots, Samples, Results, Review, Disposition, Certificates), each with its count and a link to its lane; then the six lanes, left to right. Each lane lists its queues in a fixed order; each queue shows its name (a link when a list shows it), its count and, when something waits, a status label and the date of the oldest item ("Oldest YYYY-MM-DD").
 - **Recently received lots** card: the eight newest lot records with Lot, Status, Material and Where it is, and **Material lots** to open the full list. Empty: "No material lots yet" with "Receive a lot to start the quality journey." and, for analysts, **New material lot**.
-- **Stability and laboratory** card beside it: Pulls overdue, Pulls due now, Pulls awaiting acceptance, Calibration overdue, Reagent lots awaiting release.
+- **Stability and laboratory** card beside it: Pulls overdue, Pulls due now, Pulls awaiting acceptance, Active holds, Calibration overdue, Reagent lots awaiting release.
 
 ## Actions
 
@@ -76,6 +76,7 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 | All results reviewed | `LotAssignment.status`, `AnalyticalTest.state`, `Investigation.phase` | Count | — | Quarantine lots with requirements assigned, at least one reviewed test, no test Open or Awaiting review and no open investigation. Opens Material lots filtered to Quarantine. It does not check every disposition gate |
 | Blocked by an investigation | `Investigation.phase`, `outcome` | Count | — | Quarantine lots with an open investigation or one that confirmed an out-of-specification result |
 | Certificates to issue | `Lot.state`, `Report.state` | Count | — | Released lots with no issued certificate of analysis. Opens Certificates |
+| Active holds | `Hold.state` | Count; oldest `placed_at` | — | Active stability holds of any lot or reserve; an active hold on a lot blocks its QC disposition. Opens Holds filtered to active ones |
 | Stability and laboratory queues | `Pull`, `Equipment`, `ReagentLot` | Counts | — | The same filters as the Stability and Laboratory overviews, each opening its filtered list |
 
 ## Rules and hidden logic

@@ -4,7 +4,7 @@ urls: core:pin
 views: core.views.pin
 templates: core/form.html
 models: core.PINCredential, core.AuditEvent
-reviewed: 2026-11-12
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -18,7 +18,8 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 
 ## Layout
 
-- Title "Signature PIN", two masked fields and **Save**.
+- Title "Signature PIN", then **Your signature PIN** with the PIN's state as the admin account page shows it: "Enrolled; N failed attempts" (with "lock until <time>" when a lock time is recorded) or "Enrollment required"; never the PIN or its hash.
+- The required-fields note, two masked fields and **Save**.
 - For a shared demonstration account: the title and an explanation, without fields.
 
 ## Actions

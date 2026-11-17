@@ -370,3 +370,36 @@ def test_download_refusal_does_not_reveal_which_versions_exist(login, people, lo
         403,
     ]
     assert not AuditEvent.objects.filter(action="report.downloaded").exists()
+
+
+def test_status_sort_groups_by_status_then_newest_first(login, people, lot):
+    """Sorting by Status orders Not issued, Issued, Amended; inside a status the list keeps its
+    newest-first order instead of ordering by the number of versions."""
+    from reporting.models import Report
+
+    def report(number, state, versions):
+        return Report.objects.create(
+            lot=lot,
+            recipient=number,
+            sequence=Report.objects.count() + 1,
+            number=number,
+            state=state,
+            version_count=versions,
+            created_by=people["quality"],
+        )
+
+    report("CoA-SORT-OLD-AMENDED", "issued", 2)
+    report("CoA-SORT-ISSUED", "issued", 1)
+    report("CoA-SORT-DRAFT", "draft", 0)
+    report("CoA-SORT-NEW-AMENDED", "issued", 3)
+    page = login("quality").get(reverse("reporting:list") + "?sort=status").content.decode()
+    order = [
+        page.index(number)
+        for number in (
+            "CoA-SORT-DRAFT",
+            "CoA-SORT-ISSUED",
+            "CoA-SORT-NEW-AMENDED",
+            "CoA-SORT-OLD-AMENDED",
+        )
+    ]
+    assert order == sorted(order)

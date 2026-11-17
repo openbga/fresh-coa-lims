@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A method and its versions, newest first. Context: page_title, method, revisions, history, crumbs, can_edit.{% endcomment %}
+{% comment %}A method and its versions, newest first. Context: page_title, method, revisions, in_force (the approved version in force now), history, crumbs, can_edit.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{{ method.title }}</li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ method.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_version_new' method.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
 {% block content %}
 {% for revision in revisions %}{% with pk=revision.pk|stringformat:"s" %}{% with heading_id="version-"|add:pk %}

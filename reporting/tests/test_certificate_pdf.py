@@ -326,7 +326,7 @@ NATIVE_PHRASES = (
     # Every page
     "Page 1 of",
     "Synthetic demonstration data. This document has no regulatory or commercial standing.",
-    "OPENBGA QM LIMS",
+    "OpenBGA QM LIMS",
 )
 FOUNDATION_PHRASES = (
     "Certificate of analysis · CoA-SYN-900-1 version 1",
@@ -394,7 +394,7 @@ def test_every_page_carries_identity_and_no_result_row_splits():
     assert len(pages) >= 3
     for number, page in enumerate(pages, 1):
         spoken = normalized(page)
-        assert "OPENBGA QM LIMS" in spoken, number
+        assert "OpenBGA QM LIMS" in spoken, number
         assert "CoA-SYN-900-1 · version 1 · lot SYN-900" in spoken, number
         assert f"Page {number} of {len(pages)}" in spoken, number
         codes = len(re.findall(r"impurity-\d\d 99\.5 ", spoken))  # result rows, not signatures

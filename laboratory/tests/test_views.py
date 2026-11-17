@@ -311,3 +311,37 @@ def test_return_to_service_without_a_scope_is_refused(client, people):
         assert "Reload and reassess" in response.content.decode()
     equipment.refresh_from_db()
     assert equipment.state == "out_of_service"
+
+
+def test_record_pages_put_the_clock_facts_and_unusable_states_first(client, people, monkeypatch):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from .helpers import approve_contract_laboratory, make_contract_laboratory
+
+    client.force_login(people["auditor"])
+    equipment = make_equipment(people)
+    page = client.get(reverse("laboratory:equipment_detail", args=[equipment.pk])).content.decode()
+    assert page.index("Calibration due") < page.index(">Category<")
+
+    waiting = make_reagent(people, "RG-WAIT", release=False)
+    page = client.get(reverse("laboratory:reagent_detail", args=[waiting.pk])).content.decode()
+    assert "Lot has not been independently released for use." in page
+    expired = make_reagent(people, "RG-OLD", expiry_days=10)
+    real_now = timezone.now
+    monkeypatch.setattr("django.utils.timezone.now", lambda: real_now() + timedelta(days=20))
+    page = client.get(reverse("laboratory:reagent_detail", args=[expired.pk])).content.decode()
+    monkeypatch.undo()
+    assert "Lot expired after" in page and page.index("Expiry (last day of use)") < page.index(
+        ">Kind<"
+    )
+
+    qualify_analyst(people, people["analyst"], days=10)
+    listed = client.get(reverse("laboratory:qualification_list")).content.decode()
+    assert "Expiring soon" in listed
+
+    laboratory = make_contract_laboratory(people)
+    approve_contract_laboratory(people, laboratory, days_after=10)
+    listed = client.get(reverse("laboratory:contract_laboratory_list")).content.decode()
+    assert "Approval" in listed and "Expiring soon" in listed
