@@ -5,7 +5,24 @@ views: reporting.views.report_list
 templates: reporting/report_list.html, includes/grid_toolbar.html, includes/list_results.html, includes/pagination.html, includes/sort_header.html
 models: reporting.Report, quality.Lot
 reviewed: 2026-11-17
+summary: Every certificate of analysis in one list. Find a certificate, see whether it is issued or amended, or start a new one for a lot with a signed QC disposition.
 ---
+
+## Common tasks
+### Find a certificate
+1. Type a certificate number, lot number, material or recipient in [[Search]].
+2. To see one status, choose it in [[Status]], then select [[Apply]].
+3. Select a certificate number to open its record.
+### Start a new certificate
+1. Select [[New certificate of analysis]]. It shows only to the quality role.
+2. Choose the released lot and select [[Review certificate]] on that page.
+### See every certificate again
+1. Select [[Clear all]].
+## Good to know
+- A Not issued record holds no evidence. It stays when a signing attempt is refused after the record was opened.
+- Amended means the certificate has more than one version. Every earlier version stays on the certificate record.
+- A lot can have several certificates, one for each recipient named in Issued to.
+- The newest certificate record comes first, not the most recently issued or amended.
 
 ## Purpose
 

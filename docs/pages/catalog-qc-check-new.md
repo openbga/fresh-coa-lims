@@ -4,8 +4,22 @@ urls: catalog:qc_check_new
 views: catalog.views.qc_check_new
 templates: catalog/form.html
 models: catalog.MethodQCCheck, catalog.MethodRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Add a batch QC check, such as a blank or a control, with acceptance limits to a draft method version that runs in a QC batch.
 ---
+
+## Common tasks
+### Add a QC check
+1. Enter the [[Code]], for example blank or control, and the [[Name]].
+2. Choose the [[Unit]] and enter a [[Lower limit]], an [[Upper limit]] or both.
+3. Give the [[Reason for change]] and select [[Add QC check]]. The method record opens.
+### Leave without adding
+1. Select [[Cancel]] to return to the method record.
+## Good to know
+- Both limits are inclusive: a value equal to a limit is within it.
+- Each analytical batch run with this method must record these checks within limits.
+- Adding a check makes you an editor of the draft, so you can no longer approve it.
+- A check cannot be edited. To change it, remove it and add it again.
 
 ## Purpose
 

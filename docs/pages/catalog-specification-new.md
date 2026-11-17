@@ -4,8 +4,23 @@ urls: catalog:specification_new
 views: catalog.views.specification_new
 templates: catalog/form.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create a specification for one material, stage and scope, with its draft version 1. You add its tests next, and another quality user approves it.
 ---
+
+## Common tasks
+### Create a specification
+1. Enter the [[Code]] and [[Title]], then choose the [[Material]] and the [[Stage]].
+2. Keep general in [[Scope]], or enter a market or customer overlay such as eu-market.
+3. Enter the [[Basis]] for the limits, the [[Effective period]] and the [[Reason for change]].
+4. Select [[Create draft]]. The new version opens, ready for its tests.
+### Leave without creating
+1. Select [[Cancel]] to return to the Specifications list.
+## Good to know
+- Only one specification can exist for each material, stage and scope. To change one, create a new version of it.
+- The code, title, material, stage and scope cannot be changed after creation. The draft's basis and dates are fixed too.
+- A lot assigned under several scopes gets each specification in full. A test stated differently holds the lot for a quality decision.
+- You become the author of version 1, so another quality user must approve it.
 
 ## Purpose
 

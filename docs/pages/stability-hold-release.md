@@ -4,8 +4,24 @@ urls: stability:hold_release
 views: stability.views.hold_release
 templates: ops/sign.html
 models: stability.Hold, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign the release of an active hold. Quality users only, and never the person who placed it. Other holds and retention obligations still apply.
 ---
+
+## Common tasks
+### Release the hold
+1. Check the [[Lot]], [[Kind]], [[Reason]] and [[Reference]] of the hold.
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and approve]]. The hold becomes Released.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot release a hold you placed, even with the quality role.
+- Releasing the hold is not a QC disposition of the lot. Other holds and retention obligations continue to apply.
+- While the lot is in quarantine, a disposition page opened before the release goes stale and must be reloaded.
+- A denied user sees the reason and [[Back to record]], with no PIN field.
 
 ## Purpose
 

@@ -4,8 +4,27 @@ urls: stability:protocol_detail
 views: stability.views.protocol_detail
 templates: ops/record.html
 models: stability.Protocol, catalog.Specification, stability.ProtocolCondition, stability.ProtocolTimepoint, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One protocol version: its header, storage conditions, timepoints and the acceptance criteria in force, with the actions that approve it, withdraw it or start a study on it.
 ---
+
+## Common tasks
+### Build a draft protocol
+1. Select [[Add condition]] for each approved storage condition. It shows only to the draft's author.
+2. Select [[Add timepoint]] for each pull time point and its tests. It shows once the draft has a condition.
+### Approve the protocol
+1. Select [[Approve]]. It shows to a quality user who is not the author, once the draft has a timepoint.
+2. Sign with your PIN on that page. Earlier approved versions of the code become Superseded.
+### Start a study
+1. On an approved protocol, select [[Start study]]. The study form opens with this protocol chosen.
+### Withdraw a draft that will not be approved
+1. Select [[Withdraw draft]]. It shows to the draft's author and to quality users.
+2. Give the reason on that page. The next version of the code can then be drafted.
+## Good to know
+- [[Criteria incomplete]] means the specification cannot state a test. A draft cannot be approved, and an approved protocol's pulls cannot get tests, until it is fixed.
+- The criteria shown are read from the specification now. Each pull's tests freeze the version in force when assigned, so a later version applies only to later pulls.
+- An approved protocol is frozen. To change it, draft a new version of the code.
+- Only the author can add conditions or timepoints to a draft. Other analysts and quality users cannot.
 
 ## Purpose
 

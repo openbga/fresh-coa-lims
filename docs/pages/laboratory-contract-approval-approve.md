@@ -4,8 +4,22 @@ urls: laboratory:contract_approval_approve
 views: laboratory.contract_views.contract_approval_approve
 templates: ops/sign.html
 models: laboratory.ContractApproval, core.ElectronicSignature
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Sign approval evidence that a different quality user recorded, so reports from the laboratory for this method dated within its dates are accepted. Quality role only.
 ---
+
+## Common tasks
+### Approve the evidence
+1. Check [[Laboratory]], [[Method]], [[Valid]], [[Evidence]] and [[Scope]], and open the link under [[Evidence link]] if there is one.
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and approve]]. The approval record opens.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot approve evidence you recorded, whatever other roles you hold.
+- The dates decide, not the signing time. Evidence dated in the past or the future can be signed and covers reports dated within it.
+- The system does not read the evidence document. You check it before signing.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 

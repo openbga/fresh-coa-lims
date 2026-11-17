@@ -5,7 +5,23 @@ views: analytical.views.test_list
 templates: analytical/test_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_test_status.html
 models: analytical.AnalyticalTest, quality.SupplierResultAcceptance
 reviewed: 2026-11-17
+summary: Every analytical test of lot samples and stability pulls in one list. Find a test by lot, sample, study or test code, see its status and open it.
 ---
+
+## Common tasks
+### Find a test
+1. Type a lot number, sample reference, study identifier or test code in [[Find]].
+2. To see only tests in one state, such as [[Awaiting review]] or [[Out of specification]], choose it in [[Status]].
+3. Select [[Apply]], then select a test number to open its record.
+### See every test again
+1. Select [[Clear all]] to remove the search and the status.
+### Switch to QC batches or investigations
+1. Select [[QC batches]] or [[Investigations]] in the tabs above the title.
+## Good to know
+- The list has no actions. Assign tests from a lot's testing page or from a stability pull.
+- "Not tested · supplier result" means a supplier's certificate result stands in place of the test. The Open status still lists it.
+- Out of specification lists tests that did not conform, awaiting review or reviewed, unless they were invalidated or superseded.
+- A stability pull's test shows its study's lot as plain text: the test is not part of that lot's record.
 
 ## Purpose
 

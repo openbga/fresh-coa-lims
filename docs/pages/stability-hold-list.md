@@ -5,7 +5,24 @@ views: stability.views.hold_list
 templates: ops/list.html
 models: stability.Hold
 reviewed: 2026-11-17
+summary: Every hold on lots and reserve samples. An active hold blocks QC disposition and disposal until a different quality signer releases it.
 ---
+
+## Common tasks
+### Find a hold
+1. Type a lot number, reference or reason in [[Search]].
+2. To see only active or released holds, choose it in [[Status]], then select [[Apply]].
+3. Select a hold to open its record.
+### Place a new hold
+1. Select [[New hold]]. It shows to analysts, reviewers and quality users.
+2. Choose the lot and kind on that page, give the reason and select [[Place hold]].
+### See every hold again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A hold tied to one reserve sample still blocks QC disposition of its whole lot.
+- The reserve sample a hold is tied to is not shown here. Open the hold to see it.
+- Whoever placed a hold cannot release it, even with the quality role.
+- The most recently placed hold comes first.
 
 ## Purpose
 

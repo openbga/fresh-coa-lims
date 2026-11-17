@@ -5,7 +5,20 @@ views: analytical.views.batch_reject
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.QCBatch, analytical.AnalyticalTest, analytical.Investigation, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: A reviewer signs the rejection of an open QC batch whose QC failed. Its tests are invalidated and replaced by linked reruns.
 ---
+
+## Common tasks
+### Reject the batch
+1. Check the number of tests invalidated and the effect in the summary.
+2. Enter your [[Signing username]], [[Signature PIN]] and a [[Reason]], then select [[Sign and reject]].
+### Set or change your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+## Good to know
+- You cannot reject a batch whose QC you recorded or that holds a test with your data.
+- An invalidated test with a reading outside its limits opens an investigation, unless it already belongs to one.
+- Superseded tests, and tests of a rejected or cancelled lot, stay as they are and get no rerun.
+- To fix a transcription error, correct the QC result instead of rejecting the batch.
 
 ## Purpose
 

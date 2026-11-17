@@ -5,7 +5,22 @@ views: sampling.views.plan_approve
 templates: catalog/approve.html
 models: sampling.SamplingPlanRevision, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: Review a draft sampling plan version and sign its approval. Once approved, it applies to new lots within its effective period and is never edited.
 ---
+
+## Common tasks
+### Approve the version
+1. Check the version's content shown above [[Sign approval]].
+2. Enter an [[Approval comment]], [[Signing username]] and [[Signature PIN]].
+3. Select [[Sign and approve]].
+### Go back without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot approve a version you authored or edited, whatever roles you hold.
+- [[Retires earlier]] lists the approved versions your signature retires. They keep their approved content and signature.
+- Lots keep the plan version frozen when their requirements were assigned. Quality decides for each lot in testing whether to replace them.
+- If anyone changes the draft before you sign, signing fails and you must review again.
+- A draft that overlaps a later approved version cannot be approved. Withdraw it and create a new version.
 
 ## Purpose
 

@@ -5,7 +5,25 @@ views: accounts.views.SignIn
 templates: registration/login.html, accounts/includes/announcement.html
 models: accounts.User, accounts.LoginAnnouncement
 reviewed: 2026-11-17
+summary: Sign in to OpenBGA QM LIMS with the individual account your laboratory administrator issued: with your password, a passkey, or your organization's sign-in when offered.
 ---
+
+## Common tasks
+### Sign in with your password
+1. Enter your [[Username]] and [[Password]], then select [[Sign in]].
+2. If your account uses two-factor sign-in, the next page asks for your security key or a code.
+### Sign in with a passkey
+1. Select [[Sign in with a passkey]]. It shows only when passkey sign-in is allowed and the site is opened by its host name, not an IP address.
+2. On the next page, select [[Use your passkey]] and let the key check your PIN, fingerprint or face.
+### Sign in through your organization
+1. Select the Sign in with button that names your organization. It shows only when single sign-on is set up for this site.
+2. Sign in there. Your organization account must first be linked on Organization sign-in, under Account access.
+## Good to know
+- Repeated failed attempts pause sign-in for that account for a while (by default 15 minutes after five failures). Even the correct password is refused during the pause.
+- Your login password is not your signature PIN. Signing in approves nothing; every signature asks for your PIN again.
+- There is no self-signup. Accounts are provisioned by your laboratory administrator, who also helps with recovery.
+- An account that must replace its password goes to Change password first. An account with no laboratory role reaches Account access.
+- Coming back to this page cancels a pending second step. Enter your password again.
 
 ## Purpose
 

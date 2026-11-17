@@ -4,8 +4,22 @@ urls: analytical:conclude
 views: analytical.views.conclude
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.Investigation, analytical.AnalyticalTest, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Quality signs the conclusion that closes an investigation: the out-of-specification result is confirmed, or invalidated for a documented assignable laboratory cause.
 ---
+
+## Common tasks
+### Confirm the out-of-specification result
+1. Choose [[Out-of-specification result confirmed]] under [[Outcome]] and write the [[Conclusion]].
+2. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign conclusion]].
+### Invalidate the original result
+1. Choose [[Original result invalidated: assignable cause]] and describe the [[Assignable laboratory cause]] with its evidence.
+2. Write the [[Conclusion]], enter your username and PIN, and select [[Sign conclusion]].
+## Good to know
+- Invalidation needs a documented cause and at least one reviewed retest or resample, none of them out of specification.
+- The original must be reviewed and every authorized retest or resample finished before you can conclude.
+- You cannot conclude if you opened the investigation, wrote its entries or generated its test data.
+- A confirmed out-of-specification result keeps blocking the lot's QC disposition.
 
 ## Purpose
 

@@ -4,8 +4,29 @@ urls: sampling:lot
 views: sampling.views.lot_detail
 templates: sampling/lot_detail.html, sampling/includes/replacement.html, sampling/includes/decision.html, sampling/includes/decisions.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, sampling.SamplingRecord, sampling.SamplingPlanRevision, core.RuleSet, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One lot's requirements and sampling: the approved specification, methods and sampling plan frozen for it or its applicability hold, the sampling records, and what sampling still blocks.
 ---
+
+## Common tasks
+### Assign or change the lot's requirements
+1. Select [[Assign requirements]], or [[Change requirements]] when requirements exist. It shows to analysts and quality while the lot is in Quarantine and before testing starts.
+### Record sampling
+1. Select [[Record sampling]]. Only analysts see it, once requirements are assigned and not on hold.
+2. Enter what was actually sampled on that page.
+### Decide requirements the specifications state differently
+1. Select [[Decide conflicting requirements]]. Quality sees it while the lot is on hold before testing, if they recorded none of the lot's data.
+### Correct a record or assess a deviation
+1. Select [[Correct]] on a current record to add a correction. Analysts only.
+2. Select [[Assess deviation]] to accept or reject a deviation. Quality only, never the person who sampled, recorded or corrected it.
+### Replace the requirements during testing
+1. Select [[Replace requirements]]. Quality sees it once testing has started and the versions in force are no longer the frozen ones.
+## Good to know
+- The readiness panel covers sampling only. Testing and other gates still apply before QC disposition.
+- Later approvals do not change the frozen requirements. The lot keeps them until they are assigned again or, during testing, replaced.
+- Once any test exists for the lot, its requirements cannot be assigned again. Only quality's signed replacement changes them.
+- Quality can assign requirements but cannot record or correct sampling. Those are analyst actions.
+- A correction adds a record marked Current. The original stays, marked Corrected.
 
 ## Purpose
 

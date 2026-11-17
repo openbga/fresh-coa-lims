@@ -4,8 +4,22 @@ urls: suppliers:qualification_approve
 views: suppliers.qualification_views.qualification_approve
 templates: ops/sign.html
 models: suppliers.SupplierQualification, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign the recorded qualification evidence so that a supplier's certificate results for the tests covered can be relied on, for lots received within the stated dates.
 ---
+
+## Common tasks
+### Approve the qualification
+1. Check the facts shown.
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and approve]].
+### Go back without signing
+1. Select [[Cancel]], or [[Back to record]] when the page says you cannot sign.
+## Good to know
+- You cannot approve evidence you recorded, whatever roles you hold.
+- The date the lot was received decides coverage, not the signing date. Evidence with past or future dates can be signed.
+- Approval changes nothing on any lot. Each supplier result is still proposed and accepted on the lot, where its rule set allows.
+- A revoked qualification cannot be approved. Record a new one.
 
 ## Purpose
 

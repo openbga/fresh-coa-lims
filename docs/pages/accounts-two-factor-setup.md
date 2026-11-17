@@ -4,8 +4,25 @@ urls: accounts:two_factor_setup
 views: accounts.views.two_factor_setup
 templates: accounts/two_factor_setup.html, accounts/two_factor_codes.html
 models: accounts.User, accounts.RecoveryCode, core.AuditEvent
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Add your account to an authenticator app with the QR code or key, then confirm it with a code the app shows. Confirming turns two-factor sign-in on.
 ---
+
+## Common tasks
+### Add the account to your app
+1. Scan the QR code with your authenticator app, or enter the [[Key]] shown under [[Account]] in the app.
+### Confirm and turn it on
+1. Enter the 6-digit code the app shows in [[Code from the app]].
+2. Select [[Confirm and turn on]].
+3. Save the recovery codes shown once, then select [[I have saved the codes]].
+### Stop setting up
+1. Select [[Cancel]] to return to Two-factor sign-in. The app is not added.
+## Good to know
+- Keep the key private: anyone who has it can produce your codes. It is shown only while you set up.
+- Finish within 10 minutes of starting, or start again from Two-factor sign-in.
+- A recovery code is not accepted here. Enter the code from the app.
+- Wrong codes count toward the sign-in failure limit, and can pause sign-in for the account for a while.
+- Confirming replaces any earlier app and all earlier recovery codes. Until then your current app keeps working.
 
 ## Purpose
 

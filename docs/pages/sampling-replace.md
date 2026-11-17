@@ -4,8 +4,25 @@ urls: sampling:replace
 views: sampling.views.replace
 templates: sampling/replace.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, analytical.AnalyticalTest, analytical.Investigation, quality.SupplierResultAcceptance, core.RuleSet, catalog.SpecificationRevision, core.ElectronicSignature, core.PINCredential, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Once testing has started, quality replaces a lot's frozen requirements with the versions in force now, with a signature. Tests whose requirement changed are superseded; the rest carry over.
 ---
+
+## Common tasks
+### Review and sign the replacement
+1. Check [[Versions in force now]], [[Requirements]] and [[Effect on the lot's tests]].
+2. Enter [[Reason for the replacement]], [[Signing username]] and [[Signature PIN]].
+3. Select [[Sign and replace requirements]].
+4. If tests were superseded, assign the required tests again to repeat them under the new requirements.
+### Choose between requirements stated differently
+1. Under [[Requirements stated differently]], choose one statement for each test.
+2. Select [[Review the replacement with these requirements]], then review and sign.
+## Good to know
+- A superseded test is kept as recorded. It takes no more work and never counts toward the disposition.
+- The sampling plan is kept, because the lot's samples were taken under it.
+- A supplier result proposed or accepted for the lot stops standing. It blocks the disposition until it is withdrawn on the lot record.
+- You cannot sign if you recorded any of the lot's receipt, supplier certificate, sampling or test data, or proposed a supplier result for it.
+- If the versions in force or the lot's tests change before you sign, nothing is signed and the page shows them as they are now.
 
 ## Purpose
 

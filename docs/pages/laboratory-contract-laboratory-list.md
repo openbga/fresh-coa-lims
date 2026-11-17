@@ -5,7 +5,24 @@ views: laboratory.contract_views.contract_laboratory_list
 templates: ops/list.html
 models: laboratory.ContractLaboratory, laboratory.ContractApproval
 reviewed: 2026-11-17
+summary: Outside laboratories that test for this laboratory, and the methods each is approved for today. Find a laboratory and its approvals, or add a new one.
 ---
+
+## Common tasks
+### Find a contract laboratory
+1. Type a code, name, location or method code in [[Search]].
+2. To narrow, choose one in [[Status]], for example [[Approval awaiting signature]] or [[No approval in force today]].
+3. Select [[Apply]], then select a code to open the laboratory and its approvals.
+### Add a contract laboratory
+1. Select [[New contract laboratory]]. It shows only for the quality role.
+2. Fill in the form on that page, then record an approval for each method it may perform.
+### See every laboratory again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Being listed approves nothing. Each method needs its own approval, recorded by one quality user and signed by another.
+- The Approval column shows the state that most needs attention among the laboratory's approvals.
+- Counts and statuses describe today. An approval that has run out still covers reports dated within its dates.
+- Two overlapping approvals of one method count as one method approved today.
 
 ## Purpose
 

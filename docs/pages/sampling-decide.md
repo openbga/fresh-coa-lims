@@ -4,8 +4,25 @@ urls: sampling:decide
 views: sampling.views.decide
 templates: sampling/decide.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, catalog.SpecificationRevision, core.RuleSet, core.ElectronicSignature, core.PINCredential, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Where the specifications that apply to a lot state a test differently, quality chooses which requirement applies and signs before testing starts. The lot's requirements are then frozen.
 ---
+
+## Common tasks
+### Decide which requirement applies
+1. Under [[Requirements stated differently]], choose one statement for each test.
+2. Enter [[Reason for the decision]], [[Signing username]] and [[Signature PIN]].
+3. Select [[Sign decision and freeze requirements]].
+### Check a specification before choosing
+1. Select [[Open the specification]] under a statement to read that specification version.
+### Clear other hold reasons first
+1. If [[The requirements cannot be decided now]] shows, resolve the listed reasons in the configuration. This page then offers the decision.
+## Good to know
+- You cannot decide for a lot whose receipt, supplier certificate, sampling or test data you recorded, or for which you proposed a supplier result, whatever roles you hold.
+- Choose the statement under which a passing result also meets the others. The statements not chosen stay in the record with your decision.
+- If a specification, method or rule set in force changes before you sign, signing fails. Review the page again and choose again.
+- Assigning the lot's requirements again later does not carry this decision over. While the specifications still differ, it is decided again.
+- Once testing has started, this choice is made when quality replaces the lot's requirements.
 
 ## Purpose
 

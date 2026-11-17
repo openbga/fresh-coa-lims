@@ -5,7 +5,23 @@ views: laboratory.views.use_list
 templates: ops/list.html
 models: laboratory.ResourceUse
 reviewed: 2026-11-17
+summary: Append-only record of the equipment and reagent lots used for work, by whom and when. Find the uses for a sample, lot, test or resource, or record a new use.
 ---
+
+## Common tasks
+### Find uses
+1. Type a sample reference, lot number, QC batch number, test code, asset ID or reagent lot identifier in [[Search]].
+2. Select [[Apply]], then select a resource or the work to open it.
+### Record a new use
+1. Select [[New use]]. It shows only for the analyst role.
+2. Fill in the form on that page. Your qualification and every resource are checked first.
+### See every use again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Refused attempts are not listed here. They are kept in the audit trail.
+- Uses cannot be edited or deleted.
+- Uses recorded while entering results in testing appear here too.
+- The newest use comes first.
 
 ## Purpose
 

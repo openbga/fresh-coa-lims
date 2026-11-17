@@ -5,7 +5,24 @@ views: core.views.rules
 templates: core/rules.html
 models: core.RuleSet, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: The rule set revisions lots are received under: required tests, signature meanings and where an additional rule set applies. Quality creates draft revisions for independent approval.
 ---
+
+## Common tasks
+### Create a new revision
+1. In [[New revision]], enter the [[Code]], [[Segment]] and [[Policy]]. Reuse a code to create its next version.
+2. Set [[Effective from]] and [[Effective until]], and enter a [[Reason]].
+3. Select [[Create draft]]. Quality role only.
+### Approve another person's draft
+1. Select [[Review and approve]] beside the draft, then sign the approval on that page.
+### See which revision applies
+1. Read [[Status]] and [[Effective]] in the table. A retired revision shows [[Superseded]].
+## Good to know
+- Approved revisions are never edited. Create a new version of the code to change one.
+- You cannot approve a draft you created. Another quality person approves it.
+- An effective end date is optional for a draft but required for approval.
+- Approving a version retires an overlapping approved version from the new version's start, or from approval if later, never retroactively.
+- Lots keep the revision chosen at receipt until their requirements are assigned again or replaced.
 
 ## Purpose
 

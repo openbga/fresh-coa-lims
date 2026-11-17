@@ -4,8 +4,22 @@ urls: stability:pull_evidence
 views: stability.views.pull_evidence
 templates: ops/form.html
 models: stability.Pull, quality.Sample, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Link a pulled stability pull to its sample registered for testing, or to an external stability system's records, when it is not tested in the system. Analysts only.
 ---
+
+## Common tasks
+### Link a registered sample
+1. Enter the [[Sample reference]] exactly as recorded.
+2. Enter a [[Reason]] and select [[Link evidence]].
+### Link external stability evidence
+1. Enter the [[External sample ID]] and the [[External evidence reference]]. Both are needed.
+2. Add the [[External evidence link]] if there is one, enter a [[Reason]] and select [[Link evidence]].
+## Good to know
+- A pull with tests of its own cannot take linked evidence. A pull is tested in the system or linked to other evidence, never both.
+- The sample must belong to the study's lot, be collected on the pull date and not be evidence for another pull.
+- Linking again replaces the links. The earlier ones stay in the history.
+- Whoever links evidence cannot accept the pull, even after someone else re-links it.
 
 ## Purpose
 

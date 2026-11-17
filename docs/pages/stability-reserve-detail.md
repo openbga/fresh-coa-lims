@@ -5,7 +5,25 @@ views: stability.views.reserve_detail
 templates: ops/record.html
 models: stability.ReserveSample, stability.RetentionObligation, stability.Hold, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One reserve sample: its quantity against the minimum, retention obligations, holds and everything that currently prevents its disposal.
 ---
+
+## Common tasks
+### Record a retention obligation
+1. Select [[Record retention obligation]]. It shows to analysts and quality users.
+2. Record one obligation for each retention basis that applies.
+### Set an anchor date once it is known
+1. In [[Retention obligations]], select [[Set anchor]] on the obligation whose anchor is not yet known.
+### Place a hold on this reserve
+1. Select [[Place hold]]. It shows to analysts, reviewers and quality users. The hold is tied to this reserve.
+### Check what prevents disposal
+1. Read [[Disposal readiness]] for every current blocking reason.
+## Good to know
+- With no obligation recorded, applicability is unresolved and nothing may be disposed of.
+- Every obligation computes its own deadline, and all must clear before disposal.
+- Disposal readiness also counts lot-wide obligations and holds that the tables on this page do not list.
+- No disposal action exists in this system yet.
+- The reserve record cannot be edited. Obligations and holds are added as separate records.
 
 ## Purpose
 

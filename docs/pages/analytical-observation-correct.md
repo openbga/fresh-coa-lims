@@ -4,8 +4,23 @@ urls: analytical:observation_correct
 views: analytical.views.observation_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.Observation, analytical.AnalyticalTest, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Correct one replicate of an open test by adding a linked correction with your reason. The original result stays visible in the record.
 ---
+
+## Common tasks
+### Correct a replicate
+1. Enter the corrected reading as on Record observation, for example in [[Observed value]] or [[Observed result]].
+2. Check [[Original record]], which starts with the earlier location, and tick the equipment and lots used.
+3. Enter the [[Reason for correction]] and select [[Correct observation]].
+### Correct a submitted result
+1. Ask a reviewer to return the test from the test record first. Only an open test can be corrected.
+## Good to know
+- The earlier value stays in the record, struck through and marked superseded. The new row is marked correction.
+- Any analyst may correct a replicate. The original recorder and you both count as authors, so neither can review the test.
+- A replicate reported by a contract laboratory is corrected only with the whole contract laboratory result.
+- An out-of-specification result cannot be returned, so it cannot be corrected here. The investigation decides.
+- To change a value again, correct the newest row: a row that was already corrected cannot be corrected.
 
 ## Purpose
 

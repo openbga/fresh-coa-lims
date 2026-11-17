@@ -5,7 +5,25 @@ views: analytical.views.lot_testing
 templates: analytical/lot_testing.html, analytical/_test_status.html, analytical/_investigation_status.html
 models: quality.Lot, quality.Sample, quality.SupplierResultAcceptance, analytical.AnalyticalTest, analytical.Investigation
 reviewed: 2026-11-17
+summary: One lot's analytical evidence by sample: what still blocks QC disposition, each sample's tests, supplier results accepted in place of tests, and investigations.
 ---
+
+## Common tasks
+### Assign the required tests to a sample
+1. In the sample's card, select [[Assign required tests]]. Analysts see it only while the lot is in Quarantine.
+2. Requirements that cannot be tested yet are reported as held and stay listed as blockers.
+### Check what still blocks QC disposition
+1. Read [[Analytical evidence for QC disposition]]: [[Blocked]] lists each open item, and [[Complete]] means nothing is left.
+### Open a test or an investigation
+1. Select a test number in a sample's card, or an investigation number under [[Investigations]].
+### Add a sample first
+1. With no samples, select [[Lot record]] and add a sample there before assigning tests.
+## Good to know
+- Complete is laboratory evidence only. QC disposition is a separate signed decision and does not mean manufacturer release.
+- Assigning again never duplicates a test: a requirement with a test in progress or reviewed for that sample gets nothing.
+- A requirement answered by an accepted supplier result gets no test. A test already assigned for it stays open and takes no result.
+- An open investigation, or one that confirmed an out-of-specification result, blocks QC disposition of the lot.
+- Tests of a stability pull of this lot's study are not listed here and never block the lot.
 
 ## Purpose
 

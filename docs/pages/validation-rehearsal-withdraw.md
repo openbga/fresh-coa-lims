@@ -5,7 +5,20 @@ views: validation.views.rehearsal_withdraw
 templates: ops/form.html
 models: validation.Rehearsal, core.AuditEvent
 reviewed: 2026-11-17
+summary: Withdraw a rehearsal record that will not be accepted. It keeps its content and evidence and is never accepted; record a new rehearsal to correct it.
 ---
+
+## Common tasks
+### Withdraw the rehearsal
+1. Give the [[Reason for withdrawing]].
+2. Select [[Withdraw]]. You return to the rehearsal, which shows as Withdrawn.
+### Leave without withdrawing
+1. Select [[Cancel]] to return to the rehearsal. Nothing changes.
+## Good to know
+- Only its recorder or a quality person can withdraw it, and only while it awaits acceptance.
+- An accepted rehearsal cannot be withdrawn.
+- Its evidence files stay stored and can still be downloaded.
+- The withdrawal is not signed, but the rehearsal's history keeps it with your reason.
 
 ## Purpose
 

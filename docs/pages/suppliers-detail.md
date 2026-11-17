@@ -5,7 +5,22 @@ views: suppliers.views.supplier_detail
 templates: suppliers/detail.html
 models: suppliers.Supplier, suppliers.SupplierQualification, catalog.Material, quality.LotReceipt, quality.Lot, core.AuditEvent
 reviewed: 2026-11-17
+summary: One supplier: who it is, its qualifications, the lots whose current receipt details name it, and its history. Quality users record qualifications here.
 ---
+
+## Common tasks
+### Record a qualification
+1. Select [[Record qualification]]. Only quality users see it.
+2. Choose the material, then record the evidence on that page. A different quality user approves it.
+### Open a qualification
+1. Under [[Qualifications]], select the qualification's identifier.
+### See the lots received from this supplier
+1. Under [[Lots received]], select a lot number to open its record.
+## Good to know
+- A qualification takes effect only where the lot's rule set allows it and through an acceptance signed on the lot.
+- Awaiting approval and Revoked qualifications cover nothing. An Expired one still covers lots received within its dates.
+- A lot corrected to another supplier leaves this list. The earlier receipt details stay in the lot's receipt history.
+- The supplier's code, name and location cannot be edited or deleted.
 
 ## Purpose
 

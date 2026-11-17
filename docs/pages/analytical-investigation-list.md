@@ -5,7 +5,21 @@ views: analytical.views.investigation_list
 templates: analytical/investigation_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_investigation_status.html
 models: analytical.Investigation
 reviewed: 2026-11-17
+summary: Out-of-specification investigations, open ones by default. An open investigation holds its lot, or its stability pull, until quality signs a conclusion.
 ---
+
+## Common tasks
+### Find an investigation
+1. Type a lot number, study identifier or test code in [[Find]].
+2. Select [[Apply]], then select an investigation number to open it.
+### See closed investigations
+1. Choose [[Closed]] or [[All investigations]] in [[Status]], then select [[Apply]].
+### Go back to the open investigations
+1. Select [[Clear all]].
+## Good to know
+- The list shows only open investigations unless you choose another status.
+- A submitted out-of-specification result, or an out-of-limit value in a rejected QC batch, opens an investigation automatically.
+- An investigation of a stability test holds its pull, not the lot. The Lot column then shows the study's lot as plain text.
 
 ## Purpose
 

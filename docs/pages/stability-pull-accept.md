@@ -4,8 +4,24 @@ urls: stability:pull_accept
 views: stability.views.pull_accept
 templates: ops/sign.html
 models: stability.Pull, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign the independent review of a stability pull and its evidence, and for a pull tested in the system, how its results compare with the acceptance criteria. Reviewers only.
 ---
+
+## Common tasks
+### Accept the pull
+1. Check the facts, including [[Evidence]] and, for a pull tested in the system, [[Outcome recorded with your signature]].
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and review]]. The pull becomes Accepted.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot accept a pull you took, linked evidence for or produced test data for, whatever roles you hold.
+- Accepting records the outcome, including "Does not meet the acceptance criteria". Accepted is not the same as conforming.
+- Acceptance freezes the results with the pull. It does not change the record of the lot.
+- For a pull tested in the system, signing is refused until testing is complete. The page lists what is still open.
 
 ## Purpose
 

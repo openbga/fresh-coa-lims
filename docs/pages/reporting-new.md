@@ -4,8 +4,21 @@ urls: reporting:new
 views: reporting.views.report_new
 templates: reporting/report_new.html
 models: quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Choose the released lot a new certificate of analysis will cover. Nothing is created or signed here; you review the exact evidence next.
 ---
+
+## Common tasks
+### Start a certificate for a lot
+1. In [[Released lot]], type a lot number or material and choose the lot.
+2. Select [[Review certificate]] to see the certificate built from its evidence.
+### Leave without choosing
+1. Select [[Cancel]] to return to the list.
+## Good to know
+- Only lots with a signed QC disposition are listed. A lot still in Quarantine cannot have a certificate yet.
+- Lots that already have certificates are listed too. The review page shows the certificates already opened for the lot.
+- Choosing a lot here creates, issues and records nothing.
+- Only the quality role can open this page.
 
 ## Purpose
 

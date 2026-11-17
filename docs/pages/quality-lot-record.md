@@ -4,8 +4,24 @@ urls: quality:lot_record
 views: reporting.views.lot_record_export
 templates: reporting/lot_record.html, reporting/pdf/lot_record.html, reporting/pdf/_lot_record_entry.html
 models: quality.Lot, core.AuditEvent, core.ElectronicSignature, core.AuditReview, analytical.RawDataFile, reporting.ReportVersion
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Download one lot's complete record as a single ZIP file, to keep or hand over for an inspection or review. Exporting changes nothing and is recorded in the lot's audit trail.
 ---
+
+## Common tasks
+### Download the lot's record
+1. Check [[What the record holds now]] for what the package will contain.
+2. Say why you export it in [[Purpose of the export]], for example an inspection request.
+3. Select [[Download the record]]. The ZIP file downloads and the page stays open.
+### Check a downloaded copy
+1. Open record.pdf. Its first page says whether every stored checksum and hash matched.
+2. To check the files, compare them with SHA256SUMS in the same folder.
+## Good to know
+- Only admin, quality and auditor can export, because the package includes the audit trail.
+- Each export is recorded on the lot with your name and the purpose. The lot's record revision does not change.
+- The package is read at one instant. A change saved while it is built is not in it.
+- Configuration such as rule sets and specifications is included as it stands at the export.
+- A checksum that does not match is reported on the first page, not hidden, and the download still proceeds.
 
 ## Purpose
 

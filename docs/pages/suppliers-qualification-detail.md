@@ -4,8 +4,24 @@ urls: suppliers:qualification_detail
 views: suppliers.qualification_views.qualification_detail
 templates: ops/record.html
 models: suppliers.SupplierQualification, suppliers.Supplier, catalog.Material, quality.SupplierResultAcceptance, quality.Lot, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One supplier qualification: the evidence, the tests and dates it covers, its signatures, and every supplier result proposed or accepted under it. Quality users approve or revoke it here.
 ---
+
+## Common tasks
+### Approve the qualification
+1. Select [[Approve]]. It shows to quality users while it awaits approval, never to the person who recorded it.
+2. Sign with your PIN on that page.
+### Revoke the qualification
+1. Select [[Revoke]]. It shows to quality users while the qualification is approved, including when expired.
+2. Sign with your PIN on that page.
+### See which supplier results relied on it
+1. Under [[Supplier results that relied on this qualification]], select an acceptance or a lot to open it.
+## Good to know
+- A qualification changes nothing on a lot by itself. The lot's rule set must allow it, and each result is accepted on the lot.
+- Awaiting approval covers nothing. An Expired qualification still covers lots received within its dates.
+- A revocation does not undo accepted results. Assess them under your procedure; the software holds no lot by itself.
+- The evidence is never edited. A revoked qualification is final: record a new one.
 
 ## Purpose
 

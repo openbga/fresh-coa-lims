@@ -1297,7 +1297,7 @@ textarea.form-control {
 .alert {
   --bs-alert-padding-y: var(--vr-space-3);
   --bs-alert-padding-x: var(--vr-space-4);
-  --bs-alert-border-width: 0;
+  --bs-alert-border: 0; /* tone-filled only: Bootstrap draws the edge from this shorthand */
   --bs-alert-border-radius: var(--vr-radius-xl);
   --bs-alert-color: var(--vr-text);
   --bs-alert-link-color: var(--vr-pen);
@@ -2626,6 +2626,26 @@ table.dtcr-cloned.dataTable {
   height: 22px;
 }
 
+/* Inside a record panel (one with a visible head) the empty state is compact. */
+.card:has(> .card-header) .vr-empty {
+  padding: var(--vr-space-6) var(--vr-space-4);
+}
+
+.card:has(> .card-header) .vr-empty-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--vr-space-2);
+}
+
+.card:has(> .card-header) .vr-empty-icon > .vr-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.card:has(> .card-header) .vr-empty-title {
+  font-size: var(--vr-font-size-5);
+}
+
 .vr-empty[data-kind="error"] .vr-empty-icon {
   color: var(--vr-danger-text);
 }
@@ -2940,10 +2960,15 @@ fieldset.vr-field > legend {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  /* In the narrow aside the facts keep two tracks. */
-  .vr-record-aside .vr-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+}
+
+/* In the narrow record aside facts take one track. */
+.vr-record-aside .vr-facts {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.vr-record-aside .vr-facts > .vr-fact-wide {
+  grid-column: auto;
 }
 
 @media (max-width: 991.98px) {
@@ -2981,6 +3006,33 @@ fieldset.vr-field > legend {
   color: var(--vr-text);
   font-weight: var(--vr-font-weight-medium);
   overflow-wrap: anywhere;
+}
+
+/* Fact values always wrap; only a status pill keeps its line. Code-like values (references,
+   hashes) may break between any two characters rather than stack one fragment per line. */
+.vr-facts dd :is(.vr-id, .vr-data, time, code) {
+  white-space: normal;
+}
+
+.vr-facts dd .vr-status-plain {
+  align-items: flex-start;
+  white-space: normal; /* a plain status may carry a sentence (the next pull and its due date) */
+}
+
+.vr-facts dd .vr-status-plain .vr-status-glyph {
+  margin-top: 0.2em;
+}
+
+.vr-facts dd :is(.vr-data, code) {
+  word-break: break-all;
+}
+
+/* {% fact truncate=True %}: one line ending in an ellipsis; the full text stays in the DOM and in
+   the shared tooltip. */
+.vr-facts dd.vr-fact-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vr-facts dd small {
@@ -3028,10 +3080,7 @@ fieldset.vr-field > legend {
   .vr-record > .vr-record-lead {
     grid-column: 1;
     grid-row: 1;
-  }
-
-  .vr-record-lead > .card {
-    height: 100%;
+    align-self: start; /* the lead keeps its own height beside a taller aside */
   }
 
   .vr-record > .vr-record-aside {
@@ -3204,6 +3253,16 @@ fieldset.vr-field > legend {
 
 /* An event name can be one long unbroken word (an audit action): it wraps inside the item
    instead of widening the page on a phone. */
+/* Stored meanings ("reviewed") read as sentence case ("Reviewed"); the data is unchanged. */
+.vr-timeline-title::first-letter,
+.vr-timeline-title > strong::first-letter {
+  text-transform: uppercase;
+}
+
+.vr-timeline-title > strong {
+  display: inline-block;
+}
+
 .vr-timeline-title {
   min-width: 0;
   color: var(--vr-text-strong);
@@ -3331,7 +3390,7 @@ dialog > [data-signature-dialog].card {
 /* A checklist (QC disposition blockers and prerequisites): one line each, icon first, text wraps. */
 .vr-checklist {
   display: grid;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-1-5);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3343,7 +3402,14 @@ dialog > [data-signature-dialog].card {
 
 .vr-checklist .vr-status {
   align-items: flex-start;
+  color: var(--vr-text-strong);
+  font-size: var(--vr-font-size-4);
+  font-weight: var(--vr-font-weight-semibold);
   white-space: normal;
+}
+
+.vr-checklist .vr-status .vr-status-glyph {
+  color: var(--vr-tone-text);
 }
 
 .vr-checklist .vr-status-glyph {
@@ -3491,6 +3557,19 @@ dialog > [data-signature-dialog].card {
   }
 }
 
+/* Phones: two stages per row; a stage label never breaks inside a word. */
+@media (max-width: 575.98px) {
+  .vr-route {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vr-route-label {
+    overflow-wrap: normal;
+    word-break: keep-all;
+    letter-spacing: 0.02em;
+  }
+}
+
 /* The lots list's micro route: six small segments above one line of text. */
 .vr-microroute-cell {
   display: flex;
@@ -3552,7 +3631,7 @@ dialog > [data-signature-dialog].card {
   flex: 1 1 0;
   align-items: baseline;
   gap: var(--vr-space-1-5);
-  min-width: 64px;
+  min-width: max-content; /* the count and label are never cut; the share of the width still varies */
   padding: var(--vr-space-2) var(--vr-space-2-5);
   border-radius: var(--vr-radius-sm);
   background: var(--vr-count);

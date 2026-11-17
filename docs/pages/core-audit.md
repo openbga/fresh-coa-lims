@@ -5,7 +5,25 @@ views: core.views.audit
 templates: core/audit.html
 models: core.AuditEvent, core.AuditReview
 reviewed: 2026-11-17
+summary: Inspect, filter and export recorded changes, and record an independent review of selected events. Admin, quality and auditor can view; quality and auditor can review.
 ---
+
+## Common tasks
+### Find events
+1. Fill in any of [[Record type]], [[Record ID]], [[Actor]], [[Action]], [[From date]] and [[Through date]].
+2. Select [[Apply]]. Select [[Clear all]] to see every event again.
+### Export events to a spreadsheet
+1. Set the filters, then select [[Export filtered CSV]]. The file holds every matching event, not only this page.
+### Record an independent review
+1. Tick the events you checked in the [[Select]] column. Only events on the page shown can be ticked.
+2. Write what you checked and any follow-up in [[Review conclusion]].
+3. Select [[Record independent review]].
+## Good to know
+- You cannot review your own events. Their box is disabled and marked [[Your event]].
+- Opening, filtering or exporting events is not a review. Only a recorded conclusion is.
+- A review is not an electronic signature, so no PIN is asked. Earlier conclusions stay visible.
+- Dates cover whole days in the deployment time zone.
+- One review covers 1 to 50 events, all on the page shown.
 
 ## Purpose
 

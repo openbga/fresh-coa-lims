@@ -4,8 +4,21 @@ urls: stability:hold_detail
 views: stability.views.hold_detail
 templates: ops/record.html
 models: stability.Hold, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: One hold on a lot, or on one reserve sample of it: why it was placed, by whom, and whether it is still active. A quality user releases it here.
 ---
+
+## Common tasks
+### Release the hold
+1. Select [[Release hold]]. It shows to quality users who did not place the hold, while it is active.
+2. Sign with your PIN on that page.
+### Check what the hold covers
+1. Read [[Lot]] and [[Reserve sample]] in [[Details]]. With no reserve sample, the hold covers the whole lot.
+## Good to know
+- [[On hold]] means QC disposition and disposal of this lot are blocked.
+- Even a hold tied to one reserve sample blocks QC disposition of the whole lot.
+- Releasing ends this hold only. Other holds and retention obligations on the lot still apply.
+- Whoever placed the hold cannot release it, even with the quality role.
 
 ## Purpose
 

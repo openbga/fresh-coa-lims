@@ -5,7 +5,23 @@ views: laboratory.views.reagent_detail
 templates: ops/record.html
 models: laboratory.ReagentLot, laboratory.ResourceUse, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One reagent, standard or prepared solution lot: its provenance, expiry and release state, the solutions prepared from it and the work it was used for.
 ---
+
+## Common tasks
+### Release the lot for use
+1. Select [[Release for use]]. It shows to a reviewer, on a lot awaiting release that someone else recorded.
+2. Sign with your PIN on that page.
+### Reject the lot
+1. Select [[Reject lot]] and give the reason on that page. It shows for the analyst, reviewer and quality roles until the lot is rejected.
+### Trace where the lot went
+1. See [[Preparations from this lot]] for solutions made from it, and [[Uses]] for the latest work it was used for.
+2. For a prepared solution, select the identifier under [[Source lot]] to open its source.
+## Good to know
+- When the lot cannot be used now, the notice under the header says why.
+- Rejection is permanent and blocks every solution prepared from it, although their own state label does not change.
+- A released lot can still be rejected. Uses already recorded are kept.
+- Uses shows the latest 25. Search the identifier on the Resource use list to see every use.
 
 ## Purpose
 

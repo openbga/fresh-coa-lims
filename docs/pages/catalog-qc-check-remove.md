@@ -4,8 +4,21 @@ urls: catalog:qc_check_remove
 views: catalog.views.qc_check_remove
 templates: catalog/form.html
 models: catalog.MethodQCCheck, catalog.MethodRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Remove one batch QC check from a draft method version. Your reason is recorded in the version's history.
 ---
+
+## Common tasks
+### Remove the QC check
+1. Check the QC check and its unit under [[Record]].
+2. Explain why in [[Reason]], then select [[Remove QC check]]. The method record opens.
+### Keep the QC check
+1. Select [[Cancel]].
+## Good to know
+- A method that runs in a QC batch needs at least one QC check before it can be approved.
+- Removing a check makes you an editor of the draft, so you can no longer approve it.
+- The removed check stays in the history with your reason.
+- If someone changes the draft after you open this page, removal is refused. Reload and try again.
 
 ## Purpose
 

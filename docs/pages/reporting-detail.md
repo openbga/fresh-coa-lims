@@ -4,8 +4,25 @@ urls: reporting:detail
 views: reporting.views.report_detail
 templates: reporting/report_detail.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, quality.Lot, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, and the PDFs to download.
 ---
+
+## Common tasks
+### Download the current certificate
+1. Select [[Download PDF]] at the top of the page.
+### Open or download an earlier version
+1. In [[Versions]], select a version to open it, or [[Download PDF]] on its row.
+### Amend an issued certificate
+1. Select [[Amend certificate]]. It shows only to the quality role.
+2. Review the changes on that page, then sign the amendment with your PIN.
+### Issue a certificate that was not issued
+1. Select [[Review and issue]]. It shows to the quality role while no version is issued.
+## Good to know
+- An amendment adds a new version. The earlier one stays unchanged and is marked Superseded.
+- The certificate shown is the stored version as issued, never rebuilt from today's records.
+- Every PDF download is recorded in the certificate's history.
+- History shows only to the quality, auditor and admin roles.
 
 ## Purpose
 

@@ -5,7 +5,27 @@ views: accounts.views.announcement
 templates: accounts/announcement.html, accounts/includes/announcement.html
 models: accounts.LoginAnnouncement, core.AuditEvent, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: The one notice shown on the sign-in page to anyone who opens it, before they sign in. Write, publish or withdraw it and see every signed change. Admin role only.
 ---
+
+## Common tasks
+### Publish or update the notice
+1. Under Change announcement, enter an optional [[Title]] and the [[Announcement text]].
+2. Check [[Show on the sign-in page]] and enter a [[Reason]].
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and save announcement]].
+### Withdraw the notice
+1. Uncheck [[Show on the sign-in page]], then enter a [[Reason]] and your signing username and PIN.
+2. Select [[Sign and save announcement]]. The text is kept here for later.
+### See what changed and who signed
+1. In Announcement history, select [[Inspect recorded values]] on a change to see the status, title and text before and after it.
+### Enroll your PIN first
+1. If the form is hidden, select [[Enroll or change your signature PIN]]. Saving needs your own enrolled PIN.
+## Good to know
+- The text is public: anyone who opens the sign-in page sees it. Never enter personal data, or the password or PIN of a real account.
+- Every change stays in the history and the audit trail, including text you later replace or withdraw.
+- HTML is shown as typed, never interpreted. Lists, tables, bold, italic, code and links are formatted.
+- If someone saved a change after you opened the page, yours is refused. Reload and review before signing again.
+- A refused PIN still counts toward your PIN lockout, and nothing is saved.
 
 ## Purpose
 

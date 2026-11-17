@@ -5,7 +5,25 @@ views: catalog.views.material_list
 templates: catalog/material_list.html
 models: catalog.Material, catalog.Specification
 reviewed: 2026-11-17
+summary: Every controlled material and product that specifications and sampling plans apply to. Find a material, see how many specifications it has, or create a new one.
 ---
+
+## Common tasks
+### Find a material
+1. Type part of a material code or name in [[Search]], then select [[Apply]].
+2. To change the order, select the [[Material]] or [[Name]] column heading.
+### Create a material
+1. Select [[New material]]. It shows only to users with the quality role.
+2. Enter the code, name, kind and a reason on that page.
+### See the specifications of a material
+1. Select the number in the [[Specifications]] column. The Specifications list opens, searched by that material code.
+### See every material again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Materials have no record page and are never edited or deleted. Check the code, name and kind before you create one.
+- Search covers material codes and names only.
+- The specification count opens a search by code text, so it can also list specifications of materials whose codes contain this one.
+- The count includes every specification of the material, with or without an approved version.
 
 ## Purpose
 

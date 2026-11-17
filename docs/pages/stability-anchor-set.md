@@ -4,8 +4,20 @@ urls: stability:anchor_set
 views: stability.views.anchor_set
 templates: ops/form.html
 models: stability.RetentionObligation, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Set the anchor date of a retention obligation that was recorded without one. The date can be set only once.
 ---
+
+## Common tasks
+### Set the anchor date
+1. Enter the [[Anchor date]], the date of the anchor event.
+2. Enter a [[Reason]], such as the evidence for the date, and select [[Set anchor]].
+### Record an anchor that moved
+1. On the reserve record, select [[Record retention obligation]] and record a new obligation with the new anchor.
+## Good to know
+- The anchor can be set only once. If it later moves, record a new obligation.
+- Retain through becomes the anchor date plus the obligation's months.
+- The obligation keeps the reserve retained until that date has passed.
 
 ## Purpose
 

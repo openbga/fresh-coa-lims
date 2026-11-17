@@ -4,8 +4,26 @@ urls: suppliers:qualification_new
 views: suppliers.qualification_views.qualification_new
 templates: suppliers/qualification_material.html, catalog/form.html
 models: suppliers.SupplierQualification, suppliers.Supplier, catalog.Material, catalog.SpecificationTest, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record the evidence that a supplier's certificate results can be relied on for one material and named tests between two dates. A different quality user then approves it.
 ---
+
+## Common tasks
+### Choose the material
+1. Choose the [[Material]] and select [[Continue]]. Its specifications decide which tests you can choose.
+### Record the evidence
+1. Under [[Tests covered]], select the tests. Leave out every test the laboratory performs itself.
+2. Fill in [[How the supplier was qualified]], [[Evidence reference]] and, if there is one, [[Evidence link]].
+3. Set [[Valid from]] and [[Valid until (inclusive)]].
+4. Enter a [[Reason]] and select [[Record qualification]].
+### Have it approved
+1. A different quality user opens the qualification record and selects [[Approve]].
+## Good to know
+- Recording evidence qualifies nothing until a different quality user approves it.
+- The dates are compared with the date a lot was received, both days inclusive. Past dates are accepted.
+- A renewal or a change of scope is a new qualification. The evidence cannot be edited after recording.
+- A qualification lets a supplier result stand in for a test only where the lot's rule set allows it, through an acceptance signed on the lot.
+- If the material has no test to choose from, add the material's specification first.
 
 ## Purpose
 

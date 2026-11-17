@@ -5,7 +5,24 @@ views: validation.views.rehearsal_list
 templates: ops/list.html
 models: validation.Rehearsal, validation.RehearsalFile
 reviewed: 2026-11-17
+summary: Recorded rehearsals of recovery from backup, downtime with reconciliation, and upgrades. Find one, see its status and evidence count, or record a new one.
 ---
+
+## Common tasks
+### Find a rehearsal
+1. Type part of the title, release or procedure in [[Search]].
+2. To see only one state, choose it in [[Status]], then select [[Apply]].
+3. Select a record number to open it.
+### Record a rehearsal
+1. Select [[New rehearsal]]. It shows to the quality and admin roles.
+2. Fill in the form and select [[Record rehearsal]] on that page. Then attach its evidence on the record.
+### See every rehearsal again
+1. Select [[Clear all]].
+## Good to know
+- [[Accepted: criteria not met]] means the record was accepted as a true account, not that the rehearsal passed.
+- A rehearsal cannot be accepted until evidence is attached. [[Files]] shows how many files it holds.
+- The most recently performed rehearsal comes first, not the most recently recorded.
+- Withdrawn rehearsals stay in the list. Choose a state in Status to leave them out.
 
 ## Purpose
 

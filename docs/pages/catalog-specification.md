@@ -5,7 +5,23 @@ views: catalog.views.specification_detail
 templates: catalog/specification_detail.html
 models: catalog.Specification, catalog.SpecificationRevision, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: One specification: the material, stage and scope it applies to, every version with its status, effective period and approval, and its history.
 ---
+
+## Common tasks
+### Open a version and its tests
+1. In [[Versions]], select a version number to see its tests, signatures and history.
+### Start a new version
+1. Select [[New version]]. It shows only to users with the quality role.
+2. Enter the basis, effective period and reason on that page. The draft copies the tests of the latest version.
+### See which version is in force
+1. Under the title, read [[Approved]] with the version in force, or [[No approved version]] when none applies now.
+## Good to know
+- The version in force is the approved one that applies now. A newer approved version may not have started yet.
+- Approving a later overlapping version retires an earlier one. The earlier version keeps its content and signature and shows Superseded.
+- Lots keep the version frozen when their requirements were assigned.
+- A scope other than general is an overlay: it applies in full beside the lot's other specifications and is never merged with them.
+- Approved and withdrawn versions cannot be changed. Create a new version instead.
 
 ## Purpose
 

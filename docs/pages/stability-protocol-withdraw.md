@@ -4,8 +4,21 @@ urls: stability:protocol_withdraw
 views: stability.views.protocol_withdraw
 templates: ops/form.html
 models: stability.Protocol, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Withdraw a draft protocol that will not be approved, so the next version of its code can be drafted. The draft's author or a quality user can do it.
 ---
+
+## Common tasks
+### Withdraw a draft
+1. Enter the [[Reason]] the draft will not be approved.
+2. Select [[Withdraw draft]]. You return to the protocol, now Withdrawn.
+### Draft the replacement version
+1. On the protocols list, select [[New protocol]] and enter the same code. It gets the next version number.
+## Good to know
+- Withdrawing is not signed, but your reason is recorded in the history.
+- A withdrawn draft keeps its content and is never approved or used for a study.
+- Only a draft can be withdrawn. An approved protocol is replaced by approving a new version.
+- If the draft changed after you opened this page, the withdrawal is refused. Reload and try again.
 
 ## Purpose
 

@@ -5,7 +5,28 @@ views: stability.views.pull_detail
 templates: ops/record.html
 models: stability.Pull, analytical.AnalyticalTest, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One stability pull: its due date and window, collection details, its tests or linked evidence, and acceptance. Analysts record and test it; a reviewer accepts it.
 ---
+
+## Common tasks
+### Record the pull
+1. Select [[Record pull]]. It shows to analysts while the pull is scheduled and the study is active.
+### Test the pull in the system
+1. Select [[Assign tests]] once the pull is recorded. It shows to analysts when the protocol names a specification.
+2. Open each test from the [[Tests]] section to record, review and sign it on its own page.
+### Link a sample or external evidence instead
+1. Select [[Link evidence]]. It shows to analysts once the pull is recorded, while it has no tests.
+### Accept the pull
+1. Select [[Accept pull]] once testing is complete. It shows to reviewers who did not take, document or test the pull.
+2. Sign with your PIN on that page.
+### Record a missed pull
+1. Select [[Mark missed]]. Analysts and quality users see it once the window has closed, or for a taken pull that cannot be tested.
+## Good to know
+- A pull is tested in the system or linked to other evidence, never both.
+- A stability result does not change the lot's record. Any hold or other action on the lot is for quality to decide.
+- You cannot accept a pull you took, linked evidence for or produced test data for, even when you hold several roles.
+- [[Accept pull]] stays hidden until every test has a reviewed result and no investigation is open. The [[Tests]] note says what is still open.
+- Accepted and Missed are final. A missed pull stays on the study and is not rescheduled.
 
 ## Purpose
 

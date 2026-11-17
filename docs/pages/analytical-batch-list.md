@@ -5,7 +5,23 @@ views: analytical.views.batch_list
 templates: analytical/batch_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_qc_status.html
 models: analytical.QCBatch
 reviewed: 2026-11-17
+summary: QC batches: analytical runs of one method revision with their QC checks. Find a batch and see its QC status, or start a new batch.
 ---
+
+## Common tasks
+### Find a QC batch
+1. Type a batch number or method code in [[Find]].
+2. To narrow the list, choose a state in [[Status]], such as [[QC failed]].
+3. Select [[Apply]], then select a batch number to open it.
+### Start a new QC batch
+1. Select [[New QC batch]]. Only analysts see it.
+2. Enter the batch number and choose the method revision on that page.
+### See every batch again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Tests in a batch can be submitted and reviewed only while the batch is open and shows QC passed.
+- QC status comes from the current QC results: one failing check makes it QC failed, and a check not yet recorded makes it QC incomplete.
+- A rejected batch shows Rejected, whatever its QC results.
 
 ## Purpose
 

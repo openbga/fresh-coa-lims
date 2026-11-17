@@ -4,8 +4,26 @@ urls: laboratory:calibration_new
 views: laboratory.views.calibration_new
 templates: ops/form.html
 models: laboratory.Calibration, laboratory.Equipment, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Record a calibration or verification for one instrument. A pass counts once a different reviewer accepts it; a failure takes the equipment out of service at once.
 ---
+
+## Common tasks
+### Record a calibration
+1. Enter [[Performed at]], [[Due date]] and [[Outcome]].
+2. Enter [[Standard ref]] and, if you have them, [[Certificate ref]], [[Certificate url]] and [[Tolerance note]].
+3. Give a [[Reason]] and select [[Record calibration]]. The equipment record opens.
+### Record a failed calibration
+1. Choose [[Fail]] in [[Outcome]] and complete the other fields.
+2. Select [[Record calibration]]. The equipment goes out of service at once, pending an impact assessment.
+### Leave without recording
+1. Select [[Cancel]] to return to the equipment record. Nothing is saved.
+## Good to know
+- Performed at cannot be in the future, and the due date cannot be before the day of the calibration.
+- The due date is the last day the calibration stays valid.
+- You cannot accept your own calibration. A different reviewer must.
+- When your failed calibration takes the equipment out of service, you cannot be the one who returns it.
+- Calibrations cannot be edited or deleted. Record a new one instead.
 
 ## Purpose
 

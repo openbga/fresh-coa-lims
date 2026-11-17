@@ -5,7 +5,22 @@ views: validation.views.use_withdraw
 templates: ops/form.html
 models: validation.UseAcceptance, core.AuditEvent
 reviewed: 2026-11-17
+summary: Withdraw a record of the intended use that will not be accepted. It keeps its content and is never accepted; record a new one to correct it.
 ---
+
+## Common tasks
+### Withdraw the record
+1. Give the [[Reason for withdrawing]].
+2. Select [[Withdraw]]. You return to the record, which shows as Withdrawn.
+### Correct the intended use
+1. After withdrawing, go to the list through [[Validation]] and select [[New intended use]] to record a corrected one.
+### Leave without withdrawing
+1. Select [[Cancel]] to return to the record. Nothing changes.
+## Good to know
+- Only a record awaiting acceptance can be withdrawn. An accepted record is replaced only when a newer record is accepted, which supersedes it.
+- Any quality person can withdraw it, including the person who recorded it.
+- The withdrawal is not signed, but the record's history keeps it with your reason.
+- If the record changed after you opened the page, the withdrawal is refused. Reload first.
 
 ## Purpose
 

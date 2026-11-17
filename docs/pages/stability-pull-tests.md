@@ -4,8 +4,23 @@ urls: stability:pull_tests
 views: stability.views.pull_tests
 templates: stability/pull_tests.html
 models: stability.Pull, stability.Protocol, analytical.AnalyticalTest, catalog.Specification, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Assign the tests of a pulled stability pull, one for each test of its time point. Each test freezes the acceptance criterion and method version shown. Analysts only.
 ---
+
+## Common tasks
+### Assign the pull's tests
+1. Check [[Acceptance criteria of the protocol]]. [[To be assigned]] marks each test that will be created.
+2. Enter a [[Reason]] and select [[Assign tests]]. You return to the pull record.
+### Assign after the criteria changed
+1. If the page says the criteria changed since it was opened, review the criteria now shown.
+2. Select [[Assign tests]] again to assign the tests against them.
+## Good to know
+- The tests belong to the pull. Assigning them does not change the record of the lot.
+- Each test keeps the criterion frozen when it is assigned. A later specification version applies only to later pulls.
+- All or nothing: if the specification cannot state every test of the time point, no test is assigned.
+- Only missing tests are created. [[Already assigned]] tests are left as they are.
+- A pull linked to a sample or external evidence cannot get tests here.
 
 ## Purpose
 

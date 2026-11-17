@@ -4,8 +4,28 @@ urls: accounts:access
 views: accounts.views.access
 templates: accounts/access.html
 models: accounts.User
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Your laboratory roles, links to your own sign-in settings, and the next step when you have no role yet. Account administrators also see how roles are managed.
 ---
+
+## Common tasks
+### Open your work
+1. Select [[Open workspace]]. It shows only when you hold at least one laboratory role, and opens the dashboard.
+### Change your sign-in settings
+1. Select [[Change password]] to replace your login password.
+2. Select [[Two-factor sign-in]] to add a security key, passkey or authenticator app.
+3. Select [[Organization sign-in]] to link your organization account. It shows only when single sign-on is set up.
+### Ask for a laboratory role
+1. If the page says your account has no laboratory role, give your username to your organization's account administrator.
+2. Select [[Sign out]] in the top bar while access is arranged.
+### Manage users and roles
+1. With the admin role, select [[Manage users and roles]] to open the account list.
+## Good to know
+- Signing in, or holding superuser status, does not grant laboratory access. Only an assigned laboratory role does.
+- The admin role permits account administration and read access. It does not grant scientific approval authority.
+- Each action still requires its designated role, and independent review where it applies. A menu link only means you can read that area.
+- Administrators cannot grant themselves additional roles or remove the last active admin.
+- This page changes nothing. The command shown to administrators is guidance for the deployment operator, not a button.
 
 ## Purpose
 

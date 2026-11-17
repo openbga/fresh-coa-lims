@@ -4,8 +4,24 @@ urls: stability:study_close
 views: stability.views.study_close
 templates: ops/sign.html
 models: stability.Study, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign the closure of an active stability study as completed or terminated early. Quality users only, and never the person who started the study.
 ---
+
+## Common tasks
+### Close the study
+1. Check [[Open pulls]]. Completion needs every pull accepted or missed.
+2. Choose the [[Outcome]]: [[Completed: every pull accepted or missed]] or [[Terminated early]].
+3. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]], then select [[Sign and approve]].
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- Closing is refused while any pull's testing is in progress. An open test that holds nothing does not stop it and is left as it is.
+- Completed is refused while pulls are still scheduled or pulled. Finish them or choose Terminated early.
+- A closed study's pulls take no more testing.
+- You cannot close a study you started, even with the quality role.
 
 ## Purpose
 

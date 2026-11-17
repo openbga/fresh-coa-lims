@@ -5,7 +5,24 @@ views: stability.views.study_list
 templates: ops/list.html
 models: stability.Study
 reviewed: 2026-11-17
+summary: Every stability study, one per approved protocol, lot and container closure. Find a study, open its pull schedule, or start a new study.
 ---
+
+## Common tasks
+### Find a study
+1. Type a study ID, lot number or product in [[Search]].
+2. To see only one state, choose it in [[Status]].
+3. Select [[Apply]], then select a study to open its record.
+### Start a new study
+1. Select [[New study]]. It shows only to analysts and quality users.
+2. Choose the approved protocol and the lot on that page and select [[Start study]]. Its pulls are scheduled from time zero.
+### See every study again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- The latest time zero comes first, not the study recorded most recently.
+- Search covers study IDs, lot numbers and the protocol's product. It does not search the container closure.
+- A second study with the same protocol, lot and container closure is refused.
+- Completed and Terminated studies are closed. Their pulls take no more testing.
 
 ## Purpose
 

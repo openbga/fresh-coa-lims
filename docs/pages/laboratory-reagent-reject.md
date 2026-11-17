@@ -4,8 +4,22 @@ urls: laboratory:reagent_reject
 views: laboratory.views.reagent_reject
 templates: ops/form.html
 models: laboratory.ReagentLot, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Reject a reagent, standard or prepared solution lot so it can no longer be used. Rejection is permanent and also blocks solutions prepared from it.
 ---
+
+## Common tasks
+### Reject the lot
+1. In [[Reason]], say why the lot is rejected.
+2. Select [[Reject lot]]. The lot record opens showing Rejected.
+### Leave without rejecting
+1. Select [[Cancel]] to return to the lot record. Nothing changes.
+## Good to know
+- Rejection cannot be undone.
+- A lot already released for use can be rejected too.
+- Solutions prepared from it are refused when used, but keep their own state label.
+- Uses already recorded with the lot are kept for impact assessment.
+- No signature is needed: rejection only protects, so any analyst, reviewer or quality user can do it.
 
 ## Purpose
 

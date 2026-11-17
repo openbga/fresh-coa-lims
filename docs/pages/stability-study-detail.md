@@ -5,7 +5,26 @@ views: stability.views.study_detail
 templates: ops/record.html
 models: stability.Study, stability.Pull, analytical.AnalyticalTest, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One stability study: its lot, protocol, next pull, the pull schedule by condition and time point, and the reviewed results so far. Quality users close the study here.
 ---
+
+## Common tasks
+### Find the next pull to take
+1. Read [[Next pull]] in [[Details]] for the earliest scheduled pull and its status.
+2. In [[Pull schedule]], select a cell to open that pull.
+### Record a pull or mark it missed
+1. In [[Pulls]], select [[Record pull]] in the [[Next]] column. Analysts see it while the pull is scheduled.
+2. A quality user without the analyst role sees [[Mark missed]] there once the pull's window has closed.
+### Compare results over time
+1. Scroll to the Results section of a storage condition. Each row is a time point and each column a test with its acceptance criterion.
+### Close the study
+1. Select [[Close study]]. It shows to quality users who did not start the study, while it is active.
+2. Choose completed or terminated and sign with your PIN on that page.
+## Good to know
+- A stability result never changes the lot's record. [[Criteria not met]] means quality decides whether the lot or other lots need a hold or other action.
+- Accepted does not mean conforming. An accepted pull tested in the system reads "Accepted · meets acceptance criteria" or "Accepted · acceptance criteria not met".
+- Each result is judged against the criterion frozen on its test, which can differ from the protocol's current one.
+- The person who started the study cannot close it, even with the quality role.
 
 ## Purpose
 

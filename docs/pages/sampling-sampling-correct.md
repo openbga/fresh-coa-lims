@@ -4,8 +4,22 @@ urls: sampling:sampling_correct
 views: sampling.views.sampling_correct
 templates: catalog/form.html
 models: sampling.SamplingRecord, quality.Sample
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Correct a sampling record by adding a linked record with the right values. The original stays visible, marked Corrected, and the sample reference does not change.
 ---
+
+## Common tasks
+### Correct a sampling record
+1. Change the values that were wrong. The form starts with the record's current values.
+2. Enter a [[Reason for correction]] and select [[Record correction]].
+### Leave without correcting
+1. Select [[Cancel]] to return to the lot. Nothing is recorded.
+## Good to know
+- The original sampler stays on the record. You are recorded as the person who entered the correction.
+- If the corrected record still has a deviation, quality must assess it again.
+- Only the latest record of a lot in Quarantine can be corrected.
+- Correcting makes you an author: you cannot assess this sample's deviation or sign the lot's QC disposition.
+- The plan rules for containers, amount and deviation apply as when recording, against the plan version first used.
 
 ## Purpose
 

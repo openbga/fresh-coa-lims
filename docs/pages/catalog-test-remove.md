@@ -4,8 +4,22 @@ urls: catalog:test_remove
 views: catalog.views.test_remove
 templates: catalog/form.html
 models: catalog.SpecificationTest, catalog.SpecificationRevision
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Remove one test from a draft specification version. Your reason is recorded in the version's history.
 ---
+
+## Common tasks
+### Remove the test
+1. Check the test, criterion and method under [[Record]].
+2. Explain why in [[Reason]], then select [[Remove test]]. The version page opens.
+### Keep the test
+1. Select [[Cancel]].
+## Good to know
+- To change a test, remove it here and add it again with [[Add test]] on the version page.
+- Removing a test makes you an editor of the draft, so you can no longer approve it.
+- The removed test stays in the history with your reason.
+- If someone changes the draft after you open this page, removal is refused. Reload and try again.
+- A version needs at least one test before it can be approved.
 
 ## Purpose
 

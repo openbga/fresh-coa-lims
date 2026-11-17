@@ -5,7 +5,30 @@ views: analytical.views.test_detail
 templates: analytical/test_detail.html, analytical/_resources.html, analytical/_raw_files.html, includes/signature_list.html, includes/history_panel.html, analytical/_test_status.html, analytical/_qc_status.html
 models: analytical.AnalyticalTest, analytical.Observation, analytical.RawDataFile, analytical.QCBatch, analytical.Investigation, laboratory.ContractApproval, quality.SupplierResultAcceptance, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: One analytical test: its frozen specification, replicate observations, raw data, reportable result and review. Record, submit, return or review the test here.
 ---
+
+## Common tasks
+### Record the replicates
+1. If the method runs in a QC batch, select [[Add to QC batch]] first.
+2. Select [[Record observation]] for each replicate, with where its original record is kept.
+3. Select [[Attach raw data]] to add an instrument export or notebook page for the reviewer.
+### Submit the results for review
+1. When every replicate is recorded, check the [[Reason]] and select [[Submit for review]].
+2. An out-of-specification result opens an investigation and holds the lot, or the stability pull.
+### Correct a replicate
+1. Select [[Correct]] on the replicate's row while the test is open. The earlier value stays, struck through.
+### Review or return the test
+1. As a reviewer, select [[Sign review]] and sign with your PIN on that page.
+2. To send a conforming result back to the analyst instead, select [[Return test]].
+### Record a contract laboratory result
+1. Select [[Record contract laboratory result]] when an outside laboratory tested it. It shows only before any observation or QC batch.
+## Good to know
+- You cannot review or return a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded, even with the reviewer role.
+- An out-of-specification result cannot be corrected or returned. The investigation decides whether it is invalid.
+- Results cannot be submitted or reviewed until the test's QC batch is open and its QC passes.
+- A test is tested here or reported by a contract laboratory, never both.
+- Observations and raw data files are never overwritten or deleted. A correction adds a linked row and the earlier value stays.
 
 ## Purpose
 

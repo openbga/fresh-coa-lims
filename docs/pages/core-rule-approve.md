@@ -5,7 +5,23 @@ views: core.views.rule_approve
 templates: core/form.html
 models: core.RuleSet, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: Review a draft rule set revision and sign its approval so lots can use it. Quality role only, and never the revision's author.
 ---
+
+## Common tasks
+### Approve a draft revision
+1. Read [[Revision being approved]]: the rule policy, author and effective interval.
+2. If a notice lists versions your signature retires, check how many lots in quarantine are on them.
+3. Enter your [[Signing username]], your [[Signature PIN]] and a [[Reason]].
+4. Select [[Sign approval]]. You return to Rule sets.
+### Leave without signing
+1. Select [[Cancel]] to return to Rule sets. Nothing is signed.
+## Good to know
+- Approving retires each overlapping approved version of the code from this version's start, or from your signature if that is later.
+- Lots on a retired version need their requirements assigned again, or replaced, before further tests and disposition.
+- A retired version keeps its approved policy and signature.
+- Only a draft with an effective end date can be approved. Otherwise you return to Rule sets with the reason.
+- If the revision changed after you opened the page, signing fails. Reload and review it again.
 
 ## Purpose
 

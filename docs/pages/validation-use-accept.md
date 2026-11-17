@@ -5,7 +5,23 @@ views: validation.views.use_accept
 templates: ops/sign.html
 models: validation.UseAcceptance, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: Sign the acceptance of the system for the intended use described. Your signature freezes the supported assays, the approved configuration in force and the running release.
 ---
+
+## Common tasks
+### Accept the intended use
+1. Review the facts, including [[Approved configuration in force]], [[Running release]] and [[Supersedes]].
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and accept]]. The record becomes Accepted, and any earlier acceptance is superseded.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+## Good to know
+- You cannot accept a record you recorded, even with the quality role. The page says why and shows no PIN entry.
+- If the approved configuration, the running release or the current acceptance changed after the page opened, signing is refused. Reload and review again.
+- A supported assay with no approved version in force now blocks acceptance. Withdraw the record and record the intended use again.
+- The acceptance holds no work and releases nothing.
 
 ## Purpose
 

@@ -4,8 +4,28 @@ urls: sampling:sampling_new
 views: sampling.views.sampling_new
 templates: catalog/form.html
 models: sampling.SamplingRecord, quality.Sample, sampling.LotAssignment
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Record what was actually sampled from a lot against its approved sampling plan. Saving creates the lot's sample, with you recorded as the sampler.
 ---
+
+## Common tasks
+### Record a routine sample
+1. Enter the [[Sample reference]], the sampling time and the [[Location]].
+2. Enter [[Containers in lot]], [[Containers sampled]] and [[Container identifiers]].
+3. Enter the [[Total amount collected]] in the plan's [[Amount unit]].
+4. Enter a [[Reason]] and select [[Record sampling]].
+### Record a resample for an investigation
+1. In [[Purpose]], choose [[Resample for an investigation]].
+2. Choose the [[Original sample]] it replaces, then complete the form as for a routine sample.
+### Record sampling below the plan
+1. If fewer containers or less material than the plan were sampled, describe it in [[Deviation]].
+2. A quality person who did not sample or record it then assesses the deviation on the lot's page.
+## Good to know
+- A deviation is required when fewer containers or less than the plan's minimum amount are recorded.
+- A deviation blocks QC disposition until quality accepts it.
+- The sampling time must fall within the plan version's effective period and cannot be in the future.
+- The amount unit must be the one the approved plan states.
+- Recording sampling makes you an author of the lot's data, so you cannot sign its QC disposition.
 
 ## Purpose
 

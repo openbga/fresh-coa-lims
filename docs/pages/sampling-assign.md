@@ -4,8 +4,24 @@ urls: sampling:assign
 views: sampling.views.assign
 templates: catalog/form.html
 models: sampling.LotAssignment, quality.Lot, catalog.Material
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Freeze the approved specification, methods, sampling plan and rule sets that apply to a lot now, or record an applicability hold with the reasons when something is missing or conflicting.
 ---
+
+## Common tasks
+### Assign the lot's requirements
+1. Choose the [[Material]] and the [[Stage]].
+2. In [[Scopes]], keep general and add any market or customer scopes, separated by commas.
+3. Enter a [[Reason]] and select [[Assign requirements]].
+### Assign again after fixing a hold
+1. Resolve the hold reasons shown on the lot's page in the configuration, or name other scopes.
+2. Select [[Change requirements]] on the lot's page, then [[Assign requirements]] here. The new assignment supersedes the previous one.
+## Good to know
+- Nothing is guessed, merged or picked. If anything is missing, not approved or stated differently, the lot is placed on an applicability hold with the reasons.
+- [[Scopes in the configuration]] lists the scope names in use. A scope with no specification or rule set configured for it holds the lot.
+- Each submission adds a new assignment and raises the lot's record revision. Earlier assignments stay in the record.
+- Once testing has started, this page refuses. Quality then replaces the requirements with a signature.
+- After quality signed a decision on conflicting requirements, only quality can assign again, and the decision is not carried over.
 
 ## Purpose
 

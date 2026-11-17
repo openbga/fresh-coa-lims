@@ -5,7 +5,22 @@ views: stability.views.study_new
 templates: ops/form.html
 models: stability.Study, stability.Pull, quality.Lot, core.AuditEvent
 reviewed: 2026-11-17
+summary: Start a stability study of one lot on an approved protocol. A pull is scheduled for every timepoint, due from time zero. Analysts and quality users only.
 ---
+
+## Common tasks
+### Start a study
+1. Enter the [[Identifier]] and choose the [[Approved protocol]] and the [[Lot]].
+2. Enter the [[Container and closure]] and the [[Time zero]], the date the study actually started.
+3. Enter a [[Reason]] and select [[Start study]]. The study record opens with its pull schedule.
+### Leave without starting a study
+1. Select [[Cancel]]. Nothing is saved.
+## Good to know
+- Time zero cannot be in the future. This page records studies that have actually started.
+- When the protocol names a specification, the lot needs requirements assigned for that specification's material.
+- Rejected and cancelled lots are not offered. A released lot can be studied.
+- You are recorded as the person who started the study, so you cannot close it later.
+- Time zero and the due dates of the pulls cannot be changed once saved.
 
 ## Purpose
 

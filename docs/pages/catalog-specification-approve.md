@@ -5,7 +5,24 @@ views: catalog.views.specification_approve
 templates: catalog/approve.html
 models: catalog.SpecificationRevision, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: Review a draft specification version and sign its approval with your PIN. Only a quality user who did not create or change the draft can sign.
 ---
+
+## Common tasks
+### Approve the draft
+1. Check the tests and limits under [[Content being approved]].
+2. Write what you checked in [[Approval comment]] and enter your [[Signing username]].
+3. Enter your [[Signature PIN]] and select [[Sign and approve]]. The version page opens.
+### Check what your approval retires
+1. When [[Retires earlier]] shows, read which approved versions stop applying when you sign, and from when.
+### Set up a signature PIN
+1. If you have no PIN yet, select [[Enroll or change your signature PIN]].
+## Good to know
+- If you created or changed the draft, [[Not permitted]] shows instead of the form. No role, including administrator, can bypass this.
+- Signing is refused without a test, or when a test's method has no approved version that applies when this version takes effect.
+- If a later version is already approved for these dates, [[Cannot be approved]] shows and no PIN is asked for. Withdraw this draft and create a new version.
+- If anyone changes the draft after you open this page, signing fails. Reload and review it again.
+- A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned.
 
 ## Purpose
 

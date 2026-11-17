@@ -5,7 +5,26 @@ views: validation.views.rehearsal_detail
 templates: ops/record.html
 models: validation.Rehearsal, validation.RehearsalFile, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: One rehearsal: what was done, its criteria and outcome, the evidence files and its acceptance. Attach evidence, accept or withdraw it here.
 ---
+
+## Common tasks
+### Attach the evidence
+1. Select [[Attach evidence]]. It shows only to the person who recorded the rehearsal, while it awaits acceptance.
+2. Choose the file, say what it is and select [[Attach file]] on that page.
+### Accept the rehearsal
+1. Select [[Accept]]. It shows to the quality role once evidence is attached, unless you recorded the rehearsal.
+2. Sign with your PIN on that page using [[Sign and accept]].
+### Download an evidence file
+1. Under [[Evidence files]], select the file name.
+### Withdraw a rehearsal that will not be accepted
+1. Select [[Withdraw]]. It shows to its recorder or a quality person while it awaits acceptance.
+2. Give a reason on that page, then record a new rehearsal to correct it.
+## Good to know
+- An accepted rehearsal can still show Accepted: criteria not met. The acceptance confirms the record is true, not that the criteria were met.
+- Evidence files are never edited or deleted. Each download is checked against its SHA-256.
+- Attaching a file raises the record's revision, so a signing page opened earlier is refused as changed.
+- You cannot accept a rehearsal you recorded, even with the quality role.
 
 ## Purpose
 

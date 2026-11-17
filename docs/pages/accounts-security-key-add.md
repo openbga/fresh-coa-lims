@@ -4,8 +4,23 @@ urls: accounts:security_key_add
 views: accounts.views.security_key_add
 templates: accounts/security_key_add.html
 models: accounts.User, accounts.SecurityKey, accounts.RecoveryCode
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Name a security key or passkey, then register it through your browser's prompts. Your first key turns two-factor sign-in on.
 ---
+
+## Common tasks
+### Register a key
+1. Enter a [[Name of the key]], for example where you keep it.
+2. Select [[Register the key]], then insert or touch the key, or confirm on your phone or computer.
+3. For your first key, save the recovery codes shown once, then select [[I have saved the codes]].
+### Stop without adding a key
+1. Select [[Cancel]] to return to Two-factor sign-in.
+## Good to know
+- A key works only at the address shown on this page. Keys cannot be added when the site is opened by an IP address.
+- Finish within 10 minutes of starting, or start again from Two-factor sign-in.
+- Recovery codes are made only with your first second factor. An additional key leaves your codes unchanged.
+- An account can have at most 10 keys, and each name must differ from your other keys' names.
+- A key that checks your PIN, fingerprint or face can also sign you in without your password, through Sign in with a passkey.
 
 ## Purpose
 

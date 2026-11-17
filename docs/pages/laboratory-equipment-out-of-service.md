@@ -4,8 +4,21 @@ urls: laboratory:equipment_out_of_service
 views: laboratory.views.equipment_out_of_service
 templates: ops/form.html
 models: laboratory.Equipment, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Take an unfit instrument out of service so it cannot be used. Returning it later needs a signed approval by a different quality user.
 ---
+
+## Common tasks
+### Take the equipment out of service
+1. In [[Reason]], say why the equipment is unfit for use.
+2. Select [[Take out of service]]. The equipment record opens showing Out of service.
+### Leave it in service
+1. Select [[Cancel]] to return to the equipment record. Nothing changes.
+## Good to know
+- From then on, every attempt to use the equipment for work is refused.
+- You cannot return it to service yourself. A quality user who did not take it out signs the return.
+- A failed calibration takes equipment out of service by itself; you do not need this page for that.
+- Returning it needs an accepted passing calibration that has not expired, current qualification when required, and a signed impact assessment.
 
 ## Purpose
 

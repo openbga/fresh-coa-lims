@@ -4,8 +4,23 @@ urls: laboratory:contract_approval_revoke
 views: laboratory.contract_views.contract_approval_revoke
 templates: ops/sign.html
 models: laboratory.ContractApproval, laboratory.ContractUse, core.ElectronicSignature
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Sign the withdrawal of a contract laboratory approval. No further report is accepted under it; results already recorded stay as they are. Quality role only.
 ---
+
+## Common tasks
+### Revoke the approval
+1. Check the facts, including [[Accepted reports that relied on it]].
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and revoke]]. The approval record opens showing Revoked.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- Any quality user may revoke, including the person who recorded the evidence.
+- Revocation is final. Record a new approval to cover the method again.
+- After revocation, no new report is accepted under it, whatever its date, unless another signed approval covers that date.
+- Results already accepted are not changed or held. Place a hold from Holds if a lot must not be dispositioned.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 

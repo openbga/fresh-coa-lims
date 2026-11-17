@@ -5,7 +5,26 @@ views: laboratory.views.calibration_list
 templates: ops/list.html
 models: laboratory.Calibration, laboratory.Equipment
 reviewed: 2026-11-17
+summary: Every recorded calibration across all equipment. See which are awaiting acceptance, accepted or failed, and accept one that someone else recorded.
 ---
+
+## Common tasks
+### Find calibrations
+1. Type an asset ID in [[Search]].
+2. To narrow by state, choose [[Awaiting acceptance]], [[Accepted]] or [[Failed]] in [[Status]].
+3. Select [[Apply]], then select an asset to open its equipment record.
+### Accept a calibration
+1. Select [[Accept]] in the row. It shows only to a reviewer, on a calibration awaiting acceptance that someone else recorded.
+2. Sign with your PIN on that page.
+### Record a new calibration
+1. Select the asset, then select [[Record calibration]] on the equipment record. It shows for the analyst and quality roles.
+### See every calibration again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A passing calibration counts toward fitness only after it is accepted. A failure counts as soon as it is recorded.
+- Failed lists every failed calibration, accepted or not.
+- Search matches the asset ID only.
+- The most recently performed calibration comes first.
 
 ## Purpose
 

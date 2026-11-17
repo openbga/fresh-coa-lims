@@ -4,8 +4,27 @@ urls: quality:certificate_new
 views: quality.certificate_views.certificate_new
 templates: catalog/form.html
 models: quality.SupplierCertificate, quality.SupplierCertificateResult, quality.Lot, quality.LotReceipt
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record what a supplier's certificate states for a quarantined lot, result by result against the lot's approved requirements. These stay the supplier's results, apart from laboratory tests.
 ---
+
+## Common tasks
+### Record a supplier certificate
+1. Read the certificate beside the [[Record]] card, then fill in the [[Certificate]] section as printed.
+2. For each test the certificate states, enter its result, method and limits in that test's section. Leave other tests blank.
+3. Enter a [[Reason]] and select [[Record supplier certificate]]. The certificate record opens.
+### Record a qualitative result
+1. Choose the outcome in the test's result menu, then type the certificate's own words, for example Complies, in its wording field.
+### Record a result printed as less than a value
+1. Enter the number as printed and tick the test's box for a result stated as less than this value.
+### Submit after the requirements changed
+1. If the page says the lot's requirements changed, review every result against those now shown, then submit again. Your entries are kept.
+## Good to know
+- Enter results only in the requirement's unit, exactly as printed. Leave a result in another unit blank and describe it in [[Notes]].
+- Each result is compared with its requirement once, when saved. The comparison is never recalculated.
+- A recorded result answers no requirement. It counts only once proposed and accepted in place of a test.
+- A result without a stated method or limits can never be proposed in place of a test.
+- Recording a certificate makes you an author of the lot's data: you cannot sign its disposition or accept a result from it.
 
 ## Purpose
 

@@ -4,8 +4,26 @@ urls: quality:receipt_new
 views: quality.views.receipt_new
 templates: catalog/form.html
 models: quality.LotReceipt, quality.Lot, suppliers.Supplier
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Add receipt details to a quarantined lot that was received before they were kept, from its delivery documents. Analysts only.
 ---
+
+## Common tasks
+### Record the receipt details
+1. Check the lot in the [[Record]] card, then fill in [[Source]], [[Delivery]] and [[Examination on receipt]] from the delivery documents.
+2. Enter a [[Reason]] for recording them now.
+3. Select [[Record receipt details]]. You return to the lot record.
+### Record a lot made on site
+1. Choose [[Made on site]] in [[Source]] and leave the supplier and manufacturer fields blank.
+2. In [[Delivery or batch document]], enter the batch record or production order.
+### Note a discrepancy found on receipt
+1. Set [[Examination on receipt]] to [[Discrepancy found]] and describe it in [[Examination notes]].
+## Good to know
+- The page opens only for a lot in Quarantine without receipt details. Otherwise you return to the lot record with the reason.
+- Recorded details are never edited. Later changes go through Correct receipt details, which keeps the original.
+- Recording the details makes you an author of the lot's receipt data: you cannot sign its disposition, even with the quality role.
+- A discrepancy does not hold the lot. Place a hold from Holds if it must not be dispositioned.
+- A disposition signing page opened before you saved fails as stale. Reload it before signing.
 
 ## Purpose
 

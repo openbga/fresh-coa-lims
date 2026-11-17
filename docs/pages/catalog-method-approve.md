@@ -5,7 +5,24 @@ views: catalog.views.method_approve
 templates: catalog/approve.html
 models: catalog.MethodRevision, catalog.MethodCalculationInput, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: Review a draft method version and sign its approval with your PIN. Only a quality user who did not create or change the draft can sign.
 ---
+
+## Common tasks
+### Approve the draft
+1. Check the procedure, QC checks and calculation under [[Content being approved]].
+2. Write what you checked in [[Approval comment]] and enter your [[Signing username]].
+3. Enter your [[Signature PIN]] and select [[Sign and approve]]. The method record opens.
+### Check what your approval retires
+1. When [[Retires earlier]] shows, read which approved versions stop applying when you sign, and from when.
+### Set up a signature PIN
+1. If you have no PIN yet, select [[Enroll or change your signature PIN]].
+## Good to know
+- If you created or changed the draft, [[Not permitted]] shows instead of the form. No role, including administrator, can bypass this.
+- Signing is refused if the procedure or suitability evidence is blank, a batch method has no QC check, or the calculation is incomplete.
+- If anyone changes the draft after you open this page, signing fails. Reload and review it again.
+- A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned.
+- Five wrong PINs in a row lock your PIN for 15 minutes. Failed attempts are recorded even though nothing is signed.
 
 ## Purpose
 

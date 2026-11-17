@@ -4,8 +4,23 @@ urls: stability:overview
 views: stability.views.overview
 templates: ops/overview.html
 models: stability.Pull, stability.Protocol, stability.Study, stability.Hold, stability.RetentionObligation, stability.ReserveSample
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Stability work queues at a glance: overdue and due pulls, pulls awaiting acceptance, draft protocols, active holds and reserve gaps. Each count opens the list that resolves it.
 ---
+
+## Common tasks
+### See what needs attention
+1. Look for queues marked [[Needs attention]]. A queue with nothing waiting shows [[Clear]].
+2. Select a queue name, such as [[Pulls overdue]], to open its list already filtered to those records.
+### Open a stability list
+1. Select [[Protocols]], [[Studies]], [[Pulls]], [[Reserves]] or [[Holds]] in the tabs above the title.
+### Check reserves and retention
+1. Select [[Reserves below minimum quantity]] or [[Retention anchors not yet known]] to open the reserve samples list.
+## Good to know
+- The pull queues count pulls of active studies only. The pulls list they open also shows pulls of closed studies, so its count can be higher.
+- Due now runs from the first to the last day of a pull's window, by today's local date. Overdue means the window has closed and the pull was not taken.
+- An accepted pull can still be outside its acceptance criteria. [[Pulls outside acceptance criteria]] counts those.
+- [[Retention anchors not yet known]] counts obligations, not reserves, and opens the whole reserve samples list rather than a filtered one.
 
 ## Purpose
 

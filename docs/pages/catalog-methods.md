@@ -5,7 +5,23 @@ views: catalog.views.method_list
 templates: catalog/method_list.html
 models: catalog.Method, catalog.MethodRevision
 reviewed: 2026-11-17
+summary: Every analytical method, linked to its controlled procedure and suitability evidence. Find a method, see whether it has an approved version, or start a new one.
 ---
+
+## Common tasks
+### Find a method
+1. Type part of a method code or title in [[Search]], then select [[Apply]].
+2. Select a method code to open its record.
+### Start a new method
+1. Select [[New method]]. It shows only to users with the quality role.
+2. Enter the method and its draft version 1 on that page.
+### See every method again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Has approved version means a version was signed, not that one applies today. Open the method to see the version in force.
+- Draft pending means at least one draft is waiting to be approved or withdrawn.
+- Versions counts every version, including withdrawn ones.
+- Search covers method codes and titles only.
 
 ## Purpose
 

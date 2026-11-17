@@ -4,8 +4,21 @@ urls: catalog:calculation_input_remove
 views: catalog.views.calculation_input_remove
 templates: catalog/form.html
 models: catalog.MethodCalculationInput, catalog.MethodRevision
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Remove one input from the calculation of a draft method version. Your reason is recorded in the version's history.
 ---
+
+## Common tasks
+### Remove the input
+1. Check the input and its unit under [[Record]].
+2. Explain why in [[Reason]], then select [[Remove input]]. The method record opens.
+### Keep the input
+1. Select [[Cancel]].
+## Good to know
+- If the formula still uses this input, the version cannot be approved until you change the formula or add the input again.
+- Removing an input makes you an editor of the draft, so you can no longer approve it.
+- The removed input stays in the history with your reason.
+- If someone changes the draft after you open this page, removal is refused. Reload and try again.
 
 ## Purpose
 

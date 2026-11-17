@@ -4,8 +4,25 @@ urls: quality:acceptance_accept
 views: quality.acceptance_views.acceptance_accept
 templates: ops/sign.html
 models: quality.SupplierResultAcceptance, quality.SupplierCertificateResult, quality.SupplierCertificate, quality.Lot, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign that a proposed supplier result stands in for the laboratory's test of a requirement. Reviewers only, never its proposer or an author of its certificate or the lot's receipt details.
 ---
+
+## Common tasks
+### Accept the supplier result
+1. Check every fact against the supplier's certificate. Use the lot, certificate, supplier and qualification links.
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and accept]]. You return to the record, now Accepted.
+### Find out why you cannot accept
+1. If [[Not permitted]] shows, read the reason and select [[Back to record]]. Another reviewer accepts it.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- Signing checks everything again. If what the proposal relied on changed, signing is refused; withdraw it and propose again.
+- You check the entry against the certificate document. The software cannot compare it with the paper.
+- Accepting is not authorship: a reviewer who also holds the quality role may still sign the lot's disposition.
+- Five wrong PINs in a row lock your PIN for 15 minutes. Failed attempts are recorded even though nothing is signed.
+- The lot still needs its sample and sampling record for QC disposition.
 
 ## Purpose
 

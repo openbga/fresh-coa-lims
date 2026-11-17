@@ -5,7 +5,22 @@ views: suppliers.views.supplier_list
 templates: suppliers/list.html
 models: suppliers.Supplier, quality.LotReceipt
 reviewed: 2026-11-17
+summary: The supplier register: the companies lots are received from. Find a supplier, see its best qualification state and lots received, and open its record. Quality users add suppliers.
 ---
+
+## Common tasks
+### Find a supplier
+1. Type a code, name or location in [[Search]], then select [[Apply]].
+2. Select a supplier code to open its record.
+### Add a supplier
+1. Select [[New supplier]]. Only quality users see it.
+### See every supplier again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Being in the register does not qualify a supplier or reduce testing. A qualification is a separate signed record on the supplier's page.
+- Qualification shows the supplier's best state across its qualifications. Each covers one material and named tests; open the supplier for detail.
+- Lots received counts only current receipt details. A lot corrected to another supplier moves to that supplier's count.
+- A supplier cannot be edited or deleted after it is added.
 
 ## Purpose
 

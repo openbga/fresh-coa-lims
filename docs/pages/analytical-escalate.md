@@ -4,8 +4,21 @@ urls: analytical:escalate
 views: analytical.views.escalate
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.Investigation, analytical.InvestigationEntry
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Move a Phase I laboratory investigation to a Phase II full investigation. Reviewers and quality can escalate; no signature is needed.
 ---
+
+## Common tasks
+### Escalate the investigation
+1. Explain why in [[Reason]]. It is kept as an escalation entry.
+2. Select [[Escalate investigation]].
+### Keep the investigation in Phase I
+1. Select [[Cancel]] to return to the investigation without escalating.
+## Good to know
+- The lot, or the stability pull, stays held in both phases.
+- Escalating does not need a laboratory assessment first.
+- Only a Phase I investigation can be escalated.
+- An escalation entry is not counted as investigative work, so it does not stop you from concluding later.
 
 ## Purpose
 

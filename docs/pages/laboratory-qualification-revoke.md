@@ -4,8 +4,23 @@ urls: laboratory:qualification_revoke
 views: laboratory.views.qualification_revoke
 templates: ops/sign.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign the withdrawal of an approved qualification. Work after your signature time is blocked; work recorded before it stays on record. Quality role only.
 ---
+
+## Common tasks
+### Revoke the qualification
+1. Check [[Subject]], [[Activity]], [[Valid]] and [[Evidence]].
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and revoke]]. The qualification record opens showing Revoked.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot revoke your own qualification. The person who recorded it may revoke it.
+- Revocation is final. Record new evidence to qualify the subject again.
+- Approved evidence can be revoked even after its last valid day.
+- For equipment, revocation removes its qualification from the signature time, which can make it unfit for use.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 

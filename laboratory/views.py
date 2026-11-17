@@ -473,9 +473,10 @@ def qualification_status(q, today):
             return f"Approved, starts {q.valid_from.isoformat()}", "info", "scheduled"
         if q.valid_until < today:
             return "Expired", "danger", "expired"
-        # The list's "Expiring within 30 days" filter; the label reagents and suppliers use.
+        # Still effective (key "approved", as the filter "Approved and effective" finds it), and
+        # found by "Expiring within 30 days": the label reagents and suppliers use.
         if (q.valid_until - today).days <= DUE_SOON_DAYS:
-            return "Expiring soon", "warning", "expiring"
+            return "Expiring soon", "warning", "approved"
         return "Approved", "success", "approved"
     tone = {"recorded": "progress", "revoked": "danger"}[q.state]
     return q.get_state_display(), tone, q.state

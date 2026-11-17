@@ -4,8 +4,23 @@ urls: laboratory:contract_approval_new
 views: laboratory.contract_views.contract_approval_new
 templates: ops/form.html
 models: laboratory.ContractApproval, laboratory.ContractLaboratory, catalog.Method, core.AuditEvent
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Record the evidence that a contract laboratory may perform one test method between two dates. It approves nothing until a different quality user signs it.
 ---
+
+## Common tasks
+### Record approval evidence
+1. Enter [[Method code]] exactly as in the method catalog, and [[Scope]] if the approval has limits.
+2. Enter [[Evidence reference]], [[Valid from]] and [[Valid until (inclusive)]], with [[Evidence link]] if there is one.
+3. Give a [[Reason]] and select [[Record approval]]. The approval record opens, awaiting approval.
+### Leave without recording
+1. Select [[Cancel]] to return to the laboratory's record. Nothing is saved.
+## Good to know
+- The dates are compared with the date of the laboratory's report, not the day the result is recorded.
+- One approval covers one method code and every version of that method. Another method or later dates need a new approval.
+- Scope is shown with every result that relies on the approval, but the software does not check it.
+- You cannot sign approval evidence you recorded. A different quality user must.
+- Evidence cannot be edited after recording. Record a new approval instead.
 
 ## Purpose
 

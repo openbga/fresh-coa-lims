@@ -5,7 +5,21 @@ views: sampling.views.plan_list
 templates: sampling/plan_list.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
 reviewed: 2026-11-17
+summary: Every sampling plan, one per material and stage. Find a plan, see whether it has an approved version or a draft pending, and open it. Quality users can start a new plan here.
 ---
+
+## Common tasks
+### Find a sampling plan
+1. Type a code, title or material code in [[Search]], then select [[Apply]].
+2. Select a plan code to open it.
+### Start a new sampling plan
+1. Select [[New sampling plan]]. Only quality users see it.
+### See every plan again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- "Has approved version" does not mean a version is effective now. Open the plan to see each version's effective period.
+- "Draft pending" means a draft version exists. Another quality user must approve it before lots can be sampled against it.
+- There is one plan per material and stage. A change is a new version of the existing plan.
 
 ## Purpose
 

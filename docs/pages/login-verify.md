@@ -4,8 +4,27 @@ urls: login_verify
 views: accounts.views.login_verify
 templates: registration/login_verify.html
 models: accounts.User, accounts.SecurityKey, accounts.RecoveryCode
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: The second step of signing in for an account with two-factor sign-in. Use your security key, or enter a code from your authenticator app or a recovery code.
 ---
+
+## Common tasks
+### Sign in with your security key
+1. Select [[Use your security key]] and follow your browser's prompts. It shows only when your account has a key added at this address.
+### Sign in with a code from your app
+1. Enter the 6-digit code your authenticator app shows now in [[Code]].
+2. Select [[Verify and sign in]], or [[Verify the code and sign in]] when your account also has keys.
+### Use a recovery code
+1. Enter one of your recovery codes in [[Code]], or in [[Recovery code]] if you have no app. Hyphens, spaces and case do not matter.
+2. Select [[Verify and sign in]] or [[Verify the code and sign in]]. A message then tells you how many unused codes are left.
+### Start over
+1. Select [[Start again]] to return to Sign in. The pending sign-in is discarded.
+## Good to know
+- Finish within the time the page shows (300 seconds by default) of your password. After that, sign in again from the start.
+- Each app code works once. If you have just used the code shown, wait for the next one.
+- A recovery code is spent once used. Make new ones on Two-factor sign-in when you run low.
+- Wrong codes and refused keys count toward the same limit as wrong passwords. During the pause even a correct code is refused.
+- After 100 wrong codes or refused keys in a row, no code is accepted until an administrator resets two-factor sign-in.
 
 ## Purpose
 

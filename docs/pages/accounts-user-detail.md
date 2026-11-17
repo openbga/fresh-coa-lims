@@ -5,7 +5,25 @@ views: accounts.views.user_detail
 templates: accounts/user.html, includes/history_item.html
 models: accounts.User, core.PINCredential, core.AuditEvent, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One account's identity, roles, sign-in and PIN state, and its full history. Start any signed account change from here. Admin role only.
 ---
+
+## Common tasks
+### Correct the name or roles
+1. Select [[Update identity]] or [[Assign roles]], then sign the change on that page.
+### Deactivate or reactivate the account
+1. Select [[Deactivate account]], or [[Reactivate account]] for an inactive account. Sign the change on that page.
+### Help someone who is locked out
+1. Open [[More]] and choose [[Force password reset]], [[Clear PIN lockout]] or [[Reset two-factor sign-in]]. Each shows only when it applies.
+2. Enter a reason and sign the change on that page.
+### Review what changed
+1. In Account history, select [[Inspect recorded values]] on an event to see the values before and after it.
+## Good to know
+- Reset two-factor sign-in and Remove organization sign-in link are never offered for your own account. Change your own on Two-factor sign-in or Organization sign-in.
+- Clear PIN lockout keeps the PIN. Require PIN re-enrollment removes it, but earlier signatures stay.
+- A stopped two-factor sign-in is shown in bold. Reset it only once the person's identity is verified.
+- The owner's own password and two-factor changes appear in the history unsigned. Administrator changes carry a signature.
+- Staff and superuser flags are shown read-only. No action here changes them.
 
 ## Purpose
 

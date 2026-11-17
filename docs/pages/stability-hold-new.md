@@ -5,7 +5,22 @@ views: stability.views.hold_new
 templates: ops/form.html
 models: stability.Hold, quality.Lot, core.AuditEvent
 reviewed: 2026-11-17
+summary: Place a hold on a lot, optionally tied to one reserve sample. It takes effect at once and blocks QC disposition and disposal until a different quality signer releases it.
 ---
+
+## Common tasks
+### Place a hold
+1. Choose the [[Lot]] and the [[Kind]]: Investigation, Regulatory, Legal or Quality.
+2. Enter the investigation, CAPA or matter ID in [[Reference]], if there is one.
+3. Enter the [[Reason for hold]] and select [[Place hold]]. The hold record opens.
+### Hold one reserve sample
+1. Start from the reserve record and select [[Place hold]] there. The hold is tied to that reserve and its lot is filled in.
+## Good to know
+- You cannot release a hold you placed. A different quality user signs the release.
+- A hold tied to one reserve sample still blocks QC disposition of the whole lot.
+- While the lot is in quarantine, a disposition page opened before the hold goes stale and must be reloaded.
+- A hold can be placed on a released lot. The released lot's record is not changed.
+- A lot cancelled as received in error is not offered.
 
 ## Purpose
 

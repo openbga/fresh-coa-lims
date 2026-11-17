@@ -5,7 +5,23 @@ views: stability.views.reserve_list
 templates: ops/list.html
 models: stability.ReserveSample
 reviewed: 2026-11-17
+summary: Every identified reserve sample, with its quantity against the minimum, retention date and any active hold. Find a reserve, open its record, or record a new one.
 ---
+
+## Common tasks
+### Find a reserve sample
+1. Type a reserve identifier or lot number in [[Search]] and select [[Apply]].
+2. Select a reserve to open its record.
+### Find reserves below the minimum quantity
+1. Choose [[Below minimum quantity]] in [[Status]] and select [[Apply]].
+### Record a new reserve sample
+1. Select [[New reserve sample]]. It shows only to analysts and quality users.
+2. Fill in the reserve on that page and select [[Record reserve sample]].
+## Good to know
+- Nothing on this page disposes of a reserve. No disposal action exists in this system yet.
+- [[Retain through]] stays blank while any of the reserve's obligations has no anchor date, or when none is recorded.
+- [[Hold]] shows Active for a hold on the reserve or on its whole lot.
+- A reserve exactly at the minimum meets it. Only a smaller quantity is below minimum.
 
 ## Purpose
 

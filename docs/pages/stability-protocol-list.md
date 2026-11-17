@@ -5,7 +5,24 @@ views: stability.views.protocol_list
 templates: ops/list.html
 models: stability.Protocol
 reviewed: 2026-11-17
+summary: Every version of every stability protocol: draft, approved, superseded or withdrawn. Find a protocol, open its record, or draft a new one.
 ---
+
+## Common tasks
+### Find a protocol
+1. Type a code, title or product in [[Search]].
+2. To see only one state, choose it in [[Status]], for example Draft.
+3. Select [[Apply]], then select a protocol to open its record.
+### Draft a new protocol
+1. Select [[New protocol]]. It shows only to analysts and quality users.
+2. Fill in the header on that page and select [[Create draft]]. You add conditions and timepoints on the protocol record.
+### See every protocol again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Each version of a code is its own row. Approving a new version supersedes the earlier approved one, which stays readable.
+- A code can have only one draft at a time. Approve or withdraw it before drafting the next version.
+- Only a quality user who did not write the draft can approve it.
+- Sorting by [[Approved]] orders protocols by when they were drafted, not when they were approved.
 
 ## Purpose
 

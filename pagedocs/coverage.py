@@ -34,7 +34,7 @@ PENDING_NAMESPACES = dict.fromkeys((), _BACKLOG)
 # The friendly layer (summary, Common tasks, Good to know) is being rolled out page by page.
 # While this is False a doc may lack it; set it to True when every doc has it, and the coverage
 # test then requires it (the test fails as a reminder once nothing is left to roll out).
-FRIENDLY_LAYER_REQUIRED = False
+FRIENDLY_LAYER_REQUIRED = True
 
 
 def named_routes(patterns=None, namespace=""):

@@ -5,7 +5,24 @@ views: stability.views.pull_list
 templates: ops/list.html
 models: stability.Pull
 reviewed: 2026-11-17
+summary: Every stability pull across active and closed studies, oldest due first. Find pulls that are due, overdue or awaiting acceptance and open their records.
 ---
+
+## Common tasks
+### Find pulls that need work
+1. Choose a state in [[Status]], such as [[Due now]], [[Overdue]] or [[Awaiting acceptance]].
+2. Select [[Apply]], then select a pull to open its record.
+### Find the pulls of one study or lot
+1. Type a study ID or lot number in [[Search]] and select [[Apply]].
+### See pulls that failed their criteria
+1. Choose [[Accepted, acceptance criteria not met]] in [[Status]] and select [[Apply]].
+### See every pull again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Pulls of closed studies stay listed. The overview's pull counts include active studies only.
+- [[Accepted]] also lists pulls whose results did not meet the criteria. Accepted means reviewed, not conforming.
+- Due now and Overdue apply only to pulls not yet taken, by today's date and the pull's window.
+- Pulls are created when a study starts. There is no way to add one here.
 
 ## Purpose
 

@@ -4,8 +4,22 @@ urls: laboratory:equipment_new
 views: laboratory.views.equipment_new
 templates: ops/form.html
 models: laboratory.Equipment, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Register an instrument so its calibration, qualification and use can be tracked. Registration alone does not make it fit for use.
 ---
+
+## Common tasks
+### Register an instrument
+1. Enter [[Asset id]], [[Description]] and [[Category]], and [[Location]] if known.
+2. Leave [[Requires qualification]] ticked if the instrument needs approved qualification evidence before use.
+3. Give a [[Reason]] and select [[Register equipment]]. The new equipment record opens.
+### Leave without registering
+1. Select [[Cancel]] to return to the Equipment list. Nothing is saved.
+## Good to know
+- New equipment is in service but not fit for use until a passing calibration is recorded and accepted by a different reviewer.
+- With Requires qualification ticked, approved, current qualification evidence is also needed before the equipment can be used.
+- The asset id, description, category, location and qualification setting cannot be changed after registration.
+- Asset ids are unique. A duplicate is refused.
 
 ## Purpose
 

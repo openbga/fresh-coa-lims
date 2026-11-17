@@ -5,7 +5,26 @@ views: catalog.views.specification_list
 templates: catalog/specification_list.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
 reviewed: 2026-11-17
+summary: Every specification: the tests and limits a material must meet at one stage and scope. Find a specification, see whether it has an approved version, or create a new one.
 ---
+
+## Common tasks
+### Find a specification
+1. Type part of a specification code, title or material code in [[Search]].
+2. To see one stage only, choose it in [[Stage]], then select [[Apply]].
+3. Select a specification code to open its record.
+### Create a specification
+1. Select [[New specification]]. It shows only to users with the quality role.
+2. Choose the material, stage and scope and create draft version 1 on that page.
+### Find methods or materials
+1. Select the [[Methods]] or [[Materials]] tab above the list.
+### See every specification again
+1. Select [[Clear all]] to remove the search and the stage.
+## Good to know
+- Search matches material codes, not material names.
+- Has approved version means a version was signed, not that one applies today. Open the specification to see the version in force.
+- Draft pending means at least one draft is waiting to be approved or withdrawn.
+- Versions counts every version, including withdrawn ones.
 
 ## Purpose
 

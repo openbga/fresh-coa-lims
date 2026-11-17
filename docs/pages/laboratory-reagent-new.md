@@ -4,8 +4,27 @@ urls: laboratory:reagent_new
 views: laboratory.views.reagent_new
 templates: ops/form.html
 models: laboratory.ReagentLot, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Record a received reagent or reference standard lot, or a solution prepared from a released lot. No lot can be used until a different reviewer releases it.
 ---
+
+## Common tasks
+### Record a received reagent or standard
+1. Enter [[Identifier]], choose [[Kind]], and enter [[Name]], [[Supplier]] and [[Lot number]].
+2. Enter [[Received or prepared on]] and [[Expiry date (last day of use)]], with [[Assigned purity]] and [[Purity unit]] if certified.
+3. Add [[Certificate ref]] or [[Certificate url]], give a [[Reason]] and select [[Record lot]].
+### Record a prepared solution
+1. Choose [[Prepared solution]] in [[Kind]] and its source lot in [[Parent]].
+2. Describe the diluent, amounts and calculation in [[Preparation note]].
+3. Set an expiry no later than the source lot's, give a [[Reason]] and select [[Record lot]].
+### Leave without recording
+1. Select [[Cancel]] to return to the list. Nothing is saved.
+## Good to know
+- Only released lots are offered in Parent, and the source and its own sources must still be eligible for use.
+- A prepared solution cannot outlive its source lot.
+- Give the purity and its unit together, or neither.
+- The received or prepared date cannot be in the future.
+- Provenance cannot be edited after recording. Only release or rejection changes the lot.
 
 ## Purpose
 

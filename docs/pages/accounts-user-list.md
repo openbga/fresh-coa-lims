@@ -5,7 +5,23 @@ views: accounts.views.user_list
 templates: accounts/users.html
 models: accounts.User, accounts.SecurityKey, auth.Group
 reviewed: 2026-11-17
+summary: Every named account with its roles, status and two-factor sign-in. Find an account, open its record, or create a new one. Admin role only.
 ---
+
+## Common tasks
+### Find an account
+1. Type part of a username, name or email in [[Find account]].
+2. To narrow the list, choose a [[Role]], [[Status]] or [[Two-factor sign-in]] value.
+3. Select [[Apply]], then select a username to open its record.
+### Create an account
+1. Select [[New account]], then sign the creation on that page.
+### See every account again
+1. Select [[Clear all]] to remove the search and filters.
+## Good to know
+- Inactive accounts and accounts without a role are listed too, sorted by username.
+- Status shows only whether the account can sign in. A locked signature PIN or stopped two-factor sign-in appears below it.
+- Two-factor sign-in is On when the account has a confirmed authenticator app or at least one security key.
+- Viewing or filtering changes no account. Every change is signed on the account's own pages.
 
 ## Purpose
 

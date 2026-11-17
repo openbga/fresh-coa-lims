@@ -4,8 +4,20 @@ urls: suppliers:new
 views: suppliers.views.supplier_new
 templates: catalog/form.html
 models: suppliers.Supplier
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Add a supplier to the register so that a lot's receipt details can name it. Adding a supplier does not qualify it.
 ---
+
+## Common tasks
+### Add a supplier
+1. Enter the [[Code]], [[Name]] and [[Location]]. Use synthetic names only.
+2. Enter a [[Reason]] and select [[Create supplier]].
+### Qualify the new supplier
+1. After saving, the supplier's page opens. Select [[Record qualification]] there to record its qualification evidence.
+## Good to know
+- The code, name and location cannot be edited after creation. Check them before you save.
+- A supplier code already in the register is refused.
+- Adding a supplier does not change which tests a lot requires. A qualification is recorded on the supplier's page and signed by a second quality person.
 
 ## Purpose
 

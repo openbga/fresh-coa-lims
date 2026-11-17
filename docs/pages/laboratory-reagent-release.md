@@ -4,8 +4,23 @@ urls: laboratory:reagent_release
 views: laboratory.views.reagent_release
 templates: ops/sign.html
 models: laboratory.ReagentLot, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign the release of a reagent, standard or prepared solution lot after reviewing its provenance, certificate and expiry. Reviewer role, not the person who recorded it.
 ---
+
+## Common tasks
+### Release the lot
+1. Check [[Name]], [[Supplier lot]], [[Expiry (last day of use)]] and [[Certificate]].
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and review]]. The lot record opens, released for use.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot release a lot you recorded, whatever other roles you hold.
+- An expired lot, or one dated in the future, cannot be released.
+- A prepared solution is released only when every source lot up its chain is released.
+- The lot is usable from your signature time until its expiry date.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 

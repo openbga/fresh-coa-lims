@@ -4,8 +4,28 @@ urls: catalog:specification_revision
 views: catalog.views.specification_revision
 templates: catalog/specification_revision.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One version of a specification: its facts, tests and acceptance criteria, signatures and history. Quality users build the draft here and send it for independent approval.
 ---
+
+## Common tasks
+### Add a test to the draft
+1. Select [[Add test]]. It shows only to quality users while the version is a draft.
+### Remove a test from the draft
+1. Select [[Remove]] on the test's row, then give a reason on that page. It shows only to quality users on a draft.
+### Approve the version
+1. Select [[Review and approve]]. It shows only if you did not create or change this draft.
+2. Check the content and sign with your PIN on that page.
+### Withdraw the draft
+1. Select [[Withdraw draft]], then give a reason on that page.
+### Open the method of a test
+1. In [[Tests and acceptance criteria]], select the method code.
+## Good to know
+- If you created or changed this draft, [[Independent approval]] shows and another quality user must sign it.
+- Tests cannot be edited. To change one, remove it and add it again.
+- Approval needs at least one test, and each method needs an approved version that applies when this version takes effect.
+- An approved version shows [[Frozen]]: it and its tests cannot be changed. Create a new version from the specification record.
+- Lots keep the version frozen when their requirements were assigned.
 
 ## Purpose
 

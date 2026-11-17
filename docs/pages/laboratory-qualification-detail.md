@@ -5,7 +5,24 @@ views: laboratory.views.qualification_detail
 templates: ops/record.html
 models: laboratory.Qualification, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One qualification record: who or what it qualifies, for which activity and dates, with its approval or revocation signatures and its history.
 ---
+
+## Common tasks
+### Approve the evidence
+1. Select [[Approve]]. It shows to the quality role while the record awaits approval, unless you recorded it or it is about you.
+2. Sign with your PIN on that page.
+### Revoke an approved qualification
+1. Select [[Revoke]]. It shows to the quality role on approved records that are not about you.
+2. Sign with your PIN on that page. Work after the signature time is blocked.
+### Check the evidence
+1. Read [[Evidence reference]] and [[Scope]], and open the link under [[Evidence link]] if one was recorded.
+## Good to know
+- Approved evidence qualifies only from the approval time and only from Valid from to Valid until.
+- Approve still shows on evidence whose last valid day has passed, but signing it is refused. Record new evidence instead.
+- A revoked qualification cannot be approved again or edited. Record new evidence.
+- Work recorded before a revocation stays on record; only later work is blocked.
+- Revoking equipment qualification can make the equipment unfit for use from the signature time.
 
 ## Purpose
 

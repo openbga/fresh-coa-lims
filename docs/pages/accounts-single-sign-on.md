@@ -4,8 +4,26 @@ urls: accounts:single_sign_on
 views: accounts.views.single_sign_on_page
 templates: accounts/single_sign_on.html
 models: accounts.User, accounts.SingleSignOnLink, core.AuditEvent
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Link your laboratory account to your account at your organization's identity provider, so you can sign in there instead of typing your password. Unlink it when you no longer want that.
 ---
+
+## Common tasks
+### Link your organization account
+1. Enter your [[Current password]]. With two-factor sign-in, also enter a code, or leave the code empty to use your security key.
+2. Select [[Confirm]], then select the Continue to button that names your provider.
+3. Sign in there as yourself. You return here with the account linked.
+### Unlink your organization account
+1. Enter your [[Current password]] and, with two-factor sign-in, a code or your security key.
+2. Select [[Unlink the organization account]]. You then sign in with your password again.
+### Leave without changes
+1. Select [[Cancel]] to return to Account access.
+## Good to know
+- Your laboratory account, roles and signature PIN do not change. The PIN is still entered for every signature, and sign-in still asks for your second factor.
+- One organization account links to one laboratory account. Unlink an existing link before making another.
+- The Continue to button works once, in this browser, for 10 minutes. After that, confirm again.
+- Wrong passwords and codes here count toward the sign-in failure limit, and can pause sign-in for the account for a while.
+- A link made with a different identity provider no longer signs you in. Unlink it, then link again.
 
 ## Purpose
 

@@ -5,7 +5,28 @@ views: laboratory.views.equipment_detail
 templates: ops/record.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.Qualification, laboratory.ResourceUse, core.ElectronicSignature
 reviewed: 2026-11-17
+summary: One instrument's fitness for use: its calibrations, qualification evidence, service state and recorded uses, with the actions that keep it fit or take it out of service.
 ---
+
+## Common tasks
+### Record a calibration
+1. Select [[Record calibration]]. It shows for the analyst and quality roles.
+2. Fill in the form on that page. A failed calibration takes the equipment out of service at once.
+### Accept a calibration
+1. In [[Calibrations]], select [[Accept]] in the row. It shows only to a reviewer, on a calibration awaiting acceptance that someone else recorded.
+2. Sign with your PIN on that page.
+### Take the equipment out of service or return it
+1. Select [[Take out of service]] and give the reason on that page. It shows while the equipment is in service.
+2. To return it, a quality user selects [[Return to service]] and signs an impact assessment of [[Uses to assess after failure]].
+### Record qualification evidence
+1. Select [[Record qualification]] and fill in the form on that page.
+2. A quality user who did not record it approves it on the qualification record.
+## Good to know
+- A passing calibration counts only once a different reviewer accepts it. A failed one counts the moment it is recorded.
+- Whoever took the equipment out of service, including by recording a failed calibration, cannot return it to service.
+- Uses to assess after failure start at the last accepted passing calibration before the failure. A later pass does not shorten the list; only the signed return to service does.
+- The lot, test state and result shown for each use are read now, not as they were when the equipment was used.
+- Calibrations and qualifications are never edited. A correction is a new record, and the history keeps every change.
 
 ## Purpose
 

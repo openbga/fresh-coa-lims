@@ -4,8 +4,22 @@ urls: catalog:specification_version_new
 views: catalog.views.specification_version_new
 templates: catalog/form.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create the next draft version of a specification. It starts with the tests of the latest version; you give a new basis, effective period and reason.
 ---
+
+## Common tasks
+### Create a new version
+1. Enter the [[Basis]] for the limits and the [[Effective period]]. Nothing is prefilled.
+2. Give the [[Reason for change]] and select [[Create draft version]]. The new version opens.
+3. Remove or add tests there, then ask another quality user to approve it.
+### Leave without creating
+1. Select [[Cancel]] to return to the specification.
+## Good to know
+- Tests are copied from the highest-numbered version whatever its status, even a withdrawn one.
+- Copied tests cannot be edited. To change one, remove it and add it again.
+- When approved, this version retires an earlier approved version it overlaps, from its start or from the moment of approval if that is later.
+- You become the author, so another quality user must approve this version.
 
 ## Purpose
 

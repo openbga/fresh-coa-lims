@@ -4,8 +4,23 @@ urls: laboratory:equipment_return
 views: laboratory.views.equipment_return
 templates: ops/sign.html
 models: laboratory.Equipment, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Sign the return of out-of-service equipment to service, with your assessment of the work done since its last accepted passing calibration. Quality role only.
 ---
+
+## Common tasks
+### Assess the impact and return the equipment to service
+1. Review [[Impact scope]] and each affected use listed below it.
+2. Enter [[Signing username]], your [[Impact assessment]] and your [[Signature PIN]].
+3. Select [[Sign and approve]]. The equipment record opens, back in service.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot return equipment that you took out of service, including by recording its failed calibration.
+- Signing is refused until a passing calibration after the failure is accepted and not expired, and qualification is current when required.
+- If a use or a failed calibration is recorded while you assess, signing is refused. Reload the page and reassess.
+- Your assessment is stored with the failed calibrations and uses it covered.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 

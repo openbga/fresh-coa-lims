@@ -4,8 +4,24 @@ urls: laboratory:contract_approval_detail
 views: laboratory.contract_views.contract_approval_detail
 templates: ops/record.html
 models: laboratory.ContractApproval, laboratory.ContractLaboratory, laboratory.ContractUse, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: One contract laboratory approval for one method: its evidence and dates, its signatures, and the results accepted under it.
 ---
+
+## Common tasks
+### Approve the evidence
+1. Select [[Approve]]. It shows to the quality role while the approval awaits signature, unless you recorded it.
+2. Sign with your PIN on that page.
+### Revoke the approval
+1. Select [[Revoke]]. It shows to the quality role once the approval is signed, including to the person who recorded it.
+2. Sign with your PIN on that page. No further report is accepted under it.
+### Check the results that relied on it
+1. See [[Results that relied on this approval]]. Select a work entry to open the test.
+## Good to know
+- An Expired approval still covers reports dated within its dates. A Revoked one covers no new report.
+- After a revocation, accepted results stand as recorded. The software holds no lot; assess them under your procedure.
+- A revoked approval is final. Record a new approval for the method instead.
+- Scope is shown with each result that relies on the approval, but the software does not check it.
 
 ## Purpose
 

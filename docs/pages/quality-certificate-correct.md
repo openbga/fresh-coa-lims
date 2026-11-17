@@ -4,8 +4,25 @@ urls: quality:certificate_correct
 views: quality.certificate_views.certificate_correct
 templates: catalog/form.html
 models: quality.SupplierCertificate, quality.SupplierCertificateResult, quality.Lot, quality.LotReceipt
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Correct a supplier certificate record of a quarantined lot. The correction adds a linked record, keeps the one it replaces and compares every result with the lot's current requirements.
 ---
+
+## Common tasks
+### Correct a certificate record
+1. Change what was entered wrongly. The form opens with the current record.
+2. Say what was wrong in [[Reason for correction]].
+3. Select [[Correct supplier certificate]]. The certificate record opens, showing the new record.
+### Compare results with changed requirements
+1. Leave the results as they are, enter a [[Reason for correction]] and select [[Correct supplier certificate]]. Each result is compared with the current requirements.
+### Remove a test the certificate does not state
+1. Clear every field of that test. The new record leaves it out.
+## Good to know
+- The new record holds exactly what the form holds when you submit. A test you clear is not carried over.
+- Every proposal or acceptance taken from the replaced record stops standing, even for an unchanged result. Withdraw it, then propose again.
+- If the record was corrected or withdrawn after you opened the page, nothing is saved. Reload and review it.
+- A correction that changes nothing is refused.
+- Correcting makes you an author of the lot's data: you cannot sign its disposition or accept a result from this record.
 
 ## Purpose
 

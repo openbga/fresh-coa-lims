@@ -4,8 +4,21 @@ urls: stability:pull_missed
 views: stability.views.pull_missed
 templates: ops/form.html
 models: stability.Pull, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record that a stability pull was missed: not taken before its window closed, or taken but not testable. The missed pull stays on the study for good.
 ---
+
+## Common tasks
+### Mark the pull missed
+1. Enter the [[Reason]] the pull was missed, for example lost or insufficient material.
+2. Select [[Mark missed]]. You return to the pull record.
+### Leave without changing the pull
+1. Select [[Cancel]]. Nothing is saved.
+## Good to know
+- A scheduled pull can be marked missed only after its window has closed.
+- A taken pull is refused while its testing is in progress, once every test is decided, or when a result failed. A reviewer accepts it instead.
+- Missed is final. The pull cannot be rescheduled, and its reviewed results stay in the record.
+- Only a pull of an active study can be marked missed.
 
 ## Purpose
 

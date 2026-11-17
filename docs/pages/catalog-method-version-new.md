@@ -4,8 +4,22 @@ urls: catalog:method_version_new
 views: catalog.views.method_version_new
 templates: catalog/form.html
 models: catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create the next draft version of a method. It starts with the calculation, inputs and resource options of the latest version, and its QC checks when it runs in a QC batch.
 ---
+
+## Common tasks
+### Create a new version
+1. Enter the [[Technique]], [[Controlled procedure]], suitability and [[Effective period]]. They are not copied from the latest version.
+2. Give the [[Reason for change]] and select [[Create draft version]]. The method record opens.
+3. Adjust the copied QC checks and calculation there, then ask another quality user to approve it.
+### Keep the batch QC checks
+1. Tick [[Runs in a QC batch]] to copy the QC checks of the latest version. Left clear, none are copied.
+## Good to know
+- Only the two resource options start as in the latest version. Every other field starts empty.
+- The calculation and inputs are copied whatever the status of the latest version, so an incomplete calculation stays incomplete until you fix it.
+- When approved, this version retires an earlier approved version it overlaps, from its start or from the moment of approval if that is later.
+- You become the author, so another quality user must approve this version.
 
 ## Purpose
 

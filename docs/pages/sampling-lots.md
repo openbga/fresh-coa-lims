@@ -5,7 +5,25 @@ views: sampling.views.lot_list
 templates: sampling/lot_list.html
 models: quality.Lot, sampling.LotAssignment, sampling.SamplingRecord
 reviewed: 2026-11-17
+summary: Lots for requirement assignment and sampling. Find a lot, see whether its requirements are assigned or on hold and how many samples it has, and open its sampling page.
 ---
+
+## Common tasks
+### Find a lot
+1. Type a lot number or material in [[Search]].
+2. To see only lots in one requirement state, choose it in [[Status]].
+3. Select [[Apply]], then select a lot number to open its requirements and sampling.
+### Find lots that still need requirements
+1. In [[Status]], choose [[Not assigned]] or [[Applicability hold]], then select [[Apply]].
+### Switch to the sampling plans
+1. Select [[Sampling plans]] above the page title.
+### See every lot again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- The Requirements column and the status filter use each lot's latest requirement assignment.
+- The filter's "Requirements assigned" shows as "Assigned" in the Requirements column.
+- "Awaiting quality assessment" means a sampling deviation still needs quality's signed assessment. Until it is accepted, it blocks QC disposition.
+- Lots in every status are listed, not only those in quarantine. The newest lot record comes first.
 
 ## Purpose
 

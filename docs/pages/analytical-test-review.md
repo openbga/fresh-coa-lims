@@ -4,8 +4,23 @@ urls: analytical:test_review
 views: analytical.views.test_review
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.AnalyticalTest, quality.Lot, laboratory.ContractApproval, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Independently review one submitted test and sign it with your PIN as reviewed. Out-of-specification results are reviewed too; the investigation decides their validity.
 ---
+
+## Common tasks
+### Sign the review
+1. Check the replicates and the reportable result in the summary against the raw data.
+2. Enter your [[Signing username]], [[Signature PIN]] and a [[Reason]].
+3. Select [[Sign and review]].
+### Set or change your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+## Good to know
+- You cannot review a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded, even with the reviewer role.
+- If the test changes after you open this page, the signature is refused and you must review again.
+- Five wrong PINs in a row lock your PIN for 15 minutes. Failed attempts are recorded even though nothing is signed.
+- A result reported by a contract laboratory is checked against its report. The summary names the laboratory and the report.
+- A signed review does not release the lot. QC disposition is a separate signed decision.
 
 ## Purpose
 

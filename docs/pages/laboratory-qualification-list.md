@@ -5,7 +5,26 @@ views: laboratory.views.qualification_list
 templates: ops/list.html
 models: laboratory.Qualification
 reviewed: 2026-11-17
+summary: Approved training and qualification evidence for analysts and equipment, with its dates and approval state. Find a record, or record new evidence for an analyst.
 ---
+
+## Common tasks
+### Find a qualification
+1. Type an activity, a username or an asset ID in [[Search]].
+2. To narrow by state, choose one in [[Status]], for example [[Awaiting approval]] or [[Expiring within 30 days]].
+3. Select [[Apply]], then select an activity to open its record.
+### Record evidence for an analyst
+1. Select [[New qualification]]. It shows for the analyst, reviewer and quality roles.
+2. Fill in the form on that page. A different quality user then approves it.
+### Record evidence for equipment
+1. Open the [[Equipment]] tab, select the asset, then select [[Record qualification]] on its record.
+### See every qualification again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Group membership alone never qualifies anyone. Only approved evidence counts, and only within its dates.
+- Approved, starts and a date means approved but not yet in effect.
+- Expired is shown for approved evidence whose last valid day has passed.
+- The most recently recorded evidence comes first, although the list has no recorded column.
 
 ## Purpose
 

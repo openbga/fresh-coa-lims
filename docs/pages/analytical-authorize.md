@@ -4,8 +4,24 @@ urls: analytical:authorize
 views: analytical.views.authorize
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.Investigation, analytical.AnalyticalTest, analytical.InvestigationEntry, quality.Sample, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Quality signs the authorization of one justified retest or resample within the specification's allowance. A linked open test is created for the laboratory.
 ---
+
+## Common tasks
+### Authorize a retest
+1. Under [[Authorize]], choose [[Retest of the original sample]], or [[Retest of the material that was pulled]] for a stability test.
+2. Write the [[Scientific justification and plan]].
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and authorize]].
+### Authorize a resample
+1. Choose [[Resample: test a newly collected sample]] and pick the sample in [[New sample (resample only)]].
+2. Write the justification, enter your username and PIN, and select [[Sign and authorize]].
+## Good to know
+- The retest does not replace the original result. Only a conclusion with an assignable cause can invalidate it.
+- You cannot authorize retesting of a result whose data you generated.
+- A laboratory assessment must be recorded first, and the specification limits how many retests and resamples are allowed.
+- A resample must use a new, untested sample of this lot. A stability test can only be retested on the material pulled.
+- Retests invalidated by a rejected QC batch do not count towards the allowance.
 
 ## Purpose
 

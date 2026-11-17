@@ -33,7 +33,7 @@ def symbols():
 
 def scripts():
     for path in sorted(ROOT.glob("**/static/**/*.js")):
-        if not {".venv", "vendor", "staticfiles", "node_modules"} & set(path.parts):
+        if not {".venv", ".local", "build", "vendor", "staticfiles", "node_modules"} & set(path.parts):
             yield path.relative_to(ROOT).as_posix(), path.read_text()
 
 

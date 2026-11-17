@@ -4,8 +4,28 @@ urls: catalog:test_new
 views: catalog.views.test_new
 templates: catalog/form.html
 models: catalog.SpecificationTest, catalog.SpecificationRevision, catalog.Method
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Add one test to a draft specification version: its method, acceptance criterion and replication. Numeric and count tests need a unit and a limit; qualitative tests need an outcome.
 ---
+
+## Common tasks
+### Add a numeric or count test
+1. Enter the [[Code]] and [[Name]], and choose the [[Method]].
+2. Choose the [[Result type]] and the [[Unit]], and enter a [[Lower limit]], an [[Upper limit]] or both.
+3. For a strict limit, clear [[Lower limit is inclusive (≥)]] or [[Upper limit is inclusive (≤)]].
+4. Give the [[Reason for change]] and select [[Add test]]. The version page opens.
+### Add a qualitative test
+1. Enter the [[Code]], [[Name]] and [[Method]], and choose Qualitative (expected outcome) in [[Result type]].
+2. Choose the [[Expected outcome]] and enter the approved wording in [[Criterion]].
+3. Give the [[Reason for change]] and select [[Add test]].
+### Make a test information only
+1. Clear [[Required for QC disposition]] before you add the test.
+## Good to know
+- The method list offers every method. Approval needs an approved version of it that applies when the specification takes effect.
+- For a method that calculates its result, the test must be numeric, in the same unit as the calculation.
+- Limits are stored exactly as entered. Leave [[Round to decimals before comparison]] blank to compare the exact recorded value.
+- A test cannot be edited after it is added. To change it, remove it and add it again.
+- Adding a test makes you an editor of the draft, so you can no longer approve it.
 
 ## Purpose
 

@@ -5,7 +5,25 @@ views: laboratory.views.equipment_list
 templates: ops/list.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.Qualification
 reviewed: 2026-11-17
+summary: Every registered instrument with its fitness for use today. Find equipment, see when its calibration is due and open its record, or register new equipment.
 ---
+
+## Common tasks
+### Find equipment
+1. Type an asset ID, description or category in [[Search]].
+2. To see one fitness state only, choose it in [[Status]], for example [[Calibration overdue]] or [[Out of service]].
+3. Select [[Apply]], then select an asset to open its record.
+### Register new equipment
+1. Select [[New equipment]]. It shows only for the analyst and quality roles.
+2. Fill in the form on that page. The equipment is not fit for use until a passing calibration is accepted.
+### See every item again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A passing calibration counts only after a different reviewer accepts it. Until then it does not change the fitness shown here.
+- A failed calibration counts as soon as it is recorded and takes the equipment out of service.
+- Fitness is checked in this order: out of service, not calibrated, calibration failed, overdue, not qualified, due soon, ready. Overdue and unqualified equipment shows Calibration overdue.
+- Due soon means the calibration due date, the last valid day, is within 30 days.
+- Search does not cover the location.
 
 ## Purpose
 

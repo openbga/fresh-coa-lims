@@ -5,7 +5,22 @@ views: quality.rejection_views.lot_cancel
 templates: quality/closure.html
 models: quality.Lot, core.ElectronicSignature, core.AuditEvent, core.PINCredential
 reviewed: 2026-11-17
+summary: Sign the cancellation of a lot recorded in error, such as a delivery recorded twice, before its material was used. Quality role only. Records are kept and the number is not reused.
 ---
+
+## Common tasks
+### Cancel a lot recorded in error
+1. Check [[The lot now]]. Your signature freezes what it shows.
+2. Describe the mistake in [[What was recorded in error]]. Optionally fill in [[Record in the quality system]].
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and cancel the lot]].
+### When the lot cannot be cancelled
+1. If [[The lot cannot be cancelled]] lists samples, tests, reserve samples or a study, the material was handled. Reject the lot instead.
+2. If a supplier result stands in place of a test, withdraw it on its own record first.
+## Good to know
+- Whoever received the lot, or made any of its records, cannot cancel it. Another quality person signs.
+- The lot and its records are kept, marked Cancelled. Its number is not used again.
+- Supplier certificates, receipt details and active holds do not stop a cancellation. They are frozen as shown.
+- If the lot changes after you opened the page, nothing is signed. Review the lot as it is now and sign again.
 
 ## Purpose
 

@@ -4,8 +4,22 @@ urls: reporting:version, reporting:pdf
 views: reporting.views.version_detail, reporting.views.version_pdf
 templates: reporting/version.html, reporting/_certificate.html, reporting/pdf/certificate.html
 models: reporting.ReportVersion, reporting.Report, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: One issued version of a certificate, shown exactly as stored, with its signature, checksums and the stored PDF to open or download.
 ---
+
+## Common tasks
+### Download or open the PDF
+1. Select [[Download PDF]] to save it, or [[Open PDF]] to view it in a new tab.
+### Check who signed this version
+1. Under [[Issued record]], read [[Signature]] for the signer, the meaning and the time.
+### Go to the version it amends or that replaced it
+1. Select the version under [[Amends]] or [[Superseded by]].
+## Good to know
+- The page and the PDF come from what was stored at issue. Later changes to other records never alter them.
+- Each download or opening of the PDF is recorded in the certificate's history.
+- If the stored PDF fails its integrity check, nothing is sent and you return here with the error.
+- A superseded version stays available. Only the newest version is current.
 
 ## Purpose
 

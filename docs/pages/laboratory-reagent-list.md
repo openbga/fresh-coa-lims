@@ -5,7 +5,24 @@ views: laboratory.views.reagent_list
 templates: ops/list.html
 models: laboratory.ReagentLot
 reviewed: 2026-11-17
+summary: Reagent, reference standard and prepared solution lots with their release state and expiry. Find a lot, open its record or record a new lot.
 ---
+
+## Common tasks
+### Find a lot
+1. Type an identifier, name or supplier lot in [[Search]].
+2. To narrow by state, choose one in [[Status]], for example [[Awaiting release]] or [[Expiring within 30 days]].
+3. Select [[Apply]], then select an identifier to open the lot.
+### Record a new lot
+1. Select [[New reagent lot]]. It shows for the analyst and quality roles.
+2. Fill in the form on that page. The lot cannot be used until a different reviewer releases it.
+### See every lot again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- The state shown looks at this lot only. A solution prepared from a rejected or expired source can still show Released here, but it is refused when used.
+- Expiry is the last day of use, inclusive.
+- Released for use leaves out lots past expiry. Find those under Released but expired.
+- Search does not cover the supplier name.
 
 ## Purpose
 

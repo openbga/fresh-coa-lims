@@ -5,7 +5,24 @@ views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: laboratory.ContractApproval, quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, suppliers.SupplierQualification, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
 reviewed: 2026-11-17
+summary: Sign the QC disposition that releases a quarantined lot. Quality role only, never someone who authored the lot's data. QC disposition does not mean manufacturer release.
 ---
+
+## Common tasks
+### Release the lot
+1. Read any warnings above the form. They are for information and do not block signing.
+2. Enter a [[Reason]], your [[Signing username]] and your [[Signature PIN]].
+3. Select [[Sign approved]]. The lot becomes Released and you return to the lot record.
+### Find out why you cannot sign
+1. If [[Not permitted]] shows, you authored some of the lot's data. Select [[Return to the lot]]; another quality person signs.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot disposition a lot holding your own receipt, supplier certificate, sampling or test data, or a supplier result you proposed, whatever roles you hold.
+- The page opens before the lot is ready. Missing evidence, active holds and open investigations are checked when you sign.
+- The QC disposition card on the lot record lists what would block signing, in the same order.
+- Any change to the lot after you opened the page makes signing fail. Reload and review before signing.
+- A supplier result that does not meet the specification, or a discrepancy on receipt, does not block signing. Only an active hold does.
 
 ## Purpose
 
