@@ -251,6 +251,7 @@
     "e2e/test_controls.py",
     "e2e/test_list_columns.py",
     "e2e/test_panel_spacing.py",
+    "e2e/test_raw_values.py",
     "tests/test_controls.py",
     "tests/test_css_tokens.py",
     "tests/test_form_dialog.py",

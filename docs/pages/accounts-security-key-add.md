@@ -32,7 +32,7 @@ Any signed-in user who has just chosen **Set up with a security key or passkey**
 
 ## Layout
 
-The **Two-factor sign-in** breadcrumb and an introduction (what a security key and a passkey are) precede one card, **Register the key**:
+The breadcrumbs **Account access › Two-factor sign-in** and an introduction (what a security key and a passkey are) precede one card, **Register the key**:
 
 - Instructions: name the key, choose Register the key, follow the browser's prompts. **The key works only at** the host name of this site.
 - A note: for a first factor, two-factor sign-in turns on and the next page shows recovery codes; otherwise, other second factors keep working and recovery codes do not change.

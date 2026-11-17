@@ -44,7 +44,7 @@ The brand, the heading **Sign in with a passkey** and the lead **Use a passkey o
 
 | Action | Shown when | Result |
 |---|---|---|
-| **Use your passkey** | Always on this page | Asks your browser for a passkey or security key stored for this site; the browser lists the keys it holds and you pick one. The page's script submits the answer and, when it is accepted, signs you in and opens the requested local page, or Material lots by default |
+| **Use your passkey** | Always on this page | Asks your browser for a passkey or security key stored for this site; the browser lists the keys it holds and you pick one. The page's script submits the answer and, when it is accepted, signs you in and opens the requested local page, or the Dashboard by default |
 | **Sign in with your password** | Always | Returns to Sign in, keeping the requested page |
 | **Sign in with a passkey** (on Sign in) | `PASSKEY_SIGN_IN` is true and the site is opened by a host name, not an IP address | Posts to this page, which starts a new request for the browser and shows this page |
 

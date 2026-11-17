@@ -37,7 +37,7 @@ Anyone can open the entrance page. Signing in requires an active account and its
 
 On wide screens, an illustrative manufacturing cutaway appears beside the sign-in panel. It depicts production equipment, a packaging line and a quality-control laboratory. The illustration changes from morning to dusk with the theme. On narrower screens it is hidden so the form remains the focus.
 
-The page shows the certificate-and-leaf mark and **OpenBGA QM LIMS** name, **Sign in**, account guidance, the **Sign in with a passkey** button when it is available, the **Sign in with PROVIDER** button when single sign-on is configured (PROVIDER is the deployment's provider name, default "your organization"), and the licence and **Source code** footer. When an administrator has published a sign-in announcement, it appears as a notice below the sign-in panel and above the account guidance, with its optional title and formatted text. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
+The page shows the manufacturing scene with the caption "Manufacturing quality control" and "From raw materials to finished product." (hidden on narrow screens), the certificate-and-leaf mark and **OpenBGA QM LIMS** name, **Sign in** with the lead "Use your individual laboratory account.", account guidance, the **Sign in with a passkey** button when it is available, the **Sign in with PROVIDER** button when single sign-on is configured (PROVIDER is the deployment's provider name, default "your organization"), and the licence and **Source code** footer. When an administrator has published a sign-in announcement, it appears as a notice below the sign-in panel and above the account guidance, with its optional title and formatted text. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
 
 ## Actions
 
@@ -45,7 +45,7 @@ The page shows the certificate-and-leaf mark and **OpenBGA QM LIMS** name, **Sig
 |---|---|
 | Sign in with PROVIDER | Leaves for the organization's identity provider; on return, signs you in when your organization account is linked to a laboratory account (see Organization sign-in). `next` is carried along when it is an allowed local destination. Shown only when single sign-on is configured. A second factor is still asked for an account that has one |
 | Sign in with a passkey | Posts to Sign in with a passkey, where a security key or passkey signs you in without the password. Shown only when the deployment's `PASSKEY_SIGN_IN` setting is true (default) and the site is opened by a host name, not an IP address |
-| Sign in | Validates the credentials and opens the requested local page, or Material lots by default; for an account with two-factor sign-in it opens the second step instead |
+| Sign in | Validates the credentials and opens the requested local page, or the Dashboard by default; for an account with two-factor sign-in it opens the second step instead |
 | Theme | Choose Light, Dark or System; the browser remembers the choice |
 | Source code | Opens the source repository configured for this deployment; the default is [openbga/qm-lims](https://github.com/openbga/qm-lims) |
 
@@ -76,7 +76,7 @@ A sign-in through the provider returns here with an error message when it fails:
 
 ## Related pages
 
-- [Material lots](/lots/)
+- [Dashboard](/)
 - [Account access](/accounts/access/)
 - [Change password](/accounts/password/)
 - [Organization sign-in](/accounts/single-sign-on/), where you link your organization account.

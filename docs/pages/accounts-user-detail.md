@@ -21,7 +21,7 @@ summary: One account's identity, roles, sign-in and PIN state, and its full hist
 ## Good to know
 - Reset two-factor sign-in and Remove organization sign-in link are never offered for your own account. Change your own on Two-factor sign-in or Organization sign-in.
 - Clear PIN lockout keeps the PIN. Require PIN re-enrollment removes it, but earlier signatures stay.
-- A stopped two-factor sign-in is shown in bold. Reset it only once the person's identity is verified.
+- A stopped two-factor sign-in is shown in bold, followed by ": reset it once the person's identity is verified". Reset it only once the person's identity is verified.
 - The owner's own password and two-factor changes appear in the history unsigned. Administrator changes carry a signature.
 - Staff and superuser flags are shown read-only. No action here changes them.
 

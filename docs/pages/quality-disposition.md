@@ -106,7 +106,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - **Stale page**: any new sample, test change or hold since opening, receipt details recorded later or corrected, a supplier certificate recorded, corrected or withdrawn, and a supplier result proposed, accepted or withdrawn in place of a test, change the lot revision: "Record changed. Reload and review before signing."
 - **Identity and PIN**: "Enter your own signing username and PIN." on a mismatch (audited as `signature.identity_denied`); "Enroll a signature PIN first."; "Signature PIN was not accepted."; 5 consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are recorded (`signature.denied`) even though the disposition is refused.
 - **Session**: defaults are a 15-minute idle and 8-hour absolute limit; sessions without recorded login times count as expired. On expiry the next request signs you out with "Your session expired. Sign in again to continue." The inline "Session expired. Sign in again before signing." is an extra safeguard at the moment of signing.
-- **Effect**: one transaction sets Released, raises the lot revision by 1, writes `signed.approved` and stores an immutable signature (signer, meaning, server time, bound revision, content hash). There is no reject or reversal path in this version.
+- **Effect**: one transaction sets Released, raises the lot revision by 1, writes `signed.approved` and stores an immutable signature (signer, meaning, server time, bound revision, content hash). A lot is rejected, or cancelled as received in error, through its own signed pages (Reject lot, Cancel lot received in error on the lot record); a released lot has no reversal path in this version.
 
 ## Related pages
 

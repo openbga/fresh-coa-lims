@@ -25,9 +25,7 @@ NOT_A_LIST = {
     "suppliers/templates/suppliers/detail.html": "lots of one supplier record",
 }
 # Lists still to move onto {% grid_table %} (their owner removes each entry as it lands).
-PENDING = {
-    "laboratory/templates/ops/list.html",
-}
+PENDING: set[str] = set()
 
 
 def list_templates():

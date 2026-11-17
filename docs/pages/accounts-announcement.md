@@ -37,11 +37,13 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 ## Layout
 
-**Current announcement** shows the status (**Published** or **Not published**), whether the sign-in page shows the notice, and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
+The page opens with "One notice shown on the sign-in page to anyone who opens it, before they sign in. Changing it requires a reason and your signature PIN."
+
+**Current announcement** shows the status (**Published** or **Not published**), **Sign-in page** ("Shows the notice below" or "Shows no notice"), and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
 
 **Change announcement** names you as signer with the meaning **announcement_authorized** and the revision being reviewed and bound. It warns that the text is public and links to PIN enrollment. With an enrolled PIN the form follows: title, announcement text, **Show on the sign-in page**, reason and your signing credentials, then **Cancel** and **Sign and save announcement**. Without one, the form is hidden and the page says **Enroll your signature PIN before changing the announcement.**
 
-**Announcement history** lists every signed change, newest first, with its reason, actor, signature and **Inspect recorded values**. Its empty text is **No announcement changes recorded.**
+**Announcement history** lists every signed change, newest first, titled "Announcement published", "Announcement withdrawn", "Published announcement changed" or "Unpublished text changed", with its time, reason, actor, signature and **Inspect recorded values**, then the history's pager. Its empty text is **No announcement changes recorded.** After saving, the page says "Announcement saved. It is shown on the sign-in page." or "Announcement saved. The sign-in page shows no notice."
 
 ## Actions
 

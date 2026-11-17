@@ -53,7 +53,7 @@ After the provider, the lead starts with **Your organization signed you in.** in
 | Action | Result |
 |---|---|
 | **Use your security key** | Asks your browser for the key, then submits its answer and signs you in on success. Shown only when the account has a key registered at this host name |
-| **Verify and sign in** / **Verify the code and sign in** | Checks the code; on success signs you in and opens the requested local page, or Material lots by default. With keys, a typed code is checked as typed; pressing it with an empty code asks for the key |
+| **Verify and sign in** / **Verify the code and sign in** | Checks the code; on success signs you in and opens the requested local page, or the Dashboard by default. With keys, a typed code is checked as typed; pressing it with an empty code asks for the key |
 | **Start again** | Returns to Sign in and discards the pending sign-in |
 
 ## Fields

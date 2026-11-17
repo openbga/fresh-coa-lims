@@ -34,7 +34,7 @@ Any signed-in user who has just started setup on Two-factor sign-in (password, p
 
 ## Layout
 
-The **Two-factor sign-in** breadcrumb is followed by two cards.
+The breadcrumbs **Account access › Two-factor sign-in** is followed by two cards.
 
 1. **1. Add this account to your authenticator app**: a QR code (black on white in both themes), **Account** (your username) and **Key** in groups of four characters, with a warning to keep the key private. The key is shown only while you set up.
 2. **2. Confirm with a code from the app**: a note that the current app keeps working until the new one is confirmed (when you already have an app), the time limit, and the code field.

@@ -38,7 +38,7 @@ Downloads one lot's complete record as a single ZIP file, to keep or to hand ove
 - **Header**: breadcrumbs "Material lots › lot number › Export record", the title "Export record · lot number" and the line "One file holding the lot's complete record, to keep or hand over for an inspection or a review. Exporting changes nothing in the record."
 - **What the record holds now** card: Lot (a link to the lot, with the material), Status and Record revision, then a table of what an export would hold now: one row per kind of the lot's own records that has at least one record (for example Receipt details, Samples, Tests, Observations, Raw-data files, Investigations, Certificates of analysis, Holds), then Configuration these records name, Audit trail events, Electronic signatures, and Files (raw data and issued certificates).
 - **The package** card: what the ZIP file contains (record.pdf, record.json, files, manifest.json and SHA256SUMS), that the stored checksums are recomputed and the first page of the printed copy says whether each matched, and that configuration is included as it stands at the export.
-- **Form**: Purpose of the export, then **Cancel** and **Download the record**. Errors appear above the form.
+- **Form**: the note "Fields marked * are required. The export is recorded in the lot's audit trail with your name, the purpose and the package's SHA-256.", Purpose of the export (help: "For example an inspection request, an annual product review or a customer complaint. It is printed in the record and kept with the export in the audit trail."), then **Cancel** and **Download the record**. Errors appear above the form.
 
 ## Actions
 

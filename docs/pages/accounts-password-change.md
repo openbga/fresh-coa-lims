@@ -40,7 +40,7 @@ If required, an information message says **Choose a new password before continui
 
 | Action | Shown when | Result |
 |---|---|---|
-| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; redirects to Material lots |
+| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; redirects to the Dashboard |
 | Cancel | Password change is not required | Returns to Account access without saving |
 | Return without changes | Shared demonstration account | Returns to Account access without saving |
 | Sign out | Shared top bar | Ends the session, including when a required change is pending |
@@ -71,5 +71,5 @@ No PIN verification or electronic signature is created. The signature PIN, roles
 ## Related pages
 
 - [Account access](/accounts/access/)
-- [Material lots](/lots/)
+- [Dashboard](/)
 - [Signature PIN](/signature-pin/)

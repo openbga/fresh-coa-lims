@@ -2063,9 +2063,14 @@ a.vr-navlink[aria-current="page"]:hover {
   white-space: normal;
 }
 
-/* A table cell may carry a long status sentence (a blocker reason): wrap it instead of widening
-   the table past its panel. Short labels never reach the limit. */
-.vr-table td .vr-status-plain {
+/* Status labels in table cells keep one line, so a row stays within two lines (a second pill
+   stacks under the first). A long status sentence (a blocker reason) in a free-text cell
+   (.vr-wrap) wraps instead of widening the table past its panel. */
+.vr-table td .vr-status {
+  white-space: nowrap;
+}
+
+.vr-table td.vr-wrap .vr-status-plain {
   max-width: 24rem;
   align-items: flex-start;
   white-space: normal;
@@ -3723,6 +3728,17 @@ dialog > [data-signature-dialog].card {
   white-space: normal;
 }
 
+/* A one-line value in a cell that ends in an ellipsis (the supplier name over its lot): it takes
+   the column's width instead of setting it; its title carries the full text as a tooltip. */
+.vr-table .vr-ellipsis {
+  display: block;
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vr-table .vr-sub {
   max-width: 22ch;
   overflow: hidden;
@@ -4125,9 +4141,16 @@ a.vr-queue-label:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--vr-space-1) var(--vr-space-2);
+  min-width: 0;
   padding: 0 var(--vr-space-1-5) var(--vr-space-1-5);
   color: var(--vr-text-muted);
   font-size: var(--vr-font-size-3);
+}
+
+/* A queue's status pill stays inside its narrow lane: its label wraps instead of poking out. */
+.vr-queue-meta .vr-status {
+  max-width: 100%;
+  white-space: normal;
 }
 
 /* Narrower screens: three lanes per row, then one, without the arrow column. */
