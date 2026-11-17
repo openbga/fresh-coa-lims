@@ -327,6 +327,39 @@
 
   document.addEventListener("DOMContentLoaded", function () { sizeFlowBand(document); });
 
+  // Back from a signing page left without signing (signature-dialog.js marks it): focus returns to
+  // the control that opened it — its link on the record, or the More menu holding that link.
+  document.addEventListener("DOMContentLoaded", function () {
+    var path = null;
+    try {
+      path = window.sessionStorage.getItem("vr-return-focus");
+      window.sessionStorage.removeItem("vr-return-focus");
+    } catch (error) {
+      return;
+    }
+    if (!path) {
+      return;
+    }
+    var opener = Array.from(document.querySelectorAll("a[href], button[formaction]")).find(function (control) {
+      var target = control.getAttribute("href") || control.getAttribute("formaction");
+      try {
+        return new URL(target, window.location.href).pathname === path;
+      } catch (error) {
+        return false;
+      }
+    });
+    if (!opener) {
+      return;
+    }
+    var menu = opener.closest(".dropdown-menu");
+    var target = menu && !opener.getClientRects().length
+      ? menu.parentElement.querySelector("[data-bs-toggle='dropdown']")
+      : opener;
+    if (target) {
+      target.focus();
+    }
+  });
+
   // After a failed submission, put keyboard focus on the first field with an error.
   document.addEventListener("DOMContentLoaded", function () {
     var invalid = document.querySelector("form [aria-invalid=true]");

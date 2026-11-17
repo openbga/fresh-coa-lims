@@ -34,6 +34,7 @@
 "OQ-003" = [
     "accounts/tests/test_administration.py",
     "accounts/tests/test_announcement.py",
+    "e2e/test_focus_return.py",
     "e2e/test_login_announcement.py",
     "e2e/test_signature_dialog.py",
     "e2e/test_user_management.py",

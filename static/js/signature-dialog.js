@@ -14,8 +14,19 @@
   dialog.setAttribute('aria-labelledby', 'sign-title');
   content.before(dialog);
   dialog.append(content);
+  // Leaving without signing returns to the record, and focus returns to the control that opened
+  // this signing page (app.js reads the mark on the record page). Nothing is signed or changed.
+  const markReturn = () => {
+    try {
+      window.sessionStorage.setItem('vr-return-focus', window.location.pathname);
+    } catch (error) {
+      // Storage blocked: the record page opens with focus at its start.
+    }
+  };
+  cancel.addEventListener('click', markReturn);
   dialog.addEventListener('cancel', (event) => {
     event.preventDefault();
+    markReturn();
     window.location.assign(cancel.href);
   });
   dialog.showModal();
