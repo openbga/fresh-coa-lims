@@ -11,11 +11,14 @@ validate the system for anyone's intended use.
     python scripts/validation_pack.py environment --suite NAME --output FILE [--root DIR]
         Record, beside a suite's JUnit file, what the suite ran on (commit, Python, database
         server, installed packages and, with --browser, Chromium).
-    python scripts/validation_pack.py build --results DIR [--results DIR ...] --output DIR
+    python scripts/validation_pack.py build --results DIR [--results DIR ...]
+            [--acceptance DIR] --output DIR
         Assemble the pack from result directories, each holding junit.xml and
-        environment.json. Exits 1 unless every requirement and project check passed (a
-        traced test passed, none failed, all ran, none skipped without a reason in the map),
-        every result is traced and the checkout matched its commit.
+        environment.json, and optionally the evidence folder of an acceptance journeys run
+        (manage.py acceptance_journeys) on the same commit. Exits 1 unless every requirement
+        and project check passed (a traced test passed, none failed, all ran, none skipped
+        without a reason in the map), every result is traced, the checkout matched its commit
+        and the acceptance journeys given passed.
 
 Only the standard library is needed to check and build.
 """
@@ -42,6 +45,7 @@ PRODUCT = "OpenBGA QM LIMS"
 MAP = "docs/traceability.toml"
 REQUIREMENTS = "docs/product.md"
 BROWSER_SUITE = "e2e"
+ACCEPTANCE_SCHEMA = "oq.acceptance-journeys/1"
 STATEMENT = (
     "Supplier evidence for the laboratory's own risk-based validation. It shows which "
     "automated tests give evidence for each product requirement and how they ended on the "
@@ -358,7 +362,68 @@ def _base(node):
 # The pack
 
 
-def build(results, output, root=None):
+def read_acceptance(directory, commit):
+    """The summary of an acceptance journeys run on `commit`, after checking every file of its
+    folder against its SHA256SUMS."""
+    directory = Path(directory)
+    try:
+        report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
+        sums = (directory / "SHA256SUMS").read_text(encoding="utf-8").splitlines()
+    except (OSError, ValueError) as error:
+        raise PackError(f"No acceptance journeys report in {directory}: {error}") from error
+    if not isinstance(report, dict) or report.get("schema") != ACCEPTANCE_SCHEMA:
+        raise PackError(f"{directory}/report.json is not an acceptance journeys report.")
+    listed = {}
+    for line in sums:
+        digest, _, name = line.partition("  ")
+        listed[name] = digest
+    entries = list(directory.rglob("*"))
+    odd = [p.relative_to(directory).as_posix() for p in entries if p.is_symlink()]
+    odd += [
+        p.relative_to(directory).as_posix()
+        for p in entries
+        if not p.is_symlink() and not p.is_dir() and not p.is_file()
+    ]
+    if odd:
+        raise PackError(
+            f"The acceptance evidence in {directory} holds links or special files: "
+            + ", ".join(sorted(odd))
+        )
+    present = {p.relative_to(directory).as_posix() for p in entries if p.is_file()} - {"SHA256SUMS"}
+    changed = sorted(
+        name
+        for name in present | set(listed)
+        if name not in present
+        or name not in listed
+        or hashlib.sha256((directory / name).read_bytes()).hexdigest() != listed[name]
+    )
+    if changed:
+        raise PackError(
+            f"The acceptance evidence in {directory} does not match its SHA256SUMS: "
+            + ", ".join(changed)
+        )
+    environment = report.get("environment") or {}
+    if environment.get("release") != commit:
+        raise PackError(
+            f"The acceptance journeys ran on {environment.get('release')!r}, but the pack is "
+            f"of {commit}."
+        )
+    return {
+        "outcome": report.get("outcome"),
+        "release": environment.get("release"),
+        "summary": report.get("summary"),
+        "run": report.get("run"),
+        "environment": {
+            key: environment.get(key) for key in ("database", "python", "django", "platform")
+        },
+        "journeys": [
+            {"title": j.get("title"), "outcome": j.get("outcome")}
+            for j in report.get("journeys", [])
+        ],
+    }
+
+
+def build(results, output, root=None, acceptance=None):
     """Write the pack to `output` (which must not exist yet) and return its summary."""
     root = root or ROOT
     output = Path(output)
@@ -380,6 +445,7 @@ def build(results, output, root=None):
     commit = commits.pop()
     if commit != _commit():
         raise PackError(f"The results are of {commit}, but the pack is built at {_commit()}.")
+    journeys = read_acceptance(acceptance, commit) if acceptance else None
 
     requirements = read_requirements(root)
     traced, project = read_map(root)
@@ -427,7 +493,7 @@ def build(results, output, root=None):
     unexpected_skips = [
         r["node"] for r in rows if r["outcome"] == "skipped" and not r.get("allowed")
     ]
-    if failed:
+    if failed or (journeys and journeys["outcome"] != "passed"):
         status = "failed"
     elif uncommitted or untraced or any(item["status"] != "passed" for item in evidence):
         status = "incomplete"
@@ -478,6 +544,7 @@ def build(results, output, root=None):
             {"test": r["node"], "reason": r["allowed"]} for r in rows if r.get("allowed")
         ],
         "not_run": sorted({node for item in evidence for node in item["not_run"]}),
+        "acceptance": journeys,
     }
 
     output.mkdir(parents=True)
@@ -486,6 +553,8 @@ def build(results, output, root=None):
         target.mkdir(parents=True)
         for name in ("junit.xml", "environment.json"):
             shutil.copyfile(suite["directory"] / name, target / name)
+    if journeys:
+        shutil.copytree(acceptance, output / "acceptance")
     documents = output / "documents"
     documents.mkdir()
     for source in (REQUIREMENTS, "docs/regulations.md", MAP):
@@ -663,6 +732,28 @@ def _html(summary, evidence, untraced, descriptions):
         else "<p>None.</p>"
     )
     head = "<th>Passed</th><th>Failed</th><th>Skipped</th><th>Not run</th>"
+    journeys = summary.get("acceptance")
+    if journeys:
+        steps = journeys["summary"] or {}
+        rows = "".join(
+            f"<tr><td>{e(str(j['title']))}</td><td class='{e(str(j['outcome']))}'>"
+            f"{e(str(j['outcome']))}</td></tr>"
+            for j in journeys["journeys"]
+        )
+        database = journeys["environment"].get("database") or {}
+        acceptance = (
+            f"<p>Run on this commit in a new database "
+            f"(PostgreSQL {e(str(database.get('server_version', '')))}; CI runs it with the "
+            "application image): "
+            f"<strong class='{e(str(journeys['outcome']))}'>{e(str(journeys['outcome']))}"
+            f"</strong>, {e(str(steps.get('steps_passed')))} of {e(str(steps.get('steps')))} "
+            "steps passed. The steps, what each expected and observed, the lot records and "
+            "certificates are in <a href='acceptance/report.html'>acceptance/report.html</a>."
+            "</p><table><thead><tr><th>Journey</th><th>Outcome</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    else:
+        acceptance = "<p>No acceptance journeys run is included in this pack.</p>"
     changes = (
         " <strong class='failed'>with uncommitted changes: these results are not those of the "
         "commit named</strong>"
@@ -707,6 +798,8 @@ section {{ margin-bottom: 1.5rem; }}
 <table><thead><tr><th>Suite</th>{head}<th>Environment</th><th>Command and run</th></tr>
 </thead>
 <tbody>{suites}</tbody></table>
+<h2>Acceptance journeys</h2>
+{acceptance}
 <h2>Requirements</h2>
 <p>From <a href="documents/product.md">product.md</a>; the regulatory rows they cite are in
 <a href="documents/regulations.md">regulations.md</a>. A requirement passes when at least one
@@ -731,7 +824,9 @@ the skip with a reason.</p>
 <p><code>pack.json</code> summarizes this page; <code>requirements.csv</code> and
 <code>traceability.csv</code> hold its tables; <code>results/</code> holds each suite's JUnit
 file and environment as produced; <code>documents/</code> holds the requirements, the
-regulatory matrix and the traceability map of this commit. <code>SHA256SUMS</code> lists the
+regulatory matrix and the traceability map of this commit; <code>acceptance/</code>, when
+present, holds the evidence folder of the acceptance journeys as written, with its own
+<code>SHA256SUMS</code>. <code>SHA256SUMS</code> lists the
 SHA-256 of every other file (check with <code>sha256sum -c SHA256SUMS</code>).</p>
 </body>
 </html>
@@ -760,6 +855,9 @@ def main(argv=None):
     env.add_argument("--output", required=True, type=Path)
     pack = commands.add_parser("build", help="assemble the validation pack")
     pack.add_argument("--results", action="append", required=True, type=Path)
+    pack.add_argument(
+        "--acceptance", type=Path, help="the evidence folder of manage.py acceptance_journeys"
+    )
     pack.add_argument("--output", required=True, type=Path)
     args = parser.parse_args(argv)
 
@@ -774,7 +872,7 @@ def main(argv=None):
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
             return 0
-        summary = build(args.results, args.output)
+        summary = build(args.results, args.output, acceptance=args.acceptance)
     except PackError as error:
         print(error, file=sys.stderr)
         return 2
@@ -784,6 +882,8 @@ def main(argv=None):
     print(f"Validation pack {summary['status']}: {args.output}")
     if failing:
         print("Requirements not passed: " + ", ".join(failing), file=sys.stderr)
+    if summary["acceptance"] and summary["acceptance"]["outcome"] != "passed":
+        print("Acceptance journeys failed: see acceptance/report.html", file=sys.stderr)
     for label in ("failed_tests", "not_run", "unexpected_skips", "untraced_results"):
         if summary[label]:
             shown = summary[label][:50]

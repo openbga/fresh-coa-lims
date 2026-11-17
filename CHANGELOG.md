@@ -8,6 +8,14 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### High impact
 
+- **Added**: Acceptance journeys run passing, failing, corrected, rejected and amended records end to end · Deployment · 2026-11-17 · [#49](https://github.com/openbga/qm-lims/pull/49)
+
+  A deployment can run five record journeys (passing, failing, corrected, rejected and amended) with the release it is about to use, in a new database of its own environment. Each step records what was expected and what happened, including the refusals, and the run keeps a report, each lot's record export and the certificates with their checksums as evidence for the laboratory's own acceptance. The journeys use synthetic configuration, not the laboratory's.
+
+  > **Technical notes**
+  >
+  > Acceptance journeys: `python manage.py acceptance_journeys --database NAME --output DIR --operator NAME` runs five journeys (passing, failing, corrected, rejected and amended records) end to end through the application's services in a new database migrated to the release, refusing a database other than the one named, one that holds any account or one not migrated to exactly this release. Each step records what was expected and observed and the product requirements it gives evidence for, including refusals (self-review, a wrong PIN counted and audited, disposition or rejection by an author, release while an investigation is open, a second retest, invalidation by a failing retest, requirements, a disposition or a certificate for a rejected lot, a stale amendment, and direct database changes to a certificate, an observation, a signature and an audit event). The evidence folder holds `report.html`, `report.json` (`oq.acceptance-journeys/1`), each lot's record export, the certificates and `SHA256SUMS`; the command exits nonzero when a step failed. Guidance in `docs/operations.md` ("Acceptance journeys").
+
 - **Added**: Cancel a lot received in error with a signed record · Lots · 2026-11-17 · [#44](https://github.com/openbga/qm-lims/pull/44)
 
   **Cancel lot received in error** records, with a signature, that a lot should not have been received. It is refused once the lot has a sample, test, reserve sample, stability study or standing supplier result.
@@ -456,6 +464,14 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > **Technical notes**
   >
   > - Stability refuses to start a study on a rejected or cancelled lot, and refuses a reserve sample, retention obligation or hold on a cancelled lot; their forms no longer offer those lots.
+
+- **Changed**: The validation pack of each commit includes the acceptance journeys' evidence · Deployment · 2026-11-17 · [#49](https://github.com/openbga/qm-lims/pull/49)
+
+  Every commit's checks now run the acceptance journeys with the application image, and the validation pack built from them includes the evidence the journeys wrote. A failed journey fails the pack.
+
+  > **Technical notes**
+  >
+  > CI's container smoke job runs the acceptance journeys with the application image in a new database, and the validation pack includes their evidence under `acceptance/` (`scripts/validation_pack.py build --acceptance DIR`, which checks the folder against its `SHA256SUMS` and refuses a run of another commit); a failed run fails the pack.
 
 - **Changed**: Unsubmitted readings are judged against their limits when a batch or lot is rejected · Testing · 2026-11-17 · [#45](https://github.com/openbga/qm-lims/pull/45)
 

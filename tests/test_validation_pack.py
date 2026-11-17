@@ -520,3 +520,99 @@ def test_outside_a_checkout_the_tests_run_and_the_build_refuses_them(tmp_path, m
     assert junit.global_properties == []
     with pytest.raises(pack.PackError, match="cannot be read"):
         pack._commit()
+
+
+def acceptance_run(root, outcome="passed", release=COMMIT, name="acceptance"):
+    """An acceptance journeys evidence folder, as manage.py acceptance_journeys writes it."""
+    folder = root.parent / name
+    (folder / "passing").mkdir(parents=True)
+    report = {
+        "schema": pack.ACCEPTANCE_SCHEMA,
+        "outcome": outcome,
+        "run": {"operator": "Synthetic operator"},
+        "environment": {
+            "release": release,
+            "database": {"engine": "PostgreSQL", "server_version": "17.6", "name": "x"},
+            "python": "3.14.0",
+            "django": "5.2",
+            "platform": "Linux",
+        },
+        "summary": {"journeys": 1, "journeys_passed": int(outcome == "passed"), "steps": 2},
+        "journeys": [{"title": "A <passing> lot", "outcome": outcome}],
+    }
+    report["summary"]["steps_passed"] = 2 if outcome == "passed" else 1
+    (folder / "report.json").write_text(json.dumps(report), encoding="utf-8")
+    (folder / "report.html").write_text("<p>report</p>", encoding="utf-8")
+    (folder / "passing/record.zip").write_bytes(b"synthetic package")
+    sums = "".join(
+        f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(folder).as_posix()}\n"
+        for p in sorted(folder.rglob("*"))
+        if p.is_file()
+    )
+    (folder / "SHA256SUMS").write_text(sums, encoding="utf-8")
+    return folder
+
+
+def both_suites(repo):
+    return [
+        results(repo, "application", APPLICATION),
+        results(repo, "browser", [("test_journey", "test_journey", "passed")], "e2e"),
+    ]
+
+
+def test_the_pack_keeps_the_acceptance_journeys_of_its_commit(repo):
+    output = repo.parent / "pack"
+    summary = pack.build(both_suites(repo), output, repo, acceptance=acceptance_run(repo))
+    assert summary["status"] == "passed"
+    assert summary["acceptance"]["outcome"] == "passed"
+    assert summary["acceptance"]["release"] == COMMIT
+    assert (output / "acceptance/report.html").is_file()
+    assert (output / "acceptance/passing/record.zip").read_bytes() == b"synthetic package"
+    listed = (output / "SHA256SUMS").read_text()
+    assert "  acceptance/passing/record.zip\n" in listed
+    page = (output / "index.html").read_text()
+    assert "acceptance/report.html" in page and "A &lt;passing&gt; lot" in page
+
+
+def test_failed_acceptance_journeys_fail_the_pack(repo, monkeypatch, capsys):
+    monkeypatch.setattr(pack, "ROOT", repo)
+    application, browser = both_suites(repo)
+    failed = acceptance_run(repo, outcome="failed")
+    output = repo.parent / "pack"
+    argv = ["build", "--results", str(application), "--results", str(browser)]
+    assert pack.main([*argv, "--acceptance", str(failed), "--output", str(output)]) == 1
+    assert "Acceptance journeys failed" in capsys.readouterr().err
+    assert json.loads((output / "pack.json").read_text())["status"] == "failed"
+
+
+def test_a_pack_without_acceptance_journeys_says_so(repo):
+    output = repo.parent / "pack"
+    summary = pack.build(both_suites(repo), output, repo)
+    assert summary["status"] == "passed" and summary["acceptance"] is None
+    assert "No acceptance journeys run is included" in (output / "index.html").read_text()
+    assert not (output / "acceptance").exists()
+
+
+def test_refuses_acceptance_evidence_of_another_commit_or_changed_since(repo):
+    suites = both_suites(repo)
+    output = repo.parent / "pack"
+    other = acceptance_run(repo, release="f" * 40, name="other")
+    with pytest.raises(pack.PackError, match="but the pack is of"):
+        pack.build(suites, output, repo, acceptance=other)
+    changed = acceptance_run(repo, name="changed")
+    (changed / "passing/record.zip").write_bytes(b"altered")
+    with pytest.raises(pack.PackError, match="does not match its SHA256SUMS: passing/record.zip"):
+        pack.build(suites, output, repo, acceptance=changed)
+    extra = acceptance_run(repo, name="extra")
+    (extra / "unlisted.txt").write_text("x")
+    with pytest.raises(pack.PackError, match="unlisted.txt"):
+        pack.build(suites, output, repo, acceptance=extra)
+    linked = acceptance_run(repo, name="linked")
+    (linked / "passing/outside.txt").symlink_to(repo / "pyproject.toml")
+    with pytest.raises(pack.PackError, match="links or special files: passing/outside.txt"):
+        pack.build(suites, output, repo, acceptance=linked)
+    empty = repo.parent / "empty"
+    empty.mkdir()
+    with pytest.raises(pack.PackError, match="No acceptance journeys report"):
+        pack.build(suites, output, repo, acceptance=empty)
+    assert not output.exists()

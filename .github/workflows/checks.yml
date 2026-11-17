@@ -174,10 +174,10 @@ jobs:
 
   validation-pack:
     # The requirements, the tests traced to each one (docs/traceability.toml), both suites'
-    # results with their environment and the release notes of this commit, with checksums.
-    # A release keeps the pack of the develop commit it releases (docs/operations.md). It also
-    # waits for the container smoke job, whose backup cycle stands in for a test the
-    # application job skips. Not on main, where no suite runs.
+    # results with their environment, the acceptance journeys run with the application image
+    # and the release notes of this commit, with checksums. A release keeps the pack of the
+    # develop commit it releases (docs/operations.md). The container smoke job's backup cycle
+    # also stands in for a test the application job skips. Not on main, where no suite runs.
     if: github.ref != 'refs/heads/main'
     needs: [application, browser, container-smoke]
     runs-on: ubuntu-24.04
@@ -193,12 +193,17 @@ jobs:
         with:
           pattern: validation-results-*
           path: build/validation
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: acceptance-journeys
+          path: build/validation/acceptance-journeys
       # The builder needs only the standard library of the project's Python.
       - name: Build the validation pack
         run: >-
           uv run --no-project --python 3.14 python scripts/validation_pack.py build
           --results build/validation/validation-results-application
           --results build/validation/validation-results-browser
+          --acceptance build/validation/acceptance-journeys
           --output build/validation-pack
       # An incomplete pack is kept too: its pack.json and index.html say why. The job fails.
       - if: ${{ !cancelled() && hashFiles('build/validation-pack/pack.json') != '' }}
@@ -279,6 +284,32 @@ jobs:
           fi
           # It must fail for being the source and for nothing else.
           image qm-lims:ci python -c 'import json; report = json.load(open("/backup/source-report.json")); failed = [c["check"] for c in report["checks"] if c["status"] == "failed"]; assert failed == ["restored copy"], failed'
+      - name: Run the acceptance journeys with the image in a new database
+        # As docs/operations.md describes: a database created for the run and migrated to this
+        # release. The evidence folder goes into the validation pack.
+        run: |
+          evidence="$RUNNER_TEMP/acceptance"
+          install -d -m 0777 "$evidence"
+          server=postgresql://open_qual_ci:disposable_ci_password@127.0.0.1:5432
+          image() {
+            docker run --rm --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" \
+              -e DATABASE_URL="$server/open_qual_acceptance" -e SOURCE_REVISION="$GITHUB_SHA" \
+              --volume "$evidence:/evidence" "$@"
+          }
+          image qm-lims:ci psql "$server/open_qual_container_smoke" -X -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE open_qual_acceptance'
+          image qm-lims:ci python manage.py migrate --noinput
+          image qm-lims:ci python manage.py acceptance_journeys --database open_qual_acceptance \
+            --output /evidence/acceptance-journeys --operator "GitHub Actions run $GITHUB_RUN_ID"
+      # Kept when the journeys fail too: the report says which step and why.
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: acceptance-journeys
+          path: ${{ runner.temp }}/acceptance/acceptance-journeys/
+          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7 # the validation pack keeps them
       - name: Verify non-root Render SSH prerequisites
         run: |
           docker run --rm qm-lims:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
