@@ -70,6 +70,7 @@
           <p class="vr-nav-heading" id="vr-nav-records">Records</p>
           <ul class="vr-nav-list" aria-labelledby="vr-nav-records">
             <li><a class="vr-navlink" href="/reports/"{% if request.resolver_match.namespace == 'reporting' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="patch-check" %}<span data-label="Certificates">Certificates</span></a></li>
+            <li><a class="vr-navlink" href="/validation/"{% if request.resolver_match.namespace == 'validation' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="journal-text" %}<span data-label="Validation">Validation</span></a></li>
             {% if can_view_audit %}<li><a class="vr-navlink" href="/audit/"{% if '/audit/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span data-label="Audit trail">Audit trail</span></a></li>{% endif %}
           </ul>
         </div>

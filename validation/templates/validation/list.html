@@ -1,0 +1,3 @@
+{% extends "ops/list.html" %}
+{% comment %}The intended-use list: the generic list with a notice on the current acceptance.{% endcomment %}
+{% block page_intro %}{{ block.super }}{% if notice %}<div class="alert alert-{{ notice.tone }} mt-3 mb-0" role="{% if notice.tone == 'warning' %}alert{% else %}status{% endif %}">{% include "includes/status.html" with label=notice.label tone=notice.tone plain=True %}<div>{{ notice.text }}</div></div>{% endif %}{% endblock %}
