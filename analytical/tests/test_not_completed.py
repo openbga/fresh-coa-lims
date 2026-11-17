@@ -3,6 +3,7 @@ rounding never hides a failure, its lock order meets batch rejection without a d
 people an investigation excludes are excluded, and a routine sample is never taken as a
 stand-in. Uses the synthetic fixture provider and bench (see conftest)."""
 
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -157,26 +158,28 @@ def test_who_may_not_conclude_an_investigation_may_not_close_its_retest(people, 
     assert not_completed(people, retest, who="quality").state == "not_completed"
 
 
-def test_a_routine_sample_awaiting_its_own_tests_is_not_a_stand_in(people, assigned):
-    lot, _, tests = assigned
-    identity = tests["identity"]
+def test_a_sample_recorded_before_the_test_is_not_a_stand_in(people, make_lot):
+    lot, first = make_lot(number="SYN-ROUTINE")
     routine = add_sample(
         actor=people["analyst"],
         lot=lot,
-        reference="SYN-LOT-1-S2",
-        collected_at=fresh(identity).created_at,  # collected with the first, before the tests
-        reason="Second container",
+        reference="SYN-ROUTINE-S2",
+        collected_at=timezone.now(),
+        reason="Second container, routine",
     )
+    created, _ = services.assign_tests(actor=people["analyst"], sample=first, reason="Assign")
+    identity = next(test for test in created if test.test_code == "identity")
     assert list(services.repeat_samples(fresh(identity))) == []
-    with pytest.raises(ValidationError, match="collected after this test was assigned"):
+    with pytest.raises(ValidationError, match="recorded after this test was assigned"):
         not_completed(people, identity, repeat="sample", sample=routine)
     blockers = gates.lot_blockers(Lot.objects.get(pk=lot.pk))
-    assert any("SYN-LOT-1-S2 has no assay" in item for item in blockers)
+    assert any("SYN-ROUTINE-S2 has no assay" in item for item in blockers)
+    # A sample recorded afterwards qualifies, whatever sampling time was entered for it.
     later = add_sample(
         actor=people["analyst"],
         lot=lot,
-        reference="SYN-LOT-1-S3",
-        collected_at=timezone.now(),
+        reference="SYN-ROUTINE-S3",
+        collected_at=fresh(identity).created_at - timedelta(hours=2),
         reason="Taken after the first sample was lost",
     )
     assert list(services.repeat_samples(fresh(identity))) == [later]

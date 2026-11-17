@@ -38,6 +38,7 @@ from django.utils import timezone
 from psycopg.errors import UniqueViolation
 
 from core.audit import record_event
+from core.models import AuditEvent
 from core.services import (
     require_role,
     sign_transition,
@@ -1212,13 +1213,23 @@ def _root_sample_id(test):
 
 
 def repeat_samples(test):
-    """The other samples of the test's lot that a repeat may be made on: a sample collected
-    after the test was assigned, holding no original test, whose every test answers for the
+    """The other samples of the test's lot that a repeat may be made on: a sample recorded
+    after the test was assigned (by the server time of its ``sample.collected`` audit event,
+    not the sampling time entered), holding no original test, whose every test answers for the
     same sample as this one, so that a new sample stands in for one sample of the lot, never
     for several, and a routine sample awaiting its own tests is never taken for one. Empty for
     a stability pull, which is repeated on the material pulled."""
     if test.lot_id is None:
         return Sample.objects.none()
+    lot_samples = [
+        str(pk) for pk in Sample.objects.filter(lot_id=test.lot_id).values_list("pk", flat=True)
+    ]
+    recorded_after = AuditEvent.objects.filter(
+        object_type="quality.sample",
+        action="sample.collected",
+        object_id__in=lot_samples,
+        occurred_at__gt=test.created_at,
+    ).values_list("object_id", flat=True)
     root = _root_sample_id(test)
     tests = AnalyticalTest.objects.filter(lot_id=test.lot_id).exclude(sample_id=test.sample_id)
     blocked = set()
@@ -1226,7 +1237,7 @@ def repeat_samples(test):
         if other.kind == AnalyticalTest.Kind.ORIGINAL or _root_sample_id(other) != root:
             blocked.add(other.sample_id)
     return (
-        Sample.objects.filter(lot_id=test.lot_id, collected_at__gt=test.created_at)
+        Sample.objects.filter(lot_id=test.lot_id, pk__in=[int(pk) for pk in recorded_after])
         .exclude(pk=test.sample_id)
         .exclude(pk__in=blocked)
         .order_by("-pk")
@@ -1283,7 +1294,7 @@ def record_not_completed(
                 raise ValidationError(PULL_RESAMPLE)
             if sample is None or not repeat_samples(locked).filter(pk=sample.pk).exists():
                 raise ValidationError(
-                    "Choose a sample of this lot collected after this test was assigned, that "
+                    "Choose a sample of this lot recorded after this test was assigned, that "
                     "holds no tests of its own and stands in for no other sample."
                 )
             child = _repeat(actor, locked, sample.pk)

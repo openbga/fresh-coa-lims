@@ -4,7 +4,7 @@ urls: stability:pull_detail
 views: stability.views.pull_detail
 templates: ops/record.html
 models: stability.Pull, analytical.AnalyticalTest, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ One scheduled pull: timing, collection details, its own tests, a linked sample o
 - **Header**: breadcrumbs (Studies, the study, the pull), title (condition and timepoint label), identifier (study ID and pull number) and status label, action buttons.
 - **Details**: the facts below.
 - **Notice** (only when an investigation confirmed a result outside the acceptance criteria of a test of this pull): "Criteria not met" with the text that the record of the study's lot is not changed by a stability result and that any hold or other action on that lot or other lots is for quality to decide.
-- **Tests**, in three forms. (1) When the pull has tests of its own: one row for each test of its time point, including reruns and retests, with columns Test (label, name and code; links to the test), Result and status, Acceptance criterion (the one frozen on that test) and Kind; a time-point test without a test shows "No test assigned". Above the table a note says "The pull cannot be accepted yet: …" with each blocker, "Every test is reviewed: the pull meets the acceptance criteria. A reviewer can accept it." (or "does not meet"), or after acceptance "Accepted: <outcome>." (2) When the pull is Pulled with no sample or tests and tests cannot be assigned: a status giving the reason, with the note "This pull is not tested in the system." (3) When it is Pulled with nothing linked and nothing prevents assigning: "No tests assigned yet. An analyst assigns the tests of this time point to test the pull in the system, or links a sample or external evidence instead."
+- **Tests**, in three forms. (1) When the pull has tests of its own: one row for each test of its time point, including reruns and retests, with columns Test (label, name and code; links to the test), Result and status ("Not completed" for a test quality signed as not completed; it is repeated by a linked test of the kind "Repeat of a test not completed" or left to its investigation), Acceptance criterion (the one frozen on that test) and Kind; a time-point test without a test shows "No test assigned". Above the table a note says "The pull cannot be accepted yet: …" with each blocker, "Every test is reviewed: the pull meets the acceptance criteria. A reviewer can accept it." (or "does not meet"), or after acceptance "Accepted: <outcome>." (2) When the pull is Pulled with no sample or tests and tests cannot be assigned: a status giving the reason, with the note "This pull is not tested in the system." (3) When it is Pulled with nothing linked and nothing prevents assigning: "No tests assigned yet. An analyst assigns the tests of this time point to test the pull in the system, or links a sample or external evidence instead."
 - **Testing evidence** (only when the pull is Pulled and has a linked sample): each current blocker, or "Required tests reviewed and conforming", with a note that acceptance needs every required test reviewed, conforming and free of open investigations.
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
