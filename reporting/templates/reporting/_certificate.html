@@ -14,7 +14,7 @@
       <div><dt>Lot number</dt><dd>{{ snapshot.lot.number }}</dd></div>
       <div><dt>Material</dt><dd>{{ snapshot.lot.material }}</dd></div>
       {% if snapshot.report %}<div><dt>Issued to</dt><dd>{{ snapshot.report.recipient|default:"General certificate (no named recipient)" }}</dd></div>{% endif %}
-      <div><dt>Lot received</dt><dd>{{ snapshot.lot.received_at|stamp }} by {{ snapshot.lot.received_by }}</dd></div>
+      <div><dt>Lot received</dt><dd><span class="vr-nowrap">{{ snapshot.lot.received_at|stamp }}</span> by {{ snapshot.lot.received_by }}</dd></div>
     </dl>
     <h3 class="h6 fw-bold mt-4">Decision</h3>
     {% if snapshot.disposition %}
@@ -26,11 +26,11 @@
     <h3 class="h6 fw-bold mt-4">Applied rules, specification and methods</h3>
     <dl class="vr-facts">
       <div><dt>Rule set</dt><dd>{{ snapshot.rules.code }} version {{ snapshot.rules.version }} (record revision {{ snapshot.rules.revision }}), segment {{ snapshot.rules.segment }}</dd></div>
-      <div><dt>Effective</dt><dd>{{ snapshot.rules.effective_from|stamp }} to {% if snapshot.rules.effective_until %}{{ snapshot.rules.effective_until|stamp }}{% else %}open{% endif %}</dd></div>
+      <div><dt>Effective</dt><dd><time datetime="{{ snapshot.rules.effective_from }}">{{ snapshot.rules.effective_from|stamp }}</time> to {% if snapshot.rules.effective_until %}<time datetime="{{ snapshot.rules.effective_until }}">{{ snapshot.rules.effective_until|stamp }}</time>{% else %}open{% endif %}</dd></div>
       <div><dt>Required tests</dt><dd>{{ snapshot.rules.required_tests|join:", " }}</dd></div>
       {% for extra in snapshot.native.additional_rules %}<div><dt>Additional rule set</dt><dd>{{ extra.code }} version {{ extra.version }}, segment {{ extra.segment }} · requires {{ extra.required_tests|join:", " }}</dd></div>{% endfor %}
-      <div><dt>{% if snapshot.native.specifications %}Specifications{% else %}Specification{% endif %}</dt><dd>{% if snapshot.native.specifications %}{% for spec in snapshot.native.specifications %}<span class="d-block">{{ spec.code }} version {{ spec.version }} (scope {{ spec.scope }})</span>{% endfor %}{% elif snapshot.specification.code %}{{ snapshot.specification.code }} version {{ snapshot.specification.version }}{% elif snapshot.specification %}{% for label, text in snapshot.specification|section_items %}{% if label %}{{ label }}: {% endif %}{{ text }}{% if not forloop.last %}; {% endif %}{% endfor %}{% else %}No approved snapshot was supplied; limits are those recorded with each result.{% endif %}</dd></div>
-      <div><dt>Methods</dt><dd>{% if snapshot.methods %}{% for m in snapshot.methods %}{% if m.code %}<span class="d-block">{{ m.code }} version {{ m.version }}{% if m.document_ref %} · controlled document {{ m.document_ref }}{% endif %}{% if m.suitability_ref %} · suitability ({{ m.suitability_kind }}) {{ m.suitability_ref }}{% endif %}{% if m.requires_batch %} · batch QC required ({{ m.qc_checks|length }} check{{ m.qc_checks|length|pluralize }}){% endif %}</span>{% else %}<span class="d-block">{{ m }}</span>{% endif %}{% endfor %}{% else %}No approved snapshot was supplied.{% endif %}</dd></div>
+      <div class="vr-fact-wide"><dt>{% if snapshot.native.specifications %}Specifications{% else %}Specification{% endif %}</dt><dd>{% if snapshot.native.specifications %}{% for spec in snapshot.native.specifications %}<span class="d-block">{{ spec.code }} version {{ spec.version }} (scope {{ spec.scope }})</span>{% endfor %}{% elif snapshot.specification.code %}{{ snapshot.specification.code }} version {{ snapshot.specification.version }}{% elif snapshot.specification %}{% for label, text in snapshot.specification|section_items %}{% if label %}{{ label }}: {% endif %}{{ text }}{% if not forloop.last %}; {% endif %}{% endfor %}{% else %}No approved snapshot was supplied; limits are those recorded with each result.{% endif %}</dd></div>
+      <div class="vr-fact-wide"><dt>Methods</dt><dd>{% if snapshot.methods %}{% for m in snapshot.methods %}{% if m.code %}<span class="d-block">{{ m.code }} version {{ m.version }}{% if m.document_ref %} · controlled document <span class="vr-nowrap">{{ m.document_ref }}</span>{% endif %}{% if m.suitability_ref %} · suitability ({{ m.suitability_kind }}) <span class="vr-nowrap">{{ m.suitability_ref }}</span>{% endif %}{% if m.requires_batch %} · batch QC required ({{ m.qc_checks|length }} check{{ m.qc_checks|length|pluralize }}){% endif %}</span>{% else %}<span class="d-block">{{ m }}</span>{% endif %}{% endfor %}{% else %}No approved snapshot was supplied.{% endif %}</dd></div>
     </dl>
     {% if snapshot.native.decisions %}
     <p class="small mt-3">The specifications that apply to this lot state {{ snapshot.native.decisions|length|pluralize:"a test,tests" }} differently. The laboratory's quality unit decided with a signature which requirement applies, and the lot was tested against it:</p>
@@ -49,10 +49,10 @@
           <tr>
             <th scope="row">{{ r.test_code }}{% if r.name and r.name != r.test_code %}<br><span class="vr-muted">{{ r.name }}</span>{% endif %}</th>
             <td>{{ r.sample }}</td>
-            <td class="vr-wrap">{{ r.method.code }} r{{ r.method.revision }}{% if r.contract_laboratory %}<span class="d-block vr-muted">Tested by contract laboratory {{ r.contract_laboratory.name }}, {{ r.contract_laboratory.location }}. Report {{ r.contract_laboratory.report_number }} dated {{ r.contract_laboratory.report_date }}.</span>{% endif %}</td>
+            <td{% if r.contract_laboratory %} class="vr-wrap"{% endif %}>{{ r.method.code }} r{{ r.method.revision }}{% if r.contract_laboratory %}<span class="d-block vr-muted">Tested by contract laboratory {{ r.contract_laboratory.name }}, {{ r.contract_laboratory.location }}. Report {{ r.contract_laboratory.report_number }} dated {{ r.contract_laboratory.report_date }}.</span>{% endif %}</td>
             <td>{% for rep in r.replicates %}{{ rep.value }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
             <td class="text-end">{{ r.reportable }}{% if r.unit %} {{ r.unit }}{% endif %}</td>
-            <td class="vr-wrap">{% if r.acceptance %}{{ r.acceptance }}{% else %}{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}{% endif %}</td>
+            <td{% if r.acceptance %} class="vr-wrap"{% endif %}>{% if r.acceptance %}{{ r.acceptance }}{% else %}{% if r.lower_limit %}{{ r.lower_limit }}{% else %}no lower limit{% endif %} to {% if r.upper_limit %}{{ r.upper_limit }}{% else %}no upper limit{% endif %} {{ r.unit }}{% endif %}</td>
             <td>{% if r.review %}{{ r.review.signer }}<br><time class="vr-muted">{{ r.review.signed_at|stamp }}</time>{% else %}{% status label="Not reviewed" tone="warning" plain=True print=True %}{% endif %}</td>
           </tr>
         {% endfor %}

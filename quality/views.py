@@ -157,6 +157,10 @@ def lot_detail(request, pk):
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),
+            # A disposition author is refused on the signing page; not offered as the next step.
+            "disposition_denied": services.disposition_denial(request.user, lot)
+            if lot.state == "quarantine"
+            else "",
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             # The exported record includes the audit trail, so it needs a role that reads it.
             "can_export": request.user.groups.filter(name__in=AUDIT_READ_ROLES).exists(),

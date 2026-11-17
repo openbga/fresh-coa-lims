@@ -10,15 +10,14 @@
   {% list_results items=page noun="accounts" filtered=filtered invalid=filters.errors clear_url=request.path empty_title="No accounts found" action_url=create_url action_label="New account" no_results_body="Clear or adjust the filters." %}
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="accounts-heading">
-      <thead><tr><th scope="col">Account</th><th scope="col">Identity</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col">Two-factor sign-in</th><th scope="col">Last sign-in</th></tr></thead>
+      <thead><tr><th scope="col">Account</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col">Two-factor sign-in</th><th scope="col">Last sign-in</th></tr></thead>
       <tbody>
         {% for target in page %}<tr>
-          <th scope="row"><a class="vr-row-link" href="{% url 'accounts:user_detail' target.pk %}">{{ target.username }}</a></th>
-          <td>{{ target.get_full_name|default:"Not supplied" }}<br>{{ target.email }}</td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'accounts:user_detail' target.pk %}">{{ target.username }}</a><span class="vr-sub">{{ target.get_full_name|default:"Not supplied" }}{% if target.email %} · {{ target.email }}{% endif %}</span></th>
           <td>{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}No role assigned{% endfor %}</td>
           <td>{% if target.is_active %}{% status label="Active" tone="success" plain=True %}{% else %}{% status label="Inactive" tone="neutral" plain=True %}{% endif %}{% if target.password_change_required %}<br>Password change required{% endif %}{% if target.pin_locked %}<br>{% status label="Signature PIN locked" tone="danger" plain=True %}{% endif %}{% if target.factor_stopped and target.has_app or target.factor_stopped and target.has_key %}<br>{% status label="Two-factor sign-in stopped" tone="danger" plain=True %}{% endif %}</td>
           <td>{% if target.has_app and target.has_key %}On: app and security key{% elif target.has_app %}On: app{% elif target.has_key %}On: security key{% else %}Off{% endif %}</td>
-          <td class="vr-nowrap">{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</td>
+          <td>{% if target.last_login %}{{ target.last_login|when }}{% else %}Never signed in{% endif %}</td>
         </tr>{% endfor %}
       </tbody>
     </table>

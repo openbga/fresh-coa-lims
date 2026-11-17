@@ -304,6 +304,14 @@
   background: var(--vr-surface-2);
 }
 
+/* Each section title is a heading inside its summary, so a screen reader can move between the
+   reference sections; it reads as the summary's own text. */
+.pagedocs-section-title {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+
 .pagedocs-chevron {
   flex: none;
   color: var(--vr-text-muted);

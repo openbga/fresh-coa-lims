@@ -34,7 +34,7 @@ reference HTML comes from pagedocs.markdown. The review date closes the article.
       </div>
     </div>
     {% for section in doc.reference %}<details class="pagedocs-section" id="{{ section.anchor }}" data-pagedocs-section>
-      <summary>{% icon name="chevron-right" class="pagedocs-chevron" %}<span>{{ section.title }}</span></summary>
+      <summary>{% icon name="chevron-right" class="pagedocs-chevron" %}<h4 class="pagedocs-section-title">{{ section.title }}</h4></summary>
       <div class="pagedocs-section-body">{{ section.html }}</div>
     </details>
     {% endfor %}<p class="pagedocs-none" role="status" data-pagedocs-none hidden>No field or action matches.</p>

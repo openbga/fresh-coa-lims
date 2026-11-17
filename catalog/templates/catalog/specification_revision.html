@@ -9,7 +9,7 @@
 {% endblock %}
 {% block content %}
 {% if is_draft and can_edit and not can_approve %}{% notice tone="info" label="Independent approval" %}You authored or edited this draft, so another quality approver must sign it.{% endnotice %}{% endif %}
-{% if revision.status == "approved" %}{% notice tone="success" label="Frozen" %}This approved version and its tests cannot be changed. Content hash <span class="vr-id">{{ revision.approved_hash }}</span>.{% endnotice %}{% endif %}
+{% if revision.status == "approved" %}{% notice tone="success" label="Frozen" %}This approved version and its tests cannot be changed. Content hash {% code value=revision.approved_hash hash=True %}.{% endnotice %}{% endif %}
 {% panel title="Version facts" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts mb-0">
     {% fact label="Material" value=spec.material %}

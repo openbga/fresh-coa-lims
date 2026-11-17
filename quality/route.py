@@ -160,6 +160,16 @@ def annotate_route(lots):
             .order_by("-assigned_at", "-id")
             .values("status")[:1]
         ),
+        route_material_kind=Subquery(
+            LotAssignment.objects.filter(lot=OuterRef("pk"))
+            .order_by("-assigned_at", "-id")
+            .values("material__kind")[:1]
+        ),
+        route_material_code=Subquery(
+            LotAssignment.objects.filter(lot=OuterRef("pk"))
+            .order_by("-assigned_at", "-id")
+            .values("material__code")[:1]
+        ),
         route_samples=Coalesce(Subquery(samples, output_field=IntegerField()), 0),
         route_tests=count(COUNTED),
         route_entered=count(Q(state__in=("submitted", "reviewed"))),

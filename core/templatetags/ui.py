@@ -375,7 +375,7 @@ COMPONENTS = {
     "history_panel": Component(
         I + "history_panel.html",
         ("events", "newest_first", "title", "heading_id", "count", "class", "empty_title",
-         "empty_body"),
+         "empty_body", "collapsible"),
         body="block",
         reads=("form_dialog",),
         derive=history_panel_values,
@@ -392,7 +392,9 @@ COMPONENTS = {
     # Single components
     "icon": Component(I + "icon.html", ("name", "class")),
     "status": Component(
-        I + "status.html", ("label", "tone", "plain", "title", "print"), derive=status_values
+        I + "status.html",
+        ("label", "tone", "plain", "title", "print", "size"),
+        derive=status_values,
     ),
     "brand": Component(I + "brand.html", ("href", "name", "compact", "variant")),
     "breadcrumbs": Component(

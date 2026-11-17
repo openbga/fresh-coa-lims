@@ -10,6 +10,7 @@ Parameters:
   title         the panel heading (default "History");  heading_id: default "<slug>-heading"
   count         optional text after the title (or a "count" part for markup)
   class         extra classes on the panel
+  collapsible   truthy to render it closed, opening on its heading (a record's secondary history)
   empty_title   default "No recorded changes yet";  empty_body: optional sentence
 Parts: count; footer (e.g. the history's pager).
 Never inside the shared form dialog: fetched into it (form_dialog, a documented read) it renders
@@ -21,7 +22,7 @@ Usage:
     {% for entry in receipt_history %}{% history_item title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by %}{% endfor %}
   {% endhistory_panel %}
 {% endcomment %}
-{% if not form_dialog %}{% load ui %}{% with items=body %}{% panel title=title heading_id=heading_id class=class|add:" vr-page-only" count=slots.count|default:count %}
+{% if not form_dialog %}{% load ui %}{% with items=body %}{% panel title=title heading_id=heading_id class=class|add:" vr-page-only" count=slots.count|default:count collapsible=collapsible %}
 {% if events %}
 <ol class="vr-timeline">
   {% if items %}{{ items }}{% else %}{% for event in events %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}{% endif %}
