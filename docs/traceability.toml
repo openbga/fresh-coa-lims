@@ -136,6 +136,7 @@
     "tests/test_result_types_journey.py",
     "tests/test_revised_versions_in_progress.py",
     "tests/test_stability_testing.py",
+    "tests/test_test_not_completed.py",
 ]
 "OQ-009" = [
     "analytical/tests/test_replacement.py",
@@ -154,6 +155,7 @@
     "tests/test_requirement_applicability.py",
     "tests/test_requirement_applicability_views.py",
     "tests/test_requirement_replacement.py",
+    "tests/test_test_not_completed.py",
 ]
 "OQ-010" = [
     "e2e/test_contract_laboratory_journey.py",

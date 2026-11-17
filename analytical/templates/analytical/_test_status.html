@@ -1,5 +1,6 @@
 {% comment %}Status of an analytical test as text plus tone. Parameters: test, plain.{% endcomment %}
 {% if test.state == "invalidated" %}{% include "includes/status.html" with label="Invalidated" tone="neutral" plain=plain %}
+{% elif test.state == "not_completed" %}{% include "includes/status.html" with label="Not completed" tone="neutral" plain=plain %}
 {% elif test.state == "superseded" %}{% include "includes/status.html" with label="Superseded · requirements replaced" tone="neutral" plain=plain %}
 {% elif test.state == "open" and test.supplier_result %}{% include "includes/status.html" with label="Not tested · supplier result" tone="info" plain=plain %}
 {% elif test.state == "open" %}{% include "includes/status.html" with label="Open" tone="progress" plain=plain %}

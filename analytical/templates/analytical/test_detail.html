@@ -17,6 +17,7 @@
 {% if can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">Record observation</a>{% endif %}
 {% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% endif %}
 {% if can_contract_correct %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a>{% endif %}
+{% if can_not_complete %}<a class="btn btn-outline-danger" href="{% url 'analytical:test_not_completed' test.pk %}">Record not completed</a>{% endif %}
 {% endblock %}
 {% block content %}
 {% if test.pull_id %}
@@ -25,6 +26,12 @@
 {% if test.state == "superseded" %}
 <div class="alert alert-info" role="status">{% include "includes/status.html" with label="Superseded" tone="neutral" plain=True %}<div class="text-break">The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the <a href="{% url 'sampling:lot' test.lot_id %}">lot's requirements</a> for the signed replacement{% if children %}; the test that repeats it under the current requirement is listed under Linked tests{% endif %}.</div></div>
 {% endif %}
+{% if not_completed %}{% with record=not_completed.record %}
+<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Not completed" tone="neutral" plain=True %}<div class="text-break">{% if not_completed.signature %}{{ not_completed.signature.signer_name }} signed{% else %}Quality signed{% endif %} that this test cannot be completed. Cause: {{ not_completed.cause|lower }}.{% if not_completed.reason %} Reason: {{ not_completed.reason }}{% endif %}<br>Everything recorded on it is kept as it was{% if record.recorded %} (recorded: {{ record.recorded|join:", " }}){% endif %}. It takes no more work and counts toward {% if test.pull_id %}no acceptance of the pull{% else %}no disposition of the lot{% endif %}.
+{% if record.follow_up == "repeat" %}{% if not_completed.repeat %} It is repeated by <a class="vr-id" href="{% url 'analytical:test_detail' not_completed.repeat.pk %}">{{ not_completed.repeat.label }}</a>{% if record.repeat.sample %} on sample <span class="vr-id">{{ record.repeat.sample }}</span>{% endif %}.{% endif %}
+{% elif record.follow_up == "opens" %} Its readings outside the limits ({{ record.outside_limits|join:", " }}) opened <a href="{% url 'analytical:investigation_detail' not_completed.investigation_id %}">{{ not_completed.investigation_label }}</a>, which decides what follows.
+{% else %} It belonged to <a href="{% url 'analytical:investigation_detail' not_completed.investigation_id %}">{{ not_completed.investigation_label }}</a>, which decides what follows.{% endif %}</div></div>
+{% endwith %}{% endif %}
 {% if triggered %}
 <div class="alert alert-danger" role="status">{% include "analytical/_investigation_status.html" with inv=triggered plain=True %}<div>This result opened <a href="{% url 'analytical:investigation_detail' triggered.pk %}">{{ triggered.label }}</a>. It cannot be corrected or returned; the investigation decides whether it is invalid.</div></div>
 {% endif %}

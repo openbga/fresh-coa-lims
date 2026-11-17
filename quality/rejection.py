@@ -236,8 +236,9 @@ def rejection_preview(lot):
     ]
     reasons += [
         f"{row['label']} {row['test_code']} holds a result outside its limits that was not "
-        f"submitted ({', '.join(row['outside_limits'])}). Submit it first, so that it is "
-        "evaluated and investigated."
+        f"submitted ({', '.join(row['outside_limits'])}). Submit it first or, if the test "
+        "cannot be completed, record that on the test, which opens an investigation, so that "
+        "the result is evaluated and investigated."
         for row in tests
         if row["outside_limits"]
     ]

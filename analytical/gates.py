@@ -28,6 +28,8 @@ from .models import (
 
 EVIDENCE_SCHEMA = "analytical.lot-evidence/1"
 STATE = AnalyticalTest.State
+# Tests that answer nothing and block nothing by themselves: their lineage decides.
+EXCLUDED = (STATE.INVALIDATED, STATE.SUPERSEDED, STATE.NOT_COMPLETED)
 
 
 def _reportable(test, investigations):
@@ -51,13 +53,14 @@ def tested_here(lot, test_code):
     """Why a supplier's result cannot stand in for this requirement of the lot, or "": the
     laboratory has started testing it. A test that is still open, in no QC batch, without any
     observation (corrected ones included) and without a raw-data file has not started; nor has
-    one that was superseded in that condition when the lot's requirements were replaced.
+    one that was superseded in that condition when the lot's requirements were replaced, or
+    recorded in that condition as not completed.
     Laboratory work on a superseded test still counts: replacing a requirement does not make
     room for a supplier's result where the laboratory already has its own."""
     tests = AnalyticalTest.objects.filter(lot_id=lot.pk, test_code=test_code).order_by("pk")
     for test in tests:
         if (
-            test.state not in (STATE.OPEN, STATE.SUPERSEDED)
+            test.state not in (STATE.OPEN, STATE.SUPERSEDED, STATE.NOT_COMPLETED)
             or test.evaluated_at is not None
             or test.batch_id is not None
             or Observation.objects.filter(test=test).exists()
@@ -83,7 +86,8 @@ def lot_status(lot):
     A test answers a requirement by content (``content_hash``), so a test carries over when
     the lot's requirements are replaced by identical ones. A superseded test is closed: it
     blocks nothing and answers nothing, and its sample then needs a test of the kind
-    ``revised`` under the current requirement.
+    ``revised`` under the current requirement. A test recorded as not completed is closed too:
+    its repeat, or the investigation it belongs to or opened, answers for its sample.
     """
     return _status(lot)[:4]
 
@@ -282,9 +286,7 @@ def lot_notices(lot):
     except ValidationError:
         return []
     notices = []
-    tests = AnalyticalTest.objects.filter(lot_id=lot.pk).exclude(
-        state__in=[STATE.INVALIDATED, STATE.SUPERSEDED]
-    )
+    tests = AnalyticalTest.objects.filter(lot_id=lot.pk).exclude(state__in=EXCLUDED)
     for test in tests.order_by("pk"):
         source = test.contract_source()
         notice = desk.contract_notice(source) if source else ""
@@ -294,6 +296,19 @@ def lot_notices(lot):
                 "This does not block the disposition."
             )
     return notices
+
+
+def _excluded(test):
+    """A test that answers nothing, for the evidence. One recorded as not completed carries
+    that record and its signature, so the certificate's evidence says why."""
+    row = {"test": test.pk, "test_code": test.test_code, "kind": test.kind, "state": test.state}
+    if test.state == STATE.NOT_COMPLETED:
+        row["not_completed"] = {
+            "cause": test.not_completed_record["cause"],
+            "follow_up": test.not_completed_record["follow_up"],
+            "signature": _signature("analytical.analyticaltest", test.pk, "not_completed"),
+        }
+    return row
 
 
 def lot_evidence(lot):
@@ -365,11 +380,7 @@ def lot_evidence(lot):
         # Present only when a supplier's result was accepted in place of a test, so evidence
         # of lots tested in full keeps the shape it always had.
         **({"supplier_results": [accepted[code] for code in sorted(accepted)]} if accepted else {}),
-        "excluded_tests": [
-            {"test": t.pk, "test_code": t.test_code, "kind": t.kind, "state": t.state}
-            for t in tests
-            if t.state in (STATE.INVALIDATED, STATE.SUPERSEDED)
-        ],
+        "excluded_tests": [_excluded(t) for t in tests if t.state in EXCLUDED],
         "investigations": [
             {
                 "investigation": inv.label,

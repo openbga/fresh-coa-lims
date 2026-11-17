@@ -1182,6 +1182,8 @@ def _test_state(test):
     result = test.reportable_with_unit
     if test.state == "invalidated":
         return status(f"{result} · invalidated" if result else "Invalidated", "neutral")
+    if test.state == "not_completed":
+        return status("Not completed", "neutral")
     if test.state == "open":
         return status("Open", "progress")
     if test.conforms is False:
