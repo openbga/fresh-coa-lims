@@ -1,8 +1,10 @@
+from datetime import timedelta
+
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef, Prefetch, Q
+from django.db.models import Exists, OuterRef, Prefetch, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -11,11 +13,11 @@ from accounts.services import ROLES
 from catalog.web import form_status, run
 from core.grids import Column, paginate
 from core.models import ElectronicSignature
-from core.services import AUDIT_READ_ROLES, require_role
+from core.services import AUDIT_READ_ROLES, MATERIAL_DATES_RULES, require_role
 
-from . import certificates, dashboard, reliance, route, services
+from . import certificates, dashboard, dates, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
-from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
+from .models import Lot, LotDates, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
 
 LOTS = "Material lots"
@@ -49,8 +51,34 @@ LOT_COLUMNS = (
     Column("supplier", "Supplier", priority="medium"),
     Column("received", "Received", priority="medium"),
     Column("route", "Where it is"),
+    Column("retest", "Retest date", priority="low"),
+    Column("expiry", "Expiry date", priority="low"),
     Column("rules", "Rule set", priority="low"),
 )
+
+# The Dates filter of the material lot list: lots in quarantine or released, by their dates in
+# force on the local date (quality.dates.status).
+DATE_FILTERS = [
+    ("", "Any dates"),
+    (dates.RETEST_DUE, "Retest due"),
+    (dates.EXPIRED, "Expired"),
+    ("soon", f"Retest or expiry within {dates.SOON_DAYS} days"),
+]
+
+
+def filter_by_dates(lots, wanted, on):
+    """Lots annotated with date_expiry and date_retest, narrowed to one Dates filter."""
+    live = lots.filter(state__in=dates.LIVE_STATES)
+    # Positive conditions only: a missing date (NULL) is neither reached nor not reached.
+    not_expired = Q(date_expiry__isnull=True) | Q(date_expiry__gte=on)
+    not_due = Q(date_retest__isnull=True) | Q(date_retest__gt=on)
+    if wanted == dates.EXPIRED:
+        return live.filter(date_expiry__lt=on)
+    if wanted == dates.RETEST_DUE:
+        return live.filter(not_expired, date_retest__lte=on)
+    horizon = on + timedelta(days=dates.SOON_DAYS)
+    soon = Q(date_expiry__lte=horizon) | Q(date_retest__lte=horizon)
+    return live.filter(soon, not_expired, not_due)
 
 
 class LotFilterForm(forms.Form):
@@ -64,6 +92,7 @@ class LotFilterForm(forms.Form):
         choices=[("", "Any queue"), *dashboard.LOT_QUEUES.items()],
         required=False,
     )
+    dates = forms.ChoiceField(label="Dates", choices=DATE_FILTERS, required=False)
 
 
 @login_required
@@ -75,19 +104,34 @@ def lot_list(request):
         return redirect("accounts:access")
     access(request.user)
     current = LotReceipt.objects.filter(corrected_by__isnull=True)
-    lots = Lot.objects.select_related("rules").prefetch_related(
-        Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
+    in_force = LotDates.objects.filter(lot=OuterRef("pk"), replaced_by__isnull=True)
+    lots = (
+        Lot.objects.select_related("rules")
+        .prefetch_related(
+            Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
+        )
+        .annotate(
+            date_expiry=Subquery(in_force.values("expiry_on")[:1]),
+            date_retest=Subquery(in_force.values("retest_on")[:1]),
+        )
     )
     filters = LotFilterForm(request.GET)
-    if not filters.is_valid():  # an unknown status lists every lot, as before the filter
-        filters = LotFilterForm()
-    state = filters.cleaned_data["state"] if filters.is_bound else ""
+    valid = filters.is_valid()
+    # cleaned_data keeps the fields that are valid: an unknown value is ignored, the rest apply.
+    chosen = {"state": "", "queue": "", "dates": ""} | filters.cleaned_data
+    if not valid:
+        filters = LotFilterForm(initial=chosen)
+    state = chosen["state"]
     if state:
         lots = lots.filter(state=state)
     # The dashboard counts the same queryset, so its count equals the rows listed here.
-    queue = filters.cleaned_data["queue"] if filters.is_bound else ""
+    queue = chosen["queue"]
     if queue:
         lots = lots.filter(pk__in=dashboard.lot_queues()[queue].values("pk"))
+    on = dates.today()
+    wanted_dates = chosen["dates"]
+    if wanted_dates:
+        lots = filter_by_dates(lots, wanted_dates, on)
     query = request.GET.get("q", "").strip()
     if query:
         lots = lots.filter(
@@ -103,6 +147,8 @@ def lot_list(request):
         lot.route = route.list_route(lot)
         lot.route_summary = route.summary(lot.route)
         lot.hold_labels = route.hold_labels(lot)
+        if label := dates.status_label(lot.state, lot.date_expiry, lot.date_retest, on):
+            lot.hold_labels.append(label)
     return render(
         request,
         "quality/lot_list.html",
@@ -112,7 +158,7 @@ def lot_list(request):
             "columns": LOT_COLUMNS,
             "query": query,
             "filters": filters,
-            "filtered": bool(query or state or queue),
+            "filtered": bool(query or state or queue or wanted_dates),
             "can_receive": request.user.groups.filter(name="analyst").exists(),
         },
     )
@@ -188,6 +234,7 @@ def lot_detail(request, pk):
         .select_related("reserve")
         .order_by("anchor_date", "pk")
     )
+    in_force = dates.current_dates(lot)
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -207,6 +254,19 @@ def lot_detail(request, pk):
             "acceptances": acceptances,
             "retention": retention,
             "can_set_anchor": request.user.groups.filter(name__in=("analyst", "quality")).exists(),
+            "dates": in_force if in_force and in_force.stated else None,
+            "dates_record": in_force,
+            "dates_history": dates.history(lot),
+            "dates_status": dates.status_label(
+                lot.state,
+                in_force.expiry_on if in_force else None,
+                in_force.retest_on if in_force else None,
+            ),
+            "dates_required": [
+                (rule, MATERIAL_DATES_RULES[key]) for rule, key in dates.required_dates(lot)
+            ],
+            "can_record_dates": quarantine
+            and request.user.groups.filter(name__in=dates.RECORD_ROLES).exists(),
             "supplier_accepted": any(item.state == "accepted" for item in acceptances),
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),

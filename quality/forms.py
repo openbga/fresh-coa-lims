@@ -473,3 +473,33 @@ class CancellationForm(ClosureForm):
         help_text="For example: the delivery was recorded twice, and the lot that holds it.",
     )
     field_order = ["reason", "reference", "signature_username", "pin", "expected_revision", "basis"]
+
+
+class DatesForm(GroupedForm):
+    """The expiry and retest dates of a lot. ``current`` names the record the page showed, so a
+    page opened before another correction is refused. The service repeats every rule."""
+
+    expiry_on = forms.DateField(
+        label="Expiry date",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="The last day the material may be used. Leave blank if it has none.",
+    )
+    retest_on = forms.DateField(
+        label="Retest date",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="The day from which the material must be examined again before use. Not "
+        "after the expiry date. Leave blank if it has none.",
+    )
+    basis = forms.CharField(
+        label="Basis",
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Where the dates come from: the supplier's label or certificate, or the shelf "
+        "life or retest period assigned and its reference.",
+    )
+    current = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    reason = reason_field("Reason")
+    groups = [("Dates", ["expiry_on", "retest_on", "basis"]), ("Change control", ["reason"])]

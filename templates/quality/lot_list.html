@@ -7,7 +7,7 @@
 {% panel title="Lots" heading_id="lots-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter material lots" q=query search_label="Find lot" search_id="search" placeholder="Lot, supplier lot or manufacturer lot" inline=filters active=filtered %}
   {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
-  {% list_results items=page_obj grid="quality.lots" noun="material lots" filtered=filtered sizes=True clear_url=request.path empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" no_results_body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." %}
+  {% list_results items=page_obj grid="quality.lots" noun="material lots" filtered=filtered sizes=True clear_url=request.path empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" no_results_body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search, the status or the dates, or clear the filters." %}
   {% grid_table grid="quality.lots" columns=columns label="lots-heading" %}
       <tbody>{% for lot in page_obj %}<tr>
         <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
@@ -15,6 +15,8 @@
         <td>{% material_tag material=lot.material kind=lot.route_material_kind code=lot.route_material_code size="sm" sub=False %}</td>
         {% with receipt=lot.current.0 %}{% if receipt %}<td>{% if receipt.supplier %}<span class="vr-ellipsis" title="{{ receipt.supplier.name }}">{{ receipt.supplier.name }}</span><span class="vr-sub">{% if receipt.supplier_lot %}{% code value=receipt.supplier_lot %}{% else %}Supplier lot not known{% endif %}</span>{% else %}{{ receipt.get_source_display }}{% endif %}</td><td class="vr-nowrap"><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></td>{% else %}<td>Receipt not recorded</td><td>—</td>{% endif %}{% endwith %}
         <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
+        <td class="vr-nowrap">{% if lot.date_retest %}<time datetime="{{ lot.date_retest|date:'Y-m-d' }}">{{ lot.date_retest|date:"Y-m-d" }}</time>{% else %}—{% endif %}</td>
+        <td class="vr-nowrap">{% if lot.date_expiry %}<time datetime="{{ lot.date_expiry|date:'Y-m-d' }}">{{ lot.date_expiry|date:"Y-m-d" }}</time>{% else %}—{% endif %}</td>
         <td>{% code value=lot.rules %}</td>
       </tr>{% endfor %}</tbody>
   {% endgrid_table %}

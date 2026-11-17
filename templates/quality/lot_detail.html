@@ -3,7 +3,7 @@
 {% comment %}The central lot record: key facts, receipt, supplier certificates and results, samples and results, certificates of analysis and every electronic signature on the lot and its results.{% endcomment %}
 {% block page_title_class %} vr-data{% endblock %}
 {% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% breadcrumbs section="Lots" section_url=list_url current=lot.number %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot size="lg" only %}</li>{% for inv in open_investigations %}<li>{% status label=inv.get_phase_display tone="danger" size="lg" %}</li>{% endfor %}{% if assignment.status == "hold" %}<li>{% status label=assignment.get_status_display tone="warning" size="lg" %}</li>{% endif %}{% for hold in holds %}<li><a href="{% url 'stability:hold_detail' hold.pk %}" title="{{ hold.identifier }}">{% status label=hold.get_kind_display|add:" hold" tone="hold" size="lg" %}</a></li>{% endfor %}<li>{% if assignment %}{% material_tag material=assignment.material size="lg" %}{% else %}{% material_tag material=lot.material size="lg" %}{% endif %}</li>{% fill line %}{% if receipt %}Received <strong>{{ receipt.received_on|when:"date" }}</strong> · {% endif %}Record revision <strong class="vr-data">{{ lot.revision }}</strong>{% endfill %}{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot size="lg" only %}</li>{% if dates_status %}<li>{% status label=dates_status.0 tone=dates_status.1 size="lg" %}</li>{% endif %}{% for inv in open_investigations %}<li>{% status label=inv.get_phase_display tone="danger" size="lg" %}</li>{% endfor %}{% if assignment.status == "hold" %}<li>{% status label=assignment.get_status_display tone="warning" size="lg" %}</li>{% endif %}{% for hold in holds %}<li><a href="{% url 'stability:hold_detail' hold.pk %}" title="{{ hold.identifier }}">{% status label=hold.get_kind_display|add:" hold" tone="hold" size="lg" %}</a></li>{% endfor %}<li>{% if assignment %}{% material_tag material=assignment.material size="lg" %}{% else %}{% material_tag material=lot.material size="lg" %}{% endif %}</li>{% fill line %}{% if receipt %}Received <strong>{{ receipt.received_on|when:"date" }}</strong> · {% endif %}Record revision <strong class="vr-data">{{ lot.revision }}</strong>{% endfill %}{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if lot.state == 'quarantine' %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
@@ -86,6 +86,26 @@
 {% endpanel %}
 {% if receipt %}{% history_panel events=receipt_history title="Receipt history" heading_id="receipt-history-heading" collapsible=True %}
   {% for entry in receipt_history %}{% history_item title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by by="Recorded by" reason=entry.receipt.reason changes=entry.changes icon=entry.icon %}{% endfor %}
+{% endhistory_panel %}{% endif %}
+{% panel title="Expiry and retest dates" heading_id="dates-heading" %}
+  {% fill actions %}{% if can_record_dates %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:lot_dates' lot.pk %}">{% if dates_record %}Correct dates{% else %}Record dates{% endif %}</a>{% endif %}{% endfill %}
+  {% if dates %}
+  <dl class="vr-facts">
+    {% fact label="Expiry date" %}{% if dates.expiry_on %}{{ dates.expiry_on|when:"date" }}{% if dates_status.0 == "Expired" %} {% status label="Expired" tone="danger" plain=True %}{% endif %}{% else %}None{% endif %}{% endfact %}
+    {% fact label="Retest date" %}{% if dates.retest_on %}{{ dates.retest_on|when:"date" }}{% if dates_status.0 == "Retest due" %} {% status label="Retest due" tone="warning" plain=True %}{% endif %}{% else %}None{% endif %}{% endfact %}
+    {% fact label="Basis" wide=True %}{{ dates.basis|linebreaksbr }}{% endfact %}
+    {% fact label="Recorded" %}{{ dates.recorded_at|when }}<small>by {{ dates.recorded_by|person }}</small>{% endfact %}
+  </dl>
+  {% elif dates_record %}
+  <p class="mb-0">The dates recorded earlier were corrected to none: this lot has no expiry or retest date.</p>
+  {% else %}
+  <p class="mb-0">No expiry or retest date is recorded.</p>
+  {% endif %}
+  {% if dates_required %}<p class="mt-3 mb-0">Required before release: {% for rule, text in dates_required %}{% code value=rule %} requires {{ text }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>{% endif %}
+  {% if lot.state == "released" and dates %}<p class="mt-3 mb-0">{% if lot.disposition_evidence.dates %}The release froze these dates. {% endif %}{% if dates_status.0 == "Expired" %}The material is past its expiry date and is not used; no certificate is issued for it.{% elif dates_status.0 == "Retest due" %}The retest date has been reached: the material must be examined again before further use, and no certificate is issued for it.{% else %}The lot shows when its retest is due or it has expired.{% endif %}</p>{% elif lot.state == "quarantine" %}<p class="mt-3 mb-0">An analyst or quality person records and corrects the dates while the lot is in quarantine; whoever does cannot sign its disposition. The release is refused after the expiry date and from the retest date on, and freezes the dates in force.</p>{% endif %}
+{% endpanel %}
+{% if dates_history %}{% history_panel events=dates_history title="Dates history" heading_id="dates-history-heading" collapsible=True %}
+  {% for entry in dates_history %}{% history_item title=entry.title at=entry.record.recorded_at actor=entry.record.recorded_by by="Recorded by" reason=entry.record.reason changes=entry.changes icon=entry.icon %}{% endfor %}
 {% endhistory_panel %}{% endif %}
 {% panel title="Supplier certificates" heading_id="certificates-heading" %}
   {% fill actions %}{% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}{% endfill %}

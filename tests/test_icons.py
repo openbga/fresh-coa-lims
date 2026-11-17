@@ -36,7 +36,8 @@ SKIPPED_DIRS = {".venv", ".local", "build", "vendor", "staticfiles", "node_modul
 
 def scripts():
     for path in sorted(ROOT.glob("**/static/**/*.js")):
-        if not SKIPPED_DIRS & set(path.parts):
+        # Parts below the checkout only: a worktree may itself live under a skipped name.
+        if not SKIPPED_DIRS & set(path.relative_to(ROOT).parts):
             yield path.relative_to(ROOT).as_posix(), path.read_text()
 
 

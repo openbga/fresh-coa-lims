@@ -107,6 +107,7 @@ def _contexts(c):
 LOT_SECTIONS = (
     Section("lot", "Lot", "quality.Lot", lambda c: Q(pk=c.lot.pk)),
     Section("receipts", "Receipt details", "quality.LotReceipt", _lot),
+    Section("dates", "Expiry and retest dates", "quality.LotDates", _lot),
     Section("supplier_certificates", "Supplier certificates", "quality.SupplierCertificate", _lot),
     Section(
         "supplier_certificate_results",

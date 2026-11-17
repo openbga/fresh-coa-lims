@@ -2,7 +2,14 @@ from django.urls import path
 
 from reporting import views as reporting_views
 
-from . import acceptance_views, certificate_views, dashboard, rejection_views, views
+from . import (
+    acceptance_views,
+    certificate_views,
+    dashboard,
+    dates_views,
+    rejection_views,
+    views,
+)
 
 app_name = "quality"
 urlpatterns = [
@@ -14,6 +21,7 @@ urlpatterns = [
     path("lots/<int:pk>/record/", reporting_views.lot_record_export, name="lot_record"),
     path("lots/<int:pk>/receipt/new/", views.receipt_new, name="receipt_new"),
     path("lots/<int:pk>/receipt/correct/", views.receipt_correct, name="receipt_correct"),
+    path("lots/<int:pk>/dates/", dates_views.lot_dates, name="lot_dates"),
     path(
         "lots/<int:pk>/supplier-certificates/new/",
         certificate_views.certificate_new,

@@ -39,6 +39,7 @@ FORM_SURFACES = {
     "quality:lot_record": ("md", ("admin", "auditor", "quality")),
     "quality:receipt_new": ("md", ("analyst",)),
     "quality:receipt_correct": ("md", ("analyst",)),
+    "quality:lot_dates": ("md", ("analyst", "quality")),
     "quality:certificate_new": ("md", ("analyst",)),
     "quality:certificate_correct": ("md", ("analyst",)),
     "quality:certificate_withdraw": ("sm", ("analyst",)),
