@@ -10,23 +10,21 @@
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="tests-heading">
       <caption class="visually-hidden">Analytical tests, newest first</caption>
-      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Sample</th><th scope="col">Code</th><th scope="col" class="text-end">Reportable</th><th scope="col">Batch</th><th scope="col">Assigned</th></tr></thead>
+      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Code</th><th scope="col" class="text-end">Reportable</th><th scope="col">Batch</th><th scope="col">Assigned</th></tr></thead>
       <tbody>
         {% for t in page_obj %}
         <tr>
-          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}</th>
-          <td>{% include "analytical/_test_status.html" with test=t plain=True only %}</td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}<span class="vr-sub">{{ t.spec.name }}</span></th>
+          <td class="vr-nowrap">{% include "analytical/_test_status.html" with test=t only %}</td>
           {% if t.pull_id %}
-          <td class="vr-id">{{ t.source_lot.number }}</td>
-          <td><a class="vr-id" href="{% url 'stability:pull_detail' t.pull_id %}">{{ t.pull.label }}</a> <span class="vr-muted small">stability pull</span></td>
+          <td><a href="{% url 'stability:pull_detail' t.pull_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">stability pull {{ t.pull.label }}</span></td>
           {% else %}
-          <td><a class="vr-id" href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a></td>
-          <td class="vr-id">{{ t.sample.reference }}</td>
+          <td><a href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a><span class="vr-sub">sample {{ t.sample.reference }}</span></td>
           {% endif %}
-          <td>{{ t.test_code }}</td>
-          <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% if t.spec.unit %} <span class="vr-muted small">{{ t.spec.unit }}</span>{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
-          <td>{% if t.batch %}<a class="vr-id" href="{% url 'analytical:batch_detail' t.batch_id %}">{{ t.batch.number }}</a>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
-          <td class="vr-nowrap"><time datetime="{{ t.created_at|date:'c' }}">{{ t.created_at|date:"Y-m-d H:i" }}</time></td>
+          <td>{% code value=t.test_code %}</td>
+          <td class="text-end vr-nowrap">{% if t.reportable_display %}<span class="vr-data">{{ t.reportable_display }}</span>{% if t.spec.unit %} <span class="vr-unit">{{ t.spec.unit }}</span>{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{% if t.batch %}{% url 'analytical:batch_detail' t.batch_id as batch_url %}{% code value=t.batch.number href=batch_url %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td class="vr-nowrap">{{ t.created_at|when }}</td>
         </tr>
         {% endfor %}
       </tbody>

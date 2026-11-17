@@ -2,15 +2,15 @@
 {% load ui %}
 {% comment %}One issued certificate version, shown from its frozen snapshot. Context: page_title, report, version, is_current, signature, snapshot.{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current="Version" %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% if is_current %}{% status label="Current version" tone="success" %}{% else %}{% status label="Superseded" tone="neutral" %}{% endif %}</li><li>Issued <time datetime="{{ version.issued_at|date:'c' }}">{{ version.issued_at|date:"Y-m-d H:i:s T" }}</time></li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if is_current %}{% status label="Current version" tone="success" %}{% else %}{% status label="Superseded" tone="neutral" %}{% endif %}</li><li>Issued {{ version.issued_at|when:"seconds" }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk version.number %}?inline=1" target="_blank" rel="noopener">Open PDF</a><a class="btn btn-primary" href="{% url 'reporting:pdf' report.pk version.number %}">{% icon name="download" %}Download PDF</a>{% endblock %}
 {% block content %}
 {% panel title="Issued record" heading_id="integrity-heading" class="mb-3" %}
   <dl class="vr-facts">
-    {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at|date:"Y-m-d H:i:s T" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}
+    {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at|when:"seconds" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}
     {% fact label="Size" %}{{ version.pdf_size }} bytes{% endfact %}
     {% if version.supersedes_id %}{% fact label="Amends" %}<a href="{% url 'reporting:version' report.pk version.supersedes.number %}">Version {{ version.supersedes.number }}</a>{% endfact %}{% endif %}
-    {% if version.superseded_by %}{% fact label="Superseded by" %}<a href="{% url 'reporting:version' report.pk version.superseded_by.number %}">Version {{ version.superseded_by.number }}</a>{% endfact %}{% endif %}
+    {% if version.superseded_by %}{% fact label="Superseded by" critical="info" %}{% status label="Superseded" tone="info" %}<small><a href="{% url 'reporting:version' report.pk version.superseded_by.number %}">Version {{ version.superseded_by.number }}</a></small>{% endfact %}{% endif %}
   </dl>
   <p class="small mt-3 mb-1 text-break">PDF SHA-256 <span class="vr-id text-wrap text-break">{{ version.pdf_sha256 }}</span></p>
   <p class="small mb-2 text-break">Evidence SHA-256 <span class="vr-id text-wrap text-break">{{ version.evidence_hash }}</span></p>

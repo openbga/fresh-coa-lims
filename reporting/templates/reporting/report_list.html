@@ -14,21 +14,17 @@
         <tr>
           {% sort_header label="Certificate" asc="number" desc="-number" sort=sort %}
           {% sort_header label="Lot" asc="lot" desc="-lot" sort=sort %}
-          <th scope="col">Material</th>
           <th scope="col">Issued to</th>
           {% sort_header label="Status" asc="status" desc="-status" sort=sort %}
-          <th scope="col" class="text-end">Version</th>
         </tr>
       </thead>
       <tbody>
         {% for report in page_obj %}
         <tr>
-          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></th>
-          <td>{{ report.lot.number }}</td>
-          <td class="vr-wrap">{{ report.lot.material }}</td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a><span class="vr-sub">{% if report.version_count %}version {{ report.version_count }}{% else %}not issued{% endif %}</span></th>
+          <td><a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a><span class="vr-sub">{{ report.lot.material }}</span></td>
           <td>{{ report.recipient|default:"General" }}</td>
-          <td>{% status label=report.status_label tone=report.tone plain=True %}</td>
-          <td class="text-end">{{ report.version_count|default:"—" }}</td>
+          <td class="vr-nowrap">{% status label=report.status_label tone=report.tone %}</td>
         </tr>
         {% endfor %}
       </tbody>

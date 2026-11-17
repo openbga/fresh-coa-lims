@@ -111,7 +111,7 @@ def test_quality_reviews_and_signs_the_replacement(client, world):  # noqa: F811
     assert "Specification synthetic-rt-spec v1 replaced by synthetic-rt-spec v2." in body
     assert "superseded (had reported 99.60)" in body and "carried over" in body
     assert "Requirements replaced during testing" not in body  # the earlier one was assigned
-    assert "Lot requirements replaced" in body  # the audit event, as History words it
+    assert 'data-audit-action="lot.requirements_replaced"' in body  # in the history
     signature = ElectronicSignature.objects.get(object_type="quality.lot")
     assert signature.meaning == "requirements_replaced" and signature.signer == approver
     assert f"bound to lot revision {signature.revision}" in body

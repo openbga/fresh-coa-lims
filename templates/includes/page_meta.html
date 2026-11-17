@@ -2,7 +2,8 @@
 Key facts under a record page's title (docs/ui-standards.md): status first, then at
 most four facts that identify the record; no prose. Rendered by the {% page_meta %} block tag
 ({% load ui %}) inside {% block page_meta %}; the tag's body is the <li> items.
+Part: line — a second, muted line of "label value" facts (e.g. Received date · Record revision).
 Usage:
   {% block page_meta %}{% page_meta %}<li>{% status ... %}</li><li>{{ quote.title }}</li>{% endpage_meta %}{% endblock %}
 {% endcomment %}
-{% if body %}<ul class="vr-page-meta">{{ body }}</ul>{% endif %}
+{% if body %}<ul class="vr-page-meta">{{ body }}</ul>{% endif %}{% if slots.line %}<p class="vr-page-meta-line">{{ slots.line }}</p>{% endif %}

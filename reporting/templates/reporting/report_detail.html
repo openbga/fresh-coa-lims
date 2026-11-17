@@ -14,10 +14,11 @@
 {% block content %}
 {% panel title="Record" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts">
-    {% fact label="Certificate" value=report.number class="vr-id text-wrap text-break" %}
+{% if report.status_label == "Amended" %}    {% fact label="Status" critical="info" %}{% status label="Amended" tone="info" %}<small>Current version {{ latest.number }}; earlier versions stay on record unchanged</small>{% endfact %}
+{% endif %}    {% fact label="Certificate" value=report.number class="vr-id text-wrap text-break" %}
     {% fact label="Lot" %}<a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a> · {{ report.lot.material }}{% endfact %}
     {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
-    {% fact label="Opened" %}{{ report.created_at|date:"Y-m-d H:i T" }} by {{ report.created_by.get_full_name|default:report.created_by.get_username }}{% endfact %}
+    {% fact label="Opened" %}{{ report.created_at|when }} by {{ report.created_by.get_full_name|default:report.created_by.get_username }}{% endfact %}
   </dl>
   {% if latest %}<p class="small mt-3 mb-0 text-break">Current PDF SHA-256 <span class="vr-id text-wrap text-break">{{ report.current_pdf_sha256 }}</span></p>{% endif %}
   {% if not latest %}<p class="mb-0">No version has been issued. A draft record holds no evidence.</p>{% endif %}
@@ -33,9 +34,9 @@
           <th scope="row"><a href="{% url 'reporting:version' report.pk v.number %}">Version {{ v.number }}</a></th>
           <td>{% if v.kind == "issue" %}Issue{% else %}Amendment{% endif %}</td>
           <td>{% if v.is_current %}{% status label="Current" tone="success" plain=True %}{% else %}{% status label="Superseded" tone="neutral" plain=True %}{% endif %}</td>
-          <td><time datetime="{{ v.issued_at|date:'c' }}">{{ v.issued_at|date:"Y-m-d H:i:s T" }}</time></td>
+          <td>{{ v.issued_at|when:"seconds" }}</td>
           <td>{% if v.signature %}{{ v.signature.signer_name }} · {{ v.signature.meaning }}{% else %}{{ v.issued_by }}{% endif %}</td>
-          <td>{{ v.reason|truncatechars:80 }}</td>
+          <td class="vr-wrap"><span class="vr-clamp" title="{{ v.reason }}">{{ v.reason }}</span></td>
           <td><a href="{% url 'reporting:pdf' report.pk v.number %}">Download PDF<span class="visually-hidden"> version {{ v.number }}</span></a></td>
         </tr>
       {% endfor %}

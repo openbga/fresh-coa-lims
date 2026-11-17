@@ -91,9 +91,13 @@ def make_filter(request, choices=None):
 # --- Cells -----------------------------------------------------------------------------------
 
 
-def cell(text="", href=None, tone=None, numeric=False, link_rel=None, pill=None):
-    """One table/fact value. `tone` renders `text` as a status label (text plus glyph); `pill`
-    (label, tone) adds a status label after plain `text` (a clock fact: date, then its state)."""
+def cell(
+    text="", href=None, tone=None, numeric=False, link_rel=None, pill=None, sub="", code=False
+):
+    """One table/fact value. `tone` renders `text` as a status label (text plus glyph; filled for
+    the states that must not hide: danger, hold, warning); `pill` (label, tone) adds a status
+    label after plain `text` (a clock fact: date, then its state); `code` renders `text` as a code
+    chip; `sub` is a muted second line (an attribute of the value, e.g. a name under a code)."""
     return {
         "text": text,
         "href": href,
@@ -101,6 +105,8 @@ def cell(text="", href=None, tone=None, numeric=False, link_rel=None, pill=None)
         "numeric": numeric,
         "rel": link_rel,
         "pill": pill,
+        "sub": sub,
+        "code": code,
     }
 
 

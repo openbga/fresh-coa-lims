@@ -11,14 +11,13 @@
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="batches-heading">
       <caption class="visually-hidden">QC batches, newest first</caption>
-      <thead><tr><th scope="col">Batch</th><th scope="col">QC status</th><th scope="col">Method</th><th scope="col">Created</th><th scope="col">Created by</th></tr></thead>
+      <thead><tr><th scope="col">Batch</th><th scope="col">QC status</th><th scope="col">Created</th><th scope="col">Created by</th></tr></thead>
       <tbody>
         {% for b in page_obj %}
         <tr>
-          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:batch_detail' b.pk %}">{{ b.number }}</a></th>
-          <td>{% include "analytical/_qc_status.html" with status=b.status state=b.state plain=True only %}</td>
-          <td>{{ b.method_code }} rev. {{ b.method.revision }}</td>
-          <td class="vr-nowrap"><time datetime="{{ b.created_at|date:'c' }}">{{ b.created_at|date:"Y-m-d H:i" }}</time></td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:batch_detail' b.pk %}">{{ b.number }}</a><span class="vr-sub">{% code value=b.method_code %} rev. {{ b.method.revision }}</span></th>
+          <td class="vr-nowrap">{% include "analytical/_qc_status.html" with status=b.status state=b.state only %}</td>
+          <td class="vr-nowrap">{{ b.created_at|when }}</td>
           <td>{{ b.created_by.get_full_name|default:b.created_by.get_username }}</td>
         </tr>
         {% endfor %}

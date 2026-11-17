@@ -27,8 +27,8 @@ reporting/_certificate.html and this file's existing lines; layout only.
   details > summary { list-style: none; }
 
   /* Material and lot: two equal tracks, label over value. */
-  dl.cert-key { display: flex; flex-wrap: wrap; column-gap: 6mm; row-gap: 1.6mm; }
-  dl.cert-key > div { display: block; flex: 0 0 47%; padding: 0; }
+  dl.cert-key { display: grid; grid-template-columns: 1fr 1fr; column-gap: 6mm; row-gap: 1.6mm; }
+  dl.cert-key > div { display: block; padding: 0; }
   dl.cert-key dt { width: auto; margin-bottom: 0.4mm; }
   dl.cert-key dd { display: block; font-size: 9pt; font-weight: 600; }
 

@@ -33,7 +33,7 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 ## Layout
 
-The header has **New account**. The accounts card opens with the filter toolbar (Find account, Role, Status, Two-factor sign-in, **Apply**, and **Clear all** when a filter is set), then a table with Account, Identity, Roles, Status (Active or Inactive, with "Password change required", "Signature PIN locked" (a lock time still ahead) and "Two-factor sign-in stopped" (too many wrong codes, with a second factor set up) below when they apply), Two-factor sign-in and Last sign-in, then the footer "Showing X–Y of N accounts" with paging. Empty states: **No accounts found** with **New account**; **No accounts match these filters** with "Clear or adjust the filters." and **Clear filters**; **These filters cannot be applied** for an invalid filter.
+The header has **New account**. The accounts card opens with the filter toolbar (Find account, Role, Status, Two-factor sign-in, **Apply**, and **Clear all** when a filter is set), then a table with Account (the username, with the full name or "Not supplied" and the email below), Roles, Status (Active or Inactive, with "Password change required", "Signature PIN locked" (a lock time still ahead) and "Two-factor sign-in stopped" (too many wrong codes, with a second factor set up) below when they apply), Two-factor sign-in and Last sign-in, then the footer "Showing X–Y of N accounts" with paging. Empty states: **No accounts found** with **New account**; **No accounts match these filters** with "Clear or adjust the filters." and **Clear filters**; **These filters cannot be applied** for an invalid filter.
 
 ## Actions
 

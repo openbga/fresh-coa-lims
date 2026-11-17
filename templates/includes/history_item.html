@@ -13,14 +13,16 @@ Parameters:
   detail    optional extra line of plain text under the actor
   extra     optional template name rendered at the end of the item in the caller's context (so it
             sees the loop variable), for recorded values, evidence or signatures
+  action    the raw audit action code (event.action), rendered as data-audit-action: the stable
+            hook tests read while the title shows it in words (|action_label)
   icon      Bootstrap Icons name in the entry's circle (default clock-history; arrow-repeat for a
             retest, pencil-square for a correction)
 Usage:
   <ol class="vr-timeline">
-    {% for event in history %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
+    {% for event in history %}{% history_item title=event.action|action_label action=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
   </ol>
 {% endcomment %}
-<li class="vr-history-item">
+<li class="vr-history-item"{% if action %} data-audit-action="{{ action }}"{% endif %}>
   <span class="vr-timeline-icon">{% firstof icon "clock-history" as glyph %}{% icon name=glyph %}</span>
   <div class="vr-timeline-main">
     <div class="vr-timeline-head"><span class="vr-timeline-title">{{ title }}</span></div>

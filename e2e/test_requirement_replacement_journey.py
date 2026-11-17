@@ -120,7 +120,7 @@ def test_revised_specification_replaces_requirements_and_the_test_is_repeated(
         expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
             "data-pagedocs-for", "sampling:replace"
         )
-        expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+        expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
         toggle.click()
         shots("requirement-replacement-review")
 

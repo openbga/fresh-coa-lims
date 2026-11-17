@@ -202,8 +202,7 @@ def use_list(request):
         label, tone = services.use_status(item)
         rows.append(
             [
-                cell(item.label, use_url(item)),
-                item.title,
+                cell(item.label, use_url(item), sub=item.title),
                 status(label, tone),
                 str(item.recorded_by),
                 day(timezone.localdate(item.recorded_at)),
@@ -229,7 +228,6 @@ def use_list(request):
         noun="records",
         columns=[
             ("Record", None, False),
-            ("Title", "title", False),
             ("State", None, False),
             ("Recorded by", None, False),
             ("Recorded", "recorded", False),
@@ -622,9 +620,8 @@ def rehearsal_list(request):
         label, tone = services.rehearsal_status(item)
         rows.append(
             [
-                cell(item.label, rehearsal_url(item)),
+                cell(item.label, rehearsal_url(item), sub=item.title),
                 item.get_kind_display(),
-                item.title,
                 day(item.performed_on),
                 item.release,
                 status(label, tone),
@@ -641,7 +638,6 @@ def rehearsal_list(request):
         columns=[
             ("Record", None, False),
             ("Rehearsal of", "kind", False),
-            ("Title", "title", False),
             ("Performed", "performed", False),
             ("Release", None, False),
             ("Status", None, False),

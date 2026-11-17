@@ -125,13 +125,15 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
             "data-pagedocs-for", "quality:receipt_correct"
         )
-        expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+        expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
         toggle.click()
         page.get_by_role("button", name="Correct receipt details", exact=True).click()
 
         expect(page).to_have_url(lot_url)
         expect(page.get_by_text("Receipt details corrected; the original is kept.")).to_be_visible()
-        history = page.get_by_role("region", name="Receipt history", exact=True)
+        # The receipt history is a collapsed panel: open it, then read its entries.
+        history = page.locator("details", has=page.get_by_role("heading", name="Receipt history"))
+        history.locator("summary").click()
         expect(history.locator(".vr-history-item")).to_have_count(2)
         corrected = history.locator(".vr-history-item").nth(1)
         expect(corrected).to_contain_text("Receipt details corrected")

@@ -23,7 +23,7 @@
   </dl>
 {% endpanel %}
 {% history_panel events=history title="Account history" heading_id="account-history-heading" empty_title="No account events recorded" %}
-  {% for event in history %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/account_evidence.html" %}{% endfor %}
+  {% for event in history %}{% history_item title=event.action|action_label action=event.action at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/account_evidence.html" %}{% endfor %}
   {% fill footer %}{% if history %}{% pagination page_obj=history noun="account events" %}{% endif %}{% endfill %}
 {% endhistory_panel %}
 {% endblock %}

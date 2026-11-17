@@ -8,15 +8,15 @@
 // by the server itself (core.preferences.GridPreferenceMiddleware).
 // The shared Columns dialog (#vr-columns-dialog) lives in base.html.
 //
-// Column priority: a header with data-vr-col-priority="low" is hidden by default on screens
-// narrower than 1366px, so names keep their room on a laptop. It is a default only: the user can
-// show it in Columns, and a saved layout always wins. Until a layout is saved, the defaults follow
-// the screen width.
+// Column priority: a header with data-vr-col-priority="low" is hidden by default whenever the
+// table would not fit its own panel with it: a laptop window, the help drawer open, the sidebar
+// expanded. The table's width decides, not the window's. It is a default only: the user can show
+// the column in Columns, and a saved layout always wins. Until a layout is saved, the defaults
+// follow the panel's width as it changes.
 (function () {
   "use strict";
 
   var grids = {};
-  var narrow = window.matchMedia ? window.matchMedia("(max-width: 1365.98px)") : null;
   var dialogGrid = null;
   var dialogOpener = null;
 
@@ -90,9 +90,10 @@
       colReorder: { columns: ":not(.vr-col-locked)" },
     });
 
-    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table) };
+    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table), cramped: false };
     grids[table.getAttribute("data-vr-grid")] = grid;
     applyLayout(grid, readLayout(grid.key));
+    watchWidth(grid);
 
     dt.on("columns-reordered", function () { save(grid); });
     document.querySelectorAll('[data-vr-columns-for="' + table.getAttribute("data-vr-grid") + '"]').forEach(function (button) {
@@ -137,26 +138,50 @@
   function applyLayout(grid, layout) {
     grid.dt.colReorder.order(resolveOrder(grid, layout && layout.order), true);
     grid.columns.forEach(function (col) {
-      var hidden = layout ? layout.hidden.indexOf(col.id) !== -1 : hiddenByDefault(col);
+      var hidden = layout ? layout.hidden.indexOf(col.id) !== -1 : hiddenByDefault(col, grid.cramped);
       grid.dt.column(col.id + ":name").visible(col.locked ? true : !hidden, false);
     });
     grid.dt.columns.adjust();
   }
 
-  function hiddenByDefault(col) {
-    return col.hiddenByDefault || (col.lowPriority && Boolean(narrow && narrow.matches));
+  function hiddenByDefault(col, cramped) {
+    return col.hiddenByDefault || (col.lowPriority && Boolean(cramped));
   }
 
-  // The screen width changed: grids without a saved layout take the defaults for the new width.
-  if (narrow) {
-    narrow.addEventListener("change", function () {
-      Object.keys(grids).forEach(function (name) {
-        var grid = grids[name];
-        if (!readLayout(grid.key)) {
-          applyLayout(grid, null);
-        }
-      });
-    });
+  // The scrolling box the table sits in: its width is the room the table has.
+  function frameOf(grid) {
+    return grid.table.closest(".vr-table-wrap") || grid.table.parentElement;
+  }
+
+  // Without a saved layout, low-priority columns show only while the table fits its frame with
+  // them. Measured with them shown, so the answer never depends on the previous one.
+  function fit(grid) {
+    if (readLayout(grid.key) || !grid.columns.some(function (col) { return col.lowPriority && !col.hiddenByDefault; })) {
+      return;
+    }
+    grid.cramped = false;
+    applyLayout(grid, null);
+    var frame = frameOf(grid);
+    grid.cramped = grid.table.scrollWidth > frame.clientWidth + 1;
+    if (grid.cramped) {
+      applyLayout(grid, null);
+    }
+  }
+
+  // Refit when the frame's width changes (window, help drawer, sidebar), not when its height does.
+  function watchWidth(grid) {
+    fit(grid);
+    if (!window.ResizeObserver) {
+      return;
+    }
+    var width = frameOf(grid).clientWidth;
+    new ResizeObserver(function () {
+      var now = frameOf(grid).clientWidth;
+      if (now !== width) {
+        width = now;
+        fit(grid);
+      }
+    }).observe(frameOf(grid));
   }
 
   function save(grid) {
@@ -275,8 +300,9 @@
     }
     if (event.target.closest("[data-vr-columns-reset]") && dialogGrid) {
       dialogGrid.dt.colReorder.reset();
-      applyLayout(dialogGrid, null);
       writeLayout(dialogGrid.key, null);
+      applyLayout(dialogGrid, null);
+      fit(dialogGrid);
       renderDialog(dialogGrid); // Focus stays on the Reset button the user pressed.
       announce("Columns reset to the default layout.");
     }

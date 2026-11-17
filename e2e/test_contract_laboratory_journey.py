@@ -137,7 +137,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
                 "data-pagedocs-for", "analytical:contract_result"
             )
-            expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+            expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
             toggle.click()
             # A report dated before the approval began is refused beside the laboratory.
             fill_report(today - timedelta(days=11))

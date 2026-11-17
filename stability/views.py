@@ -248,8 +248,7 @@ def protocol_list(request):
     )
     rows = [
         [
-            cell(p.identifier, reverse("stability:protocol_detail", args=[p.pk])),
-            p.title,
+            cell(p.identifier, reverse("stability:protocol_detail", args=[p.pk]), sub=p.title),
             p.product,
             _protocol_state(p),
             day(timezone.localdate(p.approved_at)) if p.approved_at else "",
@@ -264,7 +263,6 @@ def protocol_list(request):
         noun="protocols",
         columns=[
             ("Protocol", "code", False),
-            ("Title", None, False),
             ("Product", "product", False),
             ("State", None, False),
             ("Approved", "created", False),
@@ -664,9 +662,16 @@ def study_list(request):
     )
     rows = [
         [
-            cell(s.identifier, reverse("stability:study_detail", args=[s.pk])),
-            s.lot.number,
-            s.protocol.identifier,
+            cell(
+                s.identifier,
+                reverse("stability:study_detail", args=[s.pk]),
+                sub=s.protocol.identifier,
+            ),
+            cell(
+                s.lot.number,
+                reverse("quality:lot_detail", args=[s.lot_id]),
+                sub=s.protocol.product,
+            ),
             s.container_closure,
             day(s.start_date),
             _study_state(s),
@@ -681,7 +686,6 @@ def study_list(request):
         columns=[
             ("Study", "identifier", False),
             ("Lot", "lot", False),
-            ("Protocol", None, False),
             ("Container closure", None, False),
             ("Time zero", "start", False),
             ("State", None, False),
@@ -1585,8 +1589,7 @@ def reserve_list(request):
     )
     rows = [
         [
-            cell(r.identifier, reverse("stability:reserve_detail", args=[r.pk])),
-            r.lot.number,
+            cell(r.identifier, reverse("stability:reserve_detail", args=[r.pk]), sub=r.lot.number),
             cell(f"{r.quantity.normalize():f} {r.quantity_unit}", numeric=True),
             day(r.retained_on),
             r.storage_location,
@@ -1606,7 +1609,6 @@ def reserve_list(request):
         noun="reserve samples",
         columns=[
             ("Reserve", "identifier", False),
-            ("Lot", "lot", False),
             ("Quantity", None, True),
             ("Retained", "retained", False),
             ("Location", None, False),
@@ -1859,10 +1861,13 @@ def hold_list(request):
     )
     rows = [
         [
-            cell(h.identifier, reverse("stability:hold_detail", args=[h.pk])),
+            cell(
+                h.identifier,
+                reverse("stability:hold_detail", args=[h.pk]),
+                sub=h.get_kind_display(),
+            ),
             h.lot.number,
-            h.get_kind_display(),
-            h.reference,
+            cell(h.reference, code=True) if h.reference else "",
             _hold_state(h),
             when(h.placed_at),
         ]
@@ -1877,7 +1882,6 @@ def hold_list(request):
         columns=[
             ("Hold", None, False),
             ("Lot", "lot", False),
-            ("Kind", None, False),
             ("Reference", None, False),
             ("State", None, False),
             ("Placed", "placed", False),

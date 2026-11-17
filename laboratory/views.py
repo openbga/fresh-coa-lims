@@ -238,8 +238,11 @@ def equipment_list(request):
         label, tone, _ = equipment_status(item)
         rows.append(
             [
-                cell(item.asset_id, reverse("laboratory:equipment_detail", args=[item.pk])),
-                item.description,
+                cell(
+                    item.asset_id,
+                    reverse("laboratory:equipment_detail", args=[item.pk]),
+                    sub=item.description,
+                ),
                 item.category,
                 item.location,
                 day(item.last_due),
@@ -253,7 +256,6 @@ def equipment_list(request):
         noun="equipment",
         columns=[
             ("Asset", "asset", False),
-            ("Description", None, False),
             ("Category", "category", False),
             ("Location", None, False),
             ("Calibration due", "due", False),
@@ -984,8 +986,11 @@ def reagent_list(request):
         label, tone = reagent_status(lot, today)
         rows.append(
             [
-                cell(lot.identifier, reverse("laboratory:reagent_detail", args=[lot.pk])),
-                lot.name,
+                cell(
+                    lot.identifier,
+                    reverse("laboratory:reagent_detail", args=[lot.pk]),
+                    sub=lot.name,
+                ),
                 lot.get_kind_display(),
                 lot.lot_number,
                 day(lot.expiry_date),
@@ -1000,7 +1005,6 @@ def reagent_list(request):
         noun="lots",
         columns=[
             ("Identifier", "identifier", False),
-            ("Name", "name", False),
             ("Kind", None, False),
             ("Supplier lot", None, False),
             ("Expiry (last day of use)", "expiry", False),

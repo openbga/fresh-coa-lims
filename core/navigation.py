@@ -85,7 +85,17 @@ SECTIONS = (
         (
             NavItem("Signature PIN", "core:pin", "key", views=("core:pin",)),
             NavItem(
-                "Account access", "accounts:access", "person-circle", views=("accounts:access",)
+                "Account access",
+                "accounts:access",
+                "person-circle",
+                views=(
+                    "accounts:access",
+                    "accounts:password_change",
+                    "accounts:two_factor",
+                    "accounts:two_factor_setup",
+                    "accounts:security_key_add",
+                    "accounts:single_sign_on",
+                ),
             ),
             NavItem(
                 "Users and roles",

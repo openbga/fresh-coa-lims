@@ -14,7 +14,7 @@
       <div><dt>Lot number</dt><dd>{{ snapshot.lot.number }}</dd></div>
       <div><dt>Material</dt><dd>{{ snapshot.lot.material }}</dd></div>
       {% if snapshot.report %}<div><dt>Issued to</dt><dd>{{ snapshot.report.recipient|default:"General certificate (no named recipient)" }}</dd></div>{% endif %}
-      <div><dt>Lot received</dt><dd><span class="vr-nowrap">{{ snapshot.lot.received_at|stamp }}</span> by {{ snapshot.lot.received_by }}</dd></div>
+      <div><dt>Lot received</dt><dd><time datetime="{{ snapshot.lot.received_at }}">{{ snapshot.lot.received_at|stamp }}</time> by {{ snapshot.lot.received_by }}</dd></div>
     </dl>
     <h3 class="h6 fw-bold mt-4">Decision</h3>
     {% if snapshot.disposition %}

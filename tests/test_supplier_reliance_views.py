@@ -131,7 +131,7 @@ def test_qualification_is_recorded_in_two_steps_and_signed_by_another(client, wo
     page = text(client.get(record))
     assert "Approved" in page and f'href="{revoke_url}"' in page
     assert "No supplier result has relied on it." in page
-    assert "Signed approved" in page  # the audit event, as History words it
+    assert 'data-audit-action="signed.approved"' in page
     # The supplier's record lists it.
     page = text(client.get(detail))
     assert f'href="{record}"' in page and qualification.label in page
@@ -253,7 +253,7 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
     acceptance.refresh_from_db()
     assert acceptance.state == "accepted"
     page = text(client.get(detail))
-    assert "Accepted" in page and "Signed accepted" in page  # History words the audit event
+    assert "Accepted" in page and 'data-audit-action="signed.accepted"' in page
     assert reviewer.get_full_name() in page  # The signature names its signer.
     assert f'href="{accept_url}"' not in page
 
@@ -283,7 +283,7 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
     assert acceptance.state == "withdrawn" and acceptance.withdrawn_by == reviewer
     page = text(client.get(detail))
     assert "Withdrawn" in page and "Tested in the laboratory instead" in page
-    assert "Signed withdrawn" in page and f'href="{withdraw_url}"' not in page
+    assert 'data-audit-action="signed.withdrawn"' in page and f'href="{withdraw_url}"' not in page
     again = client.get(withdraw_url, follow=True)
     assert "already withdrawn" in text(again)
     assert "Withdrawn" in text(client.get(lot_url))

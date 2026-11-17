@@ -242,8 +242,32 @@
   });
 
   // Column priority on tables without a Columns control (record sub-tables): the cells of a column
-  // whose header carries data-vr-col-priority="low" are marked, and app.css hides them below 1366px,
-  // so the table fits; the full data stays on the record. Lists (data-vr-grid) use grid.js instead.
+  // whose header carries data-vr-col-priority="low" are marked, and while the table would not fit
+  // its own box with them (a laptop window, the help drawer open) the table is marked cramped and
+  // app.css hides them; the full data stays on the record. Lists (data-vr-grid) use grid.js.
+  function fitLowPriority(table) {
+    var frame = table.closest(".vr-table-wrap") || table.parentElement;
+    table.classList.remove("vr-table-cramped");
+    if (table.scrollWidth > frame.clientWidth + 1) {
+      table.classList.add("vr-table-cramped");
+    }
+  }
+
+  function watchLowPriority(table) {
+    fitLowPriority(table);
+    if (!window.ResizeObserver) {
+      return;
+    }
+    var frame = table.closest(".vr-table-wrap") || table.parentElement;
+    var width = frame.clientWidth;
+    new ResizeObserver(function () {
+      if (frame.clientWidth !== width) {
+        width = frame.clientWidth;
+        fitLowPriority(table);
+      }
+    }).observe(frame);
+  }
+
   function markLowPriorityColumns(scope) {
     (scope || document).querySelectorAll(".vr-table:not([data-vr-grid])").forEach(function (table) {
       var head = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
@@ -274,6 +298,7 @@
           });
         });
       });
+      watchLowPriority(table);
     });
   }
 

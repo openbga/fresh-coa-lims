@@ -14,7 +14,7 @@
         {% for column in columns %}{% if column.sort %}{% if column.numeric %}{% sort_header label=column.label asc=column.sort desc=column.desc sort=sort class="text-end" %}{% else %}{% sort_header label=column.label asc=column.sort desc=column.desc sort=sort %}{% endif %}{% else %}<th scope="col"{% if column.numeric %} class="text-end"{% endif %}>{{ column.label }}</th>{% endif %}{% endfor %}
       </tr></thead>
       <tbody>
-        {% for row in rows %}<tr>{% for cell in row %}{% if forloop.first %}<th scope="row">{% include "ops/_cell.html" with cell=cell only %}</th>{% else %}<td{% if cell.numeric %} class="text-end"{% endif %}>{% include "ops/_cell.html" with cell=cell only %}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+        {% for row in rows %}<tr>{% for cell in row %}{% if forloop.first %}<th scope="row">{% include "ops/_cell.html" with cell=cell first=True only %}</th>{% else %}<td{% if cell.numeric %} class="text-end"{% endif %}>{% include "ops/_cell.html" with cell=cell only %}</td>{% endif %}{% endfor %}</tr>{% endfor %}
       </tbody>
     </table>
   </div>

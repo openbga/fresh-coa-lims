@@ -189,7 +189,7 @@ def test_supplier_result_from_qualification_to_certificate(
             expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
                 "data-pagedocs-for", "quality:acceptance_new"
             )
-            expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+            expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
             toggle.click()
             page.get_by_role("button", name="Propose supplier result", exact=True).click()
             expect(page.get_by_role("alert")).to_be_visible()  # A reason is required.

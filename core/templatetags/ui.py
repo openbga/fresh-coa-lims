@@ -446,7 +446,7 @@ COMPONENTS = {
     ),
     "history_item": Component(
         I + "history_item.html",
-        ("title", "at", "actor", "by", "reason", "changes", "detail", "extra", "icon"),
+        ("title", "at", "actor", "by", "reason", "changes", "detail", "extra", "icon", "action"),
         caller_templates=("extra",),
     ),
     "signature_list": Component(

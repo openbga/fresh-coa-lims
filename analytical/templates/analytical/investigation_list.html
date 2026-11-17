@@ -9,16 +9,15 @@
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="inv-heading">
       <caption class="visually-hidden">Investigations, newest first</caption>
-      <thead><tr><th scope="col">Investigation</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Test</th><th scope="col">Trigger</th><th scope="col">Opened</th></tr></thead>
+      <thead><tr><th scope="col">Investigation</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Trigger</th><th scope="col">Opened</th></tr></thead>
       <tbody>
         {% for inv in page_obj %}
         <tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a></th>
-          <td>{% include "analytical/_investigation_status.html" with inv=inv plain=True only %}</td>
-          <td>{% if inv.lot_id %}<a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a>{% else %}<span class="vr-id">{{ inv.test.source_lot.number }}</span> · <a class="vr-id" href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.pull.label }}</a> <span class="vr-muted small">stability pull</span>{% endif %}</td>
-          <td><a class="vr-id" href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}</td>
-          <td>{{ inv.trigger }}</td>
-          <td class="vr-nowrap"><time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i" }}</time></td>
+          <td class="vr-nowrap">{% include "analytical/_investigation_status.html" with inv=inv only %}</td>
+          <td>{% if inv.lot_id %}<a href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a>{% else %}<a href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.source_lot.number }}</a>{% endif %}<span class="vr-sub"><a href="{% url 'analytical:test_detail' inv.test_id %}">{{ inv.test.label }}</a> {{ inv.test.test_code }}{% if not inv.lot_id %} · stability pull {{ inv.test.pull.label }}{% endif %}</span></td>
+          <td class="vr-wrap">{{ inv.trigger }}</td>
+          <td class="vr-nowrap">{{ inv.opened_at|when }}</td>
         </tr>
         {% endfor %}
       </tbody>

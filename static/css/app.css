@@ -129,6 +129,14 @@
   --vr-count: #d6eae9;
   --vr-on-count: #0a464c;
 
+  /* What a material is: one tile colour per kind (material tag); the icon on it is --vr-on-kind */
+  --vr-kind-raw: #8a6418;
+  --vr-kind-component: #3f5f86;
+  --vr-kind-packaging: #8a4f3a;
+  --vr-kind-intermediate: #5b4a8a;
+  --vr-kind-finished: #2f6b4a;
+  --vr-on-kind: #fbfcfb;
+
   /* Signing: the signature dialog's band and the signature mark in history */
   --vr-sign: #0f5c63;
   --vr-on-sign: #f2f9f9;
@@ -234,6 +242,13 @@
   --vr-count: #1f3d3f;
   --vr-on-count: #cdeeed;
 
+  --vr-kind-raw: #d9b25a;
+  --vr-kind-component: #9db8dd;
+  --vr-kind-packaging: #e0a48e;
+  --vr-kind-intermediate: #bcaee6;
+  --vr-kind-finished: #8fcfa8;
+  --vr-on-kind: #121a19;
+
   --vr-sign: #173a3c;
   --vr-on-sign: #d2f0ef;
 
@@ -316,6 +331,12 @@
     --vr-lane: #ffffff;
     --vr-count: #ffffff;
     --vr-on-count: #000000;
+    --vr-kind-raw: #8a6418;
+    --vr-kind-component: #3f5f86;
+    --vr-kind-packaging: #8a4f3a;
+    --vr-kind-intermediate: #5b4a8a;
+    --vr-kind-finished: #2f6b4a;
+    --vr-on-kind: #ffffff;
     --vr-shadow-panel: none;
     --vr-shadow-raised: none;
     --vr-shadow-dialog: none;
@@ -1264,7 +1285,14 @@ textarea.form-control {
 }
 
 .card-header > .ms-auto {
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-2) var(--vr-space-4);
+}
+
+/* A link with an icon in a panel head (Requirements and sampling →): icon and text apart. */
+.card-header a:not(.btn):has(> .vr-icon) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
 }
 
 .card-footer {
@@ -2188,13 +2216,12 @@ a.vr-navlink[aria-current="page"]:hover {
   font-size: var(--vr-font-size-3);
 }
 
-/* Low-priority columns of tables without a Columns control (marked by app.js) give way below
-   1366px, so the table fits at 1280; the record still holds the full data. Lists (data-vr-grid)
-   hide them through grid.js, where the user can show them again. */
-@media (max-width: 1365.98px) {
-  .vr-table:not([data-vr-grid]) [data-vr-low] {
-    display: none;
-  }
+/* Low-priority columns of tables without a Columns control (marked by app.js) give way while the
+   table would not fit its own box with them (app.js marks it cramped), so the table fits at 1280
+   or beside the help drawer; the record still holds the full data. Lists (data-vr-grid) hide them
+   through grid.js, where the user can show them again. */
+.vr-table.vr-table-cramped:not([data-vr-grid]) [data-vr-low] {
+  display: none;
 }
 
 /* Evidence and note rows that span the table (preservation, preparation, revision notes) are
@@ -3025,7 +3052,7 @@ fieldset.vr-field > legend {
 
 .vr-facts dd {
   margin: 0;
-  color: var(--vr-text);
+  color: var(--vr-text-strong);
   font-weight: var(--vr-font-weight-medium);
 }
 
@@ -3062,6 +3089,7 @@ fieldset.vr-field > legend {
 
 .vr-facts dd small {
   display: block;
+  margin-top: var(--vr-space-1);
   color: var(--vr-text-muted);
   font-size: var(--vr-font-size-3);
   font-weight: var(--vr-font-weight-regular);
@@ -3444,6 +3472,253 @@ dialog > [data-signature-dialog].card {
 /* Lab record-retention statement (core/record_retention.html): free text kept as entered. */
 .vr-retention-statement > :last-child {
   margin-bottom: 0;
+}
+
+/* ================================================================ Emphasis kit
+
+   What must not hide on a page (HIERARCHY.md "Emphasis kit"): what a material is, codes that are
+   not the row's link, the one critical fact, structured values in words. */
+
+/* Material tag: a kind-coloured icon tile, the name and an optional sub-line. */
+.vr-mtag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.vr-mtag-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--vr-radius-tag);
+  background: var(--vr-text-muted);
+  color: var(--vr-on-kind);
+}
+
+.vr-mtag-icon > .vr-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.vr-mtag[data-kind="raw"] .vr-mtag-icon {
+  background: var(--vr-kind-raw);
+}
+
+.vr-mtag[data-kind="component"] .vr-mtag-icon {
+  background: var(--vr-kind-component);
+}
+
+.vr-mtag[data-kind="packaging"] .vr-mtag-icon {
+  background: var(--vr-kind-packaging);
+}
+
+.vr-mtag[data-kind="intermediate"] .vr-mtag-icon {
+  background: var(--vr-kind-intermediate);
+}
+
+.vr-mtag[data-kind="finished"] .vr-mtag-icon {
+  background: var(--vr-kind-finished);
+}
+
+.vr-mtag-name {
+  min-width: 0;
+  color: var(--vr-text-strong);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.vr-mtag-sub {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
+}
+
+.vr-mtag.is-lg .vr-mtag-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.vr-mtag.is-lg .vr-mtag-icon > .vr-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.vr-mtag.is-lg .vr-mtag-name {
+  font-size: var(--vr-font-size-6);
+}
+
+.vr-mtag.is-sm .vr-mtag-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* In a table the name keeps one line and ends in an ellipsis (the shared tooltip shows it). */
+.vr-table .vr-mtag-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Code chip: a code or identifier that is not the row's link, in the data voice. */
+.vr-code {
+  display: inline-block;
+  padding: 0 var(--vr-space-1-5);
+  border-radius: var(--vr-radius-tag);
+  background: var(--vr-surface-2);
+  color: var(--vr-text-strong);
+  font-family: var(--vr-font-data);
+  font-size: var(--vr-font-size-3);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-weight: var(--vr-font-weight-semibold);
+  line-height: var(--vr-line-height-snug);
+  white-space: nowrap;
+}
+
+/* On a surface-2 well (history items, summaries, bulk bars) the chip takes the panel surface. */
+:is(.vr-timeline > li, .vr-sign-summary, .vr-bulkbar, .vr-container, .pagedocs-tips) .vr-code {
+  background: var(--vr-surface);
+}
+
+.vr-code a {
+  color: var(--vr-pen);
+  text-decoration: none;
+}
+
+.vr-code a:hover {
+  color: var(--vr-pen-hover);
+  text-decoration: underline;
+}
+
+:is(.vr-sub, .vr-facts dd small) .vr-code {
+  color: var(--vr-text-muted);
+  font-weight: var(--vr-font-weight-medium);
+}
+
+/* Critical fact: the one fact that must not hide keeps the normal fact cell; its label takes the
+   tone and its value is a filled status pill. */
+.vr-facts > .vr-fact-critical[data-tone="neutral"] dt {
+  color: var(--vr-neutral-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="info"] dt {
+  color: var(--vr-info-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="progress"] dt {
+  color: var(--vr-progress-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="success"] dt {
+  color: var(--vr-success-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="warning"] dt {
+  color: var(--vr-warning-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="danger"] dt {
+  color: var(--vr-danger-text);
+}
+
+.vr-facts > .vr-fact-critical[data-tone="hold"] dt {
+  color: var(--vr-hold-text);
+}
+
+.vr-facts > .vr-fact-critical dd > .vr-status:not(.vr-status-plain) {
+  padding: var(--vr-space-0-5) var(--vr-space-2-5) var(--vr-space-0-5) var(--vr-space-2);
+  font-size: var(--vr-font-size-4);
+  white-space: nowrap;
+}
+
+/* Structured values in words ({% value_list %}): label and value rows; a nested mapping is
+   indented; the compact form for table cells is short "Label value" lines. Codes in a value wrap
+   as chips. */
+.vr-kv {
+  display: grid;
+  gap: var(--vr-space-2);
+  margin: 0;
+}
+
+.vr-kv > div {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: var(--vr-space-2);
+  min-width: 0;
+}
+
+.vr-kv dt {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
+  font-weight: var(--vr-font-weight-semibold);
+}
+
+.vr-kv dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-1);
+  margin: 0;
+  min-width: 0;
+  color: var(--vr-text-strong);
+  font-weight: var(--vr-font-weight-medium);
+  overflow-wrap: break-word;
+}
+
+.vr-kv.is-nested {
+  gap: var(--vr-space-1);
+  padding-left: var(--vr-space-3);
+}
+
+.vr-kv.is-nested > div {
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--vr-space-1);
+}
+
+.vr-kv.is-compact,
+.vr-kv.is-compact > div {
+  display: block;
+}
+
+.vr-kv.is-compact > div + div {
+  margin-top: var(--vr-space-0-5);
+}
+
+.vr-kv.is-compact dt,
+.vr-kv.is-compact dd {
+  display: inline;
+}
+
+.vr-kv.is-compact dt::after {
+  content: " ";
+}
+
+/* A list of chips in a fact value wraps with a small gap. */
+.vr-facts dd .vr-chips,
+.vr-facts dd:has(> .vr-code + .vr-code) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-1);
+  padding: 0;
+}
+
+/* Text hierarchy: in a table only the row's identifier is bold; every other link is regular. */
+.vr-table > tbody > tr > * a:not(.vr-id, .btn, .vr-code a) {
+  font-weight: var(--vr-font-weight-regular);
+}
+
+.vr-table .vr-sub {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vr-unit {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
 }
 
 /* ================================================================ QC flow: routes

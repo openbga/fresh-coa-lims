@@ -197,8 +197,7 @@ def contract_laboratory_list(request):
         by_laboratory.setdefault(approval.laboratory_id, []).append(approval)
     rows = [
         [
-            cell(item.code, _laboratory_url(item)),
-            item.name,
+            cell(item.code, _laboratory_url(item), sub=item.name),
             item.location,
             _approval_state(by_laboratory.get(item.pk, []), today),
             cell(str(item.current_count), numeric=True),
@@ -214,7 +213,6 @@ def contract_laboratory_list(request):
         noun="contract laboratories",
         columns=[
             ("Code", "code", False),
-            ("Name", "name", False),
             ("Location", None, False),
             ("Approval", None, False),
             ("Methods approved today", None, True),

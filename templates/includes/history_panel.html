@@ -25,7 +25,7 @@ Usage:
 {% if not form_dialog %}{% load ui %}{% with items=body %}{% panel title=title heading_id=heading_id class=class|add:" vr-page-only" count=slots.count|default:count collapsible=collapsible %}
 {% if events %}
 <ol class="vr-timeline">
-  {% if items %}{{ items }}{% else %}{% for event in events %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}{% endif %}
+  {% if items %}{{ items }}{% else %}{% for event in events %}{% history_item title=event.action|action_label action=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}{% endif %}
 </ol>
 {% else %}{% firstof empty_title "No recorded changes yet" as none_title %}{% empty_state kind="empty" title=none_title body=empty_body %}{% endif %}
 {% if slots.footer %}{{ slots.footer }}{% endif %}
