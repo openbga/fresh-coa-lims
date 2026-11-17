@@ -22,6 +22,7 @@ def test_shell_controls_fit_the_viewport(live_server, django_user_model, artifac
         expect(page.get_by_role("heading", name="Dashboard", exact=True)).to_be_visible()
         bar = page.locator(".vr-topbar")
         controls = [
+            bar.get_by_role("link", name=re.compile(r"^What's new\b")),
             bar.get_by_role("button", name="Theme", exact=True),
             bar.get_by_role("button", name="Sign out", exact=True),
             bar.get_by_role("button", name="Page documentation", exact=True),

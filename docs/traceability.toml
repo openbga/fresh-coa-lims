@@ -30,6 +30,7 @@
     "tests/test_audit_ui.py",
     "tests/test_core.py",
     "tests/test_lot_record_export.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-003" = [
     "accounts/tests/test_administration.py",
@@ -44,6 +45,7 @@
     "tests/test_journey.py",
     "tests/test_security_hardening.py",
     "tests/test_session_controls.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-004" = [
     "accounts/tests/test_access.py",
@@ -125,6 +127,7 @@
     "tests/test_integrated_journey.py",
     "tests/test_result_types_journey.py",
     "tests/test_uploads.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-008" = [
     "analytical/tests/test_contract_results.py",
@@ -142,6 +145,7 @@
     "tests/test_revised_versions_in_progress.py",
     "tests/test_stability_testing.py",
     "tests/test_test_not_completed.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-009" = [
     "analytical/tests/test_replacement.py",
@@ -162,6 +166,7 @@
     "tests/test_requirement_applicability_views.py",
     "tests/test_requirement_replacement.py",
     "tests/test_test_not_completed.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-010" = [
     "e2e/test_contract_laboratory_journey.py",
@@ -176,6 +181,7 @@
     "reporting/tests/test_views.py",
     "tests/test_integrated_journey.py",
     "tests/test_report_binding.py",
+    "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-011" = [
     "analytical/tests/test_calculations_bench.py",
@@ -244,6 +250,11 @@
     "sampling/tests/test_seed.py",
     "tests/test_demo_reset.py",
     "tests/test_seed_demo.py",
+]
+"What's new and the generated changelog" = [
+    "e2e/test_whats_new.py",
+    "tests/test_changelog_entry_check.py",
+    "whatsnew/tests/",
 ]
 "Interface layout and navigation" = [
     "e2e/test_login_layout.py",

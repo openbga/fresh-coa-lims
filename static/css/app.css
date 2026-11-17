@@ -1648,6 +1648,40 @@ details.card[open] > summary .vr-panel-chevron {
   color: var(--vr-topbar-text-muted);
 }
 
+/* What's new in the top bar: the count of changes this user has not seen (whatsnew/button.html). */
+.vr-whatsnew-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1-5);
+}
+
+.vr-whatsnew-badge {
+  min-width: 1.25rem;
+  padding: 0 var(--vr-space-1-5);
+  border-radius: var(--vr-radius-pill);
+  background: var(--vr-ink);
+  color: var(--vr-on-ink);
+  font-size: var(--vr-font-size-1);
+  font-weight: var(--vr-font-weight-bold);
+  line-height: var(--vr-line-height-base);
+  text-align: center;
+}
+
+/* Phones: the count sits on the icon's corner, so the brand keeps its width. */
+@media (max-width: 575.98px) {
+  .vr-whatsnew-btn {
+    position: relative;
+  }
+
+  .vr-whatsnew-badge {
+    position: absolute;
+    top: var(--vr-space-0-5);
+    right: 0;
+    padding: 0 var(--vr-space-1);
+    line-height: var(--vr-line-height-snug);
+  }
+}
+
 .vr-topbar-user {
   padding: 0 var(--vr-space-2);
   font-size: var(--vr-font-size-4);

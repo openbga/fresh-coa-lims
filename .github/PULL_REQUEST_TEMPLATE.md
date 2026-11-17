@@ -23,6 +23,7 @@ For visible changes: before (`develop`) and after (this branch) screenshots of s
 - [ ] Original records are not overwritten; corrections add linked records
 - [ ] PINs and passwords are stored only as hashes; PINs, passwords and hashes are never logged or shown
 - [ ] `docs/pages/` is updated for any changed staff page or named URL
+- [ ] An entry in `changelog.d/` describes each change users, deployers or integrators can observe, and `CHANGELOG.md` is regenerated (`uv run python manage.py changelog`); otherwise the summary says there is no observable change
 - [ ] Only synthetic data is used; no real laboratory, customer or personal data
 - [ ] No other-product names and no claim of regulatory compliance or validation
 - [ ] The commit subjects are conventional (`feat:`, `fix:`, `docs:`, ...)
