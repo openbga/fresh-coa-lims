@@ -2,7 +2,6 @@
 
 import re
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
 from importlib import import_module
 from urllib.parse import urlsplit
 
@@ -10,51 +9,18 @@ import pytest
 from django.db import connections
 from django.urls import reverse
 from django.utils import timezone
-from playwright.sync_api import expect, sync_playwright
+from helpers import browser_page, login, ready_test
+from playwright.sync_api import expect
 
-from analytical import gates
-from analytical import services as analytical
 from core.models import AuditEvent, ElectronicSignature
 from quality import services as quality
 from quality.models import Result
 from sampling import services as sampling
 from stability import services as stability
-from tests.test_integrated_journey import PASSWORD, PIN, assign_and_sample, observed_test
+from tests.test_integrated_journey import PIN, assign_and_sample
 from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 pytestmark = pytest.mark.django_db(transaction=True)
-
-
-@contextmanager
-def browser_page():
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1280, "height": 900})
-        yield page
-        browser.close()
-
-
-def login(page, live_server, person):
-    page.goto(live_server.url + reverse("login"))
-    page.get_by_label(re.compile(r"^Username\b")).fill(person.username)
-    page.get_by_label(re.compile(r"^Password\b")).fill(PASSWORD)
-    page.get_by_role("button", name="Sign in", exact=True).click()
-    expect(page).to_have_url(live_server.url + "/")
-
-
-def ready_test(data, sample):
-    test, investigation = observed_test(data, sample, "100.25")
-    assert investigation is None
-    test = analytical.review_test(
-        actor=data["people"]["reviewer"],
-        pin=PIN,
-        test=test,
-        expected_revision=test.revision,
-        reason="Independent browser-guard fixture review",
-    )
-    assert test.state == "reviewed" and test.conforms
-    assert gates.lot_blockers(data["lot"]) == []
-    return test
 
 
 def record_state(lot):

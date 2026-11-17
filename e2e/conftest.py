@@ -31,7 +31,15 @@ def source_static_assets(settings):
 
 @pytest.fixture(scope="session")
 def django_db_modify_db_settings():
+    """The browser suite's own database: TEST_DATABASE_NAME when set, else test_<name>_browser.
+
+    config/settings.py has already validated TEST_DATABASE_NAME (a separate test_ database), so
+    sessions running at the same time with different names never share or drop each other's.
+    """
     from django.conf import settings
 
     config = settings.DATABASES["default"]
-    config.setdefault("TEST", {})["NAME"] = f"test_{config['NAME']}_browser"
+    if not os.environ.get("TEST_DATABASE_NAME"):
+        config.setdefault("TEST", {})["NAME"] = f"test_{config['NAME']}_browser"
+    assert config["TEST"]["NAME"].startswith("test_")
+    assert config["TEST"]["NAME"] != config["NAME"]
