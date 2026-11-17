@@ -48,7 +48,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - Records lead with status and hold pills, the material tag and the critical facts (holds, out-of-specification results, overdue, revoked, amended, superseded). The lot record and signing share one `disposition_blockers()` list, extracted from `dispose_lot` with the same order and conditions under the lock. The signature dialog markup moved to `{% signature_card %}` with unchanged semantics.
   > - Tests changed on evidence: markup assertions moved to stable hooks (`data-audit-action`, `data-signature-dialog`, and similar); none was weakened. The page documentation, the roadmap and `docs/product.md` status were updated with the change.
 
-- **Added**: Reassess released material whose retest date is near, for a later retest date or the end of its use · Lots · 2026-11-17
+- **Added**: Reassess released material whose retest date is near, for a later retest date or the end of its use · Lots · 2026-11-17 · [#53](https://github.com/openbga/qm-lims/pull/53)
 
   An analyst or quality person starts a reassessment of a released lot from its **Reassessments** panel, with the sample taken for it; its tests come from the specifications in force and leave the lot's original record as signed. Once the results are reviewed, a quality person who did none of the work signs **Suitable** with a new retest date, never after the expiry date, or **Not suitable**, after which the lot shows **Use ended** and takes no certificate. The new retest date appears on the lot record, in **Material lots** and on the certificate of analysis, and the dashboard counts lots due for retest and reassessments open.
 
