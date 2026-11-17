@@ -8,8 +8,14 @@ import pytest
 from django.urls import reverse
 from playwright.sync_api import expect, sync_playwright
 
-from catalog.tests.factories import PASSWORD, PIN, approved_rules, approved_specification
-from catalog.tests.factories import material, person
+from catalog.tests.factories import (
+    PASSWORD,
+    PIN,
+    approved_rules,
+    approved_specification,
+    material,
+    person,
+)
 from core.models import ElectronicSignature
 from validation.models import Rehearsal, RehearsalFile
 
