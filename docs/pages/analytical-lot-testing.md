@@ -59,7 +59,7 @@ Show a lot's analytical evidence by sample, say what still blocks QC disposition
 |---|---|---|---|---|
 | Rule set | `Lot.rules` | "code vN" | — | Rule revision of the lot |
 | Lot revision | `Lot.revision` | Integer | — | Rises with every evidence change; a disposition opened earlier then becomes stale |
-| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result" (an Open test whose requirement a supplier result is proposed or accepted for), Awaiting review, Reviewed · conforms, Out of specification (awaiting review or reviewed), Invalidated, "Superseded · requirements replaced" |
+| Status | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result" (an Open test whose requirement a supplier result is proposed or accepted for), Awaiting review, Reviewed · conforms, Out of specification (awaiting review or reviewed), Invalidated, "Superseded · requirements replaced", Not completed |
 | Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | As frozen at submission, e.g. "99.8", "<10" or "Absent"; "—" until submitted |
 | Acceptance and specification | `AnalyticalTest.requirement` | Text | — | Acceptance text (for example "less than 0.10 %" or "Absent in 25 g (expected: Absent)") above the source and revision of the frozen requirement |
 | Acceptance / Test / Supplier's result / Supplier certificate / Accepted by | `SupplierResultAcceptance` (SRA-n), `evidence`; acceptance signature | Link and text | — | The acceptance, the test name and code, the stated result with its unit, the supplier certificate number with the supplier's name, and the reviewer who signed the acceptance |

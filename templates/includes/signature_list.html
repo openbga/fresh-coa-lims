@@ -17,7 +17,7 @@ Usage: {% signature_list signatures=signatures subject="Lot" empty="No lot dispo
   <li class="vr-history-item vr-signature" data-signature-meaning="{{ sig.meaning }}" data-signature-revision="{{ sig.revision }}">
     <span class="vr-timeline-icon vr-sign-icon">{% icon name="vector-pen" %}</span>
     <div class="vr-timeline-main">
-      <div class="vr-timeline-head"><span class="vr-timeline-title"><span class="visually-hidden">Signed: </span><strong>{{ sig.meaning }}</strong></span></div>
+      <div class="vr-timeline-head"><span class="vr-timeline-title"><span class="visually-hidden">Signed: </span><strong>{{ sig.meaning|meaning }}</strong></span></div>
       <p class="vr-timeline-meta">{{ sig.signer_name }} · {{ subject|default:"Record" }}{% if numbered %} {{ sig.object_id }}{% endif %} revision {{ sig.revision }}{% if hash %} · <span class="vr-id" title="SHA-256 of the signed content">{{ sig.content_hash|truncatechars:13 }}</span>{% endif %}</p>
     </div>
     <time class="vr-timeline-time vr-timeline-meta" datetime="{{ sig.signed_at|date:'c' }}">{{ sig.signed_at|date:"Y-m-d H:i:s T" }}</time>

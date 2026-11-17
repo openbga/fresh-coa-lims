@@ -556,3 +556,10 @@ def person_filter(user):
     from core.people import person
 
     return person(user)
+
+
+@register.filter
+def meaning(code):
+    """A signature meaning in words for display ("not_completed" → "not completed"); the raw
+    meaning stays in data-signature-meaning and in the signature record."""
+    return str(code or "").replace("_", " ")

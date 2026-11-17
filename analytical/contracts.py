@@ -413,6 +413,20 @@ class Requirement:
             reading.value, self.lower, self.upper, self.lower_inclusive, self.upper_inclusive
         )
 
+    def fails_alone(self, reading):
+        """Whether one reading that was never evaluated shows a failure on its own: it does not
+        meet the criterion as recorded or, rounded half-up to the reporting precision as a
+        reportable value is, it does not. Batch rejection, lot rejection and a test recorded as
+        not completed judge unsubmitted readings with it, so rounding never hides a failure
+        that submission would have found."""
+        reading = _as_reading(reading)
+        if not self.conforms(reading):
+            return True
+        if self.is_qualitative or reading.qualifier == LESS_THAN or self.reporting_decimals is None:
+            return False
+        step = Decimal(1).scaleb(-self.reporting_decimals)
+        return not self.conforms(reading.value.quantize(step, ROUND_HALF_UP))
+
     def evaluate(self, readings):
         """Return (mean, reportable value, reportable text, conforms) for the current replicates.
 

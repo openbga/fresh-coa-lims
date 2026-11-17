@@ -33,6 +33,7 @@ from .forms import (
     ContractResultForm,
     CorrectionForm,
     EntryForm,
+    NotCompletedForm,
     ObservationForm,
     ReadingCorrectionForm,
     ReadingForm,
@@ -210,6 +211,7 @@ TEST_FILTERS = {
     "reviewed": ("Reviewed", Q(state="reviewed")),
     "invalidated": ("Invalidated", Q(state="invalidated")),
     "superseded": ("Superseded", Q(state="superseded")),
+    "not_completed": ("Not completed", Q(state="not_completed")),
 }
 
 
@@ -577,6 +579,7 @@ def test_detail(request, pk):
         obs.is_current = obs.pk not in superseded
         obs.in_limits = spec.conforms(obs.reading)
     user_roles = roles(request.user)
+    children = list(test.children.order_by("pk"))
     subject_closed = services.subject_refusal(test)
     is_open = test.state == "open" and subject_closed is None
     current = [o for o in observations if o.is_current]
@@ -601,6 +604,9 @@ def test_detail(request, pk):
     can_contract = (
         "analyst" in user_roles and is_open and services.contract_refusal(test, current) is None
     )
+    # Offered to quality while the test can take work; the page says why when the signer
+    # recorded any of its data.
+    can_not_complete = "quality" in user_roles and is_open
     return render(
         request,
         "analytical/test_detail.html",
@@ -613,7 +619,7 @@ def test_detail(request, pk):
             "observations": observations,
             "current_count": current_count,
             "batch_status": batch_status,
-            "children": test.children.order_by("pk"),
+            "children": children,
             "triggered": Investigation.objects.filter(test=test).first(),
             "history": history(test),
             "signatures": signatures(test),
@@ -638,11 +644,143 @@ def test_detail(request, pk):
             and qc_ready,
             "qc_ready": qc_ready,
             "can_review": "reviewer" in user_roles and test.state == "submitted" and qc_ready,
+            "can_not_complete": can_not_complete,
+            "not_completed": not_completed_view(test, children=children),
             "can_return": "reviewer" in user_roles and test.state == "submitted" and test.conforms,
             "submit_form": RevisionReasonForm(
                 initial={"expected_revision": test.revision, "reason": "Results complete"}
             ),
         },
+    )
+
+
+FOLLOW_UP_TEXT = {
+    services.REPEATED: 'The test is repeated by a linked test of the kind "repeat" under '
+    "the same frozen requirement.",
+    services.UNDER_INVESTIGATION: "The test belongs to {investigation}, which decides what "
+    "follows: its conclusion, or another authorized retest within the specification's limit.",
+    services.OPENS_INVESTIGATION: "The readings outside the limits open an investigation on "
+    "this test. It holds the {subject} until quality concludes it; no repeat is assigned.",
+}
+
+
+def not_completed_view(test, children=()):
+    """What the record that the test could not be completed says, for its page; None for any
+    other test."""
+    if test.state != AnalyticalTest.State.NOT_COMPLETED:
+        return None
+    record = test.not_completed_record
+    signature = (
+        ElectronicSignature.objects.filter(
+            object_type="analytical.analyticaltest",
+            object_id=str(test.pk),
+            meaning="not_completed",
+        )
+        .select_related("audit_event")
+        .order_by("-signed_at", "-pk")
+        .first()
+    )
+    repeat = record.get("repeat") or {}
+    investigation = record.get("investigation") or {}
+    return {
+        "cause": AnalyticalTest.NotCompletedCause(record["cause"]).label,
+        "record": record,
+        "signature": signature,
+        "reason": signature.audit_event.reason if signature else "",
+        "repeat": next((c for c in children if c.pk == repeat.get("test")), None),
+        "investigation_id": investigation.get("id"),
+        "investigation_label": investigation.get("label"),
+    }
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def test_not_completed(request, pk):
+    """Quality signs that an open test cannot be completed; what follows is shown first."""
+    require_role(request.user, "quality")
+    test = get_test(pk)
+    back = reverse("analytical:test_detail", args=[test.pk])
+    refusal = services.subject_refusal(test) or services.not_completed_refusal(request.user, test)
+    if refusal:
+        return unavailable(request, refusal, back)
+    outside = services.outside_limits(test)
+    follow = services.not_completed_follow_up(test, outside)
+    repeated = follow == services.REPEATED
+    form = NotCompletedForm(
+        request.POST or None,
+        repeated=repeated,
+        samples=None if test.pull_id else services.repeat_samples(test),
+        initial={"expected_revision": test.revision},
+    )
+    if request.method == "POST" and form.is_valid():
+        data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
+        if perform(
+            form, lambda: services.record_not_completed(actor=request.user, test=test, **data)
+        ):
+            messages.success(request, f"{test.label} recorded as not completed.")
+            return redirect("analytical:test_detail", pk=test.pk)
+    current = list(test.current_observations())
+    files = test.raw_files.count()
+    subject = "pull" if test.pull_id else "lot"
+    investigation = test.investigation.label if test.investigation_id else ""
+    return sign_page(
+        request,
+        form,
+        title=f"Record that {test.label} cannot be completed",
+        submit="Sign: not completed",
+        meaning="not completed",
+        record=test,
+        record_label=test.label,
+        crumbs=test_crumbs(test, "Not completed"),
+        cancel_url=back,
+        summary=[
+            *test_summary(test),
+            ("Kind", test.get_kind_display()),
+            (
+                "Recorded",
+                ", ".join(o.value_text for o in current) if current else "No result recorded",
+            ),
+            *([("Outside the limits", ", ".join(outside))] if outside else []),
+            *(
+                [
+                    (
+                        "Corrected readings",
+                        "; ".join(
+                            f"replicate {c['replicate']}: {c['recorded']} corrected to "
+                            f"{c['corrected_to']} ({c['reason']})"
+                            + (
+                                " · the replaced reading was outside the limits"
+                                if c["outside_limits"]
+                                else ""
+                            )
+                            for c in replaced
+                        ),
+                    )
+                ]
+                if (replaced := services.corrections(test))
+                else []
+            ),
+            *([("Raw-data files", f"{files} kept with the test")] if files else []),
+            *([("QC batch", test.batch.number)] if test.batch_id else []),
+            *(
+                [
+                    (
+                        "Retest allowance",
+                        "It holds readings or files, so it still counts toward the "
+                        "specification's retests."
+                        if test.observations.exists() or files
+                        else "It holds no reading or file, so it will not count toward the "
+                        "specification's retests.",
+                    )
+                ]
+                if test.investigation_id
+                else []
+            ),
+            (
+                "What follows",
+                FOLLOW_UP_TEXT[follow].format(investigation=investigation, subject=subject),
+            ),
+        ],
     )
 
 
@@ -1214,7 +1352,7 @@ def batch_reject(request, pk):
             ("QC status", status.capitalize()),
             (
                 "Tests invalidated",
-                batch.tests.exclude(state="superseded")
+                batch.tests.exclude(state__in=sorted(services.CLOSED_BY_RECORD))
                 .exclude(pull__state="missed")
                 .exclude(pull__study__state__in=["completed", "terminated"])
                 # A rejected lot keeps its tests as the rejection froze them.
@@ -1293,7 +1431,7 @@ def investigation_detail(request, pk):
             "conclude_ready": "quality" in user_roles
             and inv.is_open
             and services.conclude_refusal(request.user, inv, original, tests[1:]) is None,
-            "used": inv.tests.exclude(state="invalidated").count(),
+            "used": services.retests_used(inv),
             "allowed": original.spec.max_retests,
         },
     )
@@ -1401,7 +1539,7 @@ def authorize(request, pk):
             *investigation_summary(inv),
             (
                 "Allowance",
-                f"{inv.tests.exclude(state='invalidated').count()} of "
+                f"{services.retests_used(inv)} of "
                 f"{inv.test.spec.max_retests} "
                 + ("retests used" if inv.lot_id is None else "retests or resamples used"),
             ),

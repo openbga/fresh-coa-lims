@@ -64,14 +64,15 @@ One out-of-specification investigation: phase, lineage of the original result an
 | Reportable | `AnalyticalTest.reportable_text` | Text | — | As frozen at submission, e.g. "99.8", "<10" or "Present"; "—" before |
 | Outcome | `Investigation.outcome` | Text | — | "Original result invalidated: assignable cause" or "Out-of-specification result confirmed" |
 | Assignable cause | `Investigation.assignable_cause` | Text | — | Shown only when recorded |
-| Retests used | `AnalyticalTest.investigation` | Count | — | Linked tests not Invalidated, against the specification's retest allowance |
+| Retests used | `AnalyticalTest.investigation` | Count | — | Linked tests not Invalidated, against the specification's retest allowance. A linked test recorded as not completed before it held any observation (corrected ones included) or raw-data file is not counted; one that held any is |
 | Entry type | `InvestigationEntry.kind` | Text | — | Laboratory assessment, Hypothesis or test plan, Evidence, Escalation, Authorized retest or resample, Impact on other lots or products |
 
 ## Rules and hidden logic
 
 - **Pull hold**: an investigation of a stability test holds the pull (it cannot be accepted) and never the lot; it has no lot. Only a retest of the material that was pulled can be authorized, and once the study is closed its pulls take no more testing, so Authorize retest and Conclude are then refused.
 - **Lot hold**: while open, the lot cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.
-- **Allowance**: retest or resample limit comes from the frozen specification (0 to 3).
+- **Allowance**: retest or resample limit comes from the frozen specification (0 to 3). Linked tests invalidated by batch rejection, and retests or resamples recorded as not completed without any work held, do not use it.
+- **Opened by a test not completed**: when quality records that a test cannot be completed while a reading is outside its limits, this investigation is opened on that test (its trigger reads "Out-of-limit CODE values X in a test that could not be completed"). The original test then shows Not completed and is never reviewed; the investigation can be concluded without that review. A retest or resample of an investigation recorded as not completed leaves the decision to the investigation, which stays open.
 - **Records are append-only**: entries and history cannot be edited. Each change raises the investigation revision.
 - Not enforced by this page: any time limit for phases, or Phase II before a retest.
 

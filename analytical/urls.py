@@ -13,6 +13,7 @@ urlpatterns = [
     path("tests/<int:pk>/batch/", views.test_batch, name="test_batch"),
     path("tests/<int:pk>/return/", views.test_return, name="test_return"),
     path("tests/<int:pk>/review/", views.test_review, name="test_review"),
+    path("tests/<int:pk>/not-completed/", views.test_not_completed, name="test_not_completed"),
     path("batches/", views.batch_list, name="batch_list"),
     path("batches/new/", views.batch_new, name="batch_new"),
     path("batches/<int:pk>/", views.batch_detail, name="batch_detail"),

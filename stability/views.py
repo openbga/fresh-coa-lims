@@ -935,6 +935,14 @@ def _comparison(pulls):
                     cells.append("")
                 elif row is None or not row["lineage"]:
                     cells.append(status(*_untested(pull)))
+                elif (
+                    not row["tests"]
+                    and row["outcome"] == FAILS
+                    and any(test.state == "not_completed" for test in row["lineage"])
+                ):
+                    # Readings outside the criterion on a test that could not be completed,
+                    # confirmed by its investigation: there is no reported result to show.
+                    cells.append(status("Fails · test not completed", "danger"))
                 elif not row["tests"]:
                     missed = pull.state == Pull.State.MISSED
                     cells.append(
@@ -1279,6 +1287,8 @@ def _test_state(test):
     result = test.reportable_with_unit
     if test.state == "invalidated":
         return cell(result, pill=("Invalidated", "neutral")) if result else status("Invalidated")
+    if test.state == "not_completed":
+        return status("Not completed", "neutral")
     if test.state == "open":
         return status("Open", "progress")
     if test.conforms is False:
