@@ -33,7 +33,7 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 
 ## Layout
 
-- Breadcrumbs (Stability and retention, Protocols, New protocol), title "New protocol", the introduction "Creates the next version of the code. Approved versions are frozen.", the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Protocols, New protocol), title "New protocol", the introduction "Creates the next version of the code. Approved versions are frozen.", the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

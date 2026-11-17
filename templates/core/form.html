@@ -7,12 +7,13 @@
 {% panel title="Revision being approved" heading_id="revision-heading" class="mb-3" %}
   <p>You are signing as {{ user.get_username }} with meaning <strong>approved</strong>. Review {{ record }} before entering your private PIN. Server time and the exact revision will be retained.</p>
   <dl class="vr-facts mb-0">
-    {% fact label="Rule policy" value=record.policy wide=True %}
     {% if record.policy.applies_to %}{% fact label="Applies to" wide=True %}In addition to a lot's own rule set, every lot whose requirements are assigned for:{% if record.policy.applies_to.materials %} materials {{ record.policy.applies_to.materials|join:", " }};{% endif %}{% if record.policy.applies_to.stages %} stages {{ record.policy.applies_to.stages|join:", " }};{% endif %}{% if record.policy.applies_to.scopes %} scopes {{ record.policy.applies_to.scopes|join:", " }};{% endif %} each one named must match. A dimension not named matches every lot. It applies to a lot from the next time its requirements are assigned or replaced.{% endfact %}{% endif %}
     {% fact label="Author" value=record.author %}
-    {% fact label="Effective interval" %}{{ record.effective_from|date:"c" }} – {{ record.effective_until|date:"c" }}{% endfact %}
+    {% fact label="Effective interval" wide=True %}{{ record.effective_from|when }} – {{ record.effective_until|when }}{% endfact %}
     {% fact label="Revision" %}Reviewing {{ record.revision }}; signature binds approved revision {{ record.revision|add:"1" }}.{% endfact %}
   </dl>
+  <h3 class="h6 mt-3">Rule policy</h3>
+  {% rule_policy policy=record.policy %}
 {% endpanel %}
 {% if retires %}{% notice tone="info" %}<p class="mb-1">This version overlaps the effective period of {{ retires|length }} approved version{{ retires|length|pluralize }} of the rule set. Your signature also retires {{ retires|length|pluralize:"it,them" }}:</p><ul class="mb-1">{% for item in retires %}<li><strong>{{ item.rule }}</strong> {% if item.never %}never applies: this version takes over before it starts{% else %}stops applying {% if item.moment > record.effective_from %}at the moment of your signature, because this version's start has already passed{% else %}on <time datetime="{{ item.moment|date:'c' }}">{{ item.moment|date:"Y-m-d H:i T" }}</time>{% endif %}{% endif %}.{% if item.lots %} {{ item.lots }} lot{{ item.lots|pluralize }} in quarantine {{ item.lots|pluralize:"is,are" }} on it: from then on {{ item.lots|pluralize:"its,their" }} requirements are assigned again (before testing has started) or replaced with a signature (once it has) under this version before further tests are assigned and before disposition. Results already recorded can still be reviewed and an investigation concluded.{% endif %}</li>{% endfor %}</ul><p class="mb-0">A retired version keeps its approved policy and signature.</p>{% endnotice %}{% endif %}
 {% endif %}

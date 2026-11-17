@@ -30,11 +30,51 @@
     }
   }
 
+  function post(key, value) {
+    return fetch("/preferences/", {
+      method: "POST",
+      credentials: "same-origin",
+      keepalive: true, // completes even if the user leaves the page right after the change
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+      body: JSON.stringify({ key: key, value: value }),
+    }).catch(function () {
+      // Offline or refused: the setting applies to this page only.
+    });
+  }
+
+  // Last write wins, per key. Requests may reach the server in any order, so a key has at most
+  // one save in flight; a change made meanwhile waits, and only its latest value is sent next
+  // (opening and closing the help panel quickly ends closed, never open).
+  var writes = {}; // key -> { flight: Promise, queued: boolean, value }
+
+  function send(key) {
+    var write = writes[key];
+    write.queued = false;
+    write.flight = post(key, write.value).then(function () {
+      if (write.queued) {
+        return send(key);
+      }
+      delete writes[key];
+    });
+    return write.flight;
+  }
+
+  // Leaving the page: send a waiting change now rather than lose it (keepalive carries it).
+  window.addEventListener("pagehide", function () {
+    Object.keys(writes).forEach(function (key) {
+      if (writes[key].queued) {
+        writes[key].queued = false;
+        post(key, writes[key].value);
+      }
+    });
+  });
+
   window.vrPreferences = {
     get: function (key) {
       return Object.prototype.hasOwnProperty.call(all(), key) ? all()[key] : null;
     },
-    // value null removes the setting (back to the page's defaults).
+    // value null removes the setting (back to the page's defaults). The promise settles once
+    // the latest value of the key has been sent.
     set: function (key, value) {
       if (value === null) {
         delete all()[key];
@@ -44,15 +84,14 @@
       if (!document.body.hasAttribute("data-vr-user")) {
         return Promise.resolve();
       }
-      return fetch("/preferences/", {
-        method: "POST",
-        credentials: "same-origin",
-        keepalive: true, // completes even if the user leaves the page right after the change
-        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
-        body: JSON.stringify({ key: key, value: value }),
-      }).catch(function () {
-        // Offline or refused: the setting applies to this page only.
-      });
+      var write = writes[key];
+      if (write) {
+        write.value = value;
+        write.queued = true;
+        return write.flight;
+      }
+      writes[key] = { value: value, queued: false };
+      return send(key);
     },
   };
 

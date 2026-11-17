@@ -174,7 +174,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
                 sign(
                     page,
                     admin,
-                    "Sign and clear pin lockout",
+                    "Sign and clear PIN lockout",
                     "Verified synthetic identity before unlock",
                 )
                 == 302
@@ -188,7 +188,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
                 sign(
                     page,
                     admin,
-                    "Sign and require pin re-enrollment",
+                    "Sign and require PIN re-enrollment",
                     "Synthetic PIN compromise response",
                 )
                 == 302

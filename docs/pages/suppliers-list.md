@@ -71,7 +71,7 @@ The supplier register: the companies that lots are received from. The receipt de
 - **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Lots received**: counts only current receipt details. A receipt record that a correction replaced is not counted, so a lot corrected to another supplier moves from one count to the other.
 - **Immutable**: a supplier cannot be edited or deleted after creation (database trigger). There is no edit, retire or delete action.
-- **Qualifications are not shown here**: the list does not say whether a supplier holds a qualification. Open the supplier record to see its qualifications and to record one.
+- **Qualification column**: one state per supplier, the best of its qualifications across all materials. Open the supplier record to see each qualification, the material and tests it covers, and to record one.
 - **Not enforced by this page**: being in the register does not qualify a supplier. Naming a supplier on a lot's receipt does not by itself change which tests the lot requires or what its disposition needs; a supplier result stands in for a test only under a signed qualification, where the lot's rule set allows it, through an acceptance signed on the lot.
 
 ## Related pages

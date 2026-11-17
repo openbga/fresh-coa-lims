@@ -235,3 +235,18 @@ def test_sidebar_collapse_follows_the_person(live_server, django_user_model):
     with browser_page() as page:  # another person on the same workstation
         sign_in(page, live_server.url, "analyst2", PASSWORD)
         expect(page.locator(".vr-shell.vr-nav-collapsed")).to_have_count(0)
+        # Rapid changes of one setting: requests can arrive in any order, the last one wins.
+        posts = []
+        page.on("request", lambda r: posts.append(r) if r.url.endswith("/preferences/") else None)
+        page.evaluate(
+            """async () => {
+              const prefs = window.vrPreferences;
+              prefs.set("pagedocs.open", true);
+              prefs.set("pagedocs.open", false);
+              prefs.set("pagedocs.open", true);
+              await prefs.set("pagedocs.open", false);
+            }"""
+        )
+        assert len(posts) == 2  # the first value, then only the latest of those that waited
+    last = UserPreference.objects.get(user=people["analyst2"], key="pagedocs.open")
+    assert last.value is False

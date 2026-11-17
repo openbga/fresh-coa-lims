@@ -251,9 +251,9 @@ def test_renderer_refuses_external_resources(monkeypatch, tmp_path):
     data = render.render_certificate({})
     assert data.startswith(b"%PDF-")
     assert opened == []
-    # The certificate's own fetcher serves its font and glyphs by exact URL, nothing else; the
-    # lot record export's fetcher serves nothing.
-    for fetcher in (render._deny_fetcher(), render._fetcher(render.resources(), set())):
+    # The PDF fetcher serves the font and glyphs by exact URL and nothing else; with an empty
+    # allowlist it serves nothing.
+    for fetcher in (render._fetcher({}, set()), render._fetcher(render.resources(), set())):
         for url in (secret.as_uri(), "http://127.0.0.1:9/x.css", "data:text/plain,x", "certfont:x"):
             with pytest.raises(ValueError, match="may not load"):
                 fetcher.fetch(url)

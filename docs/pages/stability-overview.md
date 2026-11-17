@@ -34,7 +34,7 @@ Work queues for stability pulls, studies, protocols, holds, retention anchors an
 ## Layout
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
-- Title "Stability and retention", the introduction (a pull is tested in the system against the acceptance criteria of its protocol, or linked to an external stability system where one is used) and one list of queues, each with a count. A zero count is shown in a neutral tone. The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Pulls outside acceptance criteria (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
+- Title "Stability and retention", the introduction (a pull is tested in the system against the acceptance criteria of its protocol, or linked to an external stability system where one is used) and today's date under the title. One table of queues: Queue (links to the filtered list), Records (the count) and Attention ("Needs attention" in the queue's tone when the count is above zero, "Clear" in the neutral tone when it is zero). The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Pulls outside acceptance criteria (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
 
 Queue names wrap on narrow screens to keep counts and attention labels easier to see. Wide tables can be scrolled sideways.
 

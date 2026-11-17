@@ -33,7 +33,7 @@ Record an identified reserve sample. Reserve records are immutable.
 
 ## Layout
 
-- Breadcrumbs (Reserve samples, New reserve sample), title, the introduction (reserve records are immutable; minimum multiple is prefilled from researched drug and supplement rules and the quality owner confirms what applies), the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Reserve samples, New reserve sample), title, the introduction (reserve records are immutable; minimum multiple is prefilled from researched drug and supplement rules and the quality owner confirms what applies), the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

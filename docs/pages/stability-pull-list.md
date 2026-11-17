@@ -70,6 +70,6 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 ## Related pages
 
-- [Laboratory operations](/stability/)
+- [Stability and retention](/stability/)
 - Study record (opened from a pull's study)
 - Pull record (open a row)

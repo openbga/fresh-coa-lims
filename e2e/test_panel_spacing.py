@@ -1,8 +1,8 @@
 """Panel spacing on the main list, record and form pages (docs/ui-standards.md, "Panel spacing").
 
 Visible text and controls inside a panel sit at least --vr-panel-inset from its edge, stacked
-blocks in a panel body are at least --vr-stack apart, and key facts start on their grid's track
-lines. The measurement is e2e/panel_spacing.js, which any browser check can reuse:
+blocks in a panel body are at least --vr-stack apart, key facts start on their grid's track
+lines, and no fact label or ordinary word breaks across lines. The measurement is e2e/panel_spacing.js, which any browser check can reuse:
 page.evaluate(Path("e2e/panel_spacing.js").read_text()).
 """
 

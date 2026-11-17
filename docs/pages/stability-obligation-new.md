@@ -34,7 +34,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 
 ## Layout
 
-- Breadcrumbs (Stability and retention, Reserve samples, New retention obligation), title "New retention obligation", introduction "One obligation per applicable retention basis...", the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Reserve samples, New retention obligation), title "New retention obligation", introduction "One obligation per applicable retention basis...", the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

@@ -97,5 +97,26 @@
       }
     }
   }
+  // Fact words (section "Key facts"): a fact's label or value never breaks inside a word. Only
+  // identifiers, codes and hashes (.vr-id, .vr-data, code, Bootstrap's .text-break) may break
+  // where they must.
+  for (const dl of document.querySelectorAll('dl.vr-facts')) {
+    if (!visible(dl)) continue;
+    const walker = document.createTreeWalker(dl, NodeFilter.SHOW_TEXT, {
+      acceptNode: n => n.textContent.trim() && n.parentElement && visible(n.parentElement) &&
+        !n.parentElement.closest('.vr-id, .vr-data, code, .text-break, .visually-hidden') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    });
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      for (const m of n.textContent.matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(n, m.index);
+        range.setEnd(n, m.index + m[0].length);
+        const lines = new Set([...range.getClientRects()].filter(r => r.width > 0).map(r => Math.round(r.top)));
+        if (lines.size > 1) {
+          problems.push(`word split across lines in facts: "${m[0].slice(0, 40)}" in ${label(n.parentElement).slice(0, 60)}`);
+        }
+      }
+    }
+  }
   return {inset, stack, panels, problems: [...new Set(problems)]};
 }

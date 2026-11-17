@@ -33,7 +33,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 
 ## Layout
 
-- Breadcrumbs (Studies, New study), title, the introduction ("Creates a pull for every timepoint of the approved protocol revision."), the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Studies, New study), title, the introduction ("Creates a pull for every timepoint of the approved protocol revision."), the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

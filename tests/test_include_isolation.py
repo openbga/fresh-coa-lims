@@ -118,6 +118,7 @@ CASES = {
     "{% endfill %}Rest{% endrecord_layout %}",
     "required_note": "{% load ui %}{% required_note %}",
     "route": "{% load ui %}{% route stages=no_events %}",
+    "rule_policy": "{% load ui %}{% rule_policy policy=no_chips %}",
     "row_select": '{% load ui %}{% row_select name="events" value=1 %}',
     "section_tabs": "{% load ui %}{% section_tabs tabs=no_events %}",
     "select_all": '{% load ui %}{% select_all name="events" label="All" %}',

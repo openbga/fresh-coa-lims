@@ -40,7 +40,7 @@ One certificate of analysis series: its status, every issued version with who si
 - **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened, and the current PDF SHA-256.
 - **Versions** (once issued): Version, Kind, Status, Issued, Signed by, Reason, Files.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
-- **History** (quality, auditor and admin only): audit events for this record, oldest first, or "No history yet."
+- **History** (quality, auditor and admin only): audit events for this record, oldest first, or the empty state "No history yet".
 - A record with no version says "No version has been issued. A draft record holds no evidence."
 
 ## Actions

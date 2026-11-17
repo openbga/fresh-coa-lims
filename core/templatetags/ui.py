@@ -354,6 +354,7 @@ COMPONENTS = {
         I + "signature_list.html", ("signatures", "subject", "numbered", "empty", "hash")
     ),
     "kind_tag": Component(I + "kind_tag.html", ("label",)),
+    "rule_policy": Component(I + "rule_policy.html", ("policy", "compact")),
     "route": Component(I + "route.html", ("stages", "label", "micro", "summary")),
     "page_toc": Component(I + "page_toc.html", ("items", "label")),
     "record_foot": Component(I + "record_foot.html", ("identifier",)),
@@ -396,3 +397,29 @@ def action_label(code):
     """
     text = str(code or "").replace(".", " ").replace("_", " ").strip()
     return text[:1].upper() + text[1:]
+
+
+@register.filter
+def when(value):
+    """A date and time as the app shows them everywhere: "2026-11-17 14:05 CET", laboratory time
+    zone (settings.TIME_ZONE), no seconds, microseconds or offset. Takes a datetime or an ISO
+    string (frozen JSON); a date shows as "2026-11-17"; empty shows "—"."""
+    from datetime import date, datetime
+
+    from django.utils import timezone
+    from django.utils.dateformat import format as date_format
+
+    if value in (None, ""):
+        return "—"
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if isinstance(value, datetime):
+        if timezone.is_aware(value):
+            value = timezone.localtime(value)
+        return date_format(value, "Y-m-d H:i T")
+    if isinstance(value, date):
+        return value.isoformat()
+    return value

@@ -1303,23 +1303,27 @@ textarea.form-control {
   --bs-alert-link-color: var(--vr-pen);
 }
 
-/* Label + body (includes/notice.html, messages, form errors) sit side by side. */
+/* Label + body (includes/notice.html, messages, form errors) sit side by side while the body
+   keeps at least about 18rem beside the label; in a narrower notice (the record aside, a phone)
+   the label goes above the text instead of squeezing it into a column. */
 .alert:has(> .vr-status) {
   display: flex;
-  gap: var(--vr-space-3);
+  flex-wrap: wrap;
+  gap: var(--vr-space-1-5) var(--vr-space-3);
   align-items: flex-start;
 }
 
+.alert:has(> .vr-status) > .vr-status {
+  flex: none;
+}
+
 .alert:has(> .vr-status) > :not(.vr-status) {
+  flex: 1 1 18rem;
   min-width: 0;
 }
 
-/* On a phone a long label would leave the text a narrow column: the label goes above it. */
-@media (max-width: 575.98px) {
-  .alert:has(> .vr-status) {
-    flex-direction: column;
-    gap: var(--vr-space-1-5);
-  }
+.alert-dismissible:has(> .vr-status) > .btn-close {
+  flex: none;
 }
 
 .alert > :last-child {
@@ -2963,54 +2967,45 @@ fieldset.vr-field > legend {
   margin-bottom: var(--vr-stack);
 }
 
-/* Key facts on an aligned grid of equal tracks: 4 on record panels from 1366px, 3 below, 2 on
-   tablets, 1 on phones; a wide fact spans two tracks. */
+/* Key facts on an aligned grid of equal tracks. The number of tracks follows the width of the
+   panel the facts sit in (a container query), never the window: a track is never narrower than
+   about 13rem, so labels and ordinary words never break inside a word. 1 track in a narrow panel
+   or the record aside, then 2, 3 and 4 as the panel widens; a wide fact spans two tracks. */
+.card,
+.vr-record-aside {
+  container: vr-panel / inline-size;
+}
+
 .vr-facts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--vr-space-4) var(--vr-space-6);
   margin: 0;
-}
-
-@media (min-width: 1366px) {
-  .vr-facts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-}
-
-/* In the narrow record aside facts take one track. */
-.vr-record-aside .vr-facts {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.vr-record-aside .vr-facts > .vr-fact-wide {
-  grid-column: auto;
-}
-
-@media (max-width: 991.98px) {
-  .vr-facts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 575.98px) {
-  .vr-facts {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .vr-facts > div {
   min-width: 0;
 }
 
-.vr-facts > .vr-fact-wide {
-  grid-column: span 2;
+@container vr-panel (min-width: 30rem) {
+  .vr-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .vr-facts > .vr-fact-wide {
+    grid-column: span 2;
+  }
 }
 
-@media (max-width: 575.98px) {
-  .vr-facts > .vr-fact-wide {
-    grid-column: auto;
+@container vr-panel (min-width: 46rem) {
+  .vr-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container vr-panel (min-width: 62rem) {
+  .vr-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -3018,17 +3013,27 @@ fieldset.vr-field > legend {
   margin-bottom: var(--vr-space-0-5);
 }
 
+/* Words wrap at spaces; a single string breaks only when it alone is wider than its track
+   (identifiers and hashes: below). */
+.vr-facts :is(dt, dd) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
 .vr-facts dd {
   margin: 0;
   color: var(--vr-text);
   font-weight: var(--vr-font-weight-medium);
-  overflow-wrap: anywhere;
 }
 
 /* Fact values always wrap; only a status pill keeps its line. Code-like values (references,
    hashes) may break between any two characters rather than stack one fragment per line. */
-.vr-facts dd :is(.vr-id, .vr-data, time, code) {
+.vr-facts dd :is(.vr-id, .vr-data, code) {
   white-space: normal;
+}
+
+.vr-facts dd time {
+  white-space: nowrap; /* a date or time never breaks at its hyphens */
 }
 
 .vr-facts dd .vr-status-plain {

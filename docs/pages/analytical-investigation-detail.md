@@ -58,7 +58,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Status | `Investigation.phase`, `outcome` | Text | — | Phase I open, Phase II open, Closed · OOS confirmed, Closed · original invalidated |
+| Status | `Investigation.phase`, `outcome` | Text | — | Phase I open · lot held, Phase II open · lot held ("pull held" instead of "lot held" for a stability test), Closed · OOS confirmed, Closed · original invalidated |
 | Trigger | `Investigation.trigger` | Text, max 200 | — | Why it opened, worded for the result type: "Out-of-specification CODE: reportable 0.10 %"; for a less-than result "…: <2000 CFU/g cannot be shown to meet at most 1000 CFU/g"; for a qualitative result "…: observed Present, expected Absent". Longer text is shortened with "…" |
 | Replicates | `Observation.value_text`, `observed_text` | Text as recorded, separated by "; ", with unit | — | Current readings of each test; qualitative readings show what was observed in brackets |
 | Reportable | `AnalyticalTest.reportable_text` | Text | — | As frozen at submission, e.g. "99.8", "<10" or "Present"; "—" before |

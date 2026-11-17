@@ -36,6 +36,7 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 ## Layout
 
 - Title "Approve <code> v<n>". A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
+- **Denied**: when you may not sign (for example you authored the record), the card shows the facts and a red "Not permitted" notice with the reason and **Back to record** instead of the signer line, the PIN link and the form; the page answers 403 and nothing is signed.
 
 ## Actions
 

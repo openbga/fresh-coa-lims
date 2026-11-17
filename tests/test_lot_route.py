@@ -133,12 +133,13 @@ def test_lot_record_lists_what_signing_enforces_and_shows_holds(client, django_u
     meta = body[
         body.index('class="vr-page-meta"') : body.index("</ul>", body.index("vr-page-meta"))
     ]
-    assert hold.identifier in meta and ">Active<" in meta
+    assert f'title="{hold.identifier}"' in meta and "Quality hold</span>" in meta
     # A quality reviewer's next step is the disposition, whatever other roles they hold.
     disposition = reverse("quality:disposition", args=[lot.pk])
     assert f'class="btn btn-primary" href="{disposition}"' in body
 
 
+@pytest.mark.django_db(transaction=True)
 def test_lot_record_shows_native_tests_per_sample(client, integrated):
     """A native lot's Samples and results panel lists each sample's analytical tests (status,
     reportable result, link to the test) from the tests the record already loaded."""
@@ -149,7 +150,10 @@ def test_lot_record_shows_native_tests_per_sample(client, integrated):
 
     data = integrated
     sample = assign_and_sample(data)
-    test = observed_test(data, sample, "99.5")
+    observed_test(data, sample, "99.5")
+    from analytical.models import AnalyticalTest
+
+    test = AnalyticalTest.objects.get(sample=sample)
     client.force_login(data["people"]["approver"])
     url = reverse("quality:lot_detail", args=[data["lot"].pk])
     client.get(url)  # warm the session's preferences

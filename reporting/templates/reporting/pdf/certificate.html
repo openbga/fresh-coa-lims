@@ -15,32 +15,7 @@ statuses print text plus a black glyph chosen by the recorded tone. Every printe
 reporting/_certificate.html and this file's existing lines; layout only.
 {% endcomment %}
 <style>
-  @font-face {
-    font-family: "Archivo";
-    src: url("certfont:archivo-latin-wdth-wght.woff2") format("woff2");
-    font-weight: 400 900;
-    font-stretch: 100% 125%;
-  }
-  @page {
-    size: A4;
-    margin: 16mm 16mm 15mm;
-    @top-left { content: element(brand); vertical-align: bottom; padding-bottom: 3mm; }
-    @bottom-left { content: string(docid); font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 7pt; word-spacing: 0.04em; color: #3d4741; font-variant-numeric: tabular-nums slashed-zero; vertical-align: top; padding-top: 3mm; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 7pt; font-weight: 700; word-spacing: 0.04em; color: #000; font-variant-numeric: tabular-nums; vertical-align: top; padding-top: 3mm; }
-  }
-  /* Archivo's word space is narrow enough that text extraction (search, copy, screen readers) runs
-     words together; a hair of extra word spacing keeps every space recoverable. */
-  html { font-family: "Archivo", "DejaVu Sans", sans-serif; font-size: 8.5pt; font-weight: 400; line-height: 1.4; word-spacing: 0.04em; color: #000; background: #fff; }
-  body { margin: 0; }
-  p { margin: 0 0 2mm; }
-  strong { font-weight: 700; }
-
-  /* Running brand (every page) and the page-1 identity. */
-  .brand { position: running(brand); margin: 0; font-size: 7.5pt; font-weight: 800; font-stretch: 112%; color: #3d4741; }
-  .ids { margin: 0 0 1mm; font-size: 7.5pt; color: #3d4741; font-variant-numeric: tabular-nums slashed-zero; }
-  .docid { string-set: docid content(); }
-  .notice { margin: 2mm 0 3mm; padding: 1.6mm 3mm; border: 0.75pt solid #000; border-radius: 2mm; font-weight: 700; }
-
+{% include "reporting/pdf/_line.css" %}
   .card, .card-header, .card-body { margin: 0; padding: 0; border: 0; }
   h2 { margin: 0; font-size: 17pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
   .cert-id { font-stretch: 100%; font-variant-numeric: tabular-nums slashed-zero; }
@@ -51,11 +26,6 @@ reporting/_certificate.html and this file's existing lines; layout only.
   details > summary::marker { content: none; }
   details > summary { list-style: none; }
 
-  /* Fact lists: uppercase label column, data voice values. */
-  dl.vr-facts { margin: 0; }
-  dl.vr-facts > div { display: flex; gap: 4mm; padding: 0.6mm 0; break-inside: avoid; }
-  dl.vr-facts dt { flex: none; width: 34mm; padding-top: 0.4mm; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3d4741; }
-  dl.vr-facts dd { flex: 1; margin: 0; font-weight: 500; overflow-wrap: break-word; font-variant-numeric: tabular-nums slashed-zero; }
   /* Material and lot: two equal tracks, label over value. */
   dl.cert-key { display: flex; flex-wrap: wrap; column-gap: 6mm; row-gap: 1.6mm; }
   dl.cert-key > div { display: block; flex: 0 0 47%; padding: 0; }
@@ -67,22 +37,6 @@ reporting/_certificate.html and this file's existing lines; layout only.
   .cert-decision { font-size: 9pt; }
   .cert-amendment p { margin: 0; }
   .cert-amendment p + p { margin-top: 1mm; }
-  .vr-muted { color: #3d4741; }
-  .small { font-size: 7.5pt; }
-  .d-block { display: block; }
-  ul { margin: 0 0 2mm; padding-left: 4mm; }
-  li { margin-bottom: 1mm; break-inside: avoid; }
-
-  /* Tables: filled head with rounded ends, light rule under rows only. */
-  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 1mm 0 2mm; }
-  thead { display: table-header-group; }
-  tr { break-inside: avoid; }
-  th, td { padding: 1.1mm 2mm; text-align: left; vertical-align: top; font-size: 7.5pt; overflow-wrap: break-word; font-variant-numeric: tabular-nums slashed-zero; }
-  thead th { padding-top: 1.1mm; padding-bottom: 1.1mm; background: #f2f2f0; font-size: 6.5pt; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #3d4741; }
-  thead th:first-child { border-radius: 1.5mm 0 0 1.5mm; }
-  thead th:last-child { border-radius: 0 1.5mm 1.5mm 0; }
-  tbody th, tbody td { border-bottom: 0.5pt solid #b9c4be; }
-  tbody th[scope="row"] { font-weight: 700; }
   .text-end { text-align: right; }
   td.text-end { white-space: nowrap; font-weight: 700; }
 
@@ -95,7 +49,6 @@ reporting/_certificate.html and this file's existing lines; layout only.
 
   /* Technical identifiers: code voice, wraps anywhere. */
   details { break-inside: avoid; }
-  .vr-id { font-family: "DejaVu Sans Mono", monospace; font-size: 6.5pt; overflow-wrap: anywhere; white-space: normal; }
   details dl.vr-facts dt { width: 46mm; }
   /* Identifiers inside an uppercase label print verbatim. */
   dt .vr-data { text-transform: none; letter-spacing: 0; }

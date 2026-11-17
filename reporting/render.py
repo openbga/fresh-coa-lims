@@ -80,12 +80,6 @@ def _fetcher(allowed, served):
     return CertificateFetcher(allowed_protocols=())
 
 
-def _deny_fetcher():
-    """A fetcher that refuses every URL (network, file and data alike); the lot record export
-    (reporting/lot_record.py) loads no resource at all."""
-    return _fetcher({}, set())
-
-
 def write_pdf(html):
     """``(pdf bytes, URLs served)`` for certificate markup, with only the allowed resources."""
     from weasyprint import HTML

@@ -34,7 +34,7 @@ Place a hold on a lot (optionally tied to one reserve sample). Placing is protec
 
 ## Layout
 
-- Breadcrumbs (Stability and retention, Holds, New hold), title "New hold", the introduction "Placing a hold is protective and immediate. Releasing it needs a different quality signer.", the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Holds, New hold), title "New hold", the introduction "Placing a hold is protective and immediate. Releasing it needs a different quality signer.", the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

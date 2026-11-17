@@ -3,6 +3,8 @@
 import hashlib
 import io
 import json
+import os
+import pathlib
 import threading
 import zipfile
 from datetime import timedelta
@@ -333,8 +335,8 @@ def test_record_is_read_in_one_read_only_snapshot(released, monkeypatch):
     assert all(e["fields"]["action"] != "synthetic.meanwhile" for e in record["audit_trail"])
 
 
-def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(released):
-    raw = released["raw"]
+def alter_raw_file(raw):
+    """Change a stored raw-data file behind the application, as damage or tampering would."""
     with connection.cursor() as cursor:
         cursor.execute("ALTER TABLE analytical_rawdatafile DISABLE TRIGGER analytical_append_only")
         try:
@@ -346,6 +348,11 @@ def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(relea
             cursor.execute(
                 "ALTER TABLE analytical_rawdatafile ENABLE TRIGGER analytical_append_only"
             )
+
+
+def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(released):
+    raw = released["raw"]
+    alter_raw_file(raw)
     package = export(released)
     _, _, members = unpack(package)
     record = json.loads(members["record.json"])
@@ -613,3 +620,14 @@ def test_page_needs_sign_in_and_an_existing_lot(client, released):
     assert client.get(url).status_code == 302
     login(client, released["people"]["auditor"])
     assert client.get(reverse("quality:lot_record", args=[999999])).status_code == 404
+
+
+def test_write_lot_record_review_pdfs(released):
+    """Visual inspection aid: set OQ_PDF_OUT to a directory to keep sample printed records."""
+    out = os.environ.get("OQ_PDF_OUT")
+    if not out:
+        pytest.skip("OQ_PDF_OUT not set")
+    pathlib.Path(out, "lot-record.pdf").write_bytes(unpack(export(released))[2]["record.pdf"])
+    alter_raw_file(released["raw"])
+    differs = unpack(export(released))[2]["record.pdf"]
+    pathlib.Path(out, "lot-record-differs.pdf").write_bytes(differs)

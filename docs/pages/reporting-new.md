@@ -31,7 +31,7 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 ## Layout
 
 - **Breadcrumbs**: Certificates › New certificate of analysis.
-- **Form**: **Released lot** menu with its help text, a note that you review the exact evidence before signing, **Review certificate** and **Cancel**.
+- **Form**: **Released lot** (type to search) with its help text, a note that you review the exact evidence before signing, **Review certificate** and **Cancel**.
 
 ## Actions
 
@@ -44,7 +44,7 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Released lot (`lot`) | `Lot.state`, `Lot.number` | Menu, first entry "Select a lot" | Yes | Every lot whose state is Released, ordered by lot number, including lots that already have certificates. Help text: "Only lots with a signed QC disposition are listed." |
+| Released lot (`lot`) | `Lot.state`, `Lot.number` | Type-to-search choice (searches lot number and material) | Yes | Every lot whose state is Released, including lots that already have certificates. The server checks the chosen lot again |
 
 ## Rules and hidden logic
 

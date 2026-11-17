@@ -939,7 +939,7 @@ def _account_form(request, form, title, cancel, target=None, unavailable=""):
             "cancel_url": cancel,
             "signing": True,
             "unavailable": unavailable,
-            "submit_label": f"Sign and {title.lower()}",
+            "submit_label": f"Sign and {title[:1].lower()}{title[1:]}",
         },
         status=422 if request.method == "POST" else 200,
     )

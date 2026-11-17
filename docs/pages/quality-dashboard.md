@@ -73,8 +73,8 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 | Retests and resamples not done | `AnalyticalTest.kind`, `state` | Count | — | Retest and resample tests of lots still Open or Awaiting review |
 | Awaiting review | `AnalyticalTest.state` | Count; oldest `evaluated_at` | — | Lot tests Awaiting review. Opens Tests filtered to it |
 | Supplier results awaiting acceptance | `SupplierResultAcceptance.state` | Count; oldest `proposed_at` | — | Supplier results proposed in place of a test and not yet accepted |
-| All results reviewed | `LotAssignment.status`, `AnalyticalTest.state`, `Investigation.phase` | Count | — | Quarantine lots with requirements assigned, at least one reviewed test, no test Open or Awaiting review and no open investigation. Opens Material lots filtered to Quarantine. It does not check every disposition gate |
-| Blocked by an investigation | `Investigation.phase`, `outcome` | Count | — | Quarantine lots with an open investigation or one that confirmed an out-of-specification result |
+| All results reviewed | `LotAssignment.status`, `AnalyticalTest.state`, `Investigation.phase` | Count | — | Shown as "Complete". Quarantine lots with requirements assigned, at least one reviewed test, no test Open or Awaiting review and no open investigation. Opens Material lots filtered to Quarantine. It does not check every disposition gate |
+| Blocked by an investigation | `Investigation.phase`, `outcome` | Count | — | Shown as "Blocked". Quarantine lots with an open investigation or one that confirmed an out-of-specification result |
 | Certificates to issue | `Lot.state`, `Report.state` | Count | — | Released lots with no issued certificate of analysis. Opens Certificates |
 | Active holds | `Hold.state` | Count; oldest `placed_at` | — | Active stability holds of any lot or reserve; an active hold on a lot blocks its QC disposition. Opens Holds filtered to active ones |
 | Stability and laboratory queues | `Pull`, `Equipment`, `ReagentLot` | Counts | — | The same filters as the Stability and Laboratory overviews, each opening its filtered list |

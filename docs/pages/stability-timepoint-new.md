@@ -33,7 +33,7 @@ Add a pull timepoint and its required tests to a draft protocol.
 
 ## Layout
 
-- Breadcrumbs (Protocols, the protocol, Add timepoint), title "Add timepoint" with the protocol identifier, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Protocols, the protocol, Add timepoint), title "Add timepoint" with the protocol identifier, the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 

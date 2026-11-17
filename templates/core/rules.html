@@ -14,8 +14,8 @@
           <th scope="row">{{ rule }}</th>
           <td>{{ rule.segment }}</td>
           <td>{% if rule.status == "approved" %}{% status label="Approved" tone="success" plain=True %}{% elif rule.status == "draft" %}{% status label="Draft" tone="progress" plain=True %}{% else %}{% status label=rule.status|capfirst tone="neutral" plain=True %}{% endif %}{% if rule.superseded_from %}<br>{% status label="Superseded" tone="neutral" plain=True %}{% endif %}{% if rule.signatures %}{% signature_list signatures=rule.signatures subject="Rule set" %}{% endif %}</td>
-          <td>{{ rule.effective_from }}{% if rule.effective_until %} to {{ rule.effective_until }}{% endif %}{% if rule.superseded_from %}<p>Superseded by version {{ rule.superseded_by.version }} {% if rule.superseded_from <= rule.effective_from %}before it took effect{% else %}from {{ rule.superseded_from }}{% endif %}</p>{% endif %}</td>
-          <td class="vr-wrap">{{ rule.policy }}{% if rule.policy.applies_to %}<p>Applies in addition to a lot's own rule set{% if rule.policy.applies_to.materials %} · materials {{ rule.policy.applies_to.materials|join:", " }}{% endif %}{% if rule.policy.applies_to.stages %} · stages {{ rule.policy.applies_to.stages|join:", " }}{% endif %}{% if rule.policy.applies_to.scopes %} · scopes {{ rule.policy.applies_to.scopes|join:", " }}{% endif %}</p>{% endif %}</td>
+          <td class="vr-nowrap">{{ rule.effective_from|when }}{% if rule.effective_until %} to {{ rule.effective_until|when }}{% endif %}{% if rule.superseded_from %}<p>Superseded by version {{ rule.superseded_by.version }} {% if rule.superseded_from <= rule.effective_from %}before it took effect{% else %}from {{ rule.superseded_from|when }}{% endif %}</p>{% endif %}</td>
+          <td class="vr-wrap">{% rule_policy policy=rule.policy compact=True %}</td>
           <td class="text-end">{% if can_configure and rule.status == 'draft' and rule.author_id != request.user.pk %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'core:rule_approve' rule.pk %}">Review and approve</a>{% endif %}</td>
         </tr>{% endfor %}
       </tbody>
