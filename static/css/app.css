@@ -146,6 +146,7 @@
   --vr-scrollbar-hover: #87928f;
   --vr-scrollbar-active: #6c7776;
   --vr-backdrop: rgba(18, 25, 24, 0.48);
+  --vr-backdrop-blur: 5px; /* the page under a dialog softens, so the dialog reads as the task */
 
   /* Elevation: soft layers, no hard offset anywhere */
   --vr-shadow-panel: 0 1px 2px rgba(20, 26, 34, 0.05), 0 2px 10px rgba(20, 26, 34, 0.04);
@@ -1654,6 +1655,12 @@ details.card[open] > summary .vr-panel-chevron {
   white-space: nowrap;
 }
 
+/* Which laboratory roles the signed-in person acts in, after their name. */
+.vr-topbar-role {
+  color: var(--vr-topbar-text-muted);
+  font-weight: var(--vr-font-weight-regular);
+}
+
 /* Theme menu: the pressed option carries a check; text names the mode. */
 .vr-theme-option .vr-theme-check {
   margin-left: auto;
@@ -1751,6 +1758,18 @@ details.card[open] > summary .vr-panel-chevron {
   padding: 0 var(--vr-space-3);
   color: var(--vr-topbar-text-muted);
   letter-spacing: 0.06em;
+}
+
+/* Phones: the signed-in person and their roles open the Account section (the top bar has no
+   room for them). */
+.vr-nav-person {
+  margin: 0 0 var(--vr-space-1);
+  padding: 0 var(--vr-space-3);
+  font-size: var(--vr-font-size-3);
+}
+
+.vr-nav-person .vr-muted {
+  color: var(--vr-topbar-text-muted);
 }
 
 .vr-nav-list {
@@ -1897,6 +1916,14 @@ a.vr-navlink[aria-current="page"]:hover {
 
 .vr-page-actions:empty {
   display: none;
+}
+
+/* Why the expected next step is not offered, said before the button that fixes it (e.g. "No
+   open QC batch accepting tests uses … revision 1." then New QC batch). */
+.vr-action-note {
+  max-width: 40ch;
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
 }
 
 @media (min-width: 992px) {
@@ -2986,6 +3013,13 @@ fieldset.vr-field > legend {
   .vr-form-section > .vr-field:is(fieldset, .vr-wide, :has(textarea, .vr-choices, .vr-multi, table, .vr-drop)) {
     grid-column: 1 / -1;
   }
+
+  /* A short field alone between full-width ones (a title before its description) takes the
+     whole row rather than leaving the right column empty. */
+  .vr-form-section > :is(legend, h2, input[type="hidden"], :not(.vr-field), fieldset.vr-field, .vr-field.vr-wide, .vr-field:has(textarea, .vr-choices, .vr-multi, table, .vr-drop))
+    + .vr-field:not(fieldset, .vr-wide, :has(textarea, .vr-choices, .vr-multi, table, .vr-drop)):has(+ :not(.vr-field), + fieldset.vr-field, + .vr-wide, + .vr-field textarea, + .vr-field .vr-choices, + .vr-field .vr-multi, + .vr-field table, + .vr-field .vr-drop) {
+    grid-column: 1 / -1;
+  }
 }
 
 .vr-form .vr-field {
@@ -3046,6 +3080,29 @@ fieldset.vr-field > legend {
   padding: var(--vr-space-4) var(--vr-panel-inset);
   background: var(--vr-raised);
   box-shadow: var(--vr-shadow-scroll-bottom);
+}
+
+/* A small dialog (sm in core/form_surfaces.py) keeps one column of fields. */
+#vr-form-dialog .modal-dialog:not(.modal-lg, .modal-xl) .vr-form-section {
+  display: block;
+}
+
+/* Signing in the form dialog: the signature card is the dialog's content, edge to edge under the
+   header; its petrol band carries the title, so the dialog's own title is only announced. */
+#vr-form-dialog [data-vr-form-page] > .vr-sign-card,
+#vr-form-dialog [data-vr-form-page] > * > .vr-sign-card {
+  margin: 0 calc(-1 * var(--vr-panel-inset));
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#vr-form-dialog:has([data-vr-form-page] .vr-sign-card) .modal-header .modal-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .vr-form-note {
@@ -3189,18 +3246,24 @@ fieldset.vr-field > legend {
   font-weight: var(--vr-font-weight-regular);
 }
 
-/* Record layout ({% record_layout %}): the lead panel and the aside share the first row from
-   1200px; every panel after it is full width. Below 1200px everything stacks in reading order.
-   The aside never hides content silently: it grows with its content up to the viewport's height,
-   then scrolls inside its own box with the scrollbar always shown and a fade while more lies
-   below. */
+/* Record layout ({% record_layout %}): the lead panel with the aside beside it, then every other
+   panel keeps stacking in the left column for as long as the aside runs beside it, and takes the
+   full width once the aside has ended (owner rule, review 1). The lead and the aside float, and
+   panels are their own formatting contexts (a .card is a flex container), so each sits beside the
+   aside where it starts beside it and is full width where it starts below it: no gap is left
+   beside a tall aside, and DOM order stays the reading order (lead, aside, the rest). The wide
+   part (genuinely wide tables) always clears below the aside. Two columns only when the record
+   is at least 60rem wide (a container query: the open help drawer narrows it); below that
+   everything stacks in reading order. The aside never hides content silently: it grows with its
+   content up to the viewport's height, then scrolls inside its own box with the scrollbar always
+   shown and a fade while more lies below. */
 .vr-record {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  column-gap: var(--vr-stack);
+  display: flow-root;
+  container: vr-record / inline-size;
 }
 
-.vr-record > * {
+.vr-record > *,
+.vr-record-wide > * {
   margin-bottom: var(--vr-stack);
 }
 
@@ -3215,25 +3278,25 @@ fieldset.vr-field > legend {
   gap: var(--vr-stack);
 }
 
-@media (min-width: 1200px) {
-  .vr-record.vr-record-has-aside {
-    grid-template-columns: minmax(0, 1fr) var(--vr-aside-width);
+@container vr-record (min-width: 60rem) {
+  .vr-record-has-aside > .vr-record-lead {
+    float: left;
+    width: calc(100% - var(--vr-aside-width) - var(--vr-stack));
   }
 
-  .vr-record > * {
-    grid-column: 1 / -1;
+  .vr-record-has-aside > .vr-record-aside {
+    float: right;
+    width: var(--vr-aside-width);
+    margin-left: var(--vr-stack); /* the gutter, so panels beside it keep the lead's width */
   }
 
-  .vr-record > .vr-record-lead {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: start; /* the lead keeps its own height beside a taller aside */
+  /* A panel never squeezes into the gutter between the two floats: it starts under the lead. */
+  .vr-record-has-aside > :not(.vr-record-lead, .vr-record-aside) {
+    min-width: 20rem;
   }
 
-  .vr-record > .vr-record-aside {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: start;
+  .vr-record-has-aside > .vr-record-wide {
+    clear: both;
   }
 
   .vr-record-aside-scroll {
@@ -3529,6 +3592,27 @@ dialog::backdrop {
   background: var(--vr-backdrop);
 }
 
+/* Under every dialog the page dims and softens; without it where transparency is reduced. The
+   scrim token carries its own alpha (Bootstrap sets these on .modal-backdrop itself, over :root). */
+.modal-backdrop {
+  --bs-backdrop-bg: var(--vr-backdrop);
+  --bs-backdrop-opacity: 1;
+}
+
+.modal-backdrop,
+dialog::backdrop {
+  -webkit-backdrop-filter: blur(var(--vr-backdrop-blur));
+  backdrop-filter: blur(var(--vr-backdrop-blur));
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .modal-backdrop,
+  dialog::backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 dialog > [data-signature-dialog].card {
   margin: 0;
   border-radius: 0;
@@ -3660,17 +3744,28 @@ dialog > [data-signature-dialog].card {
   height: 18px;
 }
 
-/* In a table the tag sets a 12rem column: the name keeps one line and ends in an ellipsis; the
-   shared tooltip shows it. */
-.vr-table td > .vr-mtag {
-  display: flex;
-  width: 12rem;
+/* In a table the tile stays on the name's first line and the name takes the column's room: one
+   line while the column has it, two when it is narrow, and an ellipsis only after two lines (the
+   shared tooltip shows the whole name; the full text stays in the page for assistive
+   technology). The sub (a code) sits under the name. */
+.vr-table .vr-mtag {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, max-content);
+  align-items: start;
+  min-width: 10rem;
 }
 
 .vr-table .vr-mtag-name {
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.vr-table .vr-mtag-sub {
+  grid-column: 2;
 }
 
 /* Code chip: a code or identifier that is not the row's link, in the data voice. */
@@ -4060,6 +4155,7 @@ dialog > [data-signature-dialog].card {
    them. Zero queues stay visible and muted: absence is information. */
 .vr-flow-band {
   display: flex;
+  flex-wrap: wrap; /* a segment that no longer fits its share starts a second row */
   gap: var(--vr-border-width-xl);
   margin: 0 0 var(--vr-space-4);
 }
@@ -4116,11 +4212,35 @@ dialog > [data-signature-dialog].card {
   white-space: nowrap;
 }
 
-/* Six lanes with a narrow arrow column between each. */
+/* The lanes follow the width of the panel they sit in (a container query), never the window:
+   one column in a narrow panel, three per row, then all six in one row with the flow line's
+   arrow column between each once every lane has about 11.5rem. */
 .vr-lanes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(5, 14px minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--vr-space-2);
   align-items: stretch;
+}
+
+.vr-lane-arrow {
+  display: none;
+}
+
+@container vr-panel (min-width: 36rem) {
+  .vr-lanes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container vr-panel (min-width: 74rem) {
+  .vr-lanes {
+    grid-template-columns: minmax(0, 1fr) repeat(5, 14px minmax(0, 1fr));
+    gap: 0;
+  }
+
+  .vr-lane-arrow {
+    display: flex;
+  }
 }
 
 .vr-lane {
@@ -4166,7 +4286,6 @@ dialog > [data-signature-dialog].card {
 }
 
 .vr-lane-arrow {
-  display: flex;
   align-items: flex-start;
   justify-content: center;
   padding-top: var(--vr-space-3-5);
@@ -4259,28 +4378,6 @@ a.vr-queue-label:hover {
 .vr-queue-meta .vr-status {
   max-width: 100%;
   white-space: normal;
-}
-
-/* Narrower screens: three lanes per row, then one, without the arrow column. */
-@media (max-width: 1365.98px) {
-  .vr-lanes {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--vr-space-2);
-  }
-
-  .vr-lane-arrow {
-    display: none;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .vr-lanes {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .vr-flow-band {
-    flex-wrap: wrap;
-  }
 }
 
 /* ================================================================ Entrance pages */

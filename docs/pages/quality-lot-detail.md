@@ -3,7 +3,7 @@ title: Lot record
 urls: quality:lot_detail
 views: quality.views.lot_detail
 templates: quality/lot_detail.html
-models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Sample, quality.Result, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
+models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Sample, quality.Result, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report, stability.RetentionObligation
 reviewed: 2026-11-17
 summary: Everything about one material lot: its receipt, supplier certificates, samples and signatures, and the actions that take it out of quarantine.
 ---
@@ -79,6 +79,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Supplier certificates** card, made-on-site note: when a Quarantine lot holds certificates and its receipt details were corrected to Made on site, every viewer sees "The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies." Such a certificate cannot be corrected, only withdrawn.
 - **Supplier results in place of tests** card (only when the lot has such a record, withdrawn ones included): the text "Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.", then one row per record, oldest first: Record (SRA-n, a link), Test (name, with the code below), Supplier's result, Certificate, Qualification, Proposed by and Status.
 - **Samples and results** card, with the number of samples (for a reviewer with results to review, "N awaiting review" instead): one section per sample headed by its reference and "collected" with the time (laboratory time zone), then a **Record result** button (Quarantine lots only) and its results. For a sample with analytical tests: Test (its number, a link to the test record, with the kind tag for a retest, resample, rerun or repeat), Code (as a code chip), Status (as on Testing and investigations, e.g. Open, Awaiting review, Reviewed, Invalidated, "Not tested · supplier result") and Reportable (the result as frozen at submission, with its unit, or "—"). For a sample without analytical tests, or with manual foundation results, the foundation results table: Test, Result, Limits, Analyst, Review; a result outside its limits is labelled "Out of specification" and "No results recorded." shows when there are none. Observations, reviews and investigations are on Testing and investigations. "No samples recorded" when the lot has no samples.
+- **Retention** card (only when the lot has retention obligations, with or without a reserve sample): one row per obligation with Basis, Anchor (the anchor kind and its date, or "Anchor not yet known"), Retain through (the date, or "N months after the anchor" while the anchor is unknown), Reserve sample (link, or "—" for an obligation of the lot itself) and **Set anchor** while the anchor is unknown.
 - **Electronic signatures** card: each signature shows the signer, meaning, server time and the revision it binds. Under "Results", foundation result review signatures ("Result N revision R"); under "Lot", every signature on the lot, oldest first: the disposition (meaning approved) and any signed replacement of its requirements during testing (meaning requirements_replaced). "No lot disposition signature yet." shows until the lot has a signature with the meaning approved. Native test review signatures are not listed here.
 
 ## Actions
@@ -105,6 +106,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 | **Review result** | Reviewer role, result is Recorded and not its analyst | Reviewer, not its analyst | Opens Sign result review |
 | **Issue certificate of analysis** | Quality role and lot is Released | Quality | Opens the certificate preview for this lot |
 | Report number link | Lot is Released and a report exists | Viewers of reports | Opens the certificate record |
+| **Set anchor** | A retention obligation without an anchor date; analyst or quality role | Analyst, quality | Opens Set anchor for that obligation (stability); once set, the anchor is not changed there |
 | **Lots** (breadcrumb) | Always | Any viewer | Returns to the Material lots list |
 
 ## Fields

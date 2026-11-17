@@ -90,7 +90,7 @@ def test_administrator_publishes_and_visitor_reads_announcement(
         expect(current.get_by_role("cell", name="demo_config_author")).to_be_visible()
         expect(page.locator(".vr-timeline")).to_contain_text("Announcement published")
         expect(page.locator(".vr-timeline")).to_contain_text(
-            "Signed by Synthetic Notice Administrator · announcement_authorized"
+            "Signed by Synthetic Notice Administrator · announcement authorized"
         )
         for width in (1440, 390):
             page.set_viewport_size({"width": width, "height": 1000})

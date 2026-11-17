@@ -4,7 +4,9 @@ A request from static/js/form-dialog.js differs from a page request only by the 
 the same view authorizes, validates and enforces CSRF; a redirect becomes an HTMX instruction.
 """
 
+import inspect
 import json
+import logging
 import re
 
 import pytest
@@ -12,17 +14,22 @@ from django.contrib.auth.models import Group
 from django.contrib.messages import get_messages
 from django.http import HttpResponse, HttpResponseRedirect
 from django.test import Client, RequestFactory
-from django.urls import reverse
+from django.urls import URLResolver, get_resolver, reverse
 
 from accounts.services import ROLES
+from analytical.models import AnalyticalTest
 from catalog.models import Material
 from core.form_dialog import FormDialogMiddleware
 from core.form_surfaces import (
     FORM_SURFACES,
+    NOT_FORM_PAGES,
     _route_patterns,
     form_presentation,
     form_route_patterns,
 )
+from core.models import ElectronicSignature, PINCredential
+from tests.test_integrated_journey import PIN, assign_and_sample, observed_test
+from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 DIALOG = {"X-VR-Form": "1"}
 PASSWORD = "Synthetic-dialog-login-2026!"
@@ -75,13 +82,51 @@ def test_page_requests_and_other_responses_pass_unchanged():
         assert transport(HttpResponse(status=status)).status_code == status
 
 
+def routes(resolver=None, namespaces=(), converters=None):
+    """(view name, view, {argument: sample value}) for every named route outside the admin."""
+    samples = {"int": 1, "slug": "synthetic", "string": "synthetic", "path": "synthetic"}
+    for route in (resolver or get_resolver()).url_patterns:
+        found = {**(converters or {}), **route.pattern.converters}
+        if isinstance(route, URLResolver):
+            if route.namespace != "admin":
+                spaces = namespaces + ((route.namespace,) if route.namespace else ())
+                yield from routes(route, spaces, found)
+        elif route.name:
+            kwargs = {
+                name: samples[type(c).__name__.removesuffix("Converter").lower()]
+                for name, c in found.items()
+            }
+            yield ":".join((*namespaces, route.name)), route.callback, kwargs
+
+
+def takes_form(view):
+    target = getattr(view, "view_class", None) or inspect.unwrap(view)
+    try:
+        source = inspect.getsource(target)
+    except OSError, TypeError:
+        return False
+    return bool(re.search(r"request\.POST|request\.method\s*==\s*[\"']POST", source))
+
+
+def test_every_form_opens_in_the_dialog():
+    """Every route whose view takes a form is a dialog form, or says why its page is not one."""
+    found = {name for name, view, _ in routes() if takes_form(view)}
+    unexplained = found - set(FORM_SURFACES) - set(NOT_FORM_PAGES)
+    assert not unexplained, f"add to FORM_SURFACES (core/form_surfaces.py): {sorted(unexplained)}"
+    assert not set(FORM_SURFACES) & set(NOT_FORM_PAGES)
+    named = {name for name, _, _ in routes()}
+    assert set(FORM_SURFACES) | set(NOT_FORM_PAGES) <= named, "a listed route no longer exists"
+    assert {size for size, _ in FORM_SURFACES.values()} <= {"sm", "md", "lg"}
+
+
 def test_route_patterns_match_their_own_urls_only():
     patterns = _route_patterns()
     assert len(patterns) == len(FORM_SURFACES)
+    paths = {name: reverse(name, kwargs=kwargs) for name, _, kwargs in routes()}
     for name in FORM_SURFACES:
-        path = reverse(name)
-        assert [e for e in patterns if re.fullmatch(e["pattern"], path)], name
-    assert not any(re.fullmatch(e["pattern"], reverse("catalog:materials")) for e in patterns)
+        assert [e for e in patterns if re.fullmatch(e["pattern"], paths[name])], name
+    for name in ("catalog:materials", "quality:lot_detail", "analytical:test_detail"):
+        assert not any(re.fullmatch(e["pattern"], paths[name]) for e in patterns), name
 
 
 @pytest.mark.django_db
@@ -154,20 +199,6 @@ def test_dialog_presentation_only_for_listed_routes_with_the_header(rf):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", sorted(FORM_SURFACES))
-def test_every_dialog_form_renders_without_a_signature(client, person, name):
-    """A signature is never collected in the form dialog: listed pages carry no PIN field."""
-    client.force_login(
-        person("synthetic_dialog_all", "analyst", "reviewer", "quality", "admin", "auditor")
-    )
-    for headers in ({}, DIALOG):
-        response = client.get(reverse(name), headers=headers)
-        assert response.status_code == 200, (name, response.status_code)
-        html = response.content.decode()
-        assert not re.search(r"""name=["']pin["']|data-signature-dialog""", html), name
-
-
-@pytest.mark.django_db
 def test_dialog_fragment_has_no_shell_and_no_history(client, person):
     client.force_login(person("synthetic_dialog_author", "quality"))
     url = reverse("catalog:material_new")
@@ -179,16 +210,21 @@ def test_dialog_fragment_has_no_shell_and_no_history(client, person):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", sorted(FORM_SURFACES))
-def test_dialog_roles_match_the_view(client, person, name):
-    """Each route's listed roles are exactly the roles its view lets in."""
-    allowed = set(FORM_SURFACES[name][1])
-    for role in sorted(allowed):
-        client.force_login(person(f"synthetic_dialog_{role}", role))
-        assert client.get(reverse(name)).status_code == 200, (name, role)
-    others = sorted(ROLES - allowed)
-    client.force_login(person("synthetic_dialog_others", *others))
-    assert client.get(reverse(name)).status_code == 403, (name, others)
+def test_dialog_roles_match_the_views(client, person):
+    """Each route's listed roles are exactly the roles its view lets past its role check (a
+    missing record then answers 404, a refused role 403)."""
+    users = {role: person(f"synthetic_dialog_{role}", role) for role in sorted(ROLES)}
+    paths = {name: reverse(name, kwargs=kwargs) for name, _, kwargs in routes()}
+    wrong = []
+    for name, (_, roles) in sorted(FORM_SURFACES.items()):
+        admitted = set()
+        for role, user in users.items():
+            client.force_login(user)
+            if client.get(paths[name]).status_code != 403:
+                admitted.add(role)
+        if admitted != set(roles):
+            wrong.append(f"{name}: view admits {sorted(admitted)}, listed {sorted(roles)}")
+    assert not wrong, "\n".join(wrong)
 
 
 @pytest.mark.django_db
@@ -206,3 +242,113 @@ def test_a_page_lists_only_the_dialog_routes_the_user_may_open(person):
         re.fullmatch(e["pattern"], reverse("analytical:batch_new"))
         for e in form_route_patterns(analyst)
     )
+
+
+# Signing in the dialog: the same view and service as the signing page, so every rule holds.
+WRONG_PIN = "19283746"
+REASON = "Synthetic independent review in the dialog"
+
+
+@pytest.fixture
+def submitted(integrated):
+    test, investigation = observed_test(integrated, assign_and_sample(integrated), "100.25")
+    assert investigation is None and test.state == "submitted"
+    return integrated, test
+
+
+def sign_in_dialog(client, test, pin, *, username, revision=None):
+    return client.post(
+        reverse("analytical:test_review", args=[test.pk]),
+        {
+            "signature_username": username,
+            "pin": pin,
+            "reason": REASON,
+            "expected_revision": test.revision if revision is None else revision,
+        },
+        headers=DIALOG,
+    )
+
+
+def pin_input(html):
+    match = re.search(r"<input[^>]*name=\"pin\"[^>]*>", html)
+    assert match, "the signature PIN field is offered again"
+    return match.group(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_signing_in_the_dialog_keeps_every_signing_rule(client, submitted, caplog):
+    data, test = submitted
+    reviewer = data["people"]["reviewer"]
+    client.force_login(reviewer)
+    caplog.set_level(logging.DEBUG)
+    signatures = ElectronicSignature.objects.count()
+
+    opened = client.get(reverse("analytical:test_review", args=[test.pk]), headers=DIALOG)
+    assert opened.status_code == 200
+    html = opened.content.decode()
+    assert "data-vr-form-page" in html and "vr-sign-card" in html and "<!doctype" not in html
+    assert "value=" not in pin_input(html)
+
+    # A wrong PIN: refused, counted, the PIN field empty again, username and reason kept.
+    wrong = sign_in_dialog(client, test, WRONG_PIN, username=reviewer.username)
+    assert wrong.status_code == 422
+    html = wrong.content.decode()
+    assert "Signature PIN was not accepted." in html
+    assert "value=" not in pin_input(html)
+    assert reviewer.username in html and REASON in html
+    assert WRONG_PIN not in html
+    assert PINCredential.objects.get(user=reviewer).failures == 1
+
+    # A record changed since the dialog opened is refused, even with the right PIN.
+    stale = sign_in_dialog(
+        client, test, PIN, username=reviewer.username, revision=test.revision - 1
+    )
+    assert stale.status_code == 422 and PIN not in stale.content.decode()
+    assert "value=" not in pin_input(stale.content.decode())
+    assert ElectronicSignature.objects.count() == signatures
+
+    # The right PIN signs; the dialog hands the page back to the record with its message.
+    signed = sign_in_dialog(client, test, PIN, username=reviewer.username)
+    assert signed.status_code == 204, signed.content[:300]
+    record = reverse("analytical:test_detail", args=[test.pk])
+    assert signed["HX-Redirect"] == record
+    assert ElectronicSignature.objects.count() == signatures + 1
+    test.refresh_from_db()
+    assert test.state == "reviewed"
+    page = client.get(record).content.decode()
+    assert f"Signed review recorded for {test.label}." in page
+
+    for text in (PIN, WRONG_PIN):
+        assert not any(text in r.getMessage() for r in caplog.records), "a PIN reached a log"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dialog_signing_locks_after_five_wrong_pins(client, submitted):
+    data, test = submitted
+    reviewer = data["people"]["reviewer"]
+    client.force_login(reviewer)
+    for _ in range(5):
+        assert (
+            sign_in_dialog(client, test, WRONG_PIN, username=reviewer.username).status_code == 422
+        )
+    locked = sign_in_dialog(client, test, PIN, username=reviewer.username)
+    assert locked.status_code == 422
+    assert "Signature PIN is temporarily locked." in locked.content.decode()
+    assert "value=" not in pin_input(locked.content.decode())
+    test.refresh_from_db()
+    assert test.state == "submitted"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dialog_refuses_self_review_before_any_pin(client, submitted):
+    data, test = submitted
+    producer = data["people"]["analyst"]  # recorded the observation; also holds reviewer
+    client.force_login(producer)
+    opened = client.get(reverse("analytical:test_review", args=[test.pk]), headers=DIALOG)
+    assert opened.status_code == 204
+    assert opened["HX-Redirect"] == reverse("analytical:test_detail", args=[test.pk])
+    signatures = ElectronicSignature.objects.count()
+    refused = sign_in_dialog(client, test, PIN, username=producer.username)
+    assert refused.status_code == 204 and "HX-Redirect" in refused
+    assert ElectronicSignature.objects.count() == signatures
+    assert AnalyticalTest.objects.get(pk=test.pk).state == "submitted"

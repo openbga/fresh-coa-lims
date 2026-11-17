@@ -192,6 +192,20 @@
   {% panel_section %}{% empty_state title="No samples recorded" %}{% endpanel_section %}
   {% endfor %}
 {% endpanel %}
+{% if retention %}{% panel title="Retention" heading_id="retention-heading" count=retention|length table=True %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="retention-heading">
+      <thead><tr><th scope="col">Basis</th><th scope="col">Anchor</th><th scope="col">Retain through</th><th scope="col">Reserve sample</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>{% for o in retention %}<tr data-obligation="{{ o.pk }}">
+        <th scope="row">{{ o.basis }}</th>
+        <td>{% if o.anchor_date %}{{ o.get_anchor_kind_display }} <span class="vr-data">{{ o.anchor_date|when:"date" }}</span>{% else %}{{ o.get_anchor_kind_display }}<br>{% status label="Anchor not yet known" tone="warning" plain=True %}{% endif %}</td>
+        <td>{% if o.retain_until %}<span class="vr-data">{{ o.retain_until|when:"date" }}</span>{% else %}<span class="vr-muted">{{ o.offset_months }} months after the anchor</span>{% endif %}</td>
+        <td>{% if o.reserve %}<a class="vr-id" href="{% url 'stability:reserve_detail' o.reserve_id %}">{{ o.reserve.identifier }}</a>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+        <td class="text-end">{% if can_set_anchor and not o.anchor_date %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'stability:anchor_set' o.pk %}">Set anchor</a>{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+{% endpanel %}{% endif %}
 {% panel title="Electronic signatures" heading_id="signatures-heading" %}
   {% if result_signatures %}<h3 class="h6">Results</h3>{% signature_list signatures=result_signatures subject="Result" numbered=True %}<h3 class="h6 mt-3">Lot</h3>{% endif %}
   {% if signatures %}{% signature_list signatures=signatures subject="Lot" %}{% endif %}

@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 from django.urls import reverse
+from helpers import expect_form, submit_for_review
 from playwright.sync_api import expect, sync_playwright
 
 from analytical.models import RawDataFile
@@ -77,9 +78,7 @@ def test_calculated_result_with_bench_checks_and_raw_data_through_the_forms(
             login(people["analyst"])
             goto("analytical:test_detail", test.pk)
             page.get_by_role("link", name="Record observation", exact=True).click()
-            expect(page).to_have_url(
-                live_server.url + reverse("analytical:observation_new", args=[test.pk])
-            )
+            expect_form(page, reverse("analytical:observation_new", args=[test.pk]))
 
             # The form asks for the approved inputs and offers no directly entered value.
             for label in INPUT_LABELS.values():
@@ -109,9 +108,7 @@ def test_calculated_result_with_bench_checks_and_raw_data_through_the_forms(
             expect(
                 page.get_by_text(re.compile(r"requires one|requires at least one")).first
             ).to_be_visible()
-            expect(page).to_have_url(
-                live_server.url + reverse("analytical:observation_new", args=[test.pk])
-            )
+            expect_form(page, reverse("analytical:observation_new", args=[test.pk]))
             expect(record_button()).to_be_visible()
 
             # Second replicate.
@@ -179,8 +176,7 @@ def test_calculated_result_with_bench_checks_and_raw_data_through_the_forms(
             assert len(posts) == 2
 
             # Submit, then review as the independent reviewer.
-            page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic original records complete")
-            page.get_by_role("button", name="Submit for review", exact=True).click()
+            submit_for_review(page, "Synthetic original records complete")
             expect(page.get_by_text("Awaiting review", exact=True)).to_be_visible()
             page.get_by_role("button", name="Sign out", exact=True).click()
 

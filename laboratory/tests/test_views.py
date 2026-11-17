@@ -357,3 +357,28 @@ def test_record_pages_put_the_clock_facts_and_unusable_states_first(client, peop
     approve_contract_laboratory(people, laboratory, days_after=10)
     listed = client.get(reverse("laboratory:contract_laboratory_list")).content.decode()
     assert "Approval" in listed and "Expiring soon" in listed
+
+
+def test_every_overview_count_equals_the_rows_it_opens(client, people):
+    from tests.overview_counts import assert_counts_open_their_rows
+
+    from .helpers import approve_contract_laboratory, make_contract_laboratory
+
+    make_equipment(people, "BAL-OK")
+    soon = make_equipment(people, "BAL-SOON", requires_qualification=False, ready=False)
+    accept_new_calibration(people, soon, days_valid=10)  # due within 30 days
+    waiting = make_equipment(people, "BAL-WAIT", requires_qualification=False, ready=False)
+    accept_new_calibration(people, waiting, accept=False)  # awaiting acceptance
+    make_reagent(people, "RG-NEW", release=False)  # awaiting release
+    make_reagent(people, "RG-SOON", expiry_days=10)  # expiring within 30 days
+    qualify_analyst(people, people["analyst"], days=10)  # expiring within 30 days
+    laboratory = make_contract_laboratory(people)
+    approve_contract_laboratory(people, laboratory, days_after=10)  # expiring
+    approve_contract_laboratory(people, laboratory, "GC-ASSAY", sign=False)  # awaiting
+    for role in ("analyst", "reviewer", "auditor"):
+        client.force_login(people[role])
+        counts = assert_counts_open_their_rows(client, reverse("laboratory:overview"))
+        assert counts["Calibration due within 30 days"] == 1
+        assert counts["Calibrations awaiting acceptance"] == 1
+        assert counts["Reagent lots awaiting release"] == 1
+        assert counts["Released lots expiring within 30 days"] == 1

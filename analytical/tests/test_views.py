@@ -341,6 +341,32 @@ def test_batch_page_preflight(client, people, assigned, make_lot):
     )
 
 
+def test_test_record_offers_add_to_batch_only_when_a_batch_accepts_it(client, people, assigned):
+    """The header never offers an add the server refuses: with no open batch it says why and
+    offers New QC batch for the test's method revision; with one it offers Add to QC batch."""
+    _, _, tests = assigned
+    login(client, people["analyst"])
+    record_url = reverse("analytical:test_detail", args=[tests["assay"].pk])
+    add_url = reverse("analytical:test_batch", args=[tests["assay"].pk])
+    page = client.get(record_url).content.decode()
+    assert f'href="{add_url}"' not in page
+    assert (
+        '<span class="vr-action-note" data-batch-note>No open QC batch accepting tests uses '
+        "SYN-HPLC revision 1.</span>"
+    ) in page
+    new_batch = reverse("analytical:batch_new") + "?method=SYN-HPLC&amp;revision=1"
+    assert f'<a class="btn btn-primary" href="{new_batch}">' in page
+    # The New QC batch form opens on that method revision.
+    form = client.get(reverse("analytical:batch_new"), {"method": "SYN-HPLC", "revision": "1"})
+    assert form.context["form"]["method_code"].value() == "SYN-HPLC"
+    services.create_batch(
+        actor=people["analyst2"], number="SYN-B7", method_code="SYN-HPLC", reason="Run"
+    )
+    page = client.get(record_url).content.decode()
+    assert f'<a class="btn btn-primary" href="{add_url}">Add to QC batch</a>' in page
+    assert "data-batch-note" not in page
+
+
 def test_authorize_and_conclude_preflight(client, people, assigned):
     _, _, tests = assigned
     test = record(people, tests["identity"], "1.30")

@@ -41,7 +41,7 @@ You may make permitted changes to your own account, but cannot add any role you 
 
 ## Layout
 
-The action title is followed by your signing identity, **account_authorized** meaning, target account/name/roles/active state and current/resulting management revision. The form contains the action-specific fields, hidden expected revision, reason and your signing credentials. **Cancel** and the action's **Sign and …** button follow when the action is available. For a known blocker, the form is hidden and an explanation plus **Return without changes** appears instead. The target facts and your PIN-enrollment link remain visible.
+The page is a signing card: the band with the action title, then the meaning **account authorized**, your signing identity, target account/name/roles/active state and current/resulting management revision. The form contains the action-specific fields, hidden expected revision, reason and your signing credentials. **Cancel** and the action's **Sign and …** button follow when the action is available. For a known blocker, the form is hidden and an explanation plus **Return without changes** appears instead. The target facts and your PIN-enrollment link remain visible.
 
 ## Actions
 
@@ -77,7 +77,7 @@ Submit buttons and editable fields below appear only when the form is available.
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Rationale for the selected action |
 | Signing username | — | Text, max 150 | Yes | Must match your authenticated account |
 | Signature PIN | `PINCredential` (verified) | Masked text | Yes | Your current signing PIN, never the target's PIN |
-| Signer / meaning | `ElectronicSignature.signer_name`, `meaning` | Display text | — | Names who authorizes the change; meaning is account_authorized |
+| Signer / meaning | `ElectronicSignature.signer_name`, `meaning` | Display text | — | Names who authorizes the change; the meaning shows as "account authorized" (stored as `account_authorized`) |
 
 ## Rules and hidden logic
 

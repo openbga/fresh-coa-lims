@@ -3,7 +3,16 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import DateField, DurationField, ExpressionWrapper, F, Q, Value
+from django.db.models import (
+    DateField,
+    DurationField,
+    Exists,
+    ExpressionWrapper,
+    F,
+    OuterRef,
+    Q,
+    Value,
+)
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -87,6 +96,12 @@ PULL_LABELS = {"due": "Due now", "pulled": "Awaiting acceptance"}
 
 
 def _pull_tone(pull, today):
+    if pull.state in (Pull.State.SCHEDULED, Pull.State.PULLED) and (
+        pull.study.state != Study.State.ACTIVE
+    ):
+        # A closed study's pulls take no more work (stability.services.close_study): not due,
+        # not awaiting acceptance; the row names the study's state instead.
+        return pull.study.get_state_display(), "neutral"
     timing, label = pull.timing(today)
     tone = {"overdue": "danger", "due": "warning", "upcoming": "neutral"}.get(timing)
     if tone is None:
@@ -110,8 +125,12 @@ def _with_windows(queryset):
 
 
 def _pull_filter(queryset, key, today):
+    """The pulls of one status filter. Work statuses (overdue, due, upcoming, awaiting
+    acceptance) cover active studies only: a closed study's pulls take no more work. The pull
+    list, the stability overview and the dashboard all count through here."""
     queryset = _with_windows(queryset)
-    scheduled = Q(state=Pull.State.SCHEDULED)
+    active = Q(study__state=Study.State.ACTIVE)
+    scheduled = Q(state=Pull.State.SCHEDULED) & active
     match key:
         case "overdue":
             return queryset.filter(scheduled, closes__lt=today)
@@ -119,7 +138,9 @@ def _pull_filter(queryset, key, today):
             return queryset.filter(scheduled, opens__lte=today, closes__gte=today)
         case "upcoming":
             return queryset.filter(scheduled, opens__gt=today)
-        case "pulled" | "accepted" | "missed":
+        case "pulled":
+            return queryset.filter(active, state=key)
+        case "accepted" | "missed":
             return queryset.filter(state=key)
         case "fails":
             return queryset.filter(state=Pull.State.ACCEPTED, outcome=FAILS)
@@ -133,7 +154,7 @@ def _pull_filter(queryset, key, today):
 def overview(request):
     access(request.user)
     today = timezone.localdate()
-    pulls = Pull.objects.filter(study__state=Study.State.ACTIVE)
+    pulls = Pull.objects.all()  # the pull list's base: each count is its filter's rows
     link = reverse("stability:pull_list")
     queues = [
         (
@@ -150,13 +171,13 @@ def overview(request):
         ),
         (
             "Pulls awaiting acceptance",
-            pulls.filter(state="pulled").count(),
+            _pull_filter(pulls, "pulled", today).count(),
             "info",
             f"{link}?status=pulled",
         ),
         (
             "Pulls outside acceptance criteria",
-            pulls.filter(state="accepted", outcome=FAILS).count(),
+            _pull_filter(pulls, "fails", today).count(),
             "danger",
             f"{link}?status=fails",
         ),
@@ -180,15 +201,13 @@ def overview(request):
         ),
         (
             "Retention anchors not yet known",
-            RetentionObligation.objects.filter(anchor_date__isnull=True).count(),
+            _reserve_filter(ReserveSample.objects.all(), "anchor").count(),
             "warning",
-            reverse("stability:reserve_list"),
+            reverse("stability:reserve_list") + "?status=anchor",
         ),
         (
             "Reserves below minimum quantity",
-            ReserveSample.objects.filter(
-                quantity__lt=F("minimum_multiple") * F("test_quantity")
-            ).count(),
+            _reserve_filter(ReserveSample.objects.all(), "below").count(),
             "warning",
             reverse("stability:reserve_list") + "?status=below",
         ),
@@ -740,7 +759,11 @@ def _pull_row(pull, user, today):
     links = []
     if pull.state == "scheduled" and active and can(user, "analyst"):
         links.append(("Record pull", reverse("stability:pull_record", args=[pull.pk])))
-    if pull.state == "scheduled" and timing_closed(pull, today) and can(user, *services.AUTHORS):
+    if (
+        pull.state == "scheduled"
+        and can(user, *services.AUTHORS)
+        and services.missed_refusal(pull) is None  # what marking it missed checks
+    ):
         links.append(("Mark missed", reverse("stability:pull_missed", args=[pull.pk])))
     # Where nothing is open to this person now, the next step is named, muted, not offered.
     waiting = {"scheduled": "Record pull", "pulled": "Accept pull"}.get(pull.state, "")
@@ -802,10 +825,6 @@ def _next_pull(pulls, today):
     if tone in ("danger", "warning"):  # overdue or due now: the fact that must not hide
         return critical(label, tone, detail)
     return cell(detail, pill=(label, tone))
-
-
-def timing_closed(pull, today):
-    return today > pull.window[1]
 
 
 @login_required
@@ -1614,16 +1633,33 @@ def pull_accept(request, pk):
 # --- Reserves and retention ------------------------------------------------------------------
 
 
+RESERVE_STATUS = [
+    ("below", "Below minimum quantity"),
+    ("anchor", "Retention anchor not yet known"),
+]
+
+
+def _reserve_filter(queryset, key):
+    """The reserve list's status filters; the stability overview counts through here too."""
+    if key == "below":
+        return queryset.filter(quantity__lt=F("minimum_multiple") * F("test_quantity"))
+    if key == "anchor":  # an obligation whose anchor date is not known yet
+        return queryset.filter(
+            Exists(RetentionObligation.objects.filter(reserve=OuterRef("pk"), anchor_date=None))
+        )
+    return queryset
+
+
 @login_required
 def reserve_list(request):
     access(request.user)
-    form, data = make_filter(request, [("below", "Below minimum quantity")])
+    form, data = make_filter(request, RESERVE_STATUS)
     queryset = ReserveSample.objects.select_related("lot").prefetch_related("obligations")
     if data.get("q"):
         q = data["q"]
         queryset = queryset.filter(Q(identifier__icontains=q) | Q(lot__number__icontains=q))
-    if data.get("status") == "below":
-        queryset = queryset.filter(quantity__lt=F("minimum_multiple") * F("test_quantity"))
+    if data.get("status"):
+        queryset = _reserve_filter(queryset, data["status"])
     page, sort, descending = paginate(
         request,
         queryset,

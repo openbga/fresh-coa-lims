@@ -2,14 +2,16 @@
 Structured data in words, never a repr (Line emphasis kit 4): a mapping as dl.vr-kv rows with
 humanised keys (required_tests → "Required tests"); lists of codes as {% code %} chips; nested
 mappings as an indented dl; booleans Yes/No; ISO moments through |when; empty "—". Rendered by
-{% value_list %} ({% load ui %}). Values are shown exactly as recorded (escaped), only laid out.
+{% value_list %} ({% load ui %}). Values are shown as recorded (escaped), only laid out, except a
+stored choice code named in labels, which reads as its label.
 Parameters:
   data     a dict (or a list)
   compact  truthy for a table cell: chips and short "Key: value" lines, no grid
   exclude  comma-separated keys left out (shown elsewhere in words, e.g. "applies_to")
+  labels   {key: {code: label}} for stored choice codes, at any depth (core.audit.choice_labels)
   nested   set by the component itself for an inner mapping
 Usage: {% value_list data=record.policy exclude="applies_to" %}  {% value_list data=event.after %}
 {% endcomment %}{% if rows %}<dl class="vr-kv{% if nested %} is-nested{% endif %}{% if compact %} is-compact{% endif %}">
-  {% for label, kind, value in rows %}<div>{% if label %}<dt>{{ label }}</dt>{% endif %}<dd>{% if kind == "empty" %}—{% elif kind == "codes" %}{% for item in value %}{% code value=item %}{% if not forloop.last %} {% endif %}{% endfor %}{% elif kind == "dict" %}{% value_list data=value compact=compact nested=True %}{% elif kind == "moment" %}{{ value|when:"seconds" }}{% else %}{{ value }}{% endif %}</dd></div>
+  {% for label, kind, value in rows %}<div>{% if label %}<dt>{{ label }}</dt>{% endif %}<dd>{% if kind == "empty" %}—{% elif kind == "codes" %}{% for item in value %}{% code value=item %}{% if not forloop.last %} {% endif %}{% endfor %}{% elif kind == "dict" %}{% value_list data=value compact=compact nested=True labels=labels %}{% elif kind == "moment" %}{{ value|when:"seconds" }}{% else %}{{ value }}{% endif %}</dd></div>
   {% endfor %}
 </dl>{% else %}—{% endif %}

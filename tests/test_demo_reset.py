@@ -238,7 +238,7 @@ def test_published_accounts_cannot_change_their_password_or_pin(
                 "reason": "Synthetic visitor attempt",
             },
         ),
-        ("/signature-pin/", {"password": PASSWORD, "pin": "11223344"}),
+        ("/signature-pin/change/", {"password": PASSWORD, "pin": "11223344"}),
     ):
         shown = client.get(path)
         assert shown.status_code == 200

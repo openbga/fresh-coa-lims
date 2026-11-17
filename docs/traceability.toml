@@ -259,6 +259,7 @@
     "e2e/test_raw_values.py",
     "tests/test_controls.py",
     "tests/test_css_tokens.py",
+    "tests/test_date_controls.py",
     "tests/test_form_dialog.py",
     "tests/test_icons.py",
     "tests/test_include_isolation.py",

@@ -5,7 +5,7 @@ import re
 
 import pytest
 from django.urls import reverse
-from helpers import pick
+from helpers import expect_form, pick
 from playwright.sync_api import expect, sync_playwright
 
 from analytical.models import AnalyticalTest, Investigation
@@ -78,7 +78,7 @@ def test_quality_signs_that_a_test_cannot_be_completed_and_repeats_it(
         login("nc_approver")
         page.goto(test_url)
         page.get_by_role("link", name="Record not completed", exact=True).click()
-        expect(page).to_have_url(not_completed_url)
+        expect_form(page, not_completed_url)
         expect(page.get_by_text("What follows").first).to_be_visible()
         expect(page.get_by_text("99.90").first).to_be_visible()
         expect(page.get_by_role("dialog")).to_be_visible()

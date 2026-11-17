@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import messages
@@ -207,6 +208,10 @@ TEST_FILTERS = {
     "": ("All tests", Q()),
     "open": ("Open", Q(state="open")),
     "submitted": ("Awaiting review", Q(state="submitted")),
+    "repeats": (
+        "Retests and resamples not done",
+        Q(kind__in=("retest", "resample"), state__in=("open", "submitted")),
+    ),
     "oos": (
         "Out of specification",
         Q(conforms=False) & ~Q(state__in=["invalidated", "superseded"]),
@@ -642,6 +647,26 @@ def test_detail(request, pk):
     # Offered to quality while the test can take work; the page says why when the signer
     # recorded any of its data.
     can_not_complete = "quality" in user_roles and is_open
+    can_batch = (
+        "analyst" in user_roles
+        and is_open
+        and spec.method.requires_batch
+        and not test.batch_id
+        and not observations
+    )
+    # Offered only when the add would be accepted; otherwise the header says why instead.
+    batch_note, new_batch_url = "", ""
+    if can_batch:
+        refusal, batches = batch_offer(test)
+        if refusal:
+            batch_note, can_batch = refusal, False
+        elif not batches:
+            batch_note, can_batch = no_open_batch(spec.method), False
+            new_batch_url = (
+                reverse("analytical:batch_new")
+                + "?"
+                + urlencode({"method": spec.method.code, "revision": spec.method.revision})
+            )
     return render(
         request,
         "analytical/test_detail.html",
@@ -668,11 +693,9 @@ def test_detail(request, pk):
             "supplier_result": supplier_label,
             "can_contract": can_contract and not current,
             "can_contract_correct": can_contract and contract is not None,
-            "can_batch": "analyst" in user_roles
-            and is_open
-            and spec.method.requires_batch
-            and not test.batch_id
-            and not observations,
+            "can_batch": can_batch,
+            "batch_note": batch_note,
+            "new_batch_url": new_batch_url,
             "can_submit": "analyst" in user_roles
             and is_open
             and current_count == spec.replicates
@@ -1024,13 +1047,12 @@ def contract_result(request, pk):
     )
 
 
-@login_required
-@require_http_methods(["GET", "POST"])
-def test_batch(request, pk):
-    require_role(request.user, "analyst")
-    test = get_test(pk)
+def batch_offer(test):
+    """(refusal, batches): why the test cannot be added to a QC batch ("" when it can), and the
+    open batches the locked add would accept (same predicates; rechecked on submit). The test
+    record's header and test_batch both read it, so the header never offers an add the page then
+    refuses."""
     method = test.spec.method
-    back = reverse("analytical:test_detail", args=[test.pk])
     refusal = (
         services.subject_refusal(test)
         or services.batching_refusal(test)
@@ -1039,21 +1061,31 @@ def test_batch(request, pk):
     if not refusal and not method.requires_batch:
         refusal = "This test cannot be added to a QC batch."
     if refusal:
-        return unavailable(request, refusal, back)
+        return refusal, QCBatch.objects.none()
     batches = QCBatch.objects.filter(state="open", method_code=method.code).order_by("-pk")
-    # Offer only batches the locked add would accept (same predicate; rechecked on submit).
-    batches = batches.filter(
+    return "", batches.filter(
         pk__in=[
             b.pk for b in batches if b.method_spec == method and not services.batch_join_refusal(b)
         ]
     )
+
+
+def no_open_batch(method):
+    return f"No open QC batch accepting tests uses {method.code} revision {method.revision}."
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def test_batch(request, pk):
+    require_role(request.user, "analyst")
+    test = get_test(pk)
+    method = test.spec.method
+    back = reverse("analytical:test_detail", args=[test.pk])
+    refusal, batches = batch_offer(test)
+    if refusal:
+        return unavailable(request, refusal, back)
     if not batches:
-        return unavailable(
-            request,
-            f"No open QC batch accepting tests uses {method.code} revision {method.revision}. "
-            "Create one under QC batches first.",
-            back,
-        )
+        return unavailable(request, f"{no_open_batch(method)} Create one first.", back)
     form = BatchAssignForm(request.POST or None, batches=batches)
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -1197,6 +1229,17 @@ def batch_crumbs(batch, current=None):
     return [*crumbs, (batch.number, None)]
 
 
+def requested_method(request, methods, earlier):
+    """The method choice named by ?method=<code>&revision=<n> (a test record's "New QC batch"),
+    when it is one of the choices offered; else none."""
+    code, revision = request.GET.get("method", ""), request.GET.get("revision", "")
+    if code in methods and str(methods[code]["revision"]) == revision:
+        return code
+    if any(c == code and str(r) == revision for c, r in earlier):
+        return f"{code}@{revision}"
+    return None
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def batch_new(request):
@@ -1204,7 +1247,12 @@ def batch_new(request):
     methods = batch_methods()
     # Earlier revisions that tests in progress are frozen to: a lot keeps its frozen versions.
     earlier = sorted(services.earlier_batch_methods())
-    form = BatchForm(request.POST or None, methods=sorted(methods.items()), earlier=earlier)
+    form = BatchForm(
+        request.POST or None,
+        methods=sorted(methods.items()),
+        earlier=earlier,
+        initial={"method_code": requested_method(request, methods, earlier)},
+    )
     if request.method == "POST" and form.is_valid():
         batch = perform(
             form, lambda: services.create_batch(actor=request.user, **form.batch_data())

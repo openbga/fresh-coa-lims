@@ -83,7 +83,9 @@ SECTIONS = (
         "account",
         "Account",
         (
-            NavItem("Signature PIN", "core:pin", "key", views=("core:pin",)),
+            NavItem(
+                "Signature PIN", "core:pin_status", "key", views=("core:pin_status", "core:pin")
+            ),
             NavItem(
                 "Account access",
                 "accounts:access",

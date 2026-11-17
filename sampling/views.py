@@ -61,9 +61,24 @@ class LotFilterForm(forms.Form):
             ("ready", "Requirements assigned"),
             ("hold", "Applicability hold"),
             ("none", "Not assigned"),
+            ("deviation", "Awaiting quality assessment"),
         ],
         required=False,
     )
+
+
+def deviation_to_assess():
+    """Lots in Quarantine with a current sampling record (not corrected since) whose deviation
+    still awaits the independent quality assessment: the condition sampling.services.lot_blockers
+    reports. The list's "Awaiting quality assessment" filter and the dashboard queue are this
+    queryset."""
+    awaiting = (
+        SamplingRecord.objects.filter(lot=OuterRef("pk"))
+        .exclude(deviation="")
+        .exclude(Exists(SamplingRecord.objects.filter(corrects=OuterRef("pk"))))
+        .filter(Q(deviation_review__isnull=True) | Q(deviation_review__status="pending"))
+    )
+    return Lot.objects.filter(state="quarantine").filter(Exists(awaiting))
 
 
 def tabs(current):
@@ -153,6 +168,8 @@ def lot_list(request):
         lots = lots.filter(Q(number__icontains=query) | Q(material__icontains=query))
     if status == "none":
         lots = lots.filter(requirement_status__isnull=True)
+    elif status == "deviation":
+        lots = lots.filter(pk__in=deviation_to_assess().values("pk"))
     elif status:
         lots = lots.filter(requirement_status=status)
     lots, sort = sorted_by(

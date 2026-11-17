@@ -19,9 +19,9 @@ the header, layout, breadcrumbs and where the primary action goes:
 | Type | Build it with | Primary action |
 | --- | --- | --- |
 | List | One `{% panel table=True hidden_title=True %}` with `{% grid_toolbar %}`, `{% sort_header %}` columns and `{% list_results %}` (table, pagination, empty, no-results and filter-error states) | `New <thing>` in `page_actions` |
-| Record | `{% page_meta %}` (status first, at most four facts), `{% record_layout %}` (lead panel of `{% fact %}` rows in `dl.vr-facts`, optional aside), related panels, `{% signature_list %}`, `{% history_panel %}` last | The next step for the record's state |
-| Form / action | `{% form_page form=… cancel_url=… submit_label=… %}`; plain data-entry pages listed in `core/form_surfaces.py` open in the shared form dialog, the page is the no-JS fallback. Title = the words of the button that opened it | The submit, in the action row |
-| Sign | `{% signature_card %}` with the summary fill and the form or the refusal (`hook="signature-dialog"` when signing is allowed). Never in the form dialog | Sign (`submit_icon="vector-pen"`) |
+| Record | `{% page_meta %}` (status first, at most four facts), `{% record_layout %}` (lead panel of `{% fact %}` rows in `dl.vr-facts`, optional aside; the following panels stack in the left column beside the aside and go full width once it ends; genuinely wide tables in the `wide` part), related panels, `{% signature_list %}`, `{% history_panel %}` last | The next step for the record's state |
+| Form / action | `{% form_page form=… cancel_url=… submit_label=… %}`; every form page is listed in `core/form_surfaces.py` and opens in the shared form dialog; the page is the fallback by address or without JavaScript. A form inside a record or list page takes `dialog="<button words>"`. Title = the words of the button that opened it | The submit, in the action row |
+| Sign | `{% signature_card %}` with the summary fill and the form or the refusal (`hook="signature-dialog"` when signing is allowed). Listed in `core/form_surfaces.py`: opens in the form dialog over the record | Sign (`submit_icon="vector-pen"`) |
 | Entry grid | A plain table of form fields, units in the headers, `{% form_actions %}` | Save |
 | Overview | Panels of queue and count tables that link to filtered lists | None, or the one most frequent start |
 | Document | Breadcrumbs and version identity, a preview of the issued content (the certificate partial), download / version / amendment controls | The decision for the document |
@@ -93,9 +93,9 @@ Use only existing components. A new visual pattern is a design decision for the 
   Units go on the widget, `forms.TextInput(attrs={"unit": "mg/g"})` style, never in the label.
 - Validation is server-side in the form; errors render inline through `{% form_errors %}` and
   the field template, entered values are kept. A PIN field is never prefilled and never echoed.
-- A plain data-entry page that should open in the dialog is listed in `FORM_SURFACES`
-  (`core/form_surfaces.py`) with the same roles as its view (`tests/test_form_dialog.py`).
-  Signing pages are never listed.
+- Every form page, signing included, is listed in `FORM_SURFACES` (`core/form_surfaces.py`)
+  with its dialog size and the same roles as its view; a route that is not a form page goes in
+  `NOT_FORM_PAGES` with its reason (`tests/test_form_dialog.py`).
 
 ## 5. Style: tokens and icons only
 

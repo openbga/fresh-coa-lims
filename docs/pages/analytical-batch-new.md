@@ -46,7 +46,7 @@ Create a QC batch for one approved batch-method revision: the revision in force,
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Batch number | `QCBatch.number` | Text, max 80, unique | Yes | Your batch identifier, e.g. BATCH-TEST-001 |
-| Method revision | `QCBatch.method_code`, `method` | Choice "code revision N", or "code revision N · earlier version, for tests in progress" | Yes | The batch-method revisions in force from the configured provider, then each earlier revision that open tests not yet in a batch are frozen to; frozen into the batch with a hash |
+| Method revision | `QCBatch.method_code`, `method` | Choice "code revision N", or "code revision N · earlier version, for tests in progress" | Yes | The batch-method revisions in force from the configured provider, then each earlier revision that open tests not yet in a batch are frozen to; frozen into the batch with a hash. Opened from a test record's **New QC batch**, the test's method revision is already chosen |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with `batch.created` |
 
 ## Rules and hidden logic

@@ -8,6 +8,7 @@ import zipfile
 
 import pytest
 from django.urls import reverse
+from helpers import expect_form
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import AuditEvent
@@ -64,7 +65,7 @@ def test_auditor_exports_the_record_and_an_analyst_cannot(live_server, released,
         login("synthetic_auditor")
         page.goto(lot_url)
         page.get_by_role("link", name="Export record", exact=True).click()
-        expect(page).to_have_url(export_url)
+        expect_form(page, export_url)
         expect(
             page.get_by_role("heading", name=f"Export record · {lot.number}", level=1)
         ).to_be_visible()
@@ -97,7 +98,8 @@ def test_auditor_exports_the_record_and_an_analyst_cannot(live_server, released,
         target = artifacts / download.suggested_filename
         download.save_as(target)
         expect(button).to_be_enabled(timeout=10_000)
-        expect(page).to_have_url(export_url)
+        expect_form(page, export_url)
+        page.get_by_role("button", name="Close form", exact=True).click()
 
         # Analysts read the lot but do not see the export, and are refused if they open it.
         page.get_by_role("button", name="Sign out", exact=True).click()

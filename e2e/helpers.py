@@ -76,15 +76,46 @@ def fill_signature(scope, username: str, pin: str = PIN, reason: str | None = No
     scope.get_by_label(re.compile(r"^Signature PIN\b")).fill(pin)
 
 
+def dialog_form(page: Page):
+    """The form page open in the shared form dialog, or None."""
+    shown = page.locator("#vr-form-dialog.show [data-vr-form-page]")
+    return shown if shown.count() else None
+
+
 def submit_signed(page: Page, button: str, path: str | None = None) -> int:
-    """Click the signing button and return the HTTP status of the POST to ``path`` (default:
-    the current page's path)."""
-    path = path or urlsplit(page.url).path
+    """Click the signing button and return the HTTP status of the POST to ``path`` (default: the
+    form open in the form dialog, else the current page). A redirect is 302 either way: in the
+    form dialog it arrives as 204 with HX-Redirect or HX-Location (core/form_dialog.py)."""
+    shown = dialog_form(page)
+    if path is None:
+        path = urlsplit(shown.get_attribute("data-vr-form-url") if shown else page.url).path
+    scope = shown or page
     with page.expect_response(
         lambda response: urlsplit(response.url).path == path and response.request.method == "POST"
     ) as response:
-        page.get_by_role("button", name=button, exact=True).click()
+        scope.get_by_role("button", name=button, exact=True).click()
+    headers = response.value.headers
+    if response.value.status == 204 and ("hx-redirect" in headers or "hx-location" in headers):
+        return 302
     return response.value.status
+
+
+def expect_form(page: Page, url: str):
+    """The form at ``url`` is open: in the shared form dialog over the page it was opened from
+    (or, opened by its address, over its own page)."""
+    path = re.escape(urlsplit(url).path)
+    expect(page.locator("#vr-form-dialog.show [data-vr-form-page]")).to_have_attribute(
+        "data-vr-form-url", re.compile(rf"^{path}(\?|$)")
+    )
+
+
+def submit_for_review(page: Page, reason: str):
+    """Open a test's Submit for review form (in the form dialog) and submit it with ``reason``."""
+    page.get_by_role("button", name="Submit for review", exact=True).click()
+    shown = page.locator("#vr-form-dialog.show")
+    expect(shown.locator("[data-vr-form-page], form")).not_to_have_count(0)
+    shown.get_by_label(re.compile(r"^Reason\b")).fill(reason)
+    shown.get_by_role("button", name="Submit for review", exact=True).click()
 
 
 def sign(page: Page, username: str, button: str, reason: str, pin: str = PIN, path=None) -> int:

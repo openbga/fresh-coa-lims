@@ -10,6 +10,7 @@ from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import connections
 from django.urls import reverse
+from helpers import fill_signature, submit_signed
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import AuditEvent, ElectronicSignature, PINCredential
@@ -61,15 +62,9 @@ def login(page, server, username, password):
 
 
 def sign(page, admin, button, reason):
-    page.get_by_label(re.compile(r"^Reason\b")).fill(reason)
-    page.get_by_label(re.compile(r"^Signing username\b")).fill(admin.username)
-    page.get_by_label(re.compile(r"^Signature PIN\b")).fill(ADMIN_PIN)
-    path = urlsplit(page.url).path
-    with page.expect_response(
-        lambda r: urlsplit(r.url).path == path and r.request.method == "POST"
-    ) as response:
-        page.get_by_role("button", name=button, exact=True).click()
-    return response.value.status
+    """Sign on the signing page or in the form dialog; 302 when the server redirected."""
+    fill_signature(page, admin.username, ADMIN_PIN, reason)
+    return submit_signed(page, button)
 
 
 def change_password(page, server, current, new):
@@ -127,7 +122,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
             expect(page.get_by_text("Account created", exact=True)).to_be_visible()
             expect(
                 page.get_by_text(
-                    "Signed by Synthetic Account Administrator · account_authorized", exact=False
+                    "Signed by Synthetic Account Administrator · account authorized", exact=False
                 )
             ).to_be_visible()
             member_id = int(urlsplit(page.url).path.strip("/").split("/")[-1])

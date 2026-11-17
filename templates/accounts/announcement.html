@@ -15,14 +15,14 @@
   <p class="vr-announcement-preview mb-0">No announcement text has been saved.</p>
   {% endif %}
 {% endpanel %}
-{% panel title="Change announcement" heading_id="announcement-change" class="mb-3" %}
-  <p>Signer: <strong>{{ user|person }}</strong>. Your signature means <strong>{{ meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
+{% signature_card title="Change announcement" heading_id="announcement-change" class="mb-3" %}
+  {% fill summary %}<p>Your signature records <strong>{{ meaning|meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
   <p>The text is public and stays in the audit trail after it is changed. Do not enter personal data, or the password or PIN of any account that is not a synthetic demonstration account.</p>
-  <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+  <p>Signer: <strong>{{ user|person }}</strong>. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
   {% if unavailable %}{% notice tone="info" class="mb-0" %}{{ unavailable }}{% endnotice %}{% else %}
-  {% url 'accounts:announcement' as cancel_url %}{% form_page form=form cancel_url=cancel_url submit_label="Sign and save announcement" autocomplete_off=True %}{% endform_page %}
+  {% url 'accounts:announcement' as cancel_url %}{% form_page form=form cancel_url=cancel_url submit_label="Sign and save announcement" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
   {% endif %}
-{% endpanel %}
+{% endsignature_card %}
 {% history_panel events=history title="Announcement history" heading_id="announcement-history" empty_title="No announcement changes recorded." %}
   {% for event in history %}{% history_item title=event.summary at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/announcement_evidence.html" %}{% endfor %}
   {% fill footer %}{% if history %}{% pagination page_obj=history noun="announcement changes" %}{% endif %}{% endfill %}

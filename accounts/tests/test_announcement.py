@@ -156,7 +156,8 @@ def test_only_the_admin_role_can_open_or_change_the_page(client, users):
     assert link + b' aria-current="page"' in response.content
     assert b"No announcement text has been saved." in response.content
     assert b"No announcement changes recorded." in response.content
-    assert b'name="pin"' in response.content and b"announcement_authorized" in response.content
+    assert b'name="pin"' in response.content
+    assert b"Your signature records <strong>announcement authorized</strong>" in response.content
     assert client.put(URL).status_code == 405
 
 

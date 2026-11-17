@@ -20,7 +20,7 @@ summary: Stability work queues at a glance: overdue and due pulls, pulls awaitin
 - The pull queues count pulls of active studies only. The pulls list they open also shows pulls of closed studies, so its count can be higher.
 - Due now runs from the first to the last day of a pull's window, by today's local date. Overdue means the window has closed and the pull was not taken.
 - An accepted pull can still be outside its acceptance criteria. [[Pulls outside acceptance criteria]] counts those.
-- [[Retention anchors not yet known]] counts obligations, not reserves, and opens the whole reserve samples list rather than a filtered one.
+- Every count equals the rows of the list it opens. [[Retention anchors not yet known]] counts reserves with an obligation whose anchor date is not known yet.
 
 ## Purpose
 
@@ -42,7 +42,7 @@ Queue names wrap on narrow screens to keep counts and attention labels easier to
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| Queue name link | Always | Any reader | Opens the matching list. Pull queues (Pulls outside acceptance criteria opens the Pulls list filtered to "Accepted, acceptance criteria not met"), Active studies, Protocols awaiting approval, Active holds and Reserves below minimum quantity open with their status filter applied; Retention anchors not yet known opens the unfiltered [Reserve samples](/stability/reserves/) list |
+| Queue name link | Always | Any reader | Opens the matching list. Pull queues (Pulls outside acceptance criteria opens the Pulls list filtered to "Accepted, acceptance criteria not met"), Active studies, Protocols awaiting approval, Active holds, Reserves below minimum quantity and Retention anchors not yet known open with their status filter applied; each count equals the rows that list shows |
 
 ## Fields
 
@@ -53,12 +53,12 @@ Queue names wrap on narrow screens to keep counts and attention labels easier to
 | Active studies | `Study.state` | Count | — | State Active |
 | Protocols awaiting approval | `Protocol.state` | Count | — | State Draft |
 | Active holds | `Hold.state` | Count | — | State Active |
-| Retention anchors not yet known | `RetentionObligation.anchor_date` | Count | — | Obligations with no anchor date, all lots |
+| Retention anchors not yet known | `RetentionObligation.anchor_date` | Count of reserves | — | Reserve samples with a retention obligation whose anchor date is not known yet; opens Reserve samples filtered to "Retention anchor not yet known" |
 | Reserves below minimum quantity | `ReserveSample.quantity` | Count | — | Quantity below minimum multiple × test quantity |
 
 ## Rules and hidden logic
 
-- Only Scheduled pulls count as overdue or due. The window is the due date ± the timepoint's window days: **due** from the first to the last day of the window (inclusive), **overdue** after it closes, **upcoming** before it opens. Awaiting acceptance counts pulls in state Pulled. All three consider active studies only, as does Pulls outside acceptance criteria.
+- Only Scheduled pulls of active studies count as overdue or due; each count equals the rows of the pull list it opens. The window is the due date ± the timepoint's window days: **due** from the first to the last day of the window (inclusive), **overdue** after it closes, **upcoming** before it opens. Awaiting acceptance counts pulls in state Pulled. All three consider active studies only, as does Pulls outside acceptance criteria.
 - Pulls outside acceptance criteria counts accepted pulls tested in the system whose confirmed results fall outside the criteria, in active studies only (the list it opens also shows closed studies).
 - The other queues count every record, whatever its age.
 - Not enforced by this page: any reminder or notification; the page only counts.

@@ -11,4 +11,6 @@ def account_navigation(request):
         "can_view_workspace": bool(roles),
         "can_view_audit": bool(roles & AUDIT_READ_ROLES),
         "can_manage_accounts": "admin" in roles,
+        # The signed-in account's laboratory roles as the account pages name them (top bar).
+        "role_names": ", ".join(role.title() for role in sorted(roles)),
     }

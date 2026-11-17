@@ -20,7 +20,7 @@ block tag (directly inside it, not inside an `{% if %}`).
 | `history_panel` | Audit history, last on a record | `events` (AuditEvents) or a body of `history_item`s |
 | `page_meta` | Header facts | status first, at most four `<li>` |
 | `more_actions` | Header "More" menu | destructive item: `a.dropdown-item.vr-menu-danger` |
-| `record_layout` | Record lead panel and aside | fills lead, aside |
+| `record_layout` | Record lead panel and aside; the body's panels stack beside the aside, then full width | fills lead, aside, wide (full-width tables below the aside) |
 | `fact` | One `dt`/`dd` in `dl.vr-facts` | `label`, `value` or a block body, `empty`, `wide` |
 
 ## Single tags

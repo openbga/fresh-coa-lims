@@ -1,6 +1,6 @@
 {% load ui %}{% comment %}Raw-data files of a test. Include with test=... can_correct=... only (can_correct: analyst, open test, lot in quarantine or stability pull being tested).{% endcomment %}
 {% with files=test.raw_file_list %}
-{% panel title="Raw data files" heading_id="raw-heading" count=files|length table=True class="mb-3" %}
+{% panel title="Raw data files" heading_id="raw-heading" count=files|length table=True %}
   {% fill actions %}{% if can_correct %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'analytical:raw_file_new' test.pk %}">Attach raw data</a>{% endif %}{% endfill %}
   {% list_results items=files empty_title="No raw data attached" empty_body="Attach an instrument export, chromatogram or notebook page so a reviewer can check the original." %}
   <div class="vr-table-wrap">

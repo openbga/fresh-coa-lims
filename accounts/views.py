@@ -937,7 +937,7 @@ def user_detail(request, pk):
     )
 
 
-def _account_form(request, form, title, cancel, target=None, unavailable=""):
+def _account_form(request, form, title, cancel, target=None, unavailable="", submit=""):
     from core.models import PINCredential
 
     if not PINCredential.objects.filter(user=request.user).exists():
@@ -952,7 +952,7 @@ def _account_form(request, form, title, cancel, target=None, unavailable=""):
             "cancel_url": cancel,
             "signing": True,
             "unavailable": unavailable,
-            "submit_label": f"Sign and {title[:1].lower()}{title[1:]}",
+            "submit_label": submit or f"Sign and {title[:1].lower()}{title[1:]}",
         },
         status=422 if request.method == "POST" else 200,
     )
@@ -992,7 +992,13 @@ def user_create(request):
             return redirect("accounts:user_detail", pk=target.pk)
         except ValidationError as exc:
             form.add_error(None, exc)
-    return _account_form(request, form, "Create account", reverse("accounts:user_list"))
+    return _account_form(
+        request,
+        form,
+        "New account",
+        reverse("accounts:user_list"),
+        submit="Sign and create account",
+    )
 
 
 @login_required

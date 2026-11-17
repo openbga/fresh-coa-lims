@@ -1,5 +1,5 @@
 ---
-title: Create account
+title: New account
 urls: accounts:user_create
 views: accounts.views.user_create
 templates: accounts/form.html
@@ -35,7 +35,7 @@ Signed-in, active users with the explicit **admin** role and a current session c
 
 ## Layout
 
-A signing statement identifies you and the meaning **account_authorized**. It explains revision 1, mandatory first password change and the account safeguards. With an enrolled PIN, the form shows identity, roles, initial password, reason and signing credentials, followed by **Cancel** and **Sign and create account**. Without one, the form is hidden and the page says **Enroll your signature PIN before authorizing account changes.** The enrollment link remains available, alongside **Return without changes**.
+A signing card (the signature band with "New account") states the meaning **account authorized** and identifies you. It explains revision 1, mandatory first password change and the account safeguards. With an enrolled PIN, the form shows identity, roles, initial password, reason and signing credentials, followed by **Cancel** and **Sign and create account**. Without one, the form is hidden and the page says **Enroll your signature PIN before authorizing account changes.** The enrollment link remains available, alongside **Return without changes**.
 
 ## Actions
 
@@ -59,7 +59,7 @@ A signing statement identifies you and the meaning **account_authorized**. It ex
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Why this account/access is authorized |
 | Signing username | — | Text, max 150 | Yes | Your current username, not the new user's username |
 | Signature PIN | `PINCredential` (verified) | Masked text | Yes | Your current PIN, re-entered to authorize creation |
-| Signer / meaning | `ElectronicSignature.signer_name`, `meaning` | Display text | — | Your identity and account_authorized |
+| Signer / meaning | `ElectronicSignature.signer_name`, `meaning` | Display text | — | Your identity and the meaning shown as "account authorized" (stored as `account_authorized`) |
 | Starting revision | `User.management_revision` | Display integer | — | New account starts at revision 1 |
 
 ## Rules and hidden logic

@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.formats import date_format
 from django.views.decorators.http import require_http_methods
 
 from .forms import PINForm, RuleForm, SignForm
@@ -22,16 +24,47 @@ from .services import (
 )
 
 
+def own_credential(user):
+    """The signer's PIN state as the admin account page shows it; never the encoded PIN."""
+    from .models import PINCredential
+
+    return PINCredential.objects.filter(user=user).only("failures", "locked_until").first()
+
+
+@login_required
+@require_http_methods(["GET"])
+def pin_status(request):
+    from accounts.administration import CREDENTIALS_LOCKED
+
+    credential = own_credential(request.user)
+    locked = credential and credential.locked_until and credential.locked_until > timezone.now()
+    return render(
+        request,
+        "core/pin.html",
+        {
+            "page_title": "Signature PIN",
+            "credential": credential,
+            "locked": locked,
+            "locked_label": date_format(timezone.localtime(credential.locked_until), "Y-m-d H:i T")
+            if locked
+            else "",
+            "unavailable": CREDENTIALS_LOCKED if request.user.credentials_locked else "",
+        },
+    )
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def pin(request):
+    credential = own_credential(request.user)
+    title = "Change signature PIN" if credential else "Enroll signature PIN"
     if request.user.credentials_locked:
         from accounts.administration import CREDENTIALS_LOCKED
 
         return render(
             request,
             "core/form.html",
-            {"page_title": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
+            {"page_title": title, "unavailable": CREDENTIALS_LOCKED},
             status=403 if request.method == "POST" else 200,
         )
     form = PINForm(request.POST or None)
@@ -39,23 +72,10 @@ def pin(request):
         try:
             set_pin(actor=request.user, **form.cleaned_data)
             messages.success(request, "Signature PIN saved.")
-            return redirect("core:pin")
+            return redirect("core:pin_status")
         except ValidationError as exc:
             form.add_error(None, exc)
-    from .models import PINCredential
-
-    return render(
-        request,
-        "core/form.html",
-        {
-            "form": form,
-            "page_title": "Signature PIN",
-            # The state the admin user page shows; never the encoded PIN.
-            "credential": PINCredential.objects.filter(user=request.user)
-            .only("failures", "locked_until")
-            .first(),
-        },
-    )
+    return render(request, "core/form.html", {"form": form, "page_title": title})
 
 
 @login_required
@@ -309,6 +329,10 @@ def audit(request):
                 ]
             )
         return response
+    from .audit import choice_labels
+
+    for event in page:  # stored choice codes read as their labels; the export keeps the codes
+        event.labels = choice_labels(event.object_type)
     return render(
         request,
         "core/audit.html",

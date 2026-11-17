@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Locator, Page
+from playwright.sync_api import Error as PlaywrightError
 
 from scripts import validation_pack
 
@@ -67,9 +68,27 @@ def after_page_scripts(action):
         if not ACTING_EARLY:
             page.wait_for_load_state("domcontentloaded")
         settle(page)
-        return action(self, *args, **kwargs)
+        result = action(self, *args, **kwargs)
+        if action.__name__ == "click" and not ACTING_EARLY:
+            settle_dialog(page)
+        return result
 
     return act
+
+
+# The form dialog is loading or saving, or its answer is taking the page elsewhere
+# (static/js/form-dialog.js: aria-busy on #vr-form-content, data-vr-leaving on <html>).
+DIALOG_IDLE = """() => !document.querySelector('#vr-form-content[aria-busy="true"]')
+  && !document.documentElement.hasAttribute('data-vr-leaving')"""
+
+
+def settle_dialog(page):
+    """After a click, wait as a page's own navigation would be waited for: until the form dialog
+    has loaded or answered, and until the page it sends the browser to has loaded."""
+    try:
+        page.wait_for_function(DIALOG_IDLE, timeout=15_000)
+    except PlaywrightError:  # the page navigated away while waiting
+        page.wait_for_load_state("domcontentloaded")
 
 
 def after_saves(navigate):

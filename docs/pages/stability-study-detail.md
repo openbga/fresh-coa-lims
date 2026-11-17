@@ -73,6 +73,7 @@ Only one link shows in a pull row: Record pull takes precedence for Analysts. Th
 ## Rules and hidden logic
 
 - Windows are the due date plus or minus the timepoint's window days. Status is Upcoming, Due now or Overdue while Scheduled (by today's local date), then Awaiting acceptance (pulled), Accepted or Missed; the labels match the pull list's Status filter.
+- A terminated study's pulls that were not taken or not accepted take no more work: they read "Terminated" and never count as Overdue, Due now, Upcoming or Awaiting acceptance. **Mark missed** is offered only when marking it missed would be accepted (an active study, the window closed).
 - Pulls are listed by due date, then identifier.
 - The Results sections read only pulls with tests of their own; they judge each result against the criterion frozen on its test, not the protocol's current one.
 - **Close study** is refused while testing of the study's pulls is in progress (see Close study). Once a study is closed its pulls take no more testing.

@@ -5,7 +5,7 @@ import re
 
 import pytest
 from django.urls import reverse
-from helpers import pick
+from helpers import expect_form, pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import ElectronicSignature
@@ -75,7 +75,7 @@ def test_quality_rejects_a_lot_and_cancels_one_received_in_error(
         login("rt_approver")
         page.goto(lot_url)
         page.get_by_role("link", name="Reject lot", exact=True).click()
-        expect(page).to_have_url(reject_url)
+        expect_form(page, reject_url)
         expect(page.get_by_role("heading", name=re.compile("^Reject lot"), level=1)).to_be_visible()
         expect(
             page.get_by_role("heading", name="What stands in the way of release")
@@ -149,7 +149,7 @@ def test_quality_cancels_a_lot_received_in_error(live_server, django_user_model,
         page.goto(lot_url)
         page.get_by_role("button", name="More", exact=True).click()  # a corrective action
         page.get_by_role("link", name="Cancel lot received in error").click()
-        expect(page).to_have_url(cancel_url)
+        expect_form(page, cancel_url)
         field("What was recorded in error").fill("Synthetic: delivery recorded twice")
         field("Signing username").fill("rt_approver")
         field("Signature PIN").fill(PIN)

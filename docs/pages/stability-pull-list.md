@@ -21,7 +21,7 @@ summary: Every stability pull across active and closed studies, oldest due first
 ## Good to know
 - Pulls of closed studies stay listed. The overview's pull counts include active studies only.
 - [[Accepted]] also lists pulls whose results did not meet the criteria. Accepted means reviewed, not conforming.
-- Due now and Overdue apply only to pulls not yet taken, by today's date and the pull's window.
+- Due now and Overdue apply only to pulls not yet taken, by today's date and the pull's window, of active studies. A terminated study's untaken pulls read "Terminated".
 - Pulls are created when a study starts. There is no way to add one here.
 
 ## Purpose
@@ -64,7 +64,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 
 ## Rules and hidden logic
 
-- Overdue, Due now and Upcoming apply to scheduled pulls only, using the local date: Overdue is after the window closes, Due now is inside the window, Upcoming is before it opens. Awaiting acceptance is state Pulled. Accepted, acceptance criteria not met is state Accepted with the outcome "Does not meet the acceptance criteria"; the filter Accepted also lists those pulls.
+- Overdue, Due now, Upcoming and Awaiting acceptance apply to pulls of active studies only (a closed study's pulls take no more work; a terminated study's untaken or unaccepted pulls read "Terminated"). Overdue, Due now and Upcoming apply to scheduled pulls, using the local date: Overdue is after the window closes, Due now is inside the window, Upcoming is before it opens. Awaiting acceptance is state Pulled. Accepted, acceptance criteria not met is state Accepted with the outcome "Does not meet the acceptance criteria"; the filter Accepted also lists those pulls.
 - Status is computed live over all pulls; sorting and paging run over the whole list. Page sizes 25, 50, 100.
 - Study state is not filtered: pulls of closed studies stay listed.
 

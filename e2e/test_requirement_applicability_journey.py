@@ -8,7 +8,7 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
-from helpers import pick, wait_for_enhanced
+from helpers import expect_form, pick, wait_for_enhanced
 from playwright.sync_api import expect, sync_playwright
 from test_requirement_replacement_journey import WIDER_THAN_THE_PAGE
 
@@ -169,7 +169,7 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         page.goto(lot_url)
         expect(decide_links.first).to_be_visible()
         page.locator("a.btn", has_text="Decide conflicting requirements").click()
-        expect(page).to_have_url(decide_url)
+        expect_form(page, decide_url)
         expect(
             page.get_by_role(
                 "heading", name=f"Decide conflicting requirements · {lot.number}", level=1
@@ -232,7 +232,7 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         field("Signing username").fill("rt_approver")
         field("Signature PIN").fill(PIN)
         sign.click()
-        expect(page).to_have_url(decide_url)
+        expect_form(page, decide_url)
         expect(
             page.get_by_role("alert").filter(has_text="Choose which requirement applies")
         ).to_contain_text(
@@ -240,7 +240,7 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         )
         expect(field("Signature PIN")).to_have_value("")
         expect(page.get_by_role("radio", checked=True)).to_have_count(0)
-        expect(page.locator(".vr-page-meta")).to_contain_text("Applicability hold")
+        expect(page.locator("#vr-form-content .vr-page-meta")).to_contain_text("Applicability hold")
         shots("requirement-decision-refused")
 
         # The market statement applies: a result within it also meets the general limits.

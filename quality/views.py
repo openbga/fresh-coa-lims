@@ -13,7 +13,7 @@ from core.grids import Column, paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, require_role
 
-from . import certificates, reliance, route, services
+from . import certificates, dashboard, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
 from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
@@ -59,6 +59,11 @@ class LotFilterForm(forms.Form):
     state = forms.ChoiceField(
         label="Status", choices=[("", "All lots"), *LotState.choices], required=False
     )
+    queue = forms.ChoiceField(
+        label="Queue",
+        choices=[("", "Any queue"), *dashboard.LOT_QUEUES.items()],
+        required=False,
+    )
 
 
 @login_required
@@ -79,6 +84,10 @@ def lot_list(request):
     state = filters.cleaned_data["state"] if filters.is_bound else ""
     if state:
         lots = lots.filter(state=state)
+    # The dashboard counts the same queryset, so its count equals the rows listed here.
+    queue = filters.cleaned_data["queue"] if filters.is_bound else ""
+    if queue:
+        lots = lots.filter(pk__in=dashboard.lot_queues()[queue].values("pk"))
     query = request.GET.get("q", "").strip()
     if query:
         lots = lots.filter(
@@ -103,7 +112,7 @@ def lot_list(request):
             "columns": LOT_COLUMNS,
             "query": query,
             "filters": filters,
-            "filtered": bool(query or state),
+            "filtered": bool(query or state or queue),
             "can_receive": request.user.groups.filter(name="analyst").exists(),
         },
     )
@@ -149,6 +158,15 @@ def lot_detail(request, pk):
     for sample in samples:
         sample.native_tests = native_by_sample.get(sample.pk, [])
     acceptances = reliance.lot_acceptances(lot)
+    from stability.models import RetentionObligation
+
+    # The lot's retention obligations, with or without a reserve sample: a lot-level obligation
+    # has no other page. Set anchor is offered as stability.services.set_anchor allows it.
+    retention = list(
+        RetentionObligation.objects.filter(lot=lot)
+        .select_related("reserve")
+        .order_by("anchor_date", "pk")
+    )
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -166,6 +184,8 @@ def lot_detail(request, pk):
             "supplied": receipt is not None and receipt.source == ReceiptSource.SUPPLIER,
             "certificate_blocker": certificates.recording_requirements(lot)[1],
             "acceptances": acceptances,
+            "retention": retention,
+            "can_set_anchor": request.user.groups.filter(name__in=("analyst", "quality")).exists(),
             "supplier_accepted": any(item.state == "accepted" for item in acceptances),
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
