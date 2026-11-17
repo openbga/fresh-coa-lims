@@ -5,21 +5,41 @@ from django.db.models import Q
 from catalog.units import QUANTITY_UNITS, plain
 
 
+class LotState(models.TextChoices):
+    QUARANTINE = "quarantine", "Quarantine"
+    RELEASED = "released", "Released"
+    # Signed decisions that end a lot's quarantine without releasing it. A rejected lot failed
+    # its requirements or cannot be used; a cancelled lot was received in error. Neither
+    # changes again, and the evidence frozen with the signature names the decision.
+    REJECTED = "rejected", "Rejected"
+    CANCELLED = "cancelled", "Cancelled"
+
+
 class Lot(models.Model):
     number = models.CharField(max_length=80, unique=True)
     material = models.CharField(max_length=160)
     rules = models.ForeignKey("core.RuleSet", on_delete=models.PROTECT)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
-    state = models.CharField(max_length=24, default="quarantine")
+    state = models.CharField(max_length=24, choices=LotState, default=LotState.QUARANTINE)
     disposition_evidence = models.JSONField(default=dict, blank=True)
     revision = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(condition=Q(state__in=LotState.values), name="lot_state_known"),
+        ]
 
     def __str__(self):
         return self.number
+
+    @property
+    def decision(self):
+        """The signed rejection or cancellation frozen on the lot, or None."""
+        if self.state in (LotState.REJECTED, LotState.CANCELLED):
+            return self.disposition_evidence
+        return None
 
 
 class ReceiptSource(models.TextChoices):

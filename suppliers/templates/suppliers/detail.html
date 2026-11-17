@@ -52,7 +52,7 @@
         {% for receipt in page_obj %}
         <tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' receipt.lot_id %}">{{ receipt.lot.number }}</a></th>
-          <td>{% if receipt.lot.state == 'released' %}{% include "includes/status.html" with label="Released" tone="success" plain=True %}{% elif receipt.lot.state == 'quarantine' %}{% include "includes/status.html" with label="Quarantine" tone="hold" plain=True %}{% else %}{% include "includes/status.html" with label=receipt.lot.state|capfirst tone="neutral" plain=True %}{% endif %}</td>
+          <td>{% include "quality/includes/lot_status.html" with lot=receipt.lot plain=True %}</td>
           <td class="vr-wrap">{{ receipt.lot.material }}</td>
           <td>{{ receipt.supplier_lot|default:"Not known" }}</td>
           <td>{{ receipt.manufacturer_lot|default:"—" }}</td>

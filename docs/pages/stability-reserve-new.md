@@ -4,7 +4,7 @@ urls: stability:reserve_new
 views: stability.views.reserve_new
 templates: ops/form.html
 models: stability.ReserveSample, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -32,7 +32,7 @@ Record an identified reserve sample. Reserve records are immutable.
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Identifier | `ReserveSample.identifier` | Text, max 60, unique | Yes | Reserve ID; a duplicate is refused |
-| Lot | `ReserveSample.lot` | Any lot, listed by lot number | Yes | Lot retained |
+| Lot | `ReserveSample.lot` | Any lot except a cancelled one, listed by lot number | Yes | Lot retained. Rejected lots are offered |
 | Container description / Storage location | `ReserveSample.container_description`, `.storage_location` | Text, max 200 / max 120 | Yes | Packaging as retained (for example full marketed package); where it is kept |
 | Quantity / Test quantity / Quantity unit | `ReserveSample.quantity`, `.test_quantity`, `.quantity_unit` | Decimal ≥ 0 (14 digits, 4 places); test quantity > 0; unit text max 20 | Yes | Retained amount; amount needed for one complete set of required tests; shared unit |
 | Minimum multiple | `ReserveSample.minimum_multiple` | Decimal ≥ 0 (5 digits, 2 places), default 2 | Yes | Prefilled from the researched drug and supplement rules; the quality owner confirms what applies |
@@ -42,6 +42,7 @@ Record an identified reserve sample. Reserve records are immutable.
 ## Rules and hidden logic
 
 - Quantity below the minimum multiple of the test quantity is not blocked; the reserve is then labelled "Below minimum" on the list and record. Event `reserve.recorded` stores whether it meets the minimum.
+- A lot cancelled as received in error is not offered and is refused: "Lot <number> was cancelled as received in error; it has no material."
 - The record cannot be edited afterwards. Retention obligations and holds are recorded separately and do not change the lot's revision from here.
 - Not enforced by this page: whether 2 is the right multiple for a given product; Quality confirms.
 

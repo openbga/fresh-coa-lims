@@ -75,7 +75,11 @@ def test_closed_test_and_released_lot_refuse(people, assigned):
     with pytest.raises(ValidationError, match="not accepting raw data"):
         attach(people, tests["identity"])
     assert fresh(tests["identity"]).revision == before
-    Lot.objects.filter(pk=lot.pk).update(state="rejected")
+    Lot.objects.filter(pk=lot.pk).update(
+        state="rejected",
+        # The lot guard requires a rejected lot to carry the evidence of its decision.
+        disposition_evidence={"schema": "oq.lot-rejection/1", "decision": "rejected"},
+    )
     with pytest.raises(ValidationError, match="no longer in quarantine"):
         attach(people, tests["assay"])
     assert stored_count() == 0
@@ -325,7 +329,11 @@ def test_upload_page_refuses_closed_test_and_shows_errors(
     )
     assert response.status_code == 422
     assert stored_count() == 0
-    Lot.objects.filter(pk=lot.pk).update(state="rejected")
+    Lot.objects.filter(pk=lot.pk).update(
+        state="rejected",
+        # The lot guard requires a rejected lot to carry the evidence of its decision.
+        disposition_evidence={"schema": "oq.lot-rejection/1", "decision": "rejected"},
+    )
     response = post(client, tests["assay"])
     assert response.status_code == 302 and stored_count() == 0
     assert (

@@ -2,7 +2,7 @@ from django.urls import path
 
 from reporting import views as reporting_views
 
-from . import acceptance_views, certificate_views, views
+from . import acceptance_views, certificate_views, rejection_views, views
 
 app_name = "quality"
 urlpatterns = [
@@ -57,4 +57,6 @@ urlpatterns = [
     path("samples/<int:pk>/results/new/", views.result_new, name="result_new"),
     path("results/<int:pk>/review/", views.sign, {"action": "review"}, name="review"),
     path("lots/<int:pk>/disposition/", views.sign, {"action": "disposition"}, name="disposition"),
+    path("lots/<int:pk>/reject/", rejection_views.lot_reject, name="lot_reject"),
+    path("lots/<int:pk>/cancel/", rejection_views.lot_cancel, name="lot_cancel"),
 ]

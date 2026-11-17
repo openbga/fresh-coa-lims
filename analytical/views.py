@@ -1107,7 +1107,13 @@ def batch_reject(request, pk):
     if request.method == "POST" and form.is_valid():
         data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
         if perform(form, lambda: services.reject_batch(actor=request.user, batch=batch, **data)):
-            messages.success(request, f"{batch.number} rejected; linked reruns were created.")
+            reruns = batch.tests.filter(state=AnalyticalTest.State.INVALIDATED).exists()
+            messages.success(
+                request,
+                f"{batch.number} rejected; linked reruns were created."
+                if reruns
+                else f"{batch.number} rejected; no test was invalidated, so no rerun was created.",
+            )
             return redirect("analytical:batch_detail", pk=batch.pk)
     status, _ = batch.qc_status()
     return sign_page(
@@ -1128,6 +1134,8 @@ def batch_reject(request, pk):
                 batch.tests.exclude(state="superseded")
                 .exclude(pull__state="missed")
                 .exclude(pull__study__state__in=["completed", "terminated"])
+                # A rejected lot keeps its tests as the rejection froze them.
+                .exclude(lot__state__in=sorted(services.DECIDED_WITHOUT_RELEASE))
                 .count(),
             ),
             (

@@ -4,7 +4,7 @@ urls: stability:study_new
 views: stability.views.study_new
 templates: ops/form.html
 models: stability.Study, stability.Pull, quality.Lot, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -33,7 +33,7 @@ Start a stability study on an approved protocol and schedule its pulls from time
 |---|---|---|---|---|
 | Identifier | `Study.identifier` | Text, max 60, unique | Yes | "This study identifier already exists." if taken |
 | Approved protocol | `Study.protocol` | Approved protocol versions only | Yes | Preselected when opened with a protocol in the link (as from a protocol record) |
-| Lot | `Study.lot` | Any lot, listed by lot number | Yes | The lot under study; any lot state is allowed, including released lots. When the protocol names a specification, the lot must be of that specification's material |
+| Lot | `Study.lot` | Lots in quarantine or released, listed by lot number | Yes | The lot under study; released lots are allowed. Rejected and cancelled lots are not offered. When the protocol names a specification, the lot must be of that specification's material |
 | Container and closure | `Study.container_closure` | Text, max 200 | Yes | Marketed or proposed system |
 | Time zero | `Study.start_date` | Date, today or earlier | Yes | Date the study actually started; due dates are Time zero plus each timepoint's days |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the event |
@@ -47,7 +47,8 @@ Start a stability study on an approved protocol and schedule its pulls from time
 - Event `study.started` records how many pulls were scheduled and the protocol.
 - Every due date and its window must be a representable calendar date; otherwise the start is refused with "<condition> <timepoint>: the pull date or its window falls outside the supported calendar range from this time zero." and no study or pull is saved.
 - Time zero cannot be in the future: "Time zero cannot be in the future: this workflow records studies that have actually started." (also shown beside the field). Today and historical dates are accepted. This is an application rule for recording an actual start, not a regulatory requirement.
-- Not compared with the lot: Time zero may predate the lot's receipt (historical starts are legitimate) and any lot state, including released lots, is allowed. A planned-study workflow (scheduling a study before it starts) is not supported.
+- Not compared with the lot: Time zero may predate the lot's receipt (historical starts are legitimate) and a lot in quarantine or released is allowed. A planned-study workflow (scheduling a study before it starts) is not supported.
+- A lot that was rejected or cancelled is refused if submitted anyway: "Lot <number> was rejected. A study starts on a lot in quarantine or released." or "Lot <number> was cancelled as received in error; it has no material."
 - Once saved, Time zero and every pull's due date are immutable (the database refuses changes).
 - Not enforced by this page: that Time zero is plausible for the lot, or the lot's relation to the protocol product (apart from the material check above).
 

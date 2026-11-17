@@ -4,7 +4,7 @@ urls: quality:lot_list
 views: quality.views.lot_list
 templates: quality/lot_list.html
 models: quality.Lot, quality.LotReceipt, suppliers.Supplier, core.RuleSet
-reviewed: 2026-11-16
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -21,9 +21,9 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 
 - **Shared top bar**: the certificate-and-leaf mark and **OpenBGA QM LIMS** name link to Material lots. Menu opens navigation; on phones it is an icon named "Menu". Theme, Sign out and Page documentation remain available at the right. On a phone the brand text shortens visually to **QM LIMS**.
 - **Header**: title "Material lots" and the **New material lot** button for analysts, with a short description below.
-- **Search**: the labelled **Find lot** box (placeholder "Lot, supplier lot or manufacturer lot"), **Search**, and **Clear filters** when a search is set.
+- **Search**: the labelled **Find lot** box (placeholder "Lot, supplier lot or manufacturer lot"), the **Status** selector (All lots, Quarantine, Released, Rejected, Cancelled), **Search**, and **Clear filters** when a search or status is set.
 - **Lots table**: columns Lot, Status, Material, Supplier, Supplier lot, Received, Rule set. Lot numbers link to the lot record; status has a text label and indicator. A lot without receipt details shows "Receipt not recorded" across the Supplier, Supplier lot and Received columns.
-- **Empty states**: "No material lots yet" with "Receive a lot to start the quality journey." Analysts also see **New material lot**. A search with no matches shows "No material lots match these filters", "Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or clear the filters." and **Clear filters**.
+- **Empty states**: "No material lots yet" with "Receive a lot to start the quality journey." Analysts also see **New material lot**. A search with no matches shows "No material lots match these filters", "Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." and **Clear filters**.
 - **Source code**: the shared application footer links to the source repository configured for this deployment, [openbga/qm-lims](https://github.com/openbga/qm-lims) by default.
 - **Footer**: "Showing X–Y of N material lots", with "matching filters" when searched. When there is more than one page, **Previous**, "Page N of M" and **Next** appear; unavailable directions are disabled.
 
@@ -33,15 +33,16 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 |---|---|---|---|
 | **New material lot** | Analyst role | Analyst | Opens the New material lot form |
 | **Source code** | Always | Any viewer | Opens the configured source repository |
-| **Search** | Always | Any viewer | Reloads the list filtered by the search text, from page 1 |
-| **Clear filters** | A search is set | Any viewer | Removes the search and returns to the first page |
+| **Search** | Always | Any viewer | Reloads the list filtered by the search text and status, from page 1 |
+| **Clear filters** | A search or status is set | Any viewer | Removes the search and returns to the first page |
 | Lot number link | One per row | Any viewer | Opens the lot record |
-| **Previous** / **Next** | More than one page; enabled when that direction exists | Any viewer | Moves one page; keeps the search text |
+| **Previous** / **Next** | More than one page; enabled when that direction exists | Any viewer | Moves one page; keeps the search text and status |
 
 ## Fields
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
+| Status (`state`) | `Lot.state` | Choice | No | Shows only lots in that state; an unknown value is ignored and shows all lots |
 | Find lot (`q`) | — | Text | No | Case-insensitive partial match on the lot number, or on the supplier lot number or manufacturer lot number of the lot's current receipt details |
 | Lot | `Lot.number` | Text, max 80, unique | — | Lot identifier; link to the lot record |
 | Material | `Lot.material` | Text, max 160 | — | Material name as received |
@@ -49,17 +50,17 @@ The home page. Lists every manufacturing material lot so you can find a lot, ope
 | Supplier lot | `LotReceipt.supplier_lot` | Text, max 80 | — | Supplier lot number on the current receipt details; "Not known" when the supplier's lot number is blank, "—" for a lot made on site |
 | Received | `LotReceipt.received_on` | Date | — | Date received on the current receipt details |
 | Rule set | `Lot.rules` → `RuleSet.code`, `RuleSet.version` | Shown as "code vN" | — | The approved rule revision chosen at receipt. It is not the lot's specification or sampling requirements, which are assigned afterwards |
-| Status | `Lot.state` | Text: Quarantine, Released | — | Quarantine until a signed QC disposition releases the lot |
+| Status | `Lot.state` | Text: Quarantine, Released, Rejected, Cancelled | — | Quarantine until a signed decision ends it: release (disposition), rejection, or cancellation as received in error. Cancelled shows the tooltip "Received in error" |
 
 ## Rules and hidden logic
 
-- **Scope**: all lots in every state are listed; there is no status filter and no per-user restriction.
+- **Scope**: all lots in every state are listed unless the Status selector narrows them; there is no per-user restriction.
 - **Search**: matches anywhere in the lot number (`LOT-TEST` finds `LOT-TEST-001`), or anywhere in the supplier lot number or manufacturer lot number of the lot's current receipt details. Receipt records replaced by a correction are not searched. Supplier name, material and rule set are not searched. Leading and trailing spaces are ignored.
 - **Receipt columns**: Supplier, Supplier lot and Received come from the lot's current receipt details, the record that no correction has replaced. The manufacturer lot number is searched but not shown; open the lot record to see it.
 - **Receipt not recorded**: shown for a lot received before receipt details were kept. An analyst can record them from the lot record while the lot is in Quarantine.
 - **Order**: newest lot record first (`Lot.created_at` descending), not by the Received date.
 - **Paging**: 30 lots per page. An out-of-range page number shows the last page; a non-numeric one shows page 1.
-- **Status**: a new lot always starts in **Quarantine**. **Released** is set only by a signed lot disposition. No other states exist in this version.
+- **Status**: a new lot always starts in **Quarantine**. **Released**, **Rejected** and **Cancelled** are set only by signed decisions on the lot record.
 - **Requirements**: the list does not show whether approved specification and sampling requirements are assigned; open the lot record to see its assignment status.
 - **Role rule**: the creation button is hidden without the analyst role, and the server independently checks that role.
 
