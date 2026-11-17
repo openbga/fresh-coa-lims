@@ -40,6 +40,10 @@ SECTION_TABS = {
         ("Reserves", "reserve_list"),
         ("Holds", "hold_list"),
     ],
+    "validation": [
+        ("Intended use", "use_list"),
+        ("Rehearsals", "rehearsal_list"),
+    ],
 }
 
 

@@ -207,12 +207,14 @@
     "e2e/test_security_key_journey.py",
     "e2e/test_single_sign_on_journey.py",
     "e2e/test_two_factor_journey.py",
+    "e2e/test_validation_records_journey.py",
     "e2e/test_workflow_guards.py",
     "tests/test_backup_restore_checks.py",
     "tests/test_lot_record_export.py",
     "tests/test_security_hardening.py",
     "tests/test_session_controls.py",
     "tests/test_validation_pack.py",
+    "validation/tests/",
 ]
 "OQ-017" = [
     "e2e/test_pagedocs.py",

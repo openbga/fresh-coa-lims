@@ -17,6 +17,42 @@ def size_text(size):
     return f"{size / (1024 * 1024):.1f} MiB"
 
 
+def stored_bytes():
+    """Bytes of every file the deployment stores: raw data of tests and evidence of rehearsals.
+    ``RAW_DATA_TOTAL_MAX_BYTES`` is one ceiling for all of them."""
+    from django.apps import apps
+    from django.db.models import Sum
+
+    return sum(
+        apps.get_model(label).objects.aggregate(total=Sum("size"))["total"] or 0
+        for label in ("analytical.RawDataFile", "validation.RehearsalFile")
+    )
+
+
+# Advisory lock that serializes the ceiling check of every upload (any constant unique to it).
+CEILING_LOCK = 681_241
+
+
+def refuse_over_ceiling(size):
+    """Refuse a file that would take the stored files past ``RAW_DATA_TOTAL_MAX_BYTES``.
+
+    Called inside the upload's transaction after its own row locks; the advisory lock makes
+    two uploads check and insert one after the other, whichever table they write to."""
+    from django.conf import settings
+    from django.core.exceptions import ValidationError
+    from django.db import connection
+
+    ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
+    if not ceiling:
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [CEILING_LOCK])
+    if stored_bytes() + size > ceiling:
+        raise ValidationError(
+            "This deployment has reached its storage limit for files. The file was not stored."
+        )
+
+
 def request_limit():
     """Largest body, in bytes, of a request that carries files."""
     return settings.RAW_DATA_MAX_BYTES + FORM_ALLOWANCE

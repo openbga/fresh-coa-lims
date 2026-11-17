@@ -346,10 +346,12 @@ def check_certificates():
 
 
 def check_raw_files():
+    """Raw-data files of tests and evidence files of rehearsals: bytes against checksum."""
     from analytical.models import RawDataFile
+    from validation.models import RehearsalFile
 
     problems = []
-    count = 0
+    count = evidence = 0
     for stored in RawDataFile.objects.order_by("pk").iterator(chunk_size=20):
         count += 1
         content = bytes(stored.content)
@@ -358,7 +360,19 @@ def check_raw_files():
                 f"Raw-data file {stored.pk} of test {stored.test_id}: the stored bytes do not "
                 "match their checksum and size"
             )
-    return result("raw data files", problems, f"{count} raw-data files checksummed")
+    for stored in RehearsalFile.objects.order_by("pk").iterator(chunk_size=20):
+        evidence += 1
+        content = bytes(stored.content)
+        if hashlib.sha256(content).hexdigest() != stored.sha256 or len(content) != stored.size:
+            problems.append(
+                f"Evidence file {stored.pk} of rehearsal {stored.rehearsal_id}: the stored "
+                "bytes do not match their checksum and size"
+            )
+    return result(
+        "raw data files",
+        problems,
+        f"{count} raw-data files and {evidence} rehearsal evidence files checksummed",
+    )
 
 
 def check_triggers(state):
