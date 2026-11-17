@@ -47,8 +47,9 @@ from .forms import (
 from .models import AnalyticalTest, Investigation, Observation, QCBatch, QCResult
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
-# What a page shows of the stability pull a test belongs to: its study, lot and time point.
-PULL = ("pull__study__lot", "pull__timepoint__condition")
+# What a page shows of the stability pull or the reassessment a test belongs to: the pull's
+# study, lot and time point, or the lot reassessed.
+PULL = ("pull__study__lot", "pull__timepoint__condition", "reassessment__lot")
 
 
 def access(user):
@@ -309,6 +310,8 @@ def test_list(request):
             | Q(sample__reference__icontains=query)
             | Q(pull__study__identifier__icontains=query)
             | Q(pull__study__lot__number__icontains=query)
+            | Q(reassessment__lot__number__icontains=query)
+            | Q(reassessment__sample_reference__icontains=query)
             | Q(test_code__icontains=query)
         )
     tests = tests.order_by("-created_at", "-pk")
@@ -403,6 +406,7 @@ def investigation_list(request):
             Q(lot__number__icontains=query)
             | Q(test__pull__study__identifier__icontains=query)
             | Q(test__pull__study__lot__number__icontains=query)
+            | Q(test__reassessment__lot__number__icontains=query)
             | Q(test__test_code__icontains=query)
         )
     return render(
@@ -508,10 +512,9 @@ def assign_tests(request, lot):
 
 
 def subject_crumb(test):
-    """The page a test is reached from: its lot's testing page, or its stability pull."""
-    if test.pull_id is not None:
-        return (test.pull.label, reverse("stability:pull_detail", args=[test.pull_id]))
-    return (test.lot.number, reverse("analytical:lot_testing", args=[test.lot_id]))
+    """The page a test is reached from: its lot's testing page, its stability pull or its
+    reassessment."""
+    return (test.subject_page[0], test.subject_url)
 
 
 def test_crumbs(test, current=None):
@@ -528,9 +531,7 @@ def test_summary(test):
     and code chip; the lot with its sample (or stability pull) under it; the specification as
     code and version with the requirement's hash; the acceptance criterion."""
     spec = test.spec
-    under = (
-        f"stability pull {test.pull.label}" if test.pull_id else f"sample {test.sample.reference}"
-    )
+    under = test.material_text
     return [
         (
             "Test",
@@ -542,7 +543,7 @@ def test_summary(test):
             ),
         ),
         (
-            "Lot and stability pull" if test.pull_id else "Lot and sample",
+            test.subject_heading,
             format_html(
                 '<span class="vr-nowrap">{}</span><small class="vr-nowrap">{}</small>',
                 test.source_lot.number,
@@ -800,7 +801,8 @@ def test_not_completed(request, pk):
     form = NotCompletedForm(
         request.POST or None,
         repeated=repeated,
-        samples=None if test.pull_id else services.repeat_samples(test),
+        samples=None if test.lot_id is None else services.repeat_samples(test),
+        material=test.material_taken,
         initial={"expected_revision": test.revision},
     )
     if request.method == "POST" and form.is_valid():
@@ -812,7 +814,7 @@ def test_not_completed(request, pk):
             return redirect("analytical:test_detail", pk=test.pk)
     current = list(test.current_observations())
     files = test.raw_files.count()
-    subject = "pull" if test.pull_id else "lot"
+    subject = test.holder_word
     investigation = test.investigation.label if test.investigation_id else ""
     return sign_page(
         request,
@@ -1148,7 +1150,7 @@ def test_submit(request, test):
         messages.error(request, " ".join(exc.messages))
         return redirect("analytical:test_detail", pk=test.pk)
     if investigation:
-        held = f"stability pull {test.pull.label}" if test.pull_id else f"lot {test.lot.number}"
+        held = f"lot {test.lot.number}" if test.lot_id else test.material_text
         messages.warning(
             request,
             f"Out of specification: {investigation.label} opened and {held} is held until "
@@ -1468,6 +1470,7 @@ def batch_reject(request, pk):
                 batch.tests.exclude(state__in=sorted(services.CLOSED_BY_RECORD))
                 .exclude(pull__state="missed")
                 .exclude(pull__study__state__in=["completed", "terminated"])
+                .exclude(reassessment__state__in=["concluded", "withdrawn"])
                 # A rejected lot keeps its tests as the rejection froze them.
                 .exclude(lot__state__in=sorted(services.DECIDED_WITHOUT_RELEASE))
                 .count(),
@@ -1507,7 +1510,7 @@ def get_investigation(pk):
 def investigation_summary(inv):
     return [
         ("Investigation", f"{inv.label} · {inv.get_phase_display()}"),
-        ("Lot and stability pull", inv.test.subject_text)
+        (inv.test.subject_heading, inv.test.subject_text)
         if inv.lot_id is None
         else ("Lot", inv.lot.number),
         ("Trigger", inv.trigger),
@@ -1632,13 +1635,17 @@ def authorize(request, pk):
             request, refusal, reverse("analytical:investigation_detail", args=[inv.pk])
         )
     if inv.lot_id is None:
-        # A stability pull has no other sample: only a retest of what was pulled.
+        # A stability pull or a reassessment has no other sample: only a retest of the
+        # material taken for it.
         samples = None
     else:
         used = AnalyticalTest.objects.filter(sample__lot=inv.lot_id).values("sample_id")
         samples = Sample.objects.filter(lot_id=inv.lot_id).exclude(pk__in=used).order_by("-pk")
     form = RetestForm(
-        request.POST or None, samples=samples, initial={"expected_revision": inv.revision}
+        request.POST or None,
+        samples=samples,
+        material=inv.test.material_taken,
+        initial={"expected_revision": inv.revision},
     )
     if request.method == "POST" and form.is_valid():
         data = {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}

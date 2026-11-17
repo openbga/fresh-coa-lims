@@ -5,7 +5,7 @@ views: analytical.views.investigation_detail
 templates: analytical/investigation_detail.html, includes/signature_list.html, includes/history_panel.html, analytical/_investigation_status.html, analytical/_test_status.html
 models: analytical.Investigation, analytical.InvestigationEntry, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
-summary: One out-of-specification investigation: the original result and any retests, the written record, and quality's signed conclusion. Its lot or pull stays held while it is open.
+summary: One out-of-specification investigation: the original result and any retests, the written record, and quality's signed conclusion. Its lot, pull or reassessment stays held while it is open.
 ---
 
 ## Common tasks
@@ -23,7 +23,7 @@ summary: One out-of-specification investigation: the original result and any ret
 - A laboratory assessment entry is needed before a retest is authorized or a conclusion is signed.
 - Quality cannot conclude if they opened it, wrote its entries or generated its test data. Escalation and retest authorizations do not count.
 - Retests used counts the linked tests that were not invalidated, against the specification's allowance.
-- For a stability test the pull is held, not the lot, and the lot's record is not changed.
+- For a stability test the pull is held, and for a reassessment test the reassessment, not the lot. The lot's record is not changed.
 
 ## Purpose
 
@@ -39,8 +39,8 @@ One out-of-specification investigation: phase, lineage of the original result an
 
 ## Layout
 
-- **Header**: "INV-n out-of-specification investigation"; status, Lot link (for a stability test: "Stability pull <pull> · lot <number>", the pull linking to the pull record), Opened, Revision; action buttons.
-- **Open**: alert "Lot held" with the trigger. For a stability test the alert is "Pull held": the trigger, "Stability pull <pull> cannot be accepted until quality signs a conclusion.", the retest rule, and that the record of the lot is not changed by the investigation (whether the lot needs a hold or other action is for quality to decide). **Closed**: **Conclusion** card (Outcome, Assignable cause, Conclusion, Closed).
+- **Header**: "INV-n out-of-specification investigation"; status, Lot link (for a stability test: "Stability pull <pull> · lot <number>", the pull linking to the pull record; for a reassessment test: "Reassessment RA-n · lot <number>", linking to the reassessment record), Opened, Revision; action buttons.
+- **Open**: alert "Lot held" with the trigger. For a stability test the alert is "Pull held": the trigger, "Stability pull <pull> cannot be accepted until quality signs a conclusion.", the retest rule, and that the record of the lot is not changed by the investigation (whether the lot needs a hold or other action is for quality to decide). For a reassessment test the alert is "Reassessment held": the trigger, "Reassessment RA-n cannot be concluded until quality signs a conclusion of this investigation.", the retest rule, "A confirmed failure is concluded on the reassessment as the end of the lot's use." and that the record of the lot is not changed by the investigation. **Closed**: **Conclusion** card (Outcome, Assignable cause, Conclusion, Closed).
 - **Results and lineage** ("N of M retests used"): Test, Kind, Sample (the stability pull for a stability test), Replicates, Reportable, Status. First row is "Original result".
 - **Investigation record**: dated entries; empty "No laboratory assessment yet".
 - **Electronic signatures** (count): one line per signature with signer, meaning, server time, the record revision it binds and the start of the content hash. **History**: the attributed audit events, oldest first.
@@ -51,7 +51,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 |---|---|---|---|
 | **Record entry** | Investigation open | Analyst, reviewer, quality | Opens the entry form |
 | **Escalate investigation** | Phase I open | Reviewer, quality | Opens the escalation form |
-| **Authorize retest** | Open, and authorizing would be accepted (the assessment is recorded, the allowance is not used up, you are not an author of the result, the lot or pull still takes testing) | Quality | Opens the signing page. Otherwise the header shows the reason instead, for example "The approved specification allows no further retests or resamples." |
+| **Authorize retest** | Open, and authorizing would be accepted (the assessment is recorded, the allowance is not used up, you are not an author of the result, the lot, pull or reassessment still takes testing) | Quality | Opens the signing page. Otherwise the header shows the reason instead, for example "The approved specification allows no further retests or resamples." |
 | **Conclude** | Open, and concluding would be accepted (the same checks as its signing page) | Quality | Opens the signing page; it is quality's primary action. Otherwise the header shows the reason instead, for example "Record the laboratory assessment first." |
 
 ## Fields
@@ -69,6 +69,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 
 ## Rules and hidden logic
 
+- **Reassessment hold**: an investigation of a reassessment test holds the reassessment (it cannot be concluded as suitable while the investigation is open, and cannot be withdrawn) and never the lot; it has no lot. Only a retest of the sample taken for the reassessment can be authorized, never a resample, and once the reassessment is concluded or withdrawn its tests take no more work, so Authorize retest and Conclude are then refused.
 - **Pull hold**: an investigation of a stability test holds the pull (it cannot be accepted) and never the lot; it has no lot. Only a retest of the material that was pulled can be authorized, and once the study is closed its pulls take no more testing, so Authorize retest and Conclude are then refused.
 - **Lot hold**: while open, the lot cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.
 - **Allowance**: retest or resample limit comes from the frozen specification (0 to 3). Linked tests invalidated by batch rejection, and retests or resamples recorded as not completed without any work held, do not use it.

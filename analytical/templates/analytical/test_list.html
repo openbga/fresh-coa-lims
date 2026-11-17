@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load ui %}
 {% comment %}Analytical tests, newest first. Context: page_title, tabs, page_obj, query, filters (TestFilterForm), filtered.{% endcomment %}
-{% block page_intro %}<p class="vr-page-intro">Required tests by lot and sample, and the tests of stability pulls, from assignment through independent review. Assign tests from a lot's testing page or from a stability pull.</p>{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Required tests by lot and sample, and the tests of stability pulls and of reassessments of released lots, from assignment through independent review. Assign tests from a lot's testing page, a stability pull or a reassessment.</p>{% endblock %}
 {% block content %}
 {% panel title="Tests" heading_id="tests-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter tests" q=query search_label="Find" placeholder="Lot, sample, study or test code" inline=filters active=filtered %}
   {% url 'quality:lot_list' as lots_url %}
-  {% list_results items=page_obj grid="analytical.tests" noun="tests" filtered=filtered sizes=True clear_url=request.path empty_title="No tests assigned yet" empty_body="Open a quarantined lot's testing page and assign its required tests to a sample, or assign the tests of a stability pull from the pull." action_url=lots_url action_label="Material lots" no_results_body="Search covers lot numbers, sample references, stability study identifiers and test codes." %}
+  {% list_results items=page_obj grid="analytical.tests" noun="tests" filtered=filtered sizes=True clear_url=request.path empty_title="No tests assigned yet" empty_body="Open a quarantined lot's testing page and assign its required tests to a sample, or assign the tests of a stability pull from the pull." action_url=lots_url action_label="Material lots" no_results_body="Search covers lot numbers, sample references, stability study identifiers, reassessment sample references and test codes." %}
   {% grid_table grid="analytical.tests" columns=columns sort=sort label="tests-heading" %}
       <tbody>
         {% for t in page_obj %}
@@ -15,6 +15,8 @@
           <td class="vr-nowrap">{% include "analytical/_test_status.html" with test=t only %}</td>
           {% if t.pull_id %}
           <td><a href="{% url 'stability:pull_detail' t.pull_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">stability pull {{ t.pull.label }}</span></td>
+          {% elif t.reassessment_id %}
+          <td><a href="{% url 'quality:reassessment_detail' t.reassessment_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">reassessment {{ t.reassessment.label }}</span></td>
           {% else %}
           <td><a href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a><span class="vr-sub">sample {{ t.sample.reference }}</span></td>
           {% endif %}

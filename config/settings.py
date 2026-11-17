@@ -276,6 +276,10 @@ ANALYTICAL_SUPPLIER_RESULTS = "config.integrations.AcceptedSupplierResults"
 # still takes testing, and for the lock every evidence change takes. Without this setting no
 # pull is tested in the system.
 ANALYTICAL_STABILITY_PULLS = "config.integrations.StabilityPulls"
+# Or to the reassessment of a released lot: the testing module asks the lot record for the
+# requirements in force, whether the reassessment still takes testing, and for its lock. Without
+# this setting no reassessment is tested in the system.
+ANALYTICAL_REASSESSMENTS = "config.integrations.Reassessments"
 # Replacing a lot's requirements during testing asks the testing module which of the lot's tests
 # carry over and which are superseded. Without this setting requirements cannot be replaced
 # once testing has started.

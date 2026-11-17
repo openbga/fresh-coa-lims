@@ -233,19 +233,56 @@ def payload_additional_rules(payload):
     return list(payload.get("additional_rules") or [])
 
 
-def _test_requirements(payload, payload_hash):
+def _test_requirements(payload, payload_hash, tag="lot-req"):
     """Each required line with its source: the specification version that states it (the
-    first of them when several state it alike) and the lot's requirement payload hash."""
+    first of them when several state it alike) and the lot's requirement payload hash (or,
+    tagged ``reassess``, the hash of the requirements a reassessment resolved)."""
     by_scope = {spec["scope"]: spec for spec in payload_specifications(payload)}
 
     def source(line):
         spec = by_scope[line["sources"][0]] if "sources" in line else payload["specification"]
         return (
             f"catalog:{spec['code']}@v{spec['version']}#rev{spec['revision_id']}"
-            f"/lot-req:{payload_hash[:16]}"
+            f"/{tag}:{payload_hash[:16]}"
         )
 
     return {t["code"]: test_requirement(t, source(t)) for t in payload["tests"] if t["required"]}
+
+
+def requirements_in_force(lot, at=None):
+    """{test_code: payload} of the required tests a released lot would be tested for now: the
+    specifications in force for the material, stage and scopes of its requirements, under the
+    version in force of its rule set and the additional rule sets that apply now, or
+    ``ApplicabilityHold`` with every reason it cannot be resolved.
+
+    For a reassessment, which examines the material again against the specification as it
+    stands, not as it stood at release. Where the specifications in force state a test
+    differently, the choice made for the lot is carried while the scope that was named still
+    states the test exactly as it was frozen (``_standing_choices``); any other difference is a
+    reason, because no decision is taken on a lot that left quarantine. Read-only: nothing is
+    frozen on the lot. Each payload's source names the specification version and is tagged
+    ``reassess``.
+    """
+    current = current_assignment(lot)
+    if current is None or current.status != AssignmentStatus.READY:
+        raise ApplicabilityHold(
+            [f"Lot {lot.number} has no assigned requirements, so its material is not known."]
+        )
+    at = at or timezone.now()
+    rules = rules_in_force(lot.rules, at) or lot.rules
+    read = Applicable(
+        material=current.material,
+        stage=current.stage,
+        scopes=current.scope_list,
+        rules=rules,
+        at=at,
+    )
+    payload = read.freeze(_standing_choices(current.payload, read))
+    # The moment of the read is left out of the hash, so that two reads of the same versions
+    # give the same requirements: a page's token then changes only when what applies does.
+    stable = {key: value for key, value in payload.items() if key != "resolved_at"}
+    stable["lot"] = {"id": lot.pk, "number": lot.number}
+    return _test_requirements(stable, digest(stable), tag="reassess")
 
 
 def rules_in_force(rules, at):

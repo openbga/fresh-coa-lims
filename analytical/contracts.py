@@ -38,6 +38,11 @@ a pull's test that source stands where the lot stands otherwise: it states the r
 (the acceptance criteria of the pull's protocol), says why a pull takes no more testing, and
 locks the pulls a transition changes so that every evidence change advances their revision.
 Without the setting no pull is tested here.
+
+settings.ANALYTICAL_REASSESSMENTS names the source of reassessments of released lots, with the
+same three doors: the requirements are those of the specifications in force for the lot, a
+reassessment takes no more testing once concluded or withdrawn, and ``lock`` locks the
+reassessments a transition changes.
 """
 
 import hashlib
@@ -719,16 +724,37 @@ def stability_pulls():
     return import_string(path)()
 
 
-def resolve_pull(pull):
-    """``resolve`` for a stability pull: ({test_code: payload}, hold reasons) for the tests of
-    its time point, each with the acceptance criterion of the protocol's specification."""
+def reassessments():
+    """The configured source of reassessments of released lots
+    (settings.ANALYTICAL_REASSESSMENTS); without one, no reassessment is tested here."""
+    path = getattr(settings, "ANALYTICAL_REASSESSMENTS", "")
+    if not path:
+        raise ValidationError(
+            "Reassessment testing is not configured; reassessments are not tested here."
+        )
+    return import_string(path)()
+
+
+def _resolve_detached(source, subject):
     try:
-        raw = stability_pulls().requirements(pull)
+        raw = source().requirements(subject)
     except ValidationError as exc:
         return {}, list(exc.messages)
     except RequirementHold as hold:
         return {}, hold.reasons
     return _accepted(raw)
+
+
+def resolve_pull(pull):
+    """``resolve`` for a stability pull: ({test_code: payload}, hold reasons) for the tests of
+    its time point, each with the acceptance criterion of the protocol's specification."""
+    return _resolve_detached(stability_pulls, pull)
+
+
+def resolve_reassessment(reassessment):
+    """``resolve`` for the reassessment of a released lot: ({test_code: payload}, hold
+    reasons) for the required tests of the specifications in force for the lot."""
+    return _resolve_detached(reassessments, reassessment)
 
 
 def _accepted(raw):

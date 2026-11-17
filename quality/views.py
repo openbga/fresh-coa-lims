@@ -1,10 +1,8 @@
-from datetime import timedelta
-
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import Exists, OuterRef, Prefetch, Q, Subquery
+from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -15,9 +13,9 @@ from core.grids import Column, paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, MATERIAL_DATES_RULES, require_role
 
-from . import certificates, dashboard, dates, reliance, route, services
+from . import certificates, dashboard, dates, reassessment, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
-from .models import Lot, LotDates, LotReceipt, LotState, ReceiptSource, Result, Sample
+from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
 
 LOTS = "Material lots"
@@ -57,28 +55,15 @@ LOT_COLUMNS = (
 )
 
 # The Dates filter of the material lot list: lots in quarantine or released, by their dates in
-# force on the local date (quality.dates.status).
+# force on the local date (quality.dates.status), and the reassessment of released lots.
 DATE_FILTERS = [
     ("", "Any dates"),
     (dates.RETEST_DUE, "Retest due"),
     (dates.EXPIRED, "Expired"),
-    ("soon", f"Retest or expiry within {dates.SOON_DAYS} days"),
+    (dates.SOON, f"Retest or expiry within {dates.SOON_DAYS} days"),
+    (dates.REASSESSING, "Reassessment open"),
+    (dates.USE_ENDED, "Use ended"),
 ]
-
-
-def filter_by_dates(lots, wanted, on):
-    """Lots annotated with date_expiry and date_retest, narrowed to one Dates filter."""
-    live = lots.filter(state__in=dates.LIVE_STATES)
-    # Positive conditions only: a missing date (NULL) is neither reached nor not reached.
-    not_expired = Q(date_expiry__isnull=True) | Q(date_expiry__gte=on)
-    not_due = Q(date_retest__isnull=True) | Q(date_retest__gt=on)
-    if wanted == dates.EXPIRED:
-        return live.filter(date_expiry__lt=on)
-    if wanted == dates.RETEST_DUE:
-        return live.filter(not_expired, date_retest__lte=on)
-    horizon = on + timedelta(days=dates.SOON_DAYS)
-    soon = Q(date_expiry__lte=horizon) | Q(date_retest__lte=horizon)
-    return live.filter(soon, not_expired, not_due)
 
 
 class LotFilterForm(forms.Form):
@@ -104,15 +89,9 @@ def lot_list(request):
         return redirect("accounts:access")
     access(request.user)
     current = LotReceipt.objects.filter(corrected_by__isnull=True)
-    in_force = LotDates.objects.filter(lot=OuterRef("pk"), replaced_by__isnull=True)
-    lots = (
-        Lot.objects.select_related("rules")
-        .prefetch_related(
+    lots = dates.annotate_in_force(
+        Lot.objects.select_related("rules").prefetch_related(
             Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
-        )
-        .annotate(
-            date_expiry=Subquery(in_force.values("expiry_on")[:1]),
-            date_retest=Subquery(in_force.values("retest_on")[:1]),
         )
     )
     filters = LotFilterForm(request.GET)
@@ -131,7 +110,7 @@ def lot_list(request):
     on = dates.today()
     wanted_dates = chosen["dates"]
     if wanted_dates:
-        lots = filter_by_dates(lots, wanted_dates, on)
+        lots = dates.filter_in_force(lots, wanted_dates, on)
     query = request.GET.get("q", "").strip()
     if query:
         lots = lots.filter(
@@ -147,7 +126,9 @@ def lot_list(request):
         lot.route = route.list_route(lot)
         lot.route_summary = route.summary(lot.route)
         lot.hold_labels = route.hold_labels(lot)
-        if label := dates.status_label(lot.state, lot.date_expiry, lot.date_retest, on):
+        if label := dates.status_label(
+            lot.state, lot.date_expiry, lot.date_retest, on, use_ended=lot.date_use_ended
+        ):
             lot.hold_labels.append(label)
     return render(
         request,
@@ -235,6 +216,11 @@ def lot_detail(request, pk):
         .order_by("anchor_date", "pk")
     )
     in_force = dates.current_dates(lot)
+    standing = dates.in_force(lot)
+    reassessments = list(lot.reassessments.select_related("started_by").order_by("pk"))
+    for item in reassessments:
+        item.status_label, item.status_tone = reassessment.status_of(item)
+    reassess_refusal = reassessment.start_refusal(lot) if lot.state == "released" else None
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -259,9 +245,21 @@ def lot_detail(request, pk):
             "dates_history": dates.history(lot),
             "dates_status": dates.status_label(
                 lot.state,
-                in_force.expiry_on if in_force else None,
-                in_force.retest_on if in_force else None,
+                standing.expiry_on,
+                standing.retest_on,
+                use_ended=standing.use_ended is not None,
             ),
+            "retest_on": standing.retest_on,
+            "reassessed": standing.reassessment,
+            "reassessments": reassessments,
+            "can_reassess": not reassess_refusal
+            and lot.state == "released"
+            and request.user.groups.filter(name__in=reassessment.START_ROLES).exists(),
+            # Why a released lot cannot be reassessed, unless the table already says it: one is
+            # open, or one ended the lot's use.
+            "reassess_refusal": ""
+            if standing.use_ended or any(item.state == "open" for item in reassessments)
+            else reassess_refusal or "",
             "dates_required": [
                 (rule, MATERIAL_DATES_RULES[key]) for rule, key in dates.required_dates(lot)
             ],

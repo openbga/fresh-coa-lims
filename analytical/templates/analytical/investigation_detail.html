@@ -5,6 +5,7 @@
 {% block page_meta %}{% page_meta %}
   <li>{% include "analytical/_investigation_status.html" with inv=inv plain=True only %}</li>
   {% if inv.lot_id %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></li>
+  {% elif inv.test.reassessment_id %}<li>Reassessment <a class="vr-id" href="{% url 'quality:reassessment_detail' inv.test.reassessment_id %}">{{ inv.test.reassessment.label }}</a> · lot <span class="vr-id">{{ inv.test.source_lot.number }}</span></li>
   {% else %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.pull.label }}</a> · lot <span class="vr-id">{{ inv.test.source_lot.number }}</span></li>{% endif %}
   <li>Opened <time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i T" }}</time></li>
   <li>Revision {{ inv.revision }}</li>
@@ -17,6 +18,8 @@
 {% if inv.is_open %}
 {% if inv.lot_id %}
 {% notice tone="hold" label="Lot held" %}{{ inv.trigger }}. Lot {{ inv.lot.number }} cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.{% endnotice %}
+{% elif inv.test.reassessment_id %}
+{% notice tone="hold" label="Reassessment held" class="text-break" %}{{ inv.trigger }}. Reassessment {{ inv.test.reassessment.label }} cannot be concluded until quality signs a conclusion of this investigation. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported. A confirmed failure is concluded on the reassessment as the end of the lot's use. The record of lot {{ inv.test.source_lot.number }} is not changed by this investigation.{% endnotice %}
 {% else %}
 {% notice tone="hold" label="Pull held" class="text-break" %}{{ inv.trigger }}. Stability pull {{ inv.test.pull.label }} cannot be accepted until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported. The record of lot {{ inv.test.source_lot.number }} is not changed by this investigation: whether the lot needs a hold or other action is for quality to decide.{% endnotice %}
 {% endif %}

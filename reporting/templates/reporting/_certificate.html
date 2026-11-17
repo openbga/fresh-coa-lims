@@ -17,6 +17,7 @@
       <div><dt>Lot received</dt><dd><time datetime="{{ snapshot.lot.received_at }}">{{ snapshot.lot.received_at|stamp }}</time> by {{ snapshot.lot.received_by }}</dd></div>
       {% if snapshot.dates.expiry_on %}<div><dt>Expiry date</dt><dd><time datetime="{{ snapshot.dates.expiry_on }}">{{ snapshot.dates.expiry_on }}</time></dd></div>{% endif %}
       {% if snapshot.dates.retest_on %}<div><dt>Retest date</dt><dd><time datetime="{{ snapshot.dates.retest_on }}">{{ snapshot.dates.retest_on }}</time></dd></div>{% endif %}
+      {% if snapshot.dates.reassessment %}<div><dt>Reassessed</dt><dd>{{ snapshot.dates.reassessment.label }}, <time datetime="{{ snapshot.dates.reassessment.concluded_on }}">{{ snapshot.dates.reassessment.concluded_on }}</time></dd></div>{% endif %}
     </dl>
     <h3 class="h6 fw-bold mt-4">Decision</h3>
     {% if snapshot.disposition %}

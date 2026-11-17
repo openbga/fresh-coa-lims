@@ -427,14 +427,15 @@ class RetestForm(SigningForm):
 
     field_order = ["kind", "sample", "reason", "signature_username", "pin", "expected_revision"]
 
-    def __init__(self, *args, samples, **kwargs):
+    def __init__(self, *args, samples, material="the material that was pulled", **kwargs):
         """``samples`` are the untested samples a resample may use; ``None`` for the
-        investigation of a stability pull, which is retested on the material pulled."""
+        investigation of a stability pull or a reassessment, which is retested on the material
+        taken for it (``material`` names it)."""
         super().__init__(*args, **kwargs)
         if samples is None:
             del self.fields["sample"]
             self.fields["kind"].choices = [
-                (AnalyticalTest.Kind.RETEST.value, "Retest of the material that was pulled"),
+                (AnalyticalTest.Kind.RETEST.value, f"Retest of {material}"),
             ]
             self.fields["kind"].initial = AnalyticalTest.Kind.RETEST.value
         else:
@@ -482,16 +483,17 @@ class NotCompletedForm(SigningForm):
         "expected_revision",
     ]
 
-    def __init__(self, *args, repeated, samples, **kwargs):
-        """``samples`` are the samples a repeat may use, or ``None`` for a stability pull's
-        test, which is repeated on the material pulled."""
+    def __init__(self, *args, repeated, samples, material="the material that was pulled", **kwargs):
+        """``samples`` are the samples a repeat may use, or ``None`` for the test of a stability
+        pull or a reassessment, which is repeated on the material taken for it (``material``
+        names it)."""
         super().__init__(*args, **kwargs)
         if not repeated:
             del self.fields["repeat"]
             del self.fields["sample"]
         elif samples is None:
             del self.fields["sample"]
-            self.fields["repeat"].choices = [("same", "On the material that was pulled")]
+            self.fields["repeat"].choices = [("same", f"On {material}")]
             self.fields["repeat"].initial = "same"
         else:
             self.fields["sample"].queryset = samples

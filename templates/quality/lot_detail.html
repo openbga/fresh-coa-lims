@@ -92,7 +92,7 @@
   {% if dates %}
   <dl class="vr-facts">
     {% fact label="Expiry date" %}{% if dates.expiry_on %}{{ dates.expiry_on|when:"date" }}{% if dates_status.0 == "Expired" %} {% status label="Expired" tone="danger" plain=True %}{% endif %}{% else %}None{% endif %}{% endfact %}
-    {% fact label="Retest date" %}{% if dates.retest_on %}{{ dates.retest_on|when:"date" }}{% if dates_status.0 == "Retest due" %} {% status label="Retest due" tone="warning" plain=True %}{% endif %}{% else %}None{% endif %}{% endfact %}
+    {% fact label="Retest date" %}{% if retest_on %}{{ retest_on|when:"date" }}{% if dates_status.0 == "Retest due" %} {% status label="Retest due" tone="warning" plain=True %}{% endif %}{% if reassessed %}<small>set by <a href="{% url 'quality:reassessment_detail' reassessed.pk %}">{{ reassessed.label }}</a> on {{ reassessed.decided_at|when:"date" }}; the release froze {% if dates.retest_on %}{{ dates.retest_on|when:"date" }}{% else %}none{% endif %}</small>{% endif %}{% else %}None{% endif %}{% endfact %}
     {% fact label="Basis" wide=True %}{{ dates.basis|linebreaksbr }}{% endfact %}
     {% fact label="Recorded" %}{{ dates.recorded_at|when }}<small>by {{ dates.recorded_by|person }}</small>{% endfact %}
   </dl>
@@ -102,11 +102,35 @@
   <p class="mb-0">No expiry or retest date is recorded.</p>
   {% endif %}
   {% if dates_required %}<p class="mt-3 mb-0">Required before release: {% for rule, text in dates_required %}{% code value=rule %} requires {{ text }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>{% endif %}
-  {% if lot.state == "released" and dates %}<p class="mt-3 mb-0">{% if lot.disposition_evidence.dates %}The release froze these dates. {% endif %}{% if dates_status.0 == "Expired" %}The material is past its expiry date and is not used; no certificate is issued for it.{% elif dates_status.0 == "Retest due" %}The retest date has been reached: the material must be examined again before further use, and no certificate is issued for it.{% else %}The lot shows when its retest is due or it has expired.{% endif %}</p>{% elif lot.state == "quarantine" %}<p class="mt-3 mb-0">An analyst or quality person records and corrects the dates while the lot is in quarantine; whoever does cannot sign its disposition. The release is refused after the expiry date and from the retest date on, and freezes the dates in force.</p>{% endif %}
+  {% if lot.state == "released" and dates %}<p class="mt-3 mb-0">{% if lot.disposition_evidence.dates %}The release froze these dates{% if reassessed %}; the retest date in force is the one its latest reassessment gave{% endif %}. {% endif %}{% if dates_status.0 == "Use ended" %}A reassessment ended the use of this lot; no certificate is issued for it.{% elif dates_status.0 == "Expired" %}The material is past its expiry date and is not used; no certificate is issued for it.{% elif dates_status.0 == "Retest due" %}The retest date has been reached: the material must be examined again before further use, and no certificate is issued for it until a reassessment gives a later retest date.{% else %}The lot shows when its retest is due or it has expired.{% endif %}</p>{% elif lot.state == "quarantine" %}<p class="mt-3 mb-0">An analyst or quality person records and corrects the dates while the lot is in quarantine; whoever does cannot sign its disposition. The release is refused after the expiry date and from the retest date on, and freezes the dates in force.</p>{% endif %}
 {% endpanel %}
 {% if dates_history %}{% history_panel events=dates_history title="Dates history" heading_id="dates-history-heading" collapsible=True %}
   {% for entry in dates_history %}{% history_item title=entry.title at=entry.record.recorded_at actor=entry.record.recorded_by by="Recorded by" reason=entry.record.reason changes=entry.changes icon=entry.icon %}{% endfor %}
 {% endhistory_panel %}{% endif %}
+{% if lot.state == "released" or reassessments %}
+{% panel title="Reassessments" heading_id="reassessments-heading" table=True %}
+  {% fill actions %}{% if can_reassess %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:reassessment_new' lot.pk %}">Start reassessment</a>{% endif %}{% endfill %}
+  {% if reassessments %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="reassessments-heading">
+      <thead><tr><th scope="col">Reassessment</th><th scope="col">Status</th><th scope="col">Sample</th><th scope="col">Started</th><th scope="col">New retest date</th></tr></thead>
+      <tbody>
+        {% for item in reassessments %}
+        <tr>
+          <th scope="row"><a href="{% url 'quality:reassessment_detail' item.pk %}">{{ item.label }}</a></th>
+          <td>{% status label=item.status_label tone=item.status_tone plain=True %}</td>
+          <td>{{ item.sample_reference }}<small class="d-block vr-muted">sampled {{ item.sampled_on|when:"date" }}</small></td>
+          <td>{{ item.started_at|when }}<small class="d-block">by {{ item.started_by|person }}</small></td>
+          <td>{% if item.retest_on %}{{ item.retest_on|when:"date" }}{% else %}None{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  <p class="{% if reassessments %}mt-3 {% endif %}mb-0">A released lot with a retest date is examined again on a sample taken for the purpose; its tests belong to the reassessment and this record does not change. Quality concludes it: the material is suitable until a later retest date, never after the expiry date, or its use ends.{% if reassess_refusal %} {{ reassess_refusal }}{% endif %}</p>
+{% endpanel %}
+{% endif %}
 {% panel title="Supplier certificates" heading_id="certificates-heading" %}
   {% fill actions %}{% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}{% endfill %}
   {% if certificates %}

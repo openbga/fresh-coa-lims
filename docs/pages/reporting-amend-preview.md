@@ -3,7 +3,7 @@ title: Amend certificate
 urls: reporting:amend_preview
 views: reporting.views.amend_preview
 templates: reporting/preview.html, reporting/_certificate.html
-models: reporting.Report, reporting.ReportVersion, quality.Lot, quality.LotDates
+models: reporting.Report, reporting.ReportVersion, quality.Lot, quality.LotDates, quality.Reassessment
 reviewed: 2026-11-17
 summary: What an amended certificate would contain, built from the lot's current evidence, and which evidence sections changed since the latest version. Nothing is issued here.
 ---
@@ -52,7 +52,7 @@ Shows what an amended certificate would contain, built from the lot's current ev
 
 ## Rules and hidden logic
 
-- Amendments are held to the same blockers as a first issue, so an open hold prevents amending. So do the date blockers: after the lot's expiry date ("The lot expired after 2026-11-01; no certificate is issued for it."), from its retest date on ("The lot's retest date, 2026-11-01, has been reached; no certificate is issued for a lot due for retest.") and when the dates are not those the release froze ("The lot's expiry and retest dates are not those its release froze."). The preview prints the lot's Expiry date and Retest date when it has them, and "dates" is listed among the changed sections when they differ from the latest version. Not enforced by this page: withdrawal or recall of an issued certificate.
+- Amendments are held to the same blockers as a first issue, so an open hold prevents amending. So do the date blockers: after the lot's expiry date ("The lot expired after 2026-11-01; no certificate is issued for it."), from its retest date on ("The lot's retest date, 2026-11-01, has been reached; no certificate is issued for a lot due for retest.") and when the dates are not those the release froze ("The lot's expiry and retest dates are not those its release froze."). The same applies when the lot's use ended with a reassessment ("The lot's use ended with reassessment RA-n; no certificate is issued for it."); a lot whose retest date was reached can be amended again once a reassessment concluded as suitable gave a later retest date in force. The preview prints the lot's Expiry date and Retest date (the date in force) when it has them, with a "Reassessed" line when a reassessment gave it, and "dates" is listed among the changed sections when they differ from the latest version. Not enforced by this page: withdrawal or recall of an issued certificate.
 - Viewing writes no audit event.
 - Native lots use the frozen assignment bound to the QC disposition, as described on [Review certificate](/reports/); an unverifiable assignment blocks the amendment. Unknown certificate: 404. GET only.
 

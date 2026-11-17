@@ -287,6 +287,30 @@ class StabilityPulls:
         return testing.lock(pull_ids, refuse=refuse)
 
 
+class Reassessments:
+    """Reassessments of released lots as the testing module sees them
+    (settings.ANALYTICAL_REASSESSMENTS). For a reassessment's test the reassessment stands where
+    the lot stands, as a pull does: ``requirements`` are the required tests of the
+    specifications in force for the lot, ``refusal`` says why it takes no more testing, and
+    ``lock`` locks the reassessments a transition changes (with ``refuse`` false, marking each
+    ``closed`` instead of refusing it)."""
+
+    def requirements(self, reassessment):
+        from quality import reassessment as module
+
+        return module.requirements(reassessment)
+
+    def refusal(self, reassessment):
+        from quality import reassessment as module
+
+        return module.refusal(reassessment)
+
+    def lock(self, reassessment_ids, refuse=True):
+        from quality import reassessment as module
+
+        return module.lock(reassessment_ids, refuse=refuse)
+
+
 def report_holds(lot):
     from stability.gates import lot_hold_evidence
 

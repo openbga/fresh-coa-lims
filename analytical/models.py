@@ -124,9 +124,10 @@ class AnalyticalTest(models.Model):
         EQUIPMENT = "equipment", "Equipment, reagent or standard failure"
         OTHER = "other", "Another cause, stated in the reason"
 
-    # A test belongs to the testing of a lot (``lot`` and ``sample``) or to a stability pull
-    # (``pull``), never both. A stability test names no lot: nothing that reads a lot's tests
-    # can count it, so the record of a released lot is not changed by its stability studies.
+    # A test belongs to the testing of a lot (``lot`` and ``sample``), to a stability pull
+    # (``pull``) or to a reassessment (below), never to two. A stability test names no lot:
+    # nothing that reads a lot's tests can count it, so the record of a released lot is not
+    # changed by its stability studies.
     lot = models.ForeignKey(
         "quality.Lot", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
@@ -135,6 +136,15 @@ class AnalyticalTest(models.Model):
     )
     pull = models.ForeignKey(
         "stability.Pull", null=True, blank=True, on_delete=models.PROTECT, related_name="tests"
+    )
+    # Or to the reassessment of a released lot (``reassessment``): like a pull's test it names
+    # no lot, so the record of the lot it examines again is not changed.
+    reassessment = models.ForeignKey(
+        "quality.Reassessment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="tests",
     )
     test_code = models.CharField(max_length=80)
     requirement = models.JSONField()
@@ -192,14 +202,35 @@ class AnalyticalTest(models.Model):
                 name="analytical_retest_has_investigation",
             ),
             models.CheckConstraint(
-                condition=Q(lot__isnull=False, sample__isnull=False, pull__isnull=True)
-                | Q(lot__isnull=True, sample__isnull=True, pull__isnull=False),
-                name="analytical_test_subject",
+                condition=Q(
+                    lot__isnull=False,
+                    sample__isnull=False,
+                    pull__isnull=True,
+                    reassessment__isnull=True,
+                )
+                | Q(
+                    lot__isnull=True,
+                    sample__isnull=True,
+                    pull__isnull=False,
+                    reassessment__isnull=True,
+                )
+                | Q(
+                    lot__isnull=True,
+                    sample__isnull=True,
+                    pull__isnull=True,
+                    reassessment__isnull=False,
+                ),
+                name="analytical_test_subject_of_three",
             ),
             models.UniqueConstraint(
                 fields=["pull", "test_code"],
                 condition=Q(kind="original"),
                 name="analytical_one_original_pull_test",
+            ),
+            models.UniqueConstraint(
+                fields=["reassessment", "test_code"],
+                condition=Q(kind="original"),
+                name="analytical_one_original_reassessment_test",
             ),
             # A pull is retested on the material that was pulled: it has no other sample, and
             # its requirements are not replaced.
@@ -207,6 +238,12 @@ class AnalyticalTest(models.Model):
                 condition=Q(pull__isnull=True)
                 | Q(kind__in=["original", "retest", "rerun", "repeat"]),
                 name="analytical_pull_test_kind",
+            ),
+            # So is a reassessment, on the sample taken for it.
+            models.CheckConstraint(
+                condition=Q(reassessment__isnull=True)
+                | Q(kind__in=["original", "retest", "rerun", "repeat"]),
+                name="analytical_reassessment_test_kind",
             ),
             # The record exists exactly when the test was recorded as not completed.
             models.CheckConstraint(
@@ -228,23 +265,92 @@ class AnalyticalTest(models.Model):
         return self.pull_id is not None
 
     @property
+    def is_reassessment(self):
+        return self.reassessment_id is not None
+
+    @property
+    def detached(self):
+        """A test of a stability pull or of a reassessment: it names no lot."""
+        return self.lot_id is None
+
+    @property
     def source_lot(self):
         """The lot the tested material comes from, for display: the lot under test or, for a
-        stability test, the lot of the pull's study. A stability test is not part of that
-        lot's record."""
-        return self.pull.study.lot if self.pull_id is not None else self.lot
+        stability test or a reassessment, the lot of the pull's study or the lot reassessed.
+        Neither is part of that lot's record."""
+        if self.pull_id is not None:
+            return self.pull.study.lot
+        if self.reassessment_id is not None:
+            return self.reassessment.lot
+        return self.lot
 
     @property
     def sample_text(self):
-        """What was tested: the sample's reference, or the stability pull."""
-        return self.pull.label if self.pull_id is not None else self.sample.reference
+        """What was tested: the sample's reference, the stability pull or the reassessment."""
+        if self.pull_id is not None:
+            return self.pull.label
+        if self.reassessment_id is not None:
+            return self.reassessment.label
+        return self.sample.reference
+
+    @property
+    def material_text(self):
+        """What was tested, named: "sample S-1", "stability pull ..." or "reassessment RA-1"."""
+        if self.pull_id is not None:
+            return f"stability pull {self.pull.label}"
+        if self.reassessment_id is not None:
+            return f"reassessment {self.reassessment.label}"
+        return f"sample {self.sample.reference}"
+
+    @property
+    def subject_heading(self):
+        """The label of ``subject_text``."""
+        if self.pull_id is not None:
+            return "Lot and stability pull"
+        if self.reassessment_id is not None:
+            return "Lot and reassessment"
+        return "Lot and sample"
 
     @property
     def subject_text(self):
-        """Lot and sample, or lot and stability pull, on one line."""
-        if self.pull_id is not None:
-            return f"{self.source_lot.number} / stability pull {self.pull.label}"
+        """Lot and sample, lot and stability pull, or lot and reassessment, on one line."""
+        if self.lot_id is None:
+            return f"{self.source_lot.number} / {self.material_text}"
         return f"{self.lot.number} / {self.sample.reference}"
+
+    @property
+    def material_taken(self):
+        """The material a test of a stability pull or a reassessment is retested or repeated
+        on, in words."""
+        if self.reassessment_id is not None:
+            return "the sample taken for the reassessment"
+        return "the material that was pulled"
+
+    @property
+    def holder_word(self):
+        """What an open investigation of this test holds: "lot", "pull" or "reassessment"."""
+        if self.pull_id is not None:
+            return "pull"
+        if self.reassessment_id is not None:
+            return "reassessment"
+        return "lot"
+
+    @property
+    def subject_url(self):
+        from django.urls import reverse
+
+        _, name, args = self.subject_page
+        return reverse(name, args=args)
+
+    @property
+    def subject_page(self):
+        """(label, URL name, args) of the page the test is reached from: its lot's testing
+        page, its stability pull or its reassessment."""
+        if self.pull_id is not None:
+            return self.pull.label, "stability:pull_detail", [self.pull_id]
+        if self.reassessment_id is not None:
+            return self.reassessment.label, "quality:reassessment_detail", [self.reassessment_id]
+        return self.lot.number, "analytical:lot_testing", [self.lot_id]
 
     @cached_property
     def spec(self):

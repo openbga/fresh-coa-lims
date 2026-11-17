@@ -527,7 +527,7 @@ def test_database_keeps_a_test_with_exactly_one_subject(people):
     with pytest.raises(IntegrityError, match="analytical_pull_test_kind"), transaction.atomic():
         AnalyticalTest.objects.create(**base, pull=pull, kind="revised", parent=test)
     # A linked test stays with the subject of the test it follows.
-    with pytest.raises(DatabaseError, match="belongs to the lot or stability pull"):
+    with pytest.raises(DatabaseError, match="belongs to the lot, stability pull or reassessment"):
         with transaction.atomic():
             AnalyticalTest.objects.create(**base, lot=lot, sample=sample, kind="rerun", parent=test)
     # An investigation of a stability test is never an investigation of the lot.

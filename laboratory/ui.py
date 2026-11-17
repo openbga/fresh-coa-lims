@@ -170,13 +170,19 @@ def work_labels(pairs):
     batch_ids = canonical("analytical.qcbatch")
     if test_ids and apps.is_installed("analytical"):
         tests = apps.get_model("analytical", "AnalyticalTest").objects.filter(pk__in=test_ids)
-        related = ("sample", "lot", "pull__study__lot", "pull__timepoint__condition")
+        related = (
+            "sample",
+            "lot",
+            "pull__study__lot",
+            "pull__timepoint__condition",
+            "reassessment__lot",
+        )
         for test in tests.select_related(*related):
             key = ("analytical.analyticaltest", str(test.pk))
-            # A test of a stability pull names the pull where a lot's test names its sample.
+            # A test of a stability pull or a reassessment names it where a lot's test names
+            # its sample.
             lot = test.source_lot.number
-            sampled = "stability pull" if test.pull_id is not None else "sample"
-            labels[key] = f"{test.label} · lot {lot} · {sampled} {test.sample_text}"
+            labels[key] = f"{test.label} · lot {lot} · {test.material_text}"
             links[key] = reverse("analytical:test_detail", args=[test.pk])
             details[key] = {
                 "kind": "test",

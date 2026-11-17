@@ -223,16 +223,39 @@ def lanes():
 
 
 def gates():
-    """Stability and laboratory queues, from the same base and filters as the lists they link to."""
+    """Retest, stability and laboratory queues, from the same base and filters as the lists
+    they link to."""
     from laboratory.eligibility import equipment_filter, equipment_queryset
     from laboratory.models import ReagentLot
     from stability.models import Hold, Pull
     from stability.views import _pull_filter
 
+    from . import dates
+
     today = timezone.localdate()
     pulls = Pull.objects.all()  # the pull list's own base: its filters decide what is due
     pull_list = reverse("stability:pull_list")
+    # The material lot list's own base and Dates filter, on the same local date.
+    lots = dates.annotate_in_force(Lot.objects.all())
+    lot_list = reverse("quality:lot_list")
+    on = dates.today()
     return [
+        queue(
+            "Retest due",
+            dates.filter_in_force(lots, dates.RETEST_DUE, on),
+            "date_retest",
+            tone="warning",
+            status="Retest due",
+            url=f"{lot_list}?dates={dates.RETEST_DUE}",
+        ),
+        queue(
+            "Reassessments open",
+            dates.filter_in_force(lots, dates.REASSESSING, on),
+            "created_at",
+            tone="progress",
+            status="Reassessment open",
+            url=f"{lot_list}?dates={dates.REASSESSING}",
+        ),
         queue(
             "Pulls overdue",
             _pull_filter(pulls, "overdue", today),

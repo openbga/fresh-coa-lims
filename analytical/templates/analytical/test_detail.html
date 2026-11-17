@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% load ui %}
 {% comment %}One analytical test: observations, raw data, specification and result, signatures and history. Context from analytical.views.test_detail.{% endcomment %}
-{% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% if test.pull_id %}{% url 'stability:pull_detail' test.pull_id as pull_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.pull.label record_url=pull_url current=test.label %}{% else %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endif %}{% endblock %}
+{% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.subject_page.0 record_url=test.subject_url current=test.label %}{% endblock %}
 {% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% if test.kind != "original" %} {% kind_tag label=test.get_kind_display %}{% endif %}{% endblock %}
 {% block page_meta %}{% page_meta %}
   <li>{% include "analytical/_test_status.html" with test=test only %}</li>
   {% if triggered %}<li><a href="{% url 'analytical:investigation_detail' triggered.pk %}">{% include "analytical/_investigation_status.html" with inv=triggered only %}</a></li>{% endif %}
   <li>{% code value=test.test_code %}</li>
   {% if test.pull_id %}<li>Stability pull <a href="{% url 'stability:pull_detail' test.pull_id %}"><strong>{{ test.pull.label }}</strong></a> · lot <strong>{{ test.source_lot.number }}</strong></li>
+  {% elif test.reassessment_id %}<li>Reassessment <a href="{% url 'quality:reassessment_detail' test.reassessment_id %}"><strong>{{ test.reassessment.label }}</strong></a> · lot <strong>{{ test.source_lot.number }}</strong></li>
   {% else %}<li>Lot <a href="{% url 'analytical:lot_testing' test.lot_id %}"><strong>{{ test.lot.number }}</strong></a> · sample <strong>{{ test.sample.reference }}</strong></li>{% endif %}
   <li>Revision <strong>{{ test.revision }}</strong></li>
 {% endpage_meta %}{% endblock %}
@@ -22,12 +23,14 @@
 {% block content %}
 {% if test.pull_id %}
 {% notice tone="info" label="Stability test" class="text-break" %}This is a test of stability pull <a href="{% url 'stability:pull_detail' test.pull_id %}">{{ test.pull.label }}</a>, judged against the acceptance criterion of the study's protocol as frozen below. It is recorded, reviewed and signed like any other test and is not part of the record of lot <span class="vr-id">{{ test.source_lot.number }}</span>.{% if subject_closed %} {{ subject_closed }}{% endif %}{% endnotice %}
+{% elif test.reassessment_id %}
+{% notice tone="info" label="Reassessment test" class="text-break" %}This is a test of reassessment <a href="{% url 'quality:reassessment_detail' test.reassessment_id %}">{{ test.reassessment.label }}</a>, on sample {{ test.reassessment.sample_reference }}, judged against the acceptance criterion in force when it was assigned, as frozen below. It is recorded, reviewed and signed like any other test and is not part of the record of lot <span class="vr-id">{{ test.source_lot.number }}</span>, which was released.{% if subject_closed %} {{ subject_closed }}{% endif %}{% endnotice %}
 {% endif %}
 {% if test.state == "superseded" %}
 {% notice tone="neutral" label="Superseded" class="text-break" %}The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the <a href="{% url 'sampling:lot' test.lot_id %}">lot's requirements</a> for the signed replacement{% if children %}; the test that repeats it under the current requirement is listed under Linked tests{% endif %}.{% endnotice %}
 {% endif %}
 {% if not_completed %}{% with record=not_completed.record %}
-{% notice tone="neutral" label="Not completed" class="text-break" %}<p class="mb-1">{% if not_completed.signature %}{{ not_completed.signature.signer_name }} signed{% else %}Quality signed{% endif %} that this test cannot be completed. Cause: {{ not_completed.cause|lower }}.{% if not_completed.reason %} Reason: {{ not_completed.reason }}{% endif %}</p><p class="mb-0">Everything recorded on it is kept as it was{% if record.recorded %} (recorded: {{ record.recorded|join:", " }}){% endif %}. It takes no more work and counts toward {% if test.pull_id %}no acceptance of the pull{% else %}no disposition of the lot{% endif %}.
+{% notice tone="neutral" label="Not completed" class="text-break" %}<p class="mb-1">{% if not_completed.signature %}{{ not_completed.signature.signer_name }} signed{% else %}Quality signed{% endif %} that this test cannot be completed. Cause: {{ not_completed.cause|lower }}.{% if not_completed.reason %} Reason: {{ not_completed.reason }}{% endif %}</p><p class="mb-0">Everything recorded on it is kept as it was{% if record.recorded %} (recorded: {{ record.recorded|join:", " }}){% endif %}. It takes no more work and counts toward {% if test.pull_id %}no acceptance of the pull{% elif test.reassessment_id %}no conclusion of the reassessment{% else %}no disposition of the lot{% endif %}.
 {% if record.follow_up == "repeat" %}{% if not_completed.repeat %} It is repeated by <a class="vr-id" href="{% url 'analytical:test_detail' not_completed.repeat.pk %}">{{ not_completed.repeat.label }}</a>{% if record.repeat.sample %} on sample <span class="vr-id">{{ record.repeat.sample }}</span>{% endif %}.{% endif %}
 {% elif record.follow_up == "opens" %} Its readings outside the limits ({{ record.outside_limits|join:", " }}) opened <a href="{% url 'analytical:investigation_detail' not_completed.investigation_id %}">{{ not_completed.investigation_label }}</a>, which decides what follows.
 {% else %} It belonged to <a href="{% url 'analytical:investigation_detail' not_completed.investigation_id %}">{{ not_completed.investigation_label }}</a>, which decides what follows.{% endif %}</p>{% endnotice %}
@@ -83,7 +86,7 @@
     {% endif %}
     {% if can_submit %}
     {% url 'analytical:test_detail' test.pk as submit_url %}
-    {% form_page form=submit_form action=submit_url submit_label="Submit for review" dialog="Submit for review" dialog_size="sm" class="mt-3" %}{% fill note %}Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the {% if test.pull_id %}pull{% else %}lot{% endif %}.{% endfill %}{% endform_page %}
+    {% form_page form=submit_form action=submit_url submit_label="Submit for review" dialog="Submit for review" dialog_size="sm" class="mt-3" %}{% fill note %}Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the {{ test.holder_word }}.{% endfill %}{% endform_page %}
     {% elif test.state == "open" and current_count == spec.replicates and not qc_ready %}
     <p class="vr-form-note mt-3">Results cannot be submitted until the test's QC batch is open and its QC passes.</p>
     {% elif test.state == "submitted" and not qc_ready %}

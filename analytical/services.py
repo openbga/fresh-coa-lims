@@ -19,11 +19,13 @@ proposal or an acceptance stands for a requirement of the lot, a test of that re
 no observation, no reported result, no raw-data file and no QC batch (``supplier_refusal``),
 and no test is assigned for it.
 
-A test belongs to the testing of a lot or to a stability pull. For a pull's test the pull
-stands where the lot stands: ``_lock_subjects`` locks the lots (by pk), then the pulls and
-their studies (through ``contracts.stability_pulls``), refuses a lot that left quarantine and
-a pull that takes no more testing, and every evidence change advances the revision of what it
-locked. A pull's test names no lot, so the lot of its study is neither locked nor changed.
+A test belongs to the testing of a lot, to a stability pull or to the reassessment of a
+released lot. For the test of a pull or a reassessment, that subject stands where the lot
+stands: ``_lock_subjects`` locks the lots (by pk), then the pulls and their studies (through
+``contracts.stability_pulls``), then the reassessments (through ``contracts.reassessments``),
+refuses a lot that left quarantine and a pull or reassessment that takes no more testing, and
+every evidence change advances the revision of what it locked. Such a test names no lot, so
+the lot whose material it examines is neither locked nor changed.
 """
 
 import datetime
@@ -57,10 +59,12 @@ from .contracts import (
     canonical_hash,
     contract_source,
     parse_method,
+    reassessments,
     reported_source,
     require_additional_rules,
     resolve,
     resolve_pull,
+    resolve_reassessment,
     stability_pulls,
     supplier_standing,
 )
@@ -112,38 +116,49 @@ def _lock_lots(*lot_ids, refuse=True):
 
 
 def _lock_subjects(*tests):
-    """Lock what the tests belong to and return it: their lots, then their stability pulls.
-    A lot that left quarantine and a pull that takes no more testing are refused."""
+    """Lock what the tests belong to and return it: their lots, then their stability pulls,
+    then their reassessments. A lot that left quarantine and a pull or a reassessment that
+    takes no more testing are refused."""
     lots = _lock_lots(*(test.lot_id for test in tests if test.lot_id is not None))
     pull_ids = {test.pull_id for test in tests if test.pull_id is not None}
-    return [*lots, *(stability_pulls().lock(pull_ids) if pull_ids else [])]
+    reassessment_ids = {t.reassessment_id for t in tests if t.reassessment_id is not None}
+    return [
+        *lots,
+        *(stability_pulls().lock(pull_ids) if pull_ids else []),
+        *(reassessments().lock(reassessment_ids) if reassessment_ids else []),
+    ]
 
 
 def subject_refusal(test):
     """Reason the evidence of this test cannot change now, or None: its lot left quarantine,
-    or its stability pull takes no more testing. Shared by the pages; the locked services
-    recheck through ``_lock_subjects``."""
-    if test.pull_id is None:
+    or its stability pull or reassessment takes no more testing. Shared by the pages; the
+    locked services recheck through ``_lock_subjects``."""
+    if test.lot_id is not None:
         return quarantine_refusal(test.lot)
     try:
-        return stability_pulls().refusal(test.pull)
+        if test.pull_id is not None:
+            return stability_pulls().refusal(test.pull)
+        return reassessments().refusal(test.reassessment)
     except ValidationError as exc:
         return " ".join(exc.messages)
 
 
 def _bump(*subjects):
-    """Advance the revision of each locked lot or stability pull: a disposition or an
-    acceptance opened before this change is then stale."""
+    """Advance the revision of each locked lot, stability pull or reassessment: a
+    disposition, an acceptance or a conclusion opened before this change is then stale."""
     for subject in subjects:
         subject.revision += 1
         subject.save(update_fields=["revision"])
 
 
 STALE = "Record changed. Reload and review before continuing."
-# Tests whose evidence can still change: of a lot in quarantine, or of a stability pull that
-# was pulled and not yet accepted, in a study that is still active.
-IN_PROGRESS_SUBJECT = Q(lot__state="quarantine") | Q(
-    pull__state="pulled", pull__study__state="active"
+# Tests whose evidence can still change: of a lot in quarantine, of a stability pull that
+# was pulled and not yet accepted, in a study that is still active, or of an open
+# reassessment.
+IN_PROGRESS_SUBJECT = (
+    Q(lot__state="quarantine")
+    | Q(pull__state="pulled", pull__study__state="active")
+    | Q(reassessment__state="open")
 )
 
 
@@ -164,7 +179,7 @@ def _test_authors(test):
 def supplier_refusal(test):
     """Why this test takes no laboratory work now, or None: a supplier's certificate result is
     proposed or accepted in place of it. Shared by the pages and the locked services. A
-    supplier's result never stands in for a test of a stability pull."""
+    supplier's result never stands in for a test of a stability pull or a reassessment."""
     if test.lot_id is None:
         return None
     label = supplier_standing(test.lot).get(test.test_code)
@@ -274,8 +289,9 @@ def assign_tests(*, actor, sample, reason):
 
 
 def pull_criteria_hash(accepted):
-    """Token of the acceptance criteria a page showed for a pull's tests: the payloads
-    ``resolve_pull`` returned, which name the specification and method versions."""
+    """Token of the acceptance criteria a page showed for a pull's or a reassessment's tests:
+    the payloads ``resolve_pull`` or ``resolve_reassessment`` returned, which name the
+    specification and method versions."""
     return canonical_hash(accepted)
 
 
@@ -283,6 +299,62 @@ CRITERIA_CHANGED = (
     "The acceptance criteria in force changed since this page was opened. Review the "
     "criteria shown now before assigning the tests."
 )
+
+
+def _assign_detached(*, actor, field, subject, source, resolve, reason, criteria_hash):
+    """Create the tests of a stability pull or a reassessment (``field`` names the column),
+    one for each test its source requires now. See ``assign_pull_tests``."""
+    require_role(actor, ANALYST)
+    _require_reason(reason)
+    with transaction.atomic():
+        # Same order as ``assign_tests``: the account, the subject's tests, then the subject.
+        get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
+        list(
+            AnalyticalTest.objects.select_for_update(no_key=True)
+            .filter(**{f"{field}_id": subject.pk})
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+        (locked,) = source().lock([subject.pk])
+        # Read after the subject lock: tests another analyst assigned while this waited are
+        # seen.
+        existing = set(
+            AnalyticalTest.objects.filter(**{f"{field}_id": locked.pk}).values_list(
+                "test_code", flat=True
+            )
+        )
+        accepted, holds = resolve(locked)
+        if holds:
+            raise ValidationError(holds)
+        if pull_criteria_hash(accepted) != criteria_hash:
+            raise ValidationError(CRITERIA_CHANGED)
+        created = []
+        for code, payload in accepted.items():
+            if code in existing:
+                continue  # its lineage decides what follows: review, rerun or investigation
+            test = AnalyticalTest.objects.create(
+                **{field: locked},
+                test_code=code,
+                requirement=payload,
+                requirement_hash=canonical_hash(payload),
+                created_by=actor,
+            )
+            created.append(test)
+            record_event(
+                actor=actor,
+                action="test.assigned",
+                obj=test,
+                after={
+                    field: locked.pk,
+                    "test_code": code,
+                    "requirement": payload["source"],
+                    "requirement_hash": test.requirement_hash,
+                },
+                reason=reason,
+            )
+        if created:
+            _bump(locked)
+        return created
 
 
 def assign_pull_tests(*, actor, pull, reason, criteria_hash):
@@ -295,54 +367,30 @@ def assign_pull_tests(*, actor, pull, reason, criteria_hash):
     cannot be resolved nothing is assigned and the reasons are raised. The tests belong to
     the pull and name no lot.
     """
-    require_role(actor, ANALYST)
-    _require_reason(reason)
-    with transaction.atomic():
-        # Same order as ``assign_tests``: the account, the pull's tests, then the pull.
-        get_user_model().objects.select_for_update(no_key=True).get(pk=actor.pk)
-        list(
-            AnalyticalTest.objects.select_for_update(no_key=True)
-            .filter(pull_id=pull.pk)
-            .order_by("pk")
-            .values_list("pk", flat=True)
-        )
-        (locked,) = stability_pulls().lock([pull.pk])
-        # Read after the pull lock: tests another analyst assigned while this waited are seen.
-        existing = set(
-            AnalyticalTest.objects.filter(pull_id=locked.pk).values_list("test_code", flat=True)
-        )
-        accepted, holds = resolve_pull(locked)
-        if holds:
-            raise ValidationError(holds)
-        if pull_criteria_hash(accepted) != criteria_hash:
-            raise ValidationError(CRITERIA_CHANGED)
-        created = []
-        for code, payload in accepted.items():
-            if code in existing:
-                continue  # its lineage decides what follows: review, rerun or investigation
-            test = AnalyticalTest.objects.create(
-                pull=locked,
-                test_code=code,
-                requirement=payload,
-                requirement_hash=canonical_hash(payload),
-                created_by=actor,
-            )
-            created.append(test)
-            record_event(
-                actor=actor,
-                action="test.assigned",
-                obj=test,
-                after={
-                    "pull": locked.pk,
-                    "test_code": code,
-                    "requirement": payload["source"],
-                    "requirement_hash": test.requirement_hash,
-                },
-                reason=reason,
-            )
-        if created:
-            _bump(locked)
-        return created
+    return _assign_detached(
+        actor=actor,
+        field="pull",
+        subject=pull,
+        source=stability_pulls,
+        resolve=resolve_pull,
+        reason=reason,
+        criteria_hash=criteria_hash,
+    )
+
+
+def assign_reassessment_tests(*, actor, reassessment, reason, criteria_hash):
+    """Create the tests of a reassessment of a released lot: one for each required test of
+    the specifications in force for the lot's material, stage and scopes, frozen now, as for a
+    pull (``assign_pull_tests``). The tests belong to the reassessment and name no lot."""
+    return _assign_detached(
+        actor=actor,
+        field="reassessment",
+        subject=reassessment,
+        source=reassessments,
+        resolve=resolve_reassessment,
+        reason=reason,
+        criteria_hash=criteria_hash,
+    )
 
 
 def _reading(spec, value, qualifier, outcome, observed_text):
@@ -1237,7 +1285,7 @@ def repeat_samples(test):
     not the sampling time entered), holding no original test, whose every test answers for the
     same sample as this one, so that a new sample stands in for one sample of the lot, never
     for several, and a routine sample awaiting its own tests is never taken for one. Empty for
-    a stability pull, which is repeated on the material pulled."""
+    a stability pull or a reassessment, which is repeated on the material taken for it."""
     if test.lot_id is None:
         return Sample.objects.none()
     lot_samples = [
@@ -1309,8 +1357,8 @@ def record_not_completed(
         elif repeat == SAME:
             child = _repeat(actor, locked, locked.sample_id)
         elif repeat == OTHER_SAMPLE:
-            if locked.pull_id is not None:
-                raise ValidationError(PULL_RESAMPLE)
+            if locked.lot_id is None:
+                raise ValidationError(no_other_sample(locked))
             if sample is None or not repeat_samples(locked).filter(pk=sample.pk).exists():
                 raise ValidationError(
                     "Choose a sample of this lot recorded after this test was assigned, that "
@@ -1375,6 +1423,7 @@ def _repeat(actor, test, sample_id):
         lot_id=test.lot_id,
         sample_id=sample_id if test.lot_id is not None else None,
         pull_id=test.pull_id,
+        reassessment_id=test.reassessment_id,
         test_code=test.test_code,
         requirement=test.requirement,
         requirement_hash=test.requirement_hash,
@@ -1389,6 +1438,7 @@ def _repeat(actor, test, sample_id):
         after={
             "sample": child.sample_id,
             "pull": child.pull_id,
+            "reassessment": child.reassessment_id,
             "test_code": child.test_code,
             "requirement_hash": child.requirement_hash,
             "repeats": test.pk,
@@ -1409,8 +1459,8 @@ NO_EARLIER_BATCH = (
 
 def earlier_batch_methods():
     """{(code, revision): method payload} of method revisions that are not the one in force
-    and that open tests of lots in quarantine, or of stability pulls being tested, not yet in
-    a batch, are frozen to.
+    and that open tests of lots in quarantine, of stability pulls being tested or of open
+    reassessments, not yet in a batch, are frozen to.
 
     A lot keeps the versions frozen for it, so such a test still gets a QC batch of its own
     method revision: without one a test that cannot be superseded (a retest under an open
@@ -1677,8 +1727,9 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
             raise ValidationError("You cannot reject a batch containing your own work.")
         # A superseded test is closed and stays as it is: it is not invalidated or rerun,
         # though whoever worked on it is still an author of the batch. So is an open test of a
-        # stability pull that takes no more testing (missed, or its study closed): it held
-        # nothing but its place in the batch, which must not keep the batch from rejection.
+        # stability pull or a reassessment that takes no more testing (a pull missed or its
+        # study closed, a reassessment concluded or withdrawn): it held nothing but its place
+        # in the batch, which must not keep the batch from rejection.
         # A test of a rejected lot stays with the lot's record as it was signed, for the same
         # reason: the rejection ended the lot's testing wherever its tests stood. A test
         # recorded as not completed is closed by its own signed record, which kept what it held.
@@ -1691,10 +1742,22 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
         pull_ids = {t.pull_id for t in tests if t.pull_id is not None}
         pulls = stability_pulls().lock(pull_ids, refuse=False) if pull_ids else []
         closed = {pull.pk for pull in pulls if pull.closed}
-        tests = [t for t in tests if t.pull_id not in closed and t.lot_id not in ended]
+        reassessment_ids = {t.reassessment_id for t in tests if t.reassessment_id is not None}
+        reassessed = (
+            reassessments().lock(reassessment_ids, refuse=False) if reassessment_ids else []
+        )
+        finished = {item.pk for item in reassessed if item.closed}
+        tests = [
+            t
+            for t in tests
+            if t.pull_id not in closed
+            and t.reassessment_id not in finished
+            and t.lot_id not in ended
+        ]
         subjects = [
             *(lot for lot in lots if lot.pk not in ended),
             *(pull for pull in pulls if pull.pk not in closed),
+            *(item for item in reassessed if item.pk not in finished),
         ]
         for test in tests:
             if test.state not in OPEN_STATES:
@@ -1709,6 +1772,7 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
                 lot_id=test.lot_id,
                 sample_id=test.sample_id,
                 pull_id=test.pull_id,
+                reassessment_id=test.reassessment_id,
                 test_code=test.test_code,
                 requirement=test.requirement,
                 requirement_hash=test.requirement_hash,
@@ -1872,6 +1936,14 @@ def conclude_refusal(actor, investigation, original, children):
 PULL_RESAMPLE = (
     "A stability pull has no other sample: authorize a retest of the material that was pulled."
 )
+REASSESSMENT_RESAMPLE = (
+    "A reassessment is tested on the sample taken for it: authorize a retest of that sample."
+)
+
+
+def no_other_sample(test):
+    """Why a test of a stability pull or a reassessment is not resampled."""
+    return PULL_RESAMPLE if test.pull_id is not None else REASSESSMENT_RESAMPLE
 
 
 def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reason, sample=None):
@@ -1885,8 +1957,8 @@ def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reas
         _raise(authorize_refusal(actor, locked, original))
         if kind == AnalyticalTest.Kind.RETEST:
             target = original.sample_id
-        elif original.pull_id is not None:
-            raise ValidationError(PULL_RESAMPLE)
+        elif original.lot_id is None:
+            raise ValidationError(no_other_sample(original))
         else:
             if sample is None:
                 raise ValidationError("Choose the newly collected sample to test.")
@@ -1902,6 +1974,7 @@ def authorize_retest(*, actor, pin, investigation, expected_revision, kind, reas
             lot_id=original.lot_id,
             sample_id=target,
             pull_id=original.pull_id,
+            reassessment_id=original.reassessment_id,
             test_code=original.test_code,
             requirement=original.requirement,
             requirement_hash=original.requirement_hash,
