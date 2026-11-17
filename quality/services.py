@@ -290,7 +290,8 @@ def review_result(*, actor, pin, result, expected_revision, reason):
 
 SELF_DISPOSITION = (
     "You cannot disposition a lot containing your own receipt, supplier certificate, sampling "
-    "or test data, or a supplier result you proposed in place of a test."
+    "or test data, expiry and retest dates you recorded, or a supplier result you proposed in "
+    "place of a test."
 )
 
 
@@ -300,25 +301,31 @@ def receipt_author_ids(lot):
 
 
 def lot_record_author_ids(lot):
-    """Everyone who recorded the lot's receipt details or supplier certificates, including
-    corrected originals, corrections and withdrawals, and everyone who proposed that a
-    supplier's result stands in for a test."""
+    """Everyone who recorded the lot's receipt details, supplier certificates or expiry and
+    retest dates, including corrected originals, corrections and withdrawals, and everyone who
+    proposed that a supplier's result stands in for a test."""
     from .certificates import certificate_author_ids
+    from .dates import dates_author_ids
     from .reliance import acceptance_author_ids
 
-    return receipt_author_ids(lot) | certificate_author_ids(lot) | acceptance_author_ids(lot)
+    return (
+        receipt_author_ids(lot)
+        | certificate_author_ids(lot)
+        | acceptance_author_ids(lot)
+        | dates_author_ids(lot)
+    )
 
 
 def disposition_authors(lot):
-    """Everyone who authored the lot's receipt, supplier certificate, sampling or test data;
-    none may sign its disposition.
+    """Everyone who authored the lot's receipt, supplier certificate, dates, sampling or test
+    data; none may sign its disposition.
 
-    Recorders of receipt details and supplier certificates including corrected originals and
-    withdrawals, proposers of a supplier's result in place of a test, analytical authors
-    (observations including corrected originals, submitters, batch QC, investigations),
-    samplers and recorders of every sampling record including corrected originals and
-    intermediate corrections, and foundation result analysts. Holding several roles never
-    waives this.
+    Recorders of receipt details, supplier certificates and expiry and retest dates including
+    corrected originals and withdrawals, proposers of a supplier's result in place of a test,
+    analytical authors (observations including corrected originals, submitters, batch QC,
+    investigations), samplers and recorders of every sampling record including corrected
+    originals and intermediate corrections, and foundation result analysts. Holding several
+    roles never waives this.
     """
     from analytical.gates import lot_author_ids as analytical_author_ids
     from sampling.services import lot_author_ids as sampling_author_ids
@@ -334,15 +341,18 @@ def disposition_authors(lot):
 def disposition_notices(lot):
     """What a disposition signer should see that does not block the signature: supplier results
     that do not meet the specification, supplier results accepted in place of a laboratory
-    test, reported results whose contract laboratory approval has been revoked since, and
-    requirements replaced during testing with the tests that were superseded."""
+    test, reported results whose contract laboratory approval has been revoked since,
+    requirements replaced during testing with the tests that were superseded, and the expiry and
+    retest dates the release freezes."""
     from analytical.gates import lot_notices
     from sampling.services import replacement_notices
 
     from .certificates import disposition_notices as certificate_notices
+    from .dates import disposition_notices as dates_notices
     from .reliance import disposition_notices as reliance_notices
 
     return [
+        *dates_notices(lot),
         *certificate_notices(lot),
         *reliance_notices(lot),
         *lot_notices(lot),
@@ -358,19 +368,21 @@ def disposition_denial(actor, lot):
 def disposition_blockers(lot):
     """Every message that blocks signing the QC disposition of lot, in the order dispose_lot
     reports them: active stability holds, then, for native evidence or outside DEBUG, the
-    sampling and analytical evidence. Read-only; dispose_lot calls it on the locked row and the
-    lot record shows exactly this list."""
+    sampling and analytical evidence, then the lot's expiry and retest dates. Read-only;
+    dispose_lot calls it on the locked row and the lot record shows exactly this list."""
     from analytical.gates import lot_blockers
     from analytical.models import AnalyticalTest
     from sampling.services import current_assignment
     from sampling.services import lot_blockers as sampling_blockers
     from stability.gates import lot_blockers as hold_blockers
 
+    from .dates import lot_blockers as dates_blockers
+
     problems = hold_blockers(lot)
     native = current_assignment(lot) is not None or AnalyticalTest.objects.filter(lot=lot).exists()
     if native or not settings.DEBUG:
         problems += sampling_blockers(lot) + lot_blockers(lot)
-    return problems
+    return problems + dates_blockers(lot)
 
 
 @sensitive_variables("pin")
@@ -409,13 +421,22 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
                 raise ValidationError(
                     "Mixed foundation and native evidence requires reconciliation."
                 )
+            from .dates import frozen as frozen_dates
+
             locked.disposition_evidence = {
                 "assignment_id": assignment.pk,
                 "assignment_hash": assignment.payload_hash,
                 "analytical": lot_evidence(locked),
             }
+            # A lot with dates releases them with it; evidence of a lot without keeps its shape.
+            if (dates := frozen_dates(locked)) is not None:
+                locked.disposition_evidence["dates"] = dates
             locked.state = "released"
             return
+        from .dates import lot_blockers as dates_blockers
+
+        if problems := dates_blockers(locked):
+            raise ValidationError(problems)
         samples = list(locked.samples.all())
         if not samples:
             raise ValidationError("The lot requires a sample and reviewed results.")

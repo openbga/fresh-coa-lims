@@ -3,7 +3,7 @@ title: Cancel lot received in error
 urls: quality:lot_cancel
 views: quality.rejection_views.lot_cancel
 templates: quality/closure.html
-models: quality.Lot, core.ElectronicSignature, core.AuditEvent, core.PINCredential
+models: quality.Lot, quality.LotDates, core.ElectronicSignature, core.AuditEvent, core.PINCredential
 reviewed: 2026-11-17
 summary: Sign the cancellation of a lot recorded in error, such as a delivery recorded twice, before its material was used. Quality role only. Records are kept and the number is not reused.
 ---
@@ -29,14 +29,14 @@ Quality signs the cancellation of a lot that was recorded in error, such as a de
 ## Who can use it
 
 - Sign-in required. **Quality** role only; every other role, and an account holding only Admin, receives 403 when it opens or submits the page.
-- Never a user who received the lot (created it) or authored any of its records: its receipt details, supplier certificate, sampling or test data, or a supplier result proposed in place of a test. Such a user sees "Not permitted" and no form (status 403): "You cannot cancel a lot you received or whose records you made. Another quality person must sign."
+- Never a user who received the lot (created it) or authored any of its records: its receipt details, supplier certificate, expiry and retest dates, sampling or test data, or a supplier result proposed in place of a test. Such a user sees "Not permitted" and no form (status 403): "You cannot cancel a lot you received or whose records you made. Another quality person must sign."
 - Requires an enrolled signature PIN.
 - The **Cancel lot received in error** button on the lot record shows to every quality user while the lot is in Quarantine, including users who are then refused.
 
 ## Layout
 
 - Breadcrumbs (Material lots, the lot, Cancel lot received in error), the lot number, material, record revision and a Quarantine label, and an introduction.
-- **The lot now**: Rule set; Requirements; Receipt; Examination on receipt; Supplier certificates; Supplier results in place of tests; Active holds, as on the rejection page.
+- **The lot now**: Rule set; Requirements; Receipt; Examination on receipt; Expiry and retest dates; Supplier certificates; Supplier results in place of tests; Active holds, as on the rejection page.
 - **The lot cannot be cancelled** (only when refused): the reasons, "Nothing was changed. The lot stays in quarantine." and a back link.
 - **Sign cancellation**: statement of the signature, signer and a link to enroll or change the PIN, the form, **Cancel** and **Sign and cancel the lot**.
 
@@ -69,7 +69,7 @@ Quality signs the cancellation of a lot that was recorded in error, such as a de
   - After any of these: "Its material was received and handled, so its receipt was not made in error. If the lot cannot be used, reject it."
   - A supplier result proposed or accepted in place of a test that is not withdrawn: "<record> proposes or accepts the supplier's result for <test> in place of a test. Withdraw it first."
 - **Not stopping it**: supplier certificates, receipt details and active holds do not stop the cancellation; they are frozen as shown.
-- **What is frozen**: the signature (meaning `cancelled`, bound to the resulting lot revision) stores requirements, receipt details, supplier certificates and results, active holds and the reference (schema `oq.lot-cancellation/1`).
+- **What is frozen**: the signature (meaning `cancelled`, bound to the resulting lot revision) stores requirements, receipt details, supplier certificates and results, the expiry and retest dates in force (only when they state a date), active holds and the reference (schema `oq.lot-cancellation/1`).
 - **Stale page**: as for rejection: "Record changed. Reload and review before signing." or "The lot's record changed after this page was opened. Nothing was signed. Review the lot as it is now and sign again."
 - **Failed signing attempts** are recorded even though the cancellation is refused; repeated PIN failures lock the PIN.
 - **After cancellation**: the lot takes no more records, cannot be released or rejected, and is refused for new reserve samples, retention obligations and holds ("Lot LOT-TEST-001 was cancelled as received in error; it has no material.") and not offered when starting a stability study or placing those records.

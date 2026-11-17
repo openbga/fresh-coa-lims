@@ -15,6 +15,8 @@ from .grids import Column
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
     AUDIT_READ_ROLES,
+    MATERIAL_DATES,
+    MATERIAL_DATES_RULES,
     approve_rule,
     check_rule_approval,
     require_role,
@@ -99,6 +101,11 @@ def rules(request):
         by_record.setdefault(signature.object_id, []).append(signature)
     for revision in revisions:
         revision.signatures = by_record.get(str(revision.pk), [])
+        policy = revision.policy if isinstance(revision.policy, dict) else {}
+        dates_rule = policy.get(MATERIAL_DATES)
+        revision.dates_required = (
+            MATERIAL_DATES_RULES.get(dates_rule, "") if isinstance(dates_rule, str) else ""
+        )
     return render(
         request,
         "core/rules.html",

@@ -139,6 +139,69 @@ class LotReceipt(models.Model):
         return self.condition == ReceiptCondition.DISCREPANCY
 
 
+class LotDates(models.Model):
+    """The expiry date and the retest date of a lot's material. Append-only.
+
+    A lot has at most one original record and a single chain of corrections; the record that
+    nothing replaces is the one in force. Records are added only while the lot is in quarantine:
+    the release freezes the one in force. The expiry date is the last day the material may be
+    used; the retest date is the day it must be examined again before further use. A correction
+    may state neither date, when the lot has none after all.
+    """
+
+    lot = models.ForeignKey(Lot, on_delete=models.PROTECT, related_name="dates")
+    expiry_on = models.DateField("Expiry date", null=True, blank=True)
+    retest_on = models.DateField("Retest date", null=True, blank=True)
+    basis = models.TextField(
+        "Basis",
+        blank=True,
+        help_text="Where the dates come from: the supplier's label or certificate, or the "
+        "shelf life or retest period the laboratory assigned and its reference.",
+    )
+    reason = models.TextField()
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    replaces = models.OneToOneField(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="replaced_by"
+    )
+
+    class Meta:
+        ordering = ["recorded_at", "id"]
+        verbose_name = "expiry and retest dates"
+        verbose_name_plural = "expiry and retest dates"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["lot"], condition=Q(replaces__isnull=True), name="lot_dates_one_original"
+            ),
+            # A retest date after the expiry date would never be reached in use.
+            models.CheckConstraint(
+                condition=Q(expiry_on__isnull=True)
+                | Q(retest_on__isnull=True)
+                | Q(retest_on__lte=models.F("expiry_on")),
+                name="lot_dates_retest_by_expiry",
+            ),
+            # Dates come with their basis; a record without dates is a correction to none.
+            models.CheckConstraint(
+                condition=(
+                    (Q(expiry_on__isnull=False) | Q(retest_on__isnull=False))
+                    & ~Q(basis__regex=r"^\s*$")
+                )
+                | Q(expiry_on__isnull=True, retest_on__isnull=True, replaces__isnull=False),
+                name="lot_dates_stated",
+            ),
+            models.CheckConstraint(condition=~Q(reason__regex=r"^\s*$"), name="lot_dates_reason"),
+        ]
+
+    def __str__(self):
+        return f"Dates of {self.lot}"
+
+    @property
+    def stated(self):
+        return self.expiry_on is not None or self.retest_on is not None
+
+
 class SupplierCertificate(models.Model):
     """What a supplier's certificate of analysis states for a lot. Append-only.
 

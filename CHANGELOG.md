@@ -48,6 +48,18 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - Records lead with status and hold pills, the material tag and the critical facts (holds, out-of-specification results, overdue, revoked, amended, superseded). The lot record and signing share one `disposition_blockers()` list, extracted from `dispose_lot` with the same order and conditions under the lock. The signature dialog markup moved to `{% signature_card %}` with unchanged semantics.
   > - Tests changed on evidence: markup assertions moved to stable hooks (`data-audit-action`, `data-signature-dialog`, and similar); none was weakened. The page documentation, the roadmap and `docs/product.md` status were updated with the change.
 
+- **Added**: Record a lot's expiry and retest dates, checked at release and printed on the certificate · Lots · 2026-11-17
+
+  An analyst or quality person records a lot's **Expiry date** and **Retest date** with their basis from the lot record while it is in quarantine; a correction keeps the record it replaces, and whoever recorded them cannot sign the lot's disposition. The release is refused after the expiry date and from the retest date on, and when a date the rule set requires is missing. The certificate of analysis prints the dates, released lots show **Retest due** or **Expired**, and **Material lots** can list lots by their dates.
+
+  In the application: **Material lots**
+
+  > **Technical notes**
+  >
+  > - Migration `quality.0013_lot_dates` adds the append-only `LotDates` table with its database guards. Audit actions `lot.dates_recorded` and `lot.dates_corrected`.
+  > - A rule policy may carry `material_dates` (`expiry`, `retest`, `expiry_or_retest` or `expiry_and_retest`); rule sets without it require no dates.
+  > - For a lot with dates, the release's `disposition_evidence`, the rejection and cancellation evidence and the certificate evidence gain a `dates` key; other lots keep their evidence shape. Certificates are not issued or amended for a lot that has expired or whose retest date has been reached.
+
 - **Added**: Record and accept the system's intended use · Validation · 2026-11-17 · [#43](https://github.com/openbga/qm-lims/pull/43)
 
   Under **Validation**, quality records what the system is used for and what is outside it, and a different quality person accepts it with a signature. The acceptance freezes the approved versions in force and the running release, and the list shows what changed since.

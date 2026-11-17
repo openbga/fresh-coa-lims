@@ -659,9 +659,9 @@ NO_CONFLICT = (
     "the lot's requirements again."
 )
 SELF_DECISION = (
-    "You recorded receipt, supplier certificate, sampling or test data of this lot, or proposed "
-    "a supplier's result for it. Someone who authored none of it decides which requirement "
-    "applies."
+    "You recorded receipt, supplier certificate, sampling or test data of this lot, its expiry "
+    "and retest dates, or proposed a supplier's result for it. Someone who authored none of it "
+    "decides which requirement applies."
 )
 DECISION_STALE = (
     "The specifications or rule sets in force changed after this page was opened. Review the "
@@ -940,8 +940,9 @@ NOTHING_TO_REPLACE = (
     "The versions frozen for this lot are the ones in force now. There is nothing to replace."
 )
 SELF_REPLACEMENT = (
-    "You recorded receipt, supplier certificate, sampling or test data of this lot, or proposed "
-    "a supplier's result for it. Someone who authored none of it replaces its requirements."
+    "You recorded receipt, supplier certificate, sampling or test data of this lot, its expiry "
+    "and retest dates, or proposed a supplier's result for it. Someone who authored none of it "
+    "replaces its requirements."
 )
 REPLACEMENT_STALE = (
     "The versions in force or the lot's tests changed after this page was opened. Review the "

@@ -43,8 +43,8 @@ class RejectionGrounds(models.TextChoices):
 
 SELF_REJECTION = (
     "You cannot reject a lot containing your own receipt, supplier certificate, sampling or "
-    "test data, or a supplier result you proposed in place of a test. Another quality person "
-    "must sign."
+    "test data, expiry and retest dates you recorded, or a supplier result you proposed in "
+    "place of a test. Another quality person must sign."
 )
 SELF_CANCELLATION = (
     "You cannot cancel a lot you received or whose records you made. Another quality person "
@@ -215,6 +215,12 @@ def _closure(lot, decision, schema, reasons, evidence):
     if refusal := closed_refusal(lot):
         closure.blocker = refusal
         return closure
+    from .dates import frozen as frozen_dates
+
+    # The lot's expiry and retest dates, only for a lot that has them: the evidence of a lot
+    # without keeps its shape.
+    if (dates := frozen_dates(lot)) is not None:
+        evidence = {**evidence, "dates": dates}
     closure.reasons = reasons
     closure.evidence = {"schema": schema, "decision": decision, **evidence}
     closure.basis = digest(closure.evidence)

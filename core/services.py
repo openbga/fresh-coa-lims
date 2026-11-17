@@ -268,7 +268,17 @@ OWN_TESTS = "own_tests"
 # A dimension it leaves out matches every lot. The site is the deployment.
 APPLIES_TO = "applies_to"
 APPLIES_TO_KEYS = ("materials", "stages", "scopes")
-OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO})
+# Optional. Which of a lot's dates the rule set requires before it is released: its expiry date,
+# its retest date, at least one of them, or both. A rule set without it requires neither; a lot
+# may still carry dates, and the release and the certificate respect them either way.
+MATERIAL_DATES = "material_dates"
+MATERIAL_DATES_RULES = {
+    "expiry": "an expiry date",
+    "retest": "a retest date",
+    "expiry_or_retest": "an expiry date or a retest date",
+    "expiry_and_retest": "an expiry date and a retest date",
+}
+OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO, MATERIAL_DATES})
 SCOPE_NAME = re.compile(r"[-a-zA-Z0-9_]+")
 
 
@@ -315,6 +325,13 @@ def validate_policy(policy):
             raise ValidationError(
                 "own_tests must be among required_tests; not required: " + ", ".join(unknown) + "."
             )
+    if MATERIAL_DATES in policy and (
+        not isinstance(policy[MATERIAL_DATES], str)
+        or policy[MATERIAL_DATES] not in MATERIAL_DATES_RULES
+    ):
+        raise ValidationError(
+            "material_dates must be one of " + ", ".join(MATERIAL_DATES_RULES) + "."
+        )
     if APPLIES_TO in policy:
         where = policy[APPLIES_TO]
         if (

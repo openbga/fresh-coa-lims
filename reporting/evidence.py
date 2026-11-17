@@ -210,6 +210,58 @@ def _statement(item):
     }
 
 
+def _dates(lot):
+    """The lot's expiry and retest dates in force, for a lot that has any (None otherwise, so
+    the evidence of a lot without dates keeps its shape), and whether they are the ones its
+    release froze."""
+    from quality.models import LotDates
+
+    record = LotDates.objects.filter(lot_id=lot.pk, replaced_by__isnull=True).first()
+    if record is None or (record.expiry_on is None and record.retest_on is None):
+        return None
+    stored = lot.disposition_evidence or {}
+    # Only a native release freezes evidence; the development-only manual path keeps none, so
+    # there is nothing to compare with (None).
+    frozen = None
+    if "assignment_id" in stored:
+        frozen = (stored.get("dates") or {}).get("id") == record.pk
+    return {
+        "id": record.pk,
+        "expiry_on": record.expiry_on.isoformat() if record.expiry_on else None,
+        "retest_on": record.retest_on.isoformat() if record.retest_on else None,
+        "basis": record.basis,
+        "frozen_at_release": frozen,
+    }
+
+
+def _dates_author_ids(lot):
+    """Everyone who recorded or corrected the lot's dates, replaced records included."""
+    from quality.models import LotDates
+
+    return set(LotDates.objects.filter(lot_id=lot.pk).values_list("recorded_by_id", flat=True))
+
+
+def date_blockers(dates, on):
+    """Why the lot's dates stop a certificate on the local date ``on``: after the expiry date
+    and from the retest date on. The rules are those of quality.dates.status."""
+    from datetime import date
+
+    if not dates:
+        return []
+    problems = []
+    if dates.get("frozen_at_release") is False:
+        problems.append("The lot's expiry and retest dates are not those its release froze.")
+    expiry, retest = dates.get("expiry_on"), dates.get("retest_on")
+    if expiry and on > date.fromisoformat(expiry):
+        problems.append(f"The lot expired after {expiry}; no certificate is issued for it.")
+    elif retest and on >= date.fromisoformat(retest):
+        problems.append(
+            f"The lot's retest date, {retest}, has been reached; no certificate is issued for a "
+            "lot due for retest."
+        )
+    return problems
+
+
 def collect_evidence(lot):
     """Snapshot of everything a certificate asserts, for a lot as currently committed."""
     lot = Lot.objects.select_related("rules", "created_by").get(pk=lot.pk)
@@ -297,6 +349,10 @@ def collect_evidence(lot):
     if native and native["assignment_verified"]:
         supplied.add("methods")
     evidence["sections_supplied"] = sorted(supplied)
+    if (dates := _dates(lot)) is not None:
+        evidence["dates"] = dates
+        # The certificate asserts the dates: whoever recorded them is one of its authors.
+        evidence["authors"] = sorted(set(evidence["authors"]) | _dates_author_ids(lot))
     return evidence
 
 
@@ -365,6 +421,9 @@ def blockers(evidence):
     for hold in evidence.get("holds") or []:
         if hold.get("status") not in CLEARED_HOLD_STATES:
             problems.append(f"Open hold: {hold.get('description') or hold.get('id')}.")
+    from django.utils import timezone
+
+    problems += date_blockers(evidence.get("dates"), timezone.localdate())
     return problems
 
 

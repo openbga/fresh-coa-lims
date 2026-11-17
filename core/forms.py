@@ -35,7 +35,9 @@ class RuleForm(forms.Form):
         "supplier's result stand in for a test other than those listed. applies_to, with "
         "materials, stages and scopes (at least one, each a list of codes), makes this an "
         "additional rule set: it is not chosen when a lot is received and applies to every "
-        "lot whose requirements are assigned for a material, stage and scope it names.",
+        "lot whose requirements are assigned for a material, stage and scope it names. "
+        "material_dates (expiry, retest, expiry_or_retest or expiry_and_retest) states which "
+        "of a lot's dates must be recorded before it is released.",
     )
     effective_from = forms.DateTimeField(widget=LocalDateTimeInput)
     effective_until = forms.DateTimeField(required=False, widget=LocalDateTimeInput)
