@@ -38,7 +38,7 @@ Record the next replicate observation of a test, with the location of its origin
 ## Layout
 
 - Heading "Record replicate N · T-n" and breadcrumbs.
-- Summary card: Test, Lot and sample, Specification, Record revision, Unit (numeric and count tests only).
+- Summary card: Test (number, name and code), Lot and sample (sample under the lot), Specification (code and version, hash under it), Acceptance, Record revision, Unit (numeric and count tests only).
 - Form, numeric and count tests: **Observed value** (**Observed count** for counts), **Reported as less than this value**, **Original record**.
 - Form, qualitative tests: **Observed result** (radio pair), **What was observed**, **Original record**.
 - Form, calculated methods: one field per approved input (labelled with its name and unit), **Original record**. No value or less-than field.

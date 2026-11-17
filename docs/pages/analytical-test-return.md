@@ -32,7 +32,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 ## Layout
 
 - Heading "Return T-n for correction".
-- Summary card: test facts (Specification with its acceptance) and the Reportable result with unit, e.g. "99.8 %", "<10 CFU/g" or "Absent".
+- Summary card: test facts (Specification as code and version with its hash, and Acceptance) and the Reportable result with unit, e.g. "99.8 %", "<10 CFU/g" or "Absent".
 - Form: **Reason**, hidden revision, **Cancel**, **Return test**.
 
 ## Actions

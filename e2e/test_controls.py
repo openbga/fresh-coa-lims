@@ -250,3 +250,16 @@ def test_sidebar_collapse_follows_the_person(live_server, django_user_model):
         assert len(posts) == 2  # the first value, then only the latest of those that waited
     last = UserPreference.objects.get(user=people["analyst2"], key="pagedocs.open")
     assert last.value is False
+
+
+def test_an_open_tooltip_never_widens_the_page(live_server, django_user_model):
+    staff(django_user_model)
+    with browser_page({"width": 1440, "height": 900}) as page:
+        sign_in(page, live_server.url, "analyst", PASSWORD)
+        page.locator("[data-pagedocs-toggle]:visible").focus()  # far right of the top bar
+        tooltip = page.locator(".tooltip.show")
+        expect(tooltip).to_be_visible()
+        assert tooltip.evaluate("tip => getComputedStyle(tip).position") == "fixed"
+        page.set_viewport_size({"width": 390, "height": 844})
+        expect(tooltip).to_have_count(0)  # a resize hides it
+        assert page.evaluate("document.documentElement.scrollWidth === window.innerWidth")

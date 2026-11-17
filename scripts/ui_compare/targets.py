@@ -128,6 +128,11 @@ def resolve(key):
             if pull.timing()[0] == "overdue":
                 return reverse("stability:pull_detail", args=[pull.pk])
         return None
+    if key == "test-not-completed":
+        return test_path(first(AnalyticalTest.objects.filter(state="not_completed")))
+    if key == "sign-not-completed":
+        test = first(AnalyticalTest.objects.filter(state="open", kind="original"))
+        return reverse("analytical:test_not_completed", args=[test.pk]) if test else None
     if key == "sign-review":
         test = first(AnalyticalTest.objects.filter(state="submitted"))
         return reverse("analytical:test_review", args=[test.pk]) if test else None

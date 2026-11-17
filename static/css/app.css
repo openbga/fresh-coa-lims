@@ -3479,8 +3479,14 @@ fieldset.vr-field > legend {
   background: var(--vr-surface-2);
 }
 
-.vr-sign-summary > :last-child {
+.vr-sign-summary > * {
+  margin-top: 0;
   margin-bottom: 0;
+}
+
+/* The summary's parts (the facts, the Signer sentence, the PIN link) stack one gap apart. */
+.vr-sign-summary > * + * {
+  margin-top: var(--vr-stack);
 }
 
 .vr-sign-summary :is(.vr-id, .vr-data) {

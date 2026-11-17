@@ -37,7 +37,7 @@ Records what an outside contract laboratory's report states for a test, as the t
 ## Layout
 
 - Heading "Record contract laboratory result · T-n" ("Correct contract laboratory result · T-n" for a correction) and breadcrumbs.
-- Summary card: Test, Lot and sample, Specification, Record revision, Method, Replicates and **What is checked**. A correction adds Result being corrected, Reported by and Report kept at, and one more sentence under What is checked.
+- Summary card: Test (number, name and code), Lot and sample (sample under the lot), Specification (code and version, hash under it), Acceptance, Record revision, Method, Replicates and **What is checked**. A correction adds Result being corrected, Reported by and Report kept at, and one more sentence under What is checked.
 - Note: "Fields marked * are required. The server records the time and your identity."
 - Form: **Contract laboratory**, **Report number**, **Date of the report**, **Where the report is kept**, then the result fields of every replicate. A correction ends with **Reason for correction**.
 - Result fields, numeric and count tests: **Reported value (unit)** and **Reported as less than this value**. Qualitative tests: **Reported result** (radio pair) and **Wording on the report**. With more than one replicate each label starts with the replicate, for example "Replicate 2 reported value (%)".

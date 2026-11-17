@@ -539,12 +539,12 @@ def test_summary(test):
         ),
         (
             "Specification",
+            # No tooltips here: a titled chip takes keyboard focus, and the signing dialog
+            # gives focus to the first focusable element.
             format_html(
-                '<code class="vr-code" title="{}">{}</code><small><code class="vr-code" '
-                'title="{}">{}</code></small>',
-                spec.source,
+                '<code class="vr-code">{}</code><small>requirement hash '
+                '<code class="vr-code">{}</code></small>',
                 source_label(spec.source),
-                test.requirement_hash,
                 test.requirement_hash[:12],
             ),
         ),

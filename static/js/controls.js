@@ -1179,6 +1179,8 @@
     window.bootstrap.Tooltip.getOrCreateInstance(element, {
       container: element.closest(".modal") || "body",
       trigger: "manual", // shown by the listeners below
+      // A fixed overlay never adds page width, even when the window shrinks under it.
+      popperConfig: function (config) { return Object.assign({}, config, { strategy: "fixed" }); },
     });
     tipped.add(element);
   }
@@ -1197,14 +1199,21 @@
     return window.bootstrap.Tooltip.getInstance(element);
   }
 
-  function hideTooltips(except) {
+  // Hides open tooltips, except one instance, or only those whose element ``hides`` selects.
+  function hideTooltips(except, hides) {
     document.querySelectorAll(".tooltip.show").forEach(function (tip) {
       var owner = document.querySelector("[aria-describedby~='" + tip.id + "']");
       var instance = owner && window.bootstrap.Tooltip.getInstance(owner);
-      if (instance && instance !== except) {
+      if (instance && instance !== except && (!hides || hides(owner))) {
         instance.hide();
       }
     });
+  }
+
+  function outOfView(element) {
+    var box = element.getBoundingClientRect();
+    return box.bottom < 0 || box.right < 0 ||
+      box.top > window.innerHeight || box.left > window.innerWidth;
   }
 
   document.addEventListener("mouseover", function (event) {
@@ -1235,6 +1244,13 @@
     }
   });
   document.addEventListener("pointerdown", function () { hideTooltips(null); }, true);
+  // A window resize hides them all; scrolling hides one whose element has left the view.
+  window.addEventListener("resize", function () { hideTooltips(null); });
+  document.addEventListener("scroll", function () {
+    if (document.querySelector(".tooltip.show")) {
+      hideTooltips(null, outOfView);
+    }
+  }, true);
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && document.querySelector(".tooltip.show")) {
       hideTooltips(null); // the dialog around it, if any, still gets its Escape on the next press

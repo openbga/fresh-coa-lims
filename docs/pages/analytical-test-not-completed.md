@@ -41,7 +41,7 @@ A quality person signs that an open test cannot be completed (the sample was los
 - **Summary rows**, top to bottom:
   - **Test**: the test number, its name and the test code.
   - **Lot and sample** (or **Lot and stability pull**): the lot number, with the sample (or stability pull) under it.
-  - **Specification**: the specification code and version (the full requirement source as its tooltip), with the start of the requirement's hash under it.
+  - **Specification**: the specification code and version, with the start of the requirement's hash under it.
   - **Acceptance**: the frozen acceptance criterion.
   - **Kind**: the test's kind (Original, Retest, Resample, Rerun after QC failure, Repeat under replaced requirements, Repeat of a test not completed).
   - **Recorded**: the current readings as recorded, joined with ", ", or "No result recorded".

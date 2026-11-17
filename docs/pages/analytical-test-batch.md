@@ -31,7 +31,7 @@ Add a test whose method runs in a QC batch to an open batch of the same method r
 ## Layout
 
 - Heading "Add T-n to a QC batch".
-- Summary card: test facts (including the Specification source and acceptance) and Method ("code revision N").
+- Summary card: test facts (including the Specification as code and version with its hash, and Acceptance) and Method ("code revision N").
 - Form: **Open QC batch**, **Reason**, **Cancel**, **Add to batch**.
 
 ## Actions

@@ -99,7 +99,8 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         receipt = page.get_by_role("region", name="Receipt", exact=True)
         expect(receipt).to_contain_text("Received from a supplier")
         expect(receipt).to_contain_text("SUP-LOT-SYN-001")
-        expect(receipt).to_contain_text("125.5 kg")
+        # The quantity received is a fact of the Lot panel (not repeated in Receipt).
+        expect(page.get_by_role("region", name="Lot", exact=True)).to_contain_text("125.5 kg")
         expect(receipt).to_contain_text("5 · 25 kg fibre drums")
         expect(receipt).to_contain_text("Discrepancy found")
         expect(receipt).to_contain_text("A discrepancy does not hold the lot by itself.")
