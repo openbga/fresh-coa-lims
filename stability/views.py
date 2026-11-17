@@ -783,8 +783,7 @@ def _next_pull(pulls, today):
     if not scheduled:
         return ""
     pull = min(scheduled, key=lambda p: (p.due_date, p.pk))
-    label, tone = _pull_tone(pull, today)
-    return status(f"{pull.timepoint} · due {day(pull.due_date)} · {label}", tone)
+    return cell(f"{pull.timepoint} · due {day(pull.due_date)}", pill=_pull_tone(pull, today))
 
 
 def timing_closed(pull, today):

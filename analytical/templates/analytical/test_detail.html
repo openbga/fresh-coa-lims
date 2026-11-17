@@ -4,8 +4,8 @@
 {% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% if test.pull_id %}{% url 'stability:pull_detail' test.pull_id as pull_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.pull.label record_url=pull_url current=test.label %}{% else %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endif %}{% endblock %}
 {% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% if test.kind != "original" %} {% kind_tag label=test.get_kind_display %}{% endif %}{% endblock %}
 {% block page_meta %}{% page_meta %}
-  <li>{% include "analytical/_test_status.html" with test=test plain=True only %}</li>
-  {% if triggered %}<li><a href="{% url 'analytical:investigation_detail' triggered.pk %}">{% include "analytical/_investigation_status.html" with inv=triggered plain=True only %}</a></li>{% endif %}
+  <li>{% include "analytical/_test_status.html" with test=test only %}</li>
+  {% if triggered %}<li><a href="{% url 'analytical:investigation_detail' triggered.pk %}">{% include "analytical/_investigation_status.html" with inv=triggered only %}</a></li>{% endif %}
   {% if test.pull_id %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' test.pull_id %}">{{ test.pull.label }}</a> · lot <span class="vr-id">{{ test.source_lot.number }}</span></li>
   {% else %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' test.lot_id %}">{{ test.lot.number }}</a> · sample <span class="vr-id">{{ test.sample.reference }}</span></li>{% endif %}
   <li>Revision {{ test.revision }}</li>
@@ -25,7 +25,7 @@
 {% notice tone="neutral" label="Superseded" class="text-break" %}The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the <a href="{% url 'sampling:lot' test.lot_id %}">lot's requirements</a> for the signed replacement{% if children %}; the test that repeats it under the current requirement is listed under Linked tests{% endif %}.{% endnotice %}
 {% endif %}
 {% if triggered %}
-{% notice tone="danger" label="Out of specification" %}{% include "analytical/_investigation_status.html" with inv=triggered plain=True only %} This result opened <a href="{% url 'analytical:investigation_detail' triggered.pk %}">{{ triggered.label }}</a>. It cannot be corrected or returned; the investigation decides whether it is invalid.{% endnotice %}
+{% notice tone="danger" label="Out of specification" %}This result opened <a href="{% url 'analytical:investigation_detail' triggered.pk %}">{{ triggered.label }}</a>. It cannot be corrected or returned; the investigation decides whether it is invalid.{% endnotice %}
 {% endif %}
 {% if test.investigation %}
 {% notice tone="info" label="Investigation test" %}Authorized under <a href="{% url 'analytical:investigation_detail' test.investigation_id %}">{{ test.investigation.label }}</a>. All results stay attached to the investigation; none replaces the original until quality concludes.{% endnotice %}
@@ -87,7 +87,7 @@
 {% panel title="Specification and result" heading_id="spec-heading" class="mb-3" %}
     <dl class="vr-facts">
       {% fact label="Test code" %}{{ test.test_code }}{% endfact %}
-      {% fact label="Specification revision" %}{{ spec.source }}<div class="small vr-muted">Snapshot hash <span class="vr-id">{{ test.requirement_hash|truncatechars:17 }}</span></div>{% endfact %}
+      {% fact label="Specification revision" %}{{ spec_label }}<div class="small vr-muted">Snapshot hash <span class="vr-id">{{ test.requirement_hash|truncatechars:17 }}</span></div><div class="small vr-muted text-break">{{ spec.source }}</div>{% endfact %}
       {% fact label="Acceptance" %}{{ spec.acceptance }}{% if spec.is_qualitative %}<div class="small vr-muted">Every replicate must read {{ spec.expected_label }}.</div>{% else %}{% if spec.replicate_limits %}<div class="small vr-muted">Each replicate and the reportable value must conform.</div>{% endif %}<div class="small vr-muted">A replicate reported as less than a value gives no mean; every replicate must then conform on its own.</div>{% endif %}{% endfact %}
       {% fact label="Method" %}{{ spec.method.code }} revision {{ spec.method.revision }}{% if contract %}<div class="small vr-muted">Performed by the contract laboratory; its instruments and lots are in its report.</div>{% elif spec.method.requires_equipment or spec.method.requires_reagent %}<div class="small vr-muted">Each result records {% if spec.method.requires_equipment %}the equipment used{% endif %}{% if spec.method.requires_equipment and spec.method.requires_reagent %} and {% endif %}{% if spec.method.requires_reagent %}the reagent or standard lots used{% endif %}.</div>{% endif %}{% endfact %}
       {% if spec.calculation %}{% fact label="Calculation" %}<code>{{ spec.calculation.formula }}</code><ul class="list-unstyled small mb-0">{% for i in spec.calculation.inputs %}<li><span class="vr-id">{{ i.code }}</span>: {{ i.name }} ({{ i.unit }})</li>{% endfor %}</ul><div class="small vr-muted">Result in {{ spec.calculation.unit }}, rounded half-up to {{ spec.calculation.decimals }} decimal place{{ spec.calculation.decimals|pluralize }}. {% if contract %}Not applied here: the value was entered as the contract laboratory reported it.{% else %}Recalculated from the stored inputs at submission and review.{% endif %}</div>{% endfact %}{% endif %}

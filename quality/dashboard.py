@@ -204,7 +204,7 @@ def lanes():
                     ),
                     "created_at",
                     tone="success",
-                    status="Quarantine",
+                    status="Complete",
                     url=f"{lots}?state=quarantine",
                 ),
                 queue(
@@ -217,8 +217,8 @@ def lanes():
                         )
                     ),
                     "created_at",
-                    tone="danger",
-                    status="Quarantine",
+                    tone="warning",
+                    status="Blocked",
                     url=f"{lots}?state=quarantine",
                 ),
             ],
@@ -291,6 +291,7 @@ def gates():
             equipment_filter(equipment_queryset(today), "overdue", today),
             None,
             tone="danger",
+            status="Calibration overdue",
             url=reverse("laboratory:equipment_list") + "?status=overdue",
         ),
         queue(
@@ -298,6 +299,7 @@ def gates():
             ReagentLot.objects.filter(state="received"),
             "received_on",
             tone="info",
+            status=ReagentLot.State.RECEIVED.label,
             url=reverse("laboratory:reagent_list") + "?status=received",
         ),
     ]

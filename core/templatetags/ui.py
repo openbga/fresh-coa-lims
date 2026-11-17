@@ -287,7 +287,9 @@ COMPONENTS = {
     "more_actions": Component(I + "more_actions.html", ("label",), body="block"),
     "record_layout": Component(I + "record_layout.html", ("aside_label",), body="block"),
     "fact": Component(
-        I + "fact.html", ("label", "value", "empty", "class", "wide"), body="unless:value",
+        I + "fact.html",
+        ("label", "value", "empty", "class", "wide", "truncate"),
+        body="unless:value",
         derive=fact_values,
     ),
     # Single components

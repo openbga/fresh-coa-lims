@@ -9,7 +9,7 @@ Application document and staff shell. Block contract (docs/ui-standards.md):
   section_navigation  sibling list links above the header ({% section_tabs %}) when the view passes tabs
   page_header    whole page header, shown when the view passes page_title; override only for
                  unusual pages (error pages)
-  page_dateline  overview pages: {% dateline %}
+  page_dateline  overview pages: {% dateline %} (under the title)
   breadcrumbs    record, form, action and document pages: {% breadcrumbs %}
   page_heading   <h1> text; defaults to {{ page_title }}
   page_title_class  " vr-data" when the title is a record identifier (not widened)
@@ -92,11 +92,11 @@ Every page ends with {% app_footer %} outside <main>.
       {% block section_navigation %}{% if tabs %}{% section_tabs tabs=tabs %}{% endif %}{% endblock %}
       {% block page_header %}
       {% if page_title %}<div class="vr-page-header">
-        {% block page_dateline %}{% endblock %}
         {% block breadcrumbs %}{% endblock %}
         <div class="vr-page-header-row">
           <div>
             <h1 class="vr-page-title{% block page_title_class %}{% endblock %}">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            {% block page_dateline %}{% endblock %}
             {% block page_meta %}{% endblock %}
           </div>
           <div class="vr-page-actions">{% block page_actions %}{% endblock %}</div>

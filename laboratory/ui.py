@@ -90,9 +90,17 @@ def make_filter(request, choices=None):
 # --- Cells -----------------------------------------------------------------------------------
 
 
-def cell(text="", href=None, tone=None, numeric=False, link_rel=None):
-    """One table/fact value. `tone` renders `text` as a status label (text plus glyph)."""
-    return {"text": text, "href": href, "tone": tone, "numeric": numeric, "rel": link_rel}
+def cell(text="", href=None, tone=None, numeric=False, link_rel=None, pill=None):
+    """One table/fact value. `tone` renders `text` as a status label (text plus glyph); `pill`
+    (label, tone) adds a status label after plain `text` (a clock fact: date, then its state)."""
+    return {
+        "text": text,
+        "href": href,
+        "tone": tone,
+        "numeric": numeric,
+        "rel": link_rel,
+        "pill": pill,
+    }
 
 
 def wrap(value):

@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -519,6 +521,17 @@ def get_test(pk):
     )
 
 
+# A requirement's source names the specification and its version first, e.g.
+# "catalog:syn-assay@v2#rev6/lot-req:…" or "fixture:SYN-SPEC-ASSAY@1".
+SOURCE = re.compile(r"^[^:]+:(?P<code>[^@#/]+)@v?(?P<version>\d+)")
+
+
+def source_label(source):
+    """The specification code and version of a requirement source, else the source itself."""
+    match = SOURCE.match(source)
+    return f"{match['code']} v{match['version']}" if match else source
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def test_detail(request, pk):
@@ -564,6 +577,7 @@ def test_detail(request, pk):
             "page_title": test.label,
             "test": test,
             "spec": spec,
+            "spec_label": source_label(spec.source),
             "subject_closed": subject_closed,
             "observations": observations,
             "current_count": current_count,
