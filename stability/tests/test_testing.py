@@ -796,3 +796,39 @@ def test_the_assign_page_refuses_changed_criteria_and_shows_the_ones_in_force(cl
     done = client.post(url, {"reason": "Tests of the time point", "criteria": current})
     assert done.status_code == 302
     assert AnalyticalTest.objects.get(pull=pull).requirement["lower_limit"] == "99"
+
+
+def test_close_study_is_offered_only_when_closing_would_be_accepted(client, people):
+    """The study page offers Close study only when study_close would accept it; while testing
+    of its pulls is in progress it says why in the header instead."""
+    from django.urls import reverse
+
+    study, _ = specified_study(people, codes=("assay",))
+    url = reverse("stability:study_detail", args=[study.pk])
+    close_url = reverse("stability:study_close", args=[study.pk])
+    client.force_login(people["quality"])
+    assert close_url in client.get(url).content.decode()
+    pull = pulled(people, study)
+    (assay,) = assign(people, pull)
+    observe(people, assay)  # readings recorded: testing is in progress
+    body = client.get(url).content.decode()
+    assert close_url not in body
+    assert "Testing of the study&#x27;s pulls is in progress; finish it first" in body
+
+
+def test_approve_is_offered_only_when_the_criteria_are_complete(client, people):
+    """A protocol whose specification cannot answer a time point's test is not offered for
+    approval (testing.protocol_problems, as the approval page checks); the Criteria incomplete
+    notice says why."""
+    from django.urls import reverse
+
+    config = shelf_life(people, codes=("assay",))
+    for code, codes in (("SYN-GAP", ("assay", "water")), ("SYN-OK", ("assay",))):
+        draft = draft_protocol(
+            people, code=code, specification=config["specification"], test_codes=codes
+        )
+        client.force_login(people["quality"])
+        body = client.get(reverse("stability:protocol_detail", args=[draft.pk])).content.decode()
+        offered = reverse("stability:protocol_approve", args=[draft.pk]) in body
+        assert offered == (code == "SYN-OK"), code
+        assert ("Criteria incomplete" in body) == (code == "SYN-GAP"), code

@@ -480,6 +480,12 @@ def action(label, href, primary=False, *, danger=False, more=False):
     return {"label": label, "href": href, "primary": primary, "danger": danger, "more": more}
 
 
+def refused(note):
+    """In place of a header action the server would refuse now: the reason, muted, before the
+    other actions (never a button that only leads to the refusal)."""
+    return {"note": note, "label": "", "href": "", "primary": False, "danger": False, "more": False}
+
+
 # --- Forms and signing -----------------------------------------------------------------------
 
 

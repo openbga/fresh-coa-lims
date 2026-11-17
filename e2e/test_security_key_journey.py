@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import Group
+from helpers import open_page_form
 from playwright.sync_api import expect, sync_playwright
 
 PASSWORD = "Synthetic-security-key-browser-2026!"
@@ -94,6 +95,7 @@ class Session:
         page = self.page
         self.open_two_factor()
         expect(page.get_by_text("Off", exact=True)).to_be_visible()
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.get_by_role("button", name="Set up with a security key or passkey", exact=True).click()
         expect(page.get_by_role("heading", name="Register the key")).to_be_visible()
@@ -107,6 +109,7 @@ class Session:
         """On Two-factor sign-in: confirm with the password and an existing key, then add."""
         page = self.page
         self.open_two_factor()
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.locator("input[name=otp_code]").fill("")
         page.get_by_role("button", name="Add a security key or passkey", exact=True).click()
@@ -178,6 +181,7 @@ def test_security_key_journey(live_server, django_user_model, artifacts):
         # Enter in the form presses no action: never the first Remove button, and no prompt.
         posts = []
         page.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.get_by_label(re.compile(r"^Current password\b")).press("Enter")
         page.get_by_label(re.compile(r"^Recovery code\b")).fill(codes[1])

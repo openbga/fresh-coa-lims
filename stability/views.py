@@ -35,6 +35,7 @@ from laboratory.ui import (
     paginate,
     person,
     record_page,
+    refused,
     roles_of,
     run_form,
     section,
@@ -352,8 +353,14 @@ def protocol_detail(request, pk):
         }
     own_draft = draft and p.author_id == user.pk and can(user, *services.AUTHORS)
     actions = [
+        # Offered only when approving would be accepted (testing.protocol_problems, as on the
+        # approval page); the Criteria incomplete notice says why otherwise.
         action("Approve", reverse("stability:protocol_approve", args=[p.pk]), True)
-        if draft and p.author_id != user.pk and can(user, "quality") and timepoints
+        if draft
+        and p.author_id != user.pk
+        and can(user, "quality")
+        and timepoints
+        and not testing.protocol_problems(p)
         else None,
         action("Add condition", reverse("stability:condition_new", args=[p.pk]))
         if own_draft
@@ -844,7 +851,11 @@ def study_detail(request, pk):
         action("Record pull", reverse("stability:pull_record", args=[first.pk]), True)
         if first and active and can(user, "analyst")
         else None,
-        action("Close study", reverse("stability:study_close", args=[s.pk]), not scheduled)
+        (
+            refused(closing)
+            if (closing := close_refusal(s))
+            else action("Close study", reverse("stability:study_close", args=[s.pk]), not scheduled)
+        )
         if active and can(user, "quality") and s.created_by_id != user.pk
         else None,
     ]
@@ -1013,6 +1024,15 @@ def _untested(pull):
     return "No test assigned", "neutral"
 
 
+def close_refusal(study):
+    """Why closing the study now is refused by its testing, or "": the study page offers Close
+    study only without it, and study_close refuses with it."""
+    reasons = testing_in_progress(study)
+    if not reasons:
+        return ""
+    return "Testing of the study's pulls is in progress; finish it first: " + " ".join(reasons)
+
+
 @login_required
 def study_close(request, pk):
     require_role(request.user, "quality")
@@ -1022,10 +1042,8 @@ def study_close(request, pk):
         denial = "You started this study, so you cannot close it."
     elif s.state != Study.State.ACTIVE:
         denial = "This study is already closed."
-    elif reasons := testing_in_progress(s):
-        denial = "Testing of the study's pulls is in progress; finish it first: " + " ".join(
-            reasons
-        )
+    else:
+        denial = close_refusal(s)
     form = CloseStudyForm(request.POST or None, initial={"expected_revision": s.revision})
     detail = reverse("stability:study_detail", args=[s.pk])
     return sign_page(

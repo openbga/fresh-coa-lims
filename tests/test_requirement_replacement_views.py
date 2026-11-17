@@ -174,6 +174,9 @@ def test_the_replacement_page_is_for_quality_who_authored_nothing(
     # The world's analyst also holds the quality role, and received and tested this lot.
     author = people["analyst"]
     client.force_login(author)
+    # The lot record does not offer what would be refused: it says why in the header.
+    listed = text(client.get(lot_url))
+    assert replace_url not in listed and 'data-refused="replace">' in listed
     response = client.get(replace_url)
     assert response.status_code == 403
     page = text(response)

@@ -156,10 +156,10 @@ FORM_SURFACES = {
 NOT_FORM_PAGES = {
     "login_verify": "a sign-in step: there is no session and no workspace page to open it over",
     "login_passkey": "a sign-in step: there is no session and no workspace page to open it over",
-    "accounts:two_factor": "the account's two-factor page: its factors and the confirmation "
-    "that leads on to a setup step (which opens in the dialog over it)",
-    "accounts:single_sign_on": "an administrator confirms changes here with a security key, "
-    "whose browser ceremony runs on this page (static/js/security-keys.js)",
+    "accounts:two_factor": "the account's two-factor page, its factors listed; its confirmation "
+    "opens in the dialog from the page (data-vr-local-form) and leads on to a setup step",
+    "accounts:single_sign_on": "the account's single sign-on page, its link shown; linking or "
+    "unlinking opens in the dialog from the page (data-vr-local-form)",
     "core:rules": "a list; its New revision form opens in the dialog from the page "
     "(form_page dialog=)",
     "core:audit": "a list; the review records the events ticked in the list itself",

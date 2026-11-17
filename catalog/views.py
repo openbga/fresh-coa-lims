@@ -1,7 +1,6 @@
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -37,6 +36,8 @@ from .models import (
     Stage,
 )
 from .web import (
+    INDEPENDENT_APPROVER,
+    approval_offer,
     approve_page,
     can,
     form_status,
@@ -240,12 +241,8 @@ def specification_revision(request, pk):
     spec = revision.specification
     is_draft = revision.status == RevisionStatus.DRAFT
     can_edit = can(request.user, services.AUTHOR_ROLE)
-    independent = True
-    if is_draft and can_edit:
-        try:
-            services.ensure_independent(request.user, revision)
-        except PermissionDenied:
-            independent = False
+    offered, approve_note = approval_offer(request.user, revision) if can_edit else (False, "")
+    independent = approve_note != INDEPENDENT_APPROVER
     return render(
         request,
         "catalog/specification_revision.html",
@@ -258,7 +255,9 @@ def specification_revision(request, pk):
             "history": history(revision),
             "is_draft": is_draft,
             "can_edit": can_edit and is_draft,
-            "can_approve": can_edit and is_draft and independent,
+            "can_approve": offered,
+            # Independence has its own notice on the page; any other refusal is said here.
+            "approve_note": approve_note if independent else "",
             "crumbs": crumbs_for(
                 (spec.code, reverse("catalog:specification", args=[spec.pk])),
                 (f"Version {revision.version}", None),
@@ -472,13 +471,9 @@ def method_detail(request, pk):
     can_edit = can(request.user, services.AUTHOR_ROLE)
     for revision in revisions:
         revision.signature_list = [s for s in sigs if s.object_id == str(revision.pk)]
-        revision.can_approve = False
-        if can_edit and revision.status == RevisionStatus.DRAFT:
-            try:
-                services.ensure_independent(request.user, revision)
-                revision.can_approve = True
-            except PermissionDenied:
-                pass
+        revision.can_approve, revision.approve_note = (
+            approval_offer(request.user, revision) if can_edit else (False, "")
+        )
     return render(
         request,
         "catalog/method_detail.html",

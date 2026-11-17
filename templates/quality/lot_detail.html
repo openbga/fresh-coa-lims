@@ -8,8 +8,9 @@
 {% if lot.state == 'quarantine' %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
 {% if can_record and can_dispose and not disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
-{% if can_dispose and disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
-{% if can_dispose %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
+{% if can_dispose and disposition_denied %}<span class="vr-action-note" data-refused="disposition">{{ disposition_denied }}</span>{% endif %}
+{% if can_reject %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% elif reject_note and not disposition_denied %}<span class="vr-action-note" data-refused="reject">{{ reject_note }}</span>{% endif %}
+{% if can_cancel %}{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
 {% if can_dispose and not disposition_denied %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% else %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}

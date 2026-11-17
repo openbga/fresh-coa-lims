@@ -70,7 +70,10 @@ def test_quality_signs_that_a_test_cannot_be_completed_and_repeats_it(
         # The analyst recorded the data and is not offered the action as signer.
         login("nc_analyst")
         page.goto(test_url)
-        page.get_by_role("link", name="Record not completed", exact=True).click()
+        # Not offered: the header says why, and the page refuses before any PIN when opened.
+        expect(page.get_by_role("link", name="Record not completed", exact=True)).to_have_count(0)
+        expect(page.locator('[data-refused="not-completed"]')).to_be_visible()
+        page.goto(not_completed_url)
         expect(page.get_by_role("alert").first).to_be_visible()
         expect(page.get_by_label(re.compile("^Signature PIN"))).to_have_count(0)
         page.get_by_role("button", name="Sign out", exact=True).click()

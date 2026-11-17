@@ -504,6 +504,14 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   >
   > `stability.views._pull_filter` limits the work statuses to active studies; the overview and the Dashboard count through it. A closed study and its pulls already took no more work (`stability.services.close_study`).
 
+- **Fixed**: Record pages offer only the actions the server would accept now · Whole application · 2026-11-17
+
+  A record page no longer offers an action that would only lead to a refusal. Where an action that would be offered cannot be taken now, the page header says why instead, for example on an investigation (**Authorize retest**, **Conclude**), a test (**Sign review**, **Return test**, **Record not completed**, **Record contract laboratory result**), a lot (**Reject lot**, **Cancel lot received in error**, **Review disposition**, **Replace requirements**), a draft version (**Review and approve**), equipment (**Return to service**), a stability protocol or study (**Approve**, **Close study**) and an intended use (**Accept**).
+
+  > **Technical notes**
+  >
+  > Each page computes the same refusal its action page and service check (for example `services.authorize_refusal`, `services.review_refusal`, `quality.rejection.rejection_refusals`, `catalog.web.approval_offer`, `stability.views.close_refusal`, `validation.views.accept_denial`); the services still recheck everything under lock. Ops record pages show a refusal with `laboratory.ui.refused`.
+
 - **Changed**: Selects, dates, files and plain create forms use shared controls · Whole application · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
   Selects, date and date-time fields, file fields and decimal inputs with units look and behave the same on every page, and a select that searches records shows only what the person may use. Plain create forms open in a dialog that asks before unsaved changes are lost; signing pages never use the dialog.

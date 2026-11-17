@@ -43,8 +43,7 @@ def test_leaving_signing_returns_focus_to_its_opener(live_server, integrated, le
 
 
 def test_more_menu_forms_open_over_the_record(live_server, integrated):
-    data = integrated
-    ready_test(data, assign_and_sample(data))
+    data = integrated  # a received lot, not yet sampled: it can still be cancelled
     lot = data["lot"]
     record = live_server.url + reverse("quality:lot_detail", args=[lot.pk])
     with browser_page({"width": 1440, "height": 900}) as page:

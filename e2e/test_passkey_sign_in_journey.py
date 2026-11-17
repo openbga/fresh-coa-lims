@@ -6,6 +6,7 @@ import re
 
 import pytest
 from django.contrib.auth.models import Group
+from helpers import open_page_form
 from playwright.sync_api import expect, sync_playwright
 
 PASSWORD = "Synthetic-passkey-browser-2026!"
@@ -93,6 +94,7 @@ class Session:
     def register_first_key(self, name):
         page = self.page
         self.open_two_factor()
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.get_by_role("button", name="Set up with a security key or passkey", exact=True).click()
         expect(page.get_by_role("heading", name="Register the key")).to_be_visible()
@@ -106,6 +108,7 @@ class Session:
         """Confirm with the password and an existing key, then fill in the name."""
         page = self.page
         self.open_two_factor()
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.get_by_role("button", name="Add a security key or passkey", exact=True).click()
         expect(page.get_by_role("heading", name="Register the key")).to_be_visible()
@@ -200,6 +203,7 @@ def test_passkey_sign_in_journey(live_server, django_user_model, artifacts):
         assert len(r.credentials(second)) == 1
         expect(keys_table(rpage)).to_have_count(2)
         # Remove the old key, confirmed with the password and the newer key.
+        open_page_form(rpage)  # the confirmation opens in the dialog
         rpage.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         rpage.get_by_role("button", name="Remove Old passkey").click()
         expect(keys_table(rpage)).to_have_count(1)

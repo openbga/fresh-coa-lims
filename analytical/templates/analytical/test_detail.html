@@ -13,11 +13,11 @@
 {% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_return %}<a class="btn btn-outline-secondary" href="{% url 'analytical:test_return' test.pk %}">Return test</a>{% endif %}
-{% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% endif %}
-{% if can_not_complete %}<a class="btn btn-outline-danger" href="{% url 'analytical:test_not_completed' test.pk %}">{% icon name="slash-circle" %}Record not completed</a>{% endif %}
+{% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% elif contract_note %}<span class="vr-action-note" data-refused="contract">{{ contract_note }}</span>{% endif %}
+{% if can_not_complete %}<a class="btn btn-outline-danger" href="{% url 'analytical:test_not_completed' test.pk %}">{% icon name="slash-circle" %}Record not completed</a>{% elif not_completed_note %}<span class="vr-action-note" data-refused="not-completed">{{ not_completed_note }}</span>{% endif %}
 {% more_actions %}{% if can_contract_correct %}<li><a class="dropdown-item" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a></li>{% endif %}{% endmore_actions %}
 {# Review needs a submitted test, recording and batching an open one; a test needs a batch before recording when its method runs in one. #}
-{% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">{% icon name="vector-pen" %}Sign review</a>{% elif can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% elif batch_note %}<span class="vr-action-note" data-batch-note>{{ batch_note }}</span>{% if new_batch_url %}<a class="btn btn-primary" href="{{ new_batch_url }}">{% icon name="plus-lg" %}New QC batch</a>{% endif %}{% elif can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">{% icon name="plus-lg" %}Record observation</a>{% endif %}
+{% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">{% icon name="vector-pen" %}Sign review</a>{% elif review_note %}<span class="vr-action-note" data-refused="review">{{ review_note }}</span>{% elif can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% elif batch_note %}<span class="vr-action-note" data-batch-note>{{ batch_note }}</span>{% if new_batch_url %}<a class="btn btn-primary" href="{{ new_batch_url }}">{% icon name="plus-lg" %}New QC batch</a>{% endif %}{% elif can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">{% icon name="plus-lg" %}Record observation</a>{% endif %}
 {% endblock %}
 {% block content %}
 {% if test.pull_id %}

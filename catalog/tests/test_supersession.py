@@ -289,7 +289,14 @@ def test_approval_page_lists_what_the_signature_retires(client, people):
         effective_until=timezone.now() + timedelta(days=300),
         reason="Synthetic revision",
     )
+    stale_url = reverse("catalog:specification_revision", args=[stale.pk])
+    approve_url = reverse("catalog:specification_approve", args=[stale.pk])
+    assert approve_url in client.get(stale_url).content.decode()  # offered while it would pass
     approve(newer, approver)
+    # Once overtaken, the version page no longer offers it and says why instead.
+    shown = " ".join(client.get(stale_url).content.decode().split())
+    assert approve_url not in shown
+    assert 'data-refused="approve">Version 4 is already approved for these dates' in shown
     page = " ".join(
         client.get(reverse("catalog:specification_approve", args=[stale.pk]))
         .content.decode()

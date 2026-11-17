@@ -107,9 +107,19 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             # Until a second quality person signs, no report is accepted.
             login(people["receiver"])
             goto("analytical:test_detail", test.pk)
-            page.get_by_role("link", name="Record contract laboratory result", exact=True).click()
+            # Not offered while it would be refused: the header says why instead, and the page
+            # itself still refuses when opened directly.
             expect(
-                page.get_by_text(f"No contract laboratory is approved for method {method}.")
+                page.get_by_role("link", name="Record contract laboratory result", exact=True)
+            ).to_have_count(0)
+            expect(page.locator('[data-refused="contract"]')).to_contain_text(
+                f"No contract laboratory is approved for method {method}."
+            )
+            goto("analytical:contract_result", test.pk)
+            expect(
+                page.get_by_role("alert").get_by_text(
+                    f"No contract laboratory is approved for method {method}."
+                )
             ).to_be_visible()
             sign_out()
 

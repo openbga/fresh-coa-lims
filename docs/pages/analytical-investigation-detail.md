@@ -34,7 +34,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **Record entry**: analyst, reviewer or quality while open.
 - **Escalate investigation**: reviewer or quality while in Phase I.
-- **Authorize retest**, **Conclude**: quality while open. For quality, **Conclude** is the primary button once nothing refuses the conclusion, and **Record entry** sits under **More** (after Escalate investigation and Authorize retest): recording an entry makes you an investigator, who cannot conclude. For analysts and reviewers **Record entry** is the primary button.
+- **Authorize retest**, **Conclude**: quality while open, each only when its signing page would accept it; otherwise the header says why in its place. For quality, **Conclude** is the primary button, and **Record entry** sits under **More** (after Escalate investigation and Authorize retest): recording an entry makes you an investigator, who cannot conclude. For analysts and reviewers **Record entry** is the primary button.
 - **Admin** alone is a read role: no entry, escalation, authorization or conclusion buttons. Admin together with a lab role gets that role's buttons and its independence rules.
 
 ## Layout
@@ -51,8 +51,8 @@ One out-of-specification investigation: phase, lineage of the original result an
 |---|---|---|---|
 | **Record entry** | Investigation open | Analyst, reviewer, quality | Opens the entry form |
 | **Escalate investigation** | Phase I open | Reviewer, quality | Opens the escalation form |
-| **Authorize retest** | Open | Quality | Opens the signing page |
-| **Conclude** | Open | Quality | Opens the signing page |
+| **Authorize retest** | Open, and authorizing would be accepted (the assessment is recorded, the allowance is not used up, you are not an author of the result, the lot or pull still takes testing) | Quality | Opens the signing page. Otherwise the header shows the reason instead, for example "The approved specification allows no further retests or resamples." |
+| **Conclude** | Open, and concluding would be accepted (the same checks as its signing page) | Quality | Opens the signing page; it is quality's primary action. Otherwise the header shows the reason instead, for example "Record the laboratory assessment first." |
 
 ## Fields
 

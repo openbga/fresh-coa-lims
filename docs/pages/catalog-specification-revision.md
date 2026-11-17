@@ -55,7 +55,7 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 |---|---|---|---|
 | **Add test** | Draft | Quality | Opens the Add test form |
 | **Withdraw draft** | Draft | Quality | Opens the Withdraw page |
-| **Review and approve** | Draft and you are independent of its author and editors | Quality | Opens the Approve page |
+| **Review and approve** | Draft, you are independent of its author and editors, and no later version is already approved for the same dates (otherwise the header says why) | Quality | Opens the Approve page |
 | **Remove** (on a test row) | Draft | Quality | Opens the Remove test form |
 | Method link | Always | Any viewer | Opens that method |
 

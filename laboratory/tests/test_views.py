@@ -382,3 +382,16 @@ def test_every_overview_count_equals_the_rows_it_opens(client, people):
         assert counts["Calibrations awaiting acceptance"] == 1
         assert counts["Reagent lots awaiting release"] == 1
         assert counts["Released lots expiring within 30 days"] == 1
+
+
+def test_return_to_service_is_not_offered_to_the_person_who_removed_it(client, people):
+    equipment = make_equipment(people, "BAL-RET")
+    services.take_out_of_service(actor=people["quality"], equipment=equipment, reason="Drift")
+    url = reverse("laboratory:equipment_detail", args=[equipment.pk])
+    back = reverse("laboratory:equipment_return", args=[equipment.pk])
+    client.force_login(people["quality"])  # removed it: equipment_return refuses them
+    body = client.get(url).content.decode()
+    assert back not in body
+    assert "The person who removed equipment from service cannot return it." in body
+    client.force_login(people["quality2"])
+    assert back in client.get(url).content.decode()

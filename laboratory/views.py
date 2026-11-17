@@ -58,6 +58,7 @@ from .ui import (
     paginate,
     person,
     record_page,
+    refused,
     roles_of,
     run_form,
     section,
@@ -438,7 +439,12 @@ def equipment_detail(request, pk):
         )
         if not out_of_service and can(user, "analyst", "reviewer", "quality")
         else None,
-        action("Return to service", reverse("laboratory:equipment_return", args=[item.pk]))
+        (
+            # The person who removed it from service cannot return it (equipment_return).
+            refused(RETURN_BY_REMOVER)
+            if item.status_changed_by_id == user.pk
+            else action("Return to service", reverse("laboratory:equipment_return", args=[item.pk]))
+        )
         if out_of_service and can(user, "quality")
         else None,
     ]
@@ -521,6 +527,9 @@ def equipment_out_of_service(request, pk):
     )
 
 
+RETURN_BY_REMOVER = "The person who removed equipment from service cannot return it."
+
+
 @login_required
 def equipment_return(request, pk):
     require_role(request.user, "quality")
@@ -528,7 +537,7 @@ def equipment_return(request, pk):
     label, tone, _ = equipment_status(item)
     denial = ""
     if item.status_changed_by_id == request.user.pk:
-        denial = "The person who removed equipment from service cannot return it."
+        denial = RETURN_BY_REMOVER
     elif item.state != Equipment.State.OUT_OF_SERVICE:
         denial = "Equipment is already in service."
     uses, failures = scope = services.impact_scope(item)

@@ -29,7 +29,7 @@
 {% elif state.enabled %}
 {% panel title="Change two-factor sign-in" heading_id="two-factor-change-title" %}
 <p>Confirm that it is you with your password and a second factor{% if keys_here %}: leave the code empty and your browser asks for your security key{% endif %}. A new authenticator app replaces the current one only once you confirm it with a code it shows; new recovery codes replace all earlier ones.</p>
-<form class="vr-form" id="two-factor-change" method="post" autocomplete="off" novalidate{% if keys_here %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
+<form class="vr-form" id="two-factor-change" method="post" autocomplete="off" novalidate data-vr-local-form="Change two-factor sign-in" data-vr-local-title="Change two-factor sign-in" data-vr-local-size="md"{% if keys_here %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
 {% csrf_token %}{% form_errors form=form %}
 {{ form.security_key_response }}
 {{ form.current_password.as_field_group }}
@@ -47,7 +47,7 @@
 {% else %}
 {% panel title="Set up" heading_id="two-factor-setup" %}
 <p>Choose a security key or passkey, or an authenticator app on your phone. You can add the other later. After you confirm your password, the next page {% if keys_available %}asks your browser to register the key, or {% endif %}shows a QR code for the app.</p>
-<form class="vr-form" method="post" autocomplete="off" novalidate>
+<form class="vr-form" method="post" autocomplete="off" novalidate data-vr-local-form="Set up two-factor sign-in" data-vr-local-title="Set up two-factor sign-in" data-vr-local-size="sm">
 {% csrf_token %}{% form_errors form=form %}
 {{ form.current_password.as_field_group }}
 {% if not state.required %}{% url 'accounts:access' as cancel_url %}{% endif %}{% form_actions cancel_url=cancel_url no_submit=True %}{% if keys_available %}<button class="btn btn-primary" type="submit" name="action" value="add_key">Set up with a security key or passkey</button>{% endif %}<button class="btn {% if keys_available %}btn-outline-primary{% else %}btn-primary{% endif %}" type="submit" name="action" value="setup">Set up with an authenticator app</button>{% endform_actions %}

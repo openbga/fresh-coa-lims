@@ -51,7 +51,7 @@ One protocol version (code and version number) with its header facts, storage co
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Approve** | Draft with at least one timepoint, you have the Quality role and you are not the author | Quality | Opens the signing page, where the full approval preconditions are checked |
+| **Approve** | Draft with at least one timepoint, you have the Quality role, you are not the author, and the specification states every test of its time points (otherwise the Criteria incomplete notice says why) | Quality | Opens the signing page |
 | **Add condition** / **Add timepoint** | Draft; you are the author and an Analyst or Quality user (timepoint also needs at least one condition) | Analyst, Quality (author only) | Opens the add form |
 | **Withdraw draft** | Draft; you are its author (Analyst or Quality) or a Quality user | Analyst, Quality | Opens the withdrawal form |
 | **Start study** | State Approved (not Draft, Superseded or Withdrawn) | Analyst, Quality | Opens the new study form with this protocol preselected |

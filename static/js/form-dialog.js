@@ -421,6 +421,7 @@
       form.dataset.vrLocalReady = "true";
       form.action = form.getAttribute("action") ? new URL(form.getAttribute("action"), window.location.href).href : window.location.href;
       var button = window.vrUi.button(form.getAttribute("data-vr-local-form") || "Open form", "secondary");
+      button.setAttribute("data-vr-local-opener", ""); // a stable hook for tests
       form.before(button);
       form.hidden = true;
       form.remove(); // Keep field IDs out of the background while another form is open.
@@ -429,6 +430,32 @@
         cancel.setAttribute("data-vr-form-close", "");
         var actions = form.querySelector(".vr-form-actions") || form;
         actions.insertBefore(cancel, actions.querySelector("button[type=submit]"));
+      }
+      // Buttons elsewhere on the page that submit this form (form="<id>", e.g. a table's
+      // Remove buttons) are offered in the dialog's action row too, and open the dialog.
+      var actions = form.querySelector(".vr-form-actions") || form;
+      var firstAction = actions.firstChild;
+      if (form.id) {
+        document.querySelectorAll('button[form="' + form.id + '"]').forEach(function (external) {
+          var offered = external.cloneNode(true);
+          offered.removeAttribute("form");
+          if (external.hasAttribute("data-default-guard")) {
+            // The disabled default button stays first in the form: Enter presses nothing.
+            form.insertBefore(offered, form.firstChild);
+            return;
+          }
+          offered.className = "btn btn-outline-danger";
+          if (offered.getAttribute("aria-label")) {
+            offered.textContent = offered.getAttribute("aria-label");
+            offered.removeAttribute("aria-label");
+          }
+          actions.insertBefore(offered, firstAction);
+          external.type = "button";
+          external.removeAttribute("form");
+          external.addEventListener("click", function () {
+            confirmLeave(open); // the fields come first; the chosen action is in the row
+          });
+        });
       }
       function open() {
         restoreLocal();
@@ -765,15 +792,28 @@
         window.setTimeout(function () { load(form.href); }, 0);
       }
     }
-    var errorForm = null;
-    document.querySelectorAll("form[data-vr-local-form]").forEach(function (form) {
-      var open = localButton(form);
-      errorForm = errorForm || open;
-    });
-    if (errorForm && !dedicated) {
-      errorForm();
+    // A page's forms move into the dialog only once the page's own scripts (deferred after
+    // this one, e.g. security-keys.js) have set them up.
+    function takeLocalForms() {
+      var errorForm = null;
+      document.querySelectorAll("form[data-vr-local-form]").forEach(function (form) {
+        var open = localButton(form);
+        errorForm = errorForm || open;
+      });
+      if (errorForm && !dedicated) {
+        errorForm();
+      }
+    }
+    if (contentLoaded) {
+      takeLocalForms();
+    } else {
+      document.addEventListener("DOMContentLoaded", takeLocalForms);
     }
   }
+
+  // Deferred scripts run before DOMContentLoaded, while readyState is already "interactive".
+  var contentLoaded = document.readyState === "complete";
+  document.addEventListener("DOMContentLoaded", function () { contentLoaded = true; });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

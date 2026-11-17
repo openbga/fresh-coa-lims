@@ -367,6 +367,95 @@ def test_test_record_offers_add_to_batch_only_when_a_batch_accepts_it(client, pe
     assert "data-batch-note" not in page
 
 
+def test_investigation_header_offers_only_what_signing_accepts(client, people, assigned):
+    """Authorize retest and Conclude are offered only when their pages would accept them (the
+    same service refusals); otherwise the header says why, before any PIN."""
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.30")
+    _, investigation = submit(people, test)
+    page_url = reverse("analytical:investigation_detail", args=[investigation.pk])
+    authorize_url = reverse("analytical:authorize", args=[investigation.pk])
+    conclude_url = reverse("analytical:conclude", args=[investigation.pk])
+
+    def header():
+        body = client.get(page_url).content.decode()
+        start = body.index('class="vr-page-actions"')
+        return body[start : body.index("<section", start)]
+
+    login(client, people["quality"])
+    shown = header()
+    assert f'href="{authorize_url}"' not in shown and f'href="{conclude_url}"' not in shown
+    assert (
+        '<span class="vr-action-note" data-refused="authorize">'
+        "Record the laboratory assessment first.</span>"
+    ) in shown
+    assert 'data-refused="conclude">Record the laboratory assessment first.' in shown
+    services.add_entry(
+        actor=people["quality2"],
+        investigation=investigation,
+        kind="assessment",
+        text="Dilution checked",
+    )
+    shown = header()
+    assert f'href="{authorize_url}">Authorize retest</a>' in shown
+    assert 'data-refused="conclude">The original result needs independent data review first.' in (
+        shown
+    )
+    review(people, test)
+    shown = header()
+    assert f'<a class="btn btn-primary" href="{conclude_url}">Conclude</a>' in shown
+    login(client, people["quality2"])  # authored the assessment entry: may not conclude
+    assert "You cannot conclude an investigation of your own work." in header()
+
+
+def test_test_record_offers_review_return_and_not_completed_only_when_accepted(
+    client, people, assigned
+):
+    """Sign review, Return test and Record not completed are offered only when their pages
+    would accept them: a reviewer or quality person who recorded the data sees why instead."""
+    _, _, tests = assigned
+    test = tests["identity"]
+    url = reverse("analytical:test_detail", args=[test.pk])
+    not_completed = reverse("analytical:test_not_completed", args=[test.pk])
+    record(people, test, "1.30", who="multi")  # multi holds analyst, reviewer and quality
+    login(client, people["multi"])
+    body = client.get(url).content.decode()
+    assert not_completed not in body  # an author of its data may not record it
+    login(client, people["quality"])
+    assert not_completed in client.get(url).content.decode()
+    submit(people, test, who="multi")
+    review_url = reverse("analytical:test_review", args=[test.pk])
+    login(client, people["multi"])
+    body = client.get(url).content.decode()
+    assert review_url not in body
+    assert (
+        '<span class="vr-action-note" data-refused="review">You cannot review your own test.'
+        in (body)
+    )
+    login(client, people["reviewer"])
+    body = client.get(url).content.decode()
+    assert f'<a class="btn btn-primary" href="{review_url}">' in body
+    assert "data-refused" not in body
+
+
+def test_contract_result_is_offered_only_with_an_approved_laboratory(
+    client, people, assigned, monkeypatch
+):
+    from analytical import views
+
+    _, _, tests = assigned
+    url = reverse("analytical:test_detail", args=[tests["identity"].pk])
+    contract = reverse("analytical:contract_result", args=[tests["identity"].pk])
+    login(client, people["analyst"])
+    assert contract in client.get(url).content.decode()
+    # The same list the contract result page offers: empty, so that page would refuse.
+    monkeypatch.setattr(views, "contract_choices", lambda method_code: ([], None))
+    assert contract not in client.get(url).content.decode()
+    assert "No contract laboratory is approved" in (
+        client.get(contract, follow=True).content.decode()
+    )
+
+
 def test_authorize_and_conclude_preflight(client, people, assigned):
     _, _, tests = assigned
     test = record(people, tests["identity"], "1.30")

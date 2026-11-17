@@ -87,9 +87,9 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Add sample** | Analyst role and lot is Quarantine | Analyst | Opens Add sample for this lot |
-| **Review disposition** | Quality role and lot is Quarantine | Quality, independent of the lot's data | Opens Sign lot disposition |
-| **Reject lot** | Quality role and lot is Quarantine | Quality, independent of the lot's data | Opens Reject lot |
-| **Cancel lot received in error** (More menu) | Quality role and lot is Quarantine | Quality, not the lot's receiver or author | Opens Cancel lot received in error |
+| **Review disposition** | Quality role and lot is Quarantine, and you made none of the lot's records (otherwise the header says why, "Another quality person must sign") | Quality, independent of the lot's data | Opens Sign lot disposition |
+| **Reject lot** | Quality role, lot is Quarantine, and rejecting would be accepted: no open investigation, no unsubmitted result outside its limits, and you made none of the lot's records (otherwise the header shows the first reason) | Quality, independent of the lot's data | Opens Reject lot |
+| **Cancel lot received in error** (More menu) | Quality role, lot is Quarantine, and cancelling would be accepted: nothing was sampled, tested or reserved from it, no supplier result stands, and you did not receive it or make its records | Quality, not the lot's receiver or author | Opens Cancel lot received in error |
 | **Record receipt details** | Analyst role, lot is Quarantine and has no receipt details | Analyst | Opens Record receipt details for this lot |
 | **Correct receipt details** | Analyst role, lot is Quarantine and has receipt details | Analyst | Opens Correct receipt details, prefilled with the current details |
 | Supplier code link | Receipt details name a supplier | Any viewer | Opens the supplier record |

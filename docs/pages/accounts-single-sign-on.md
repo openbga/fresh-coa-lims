@@ -39,7 +39,7 @@ The **Account access** breadcrumb and an introduction are followed by a **Status
 
 - **Status** lists **Organization account** (the user name, verified email or name the provider gave when you linked, with the provider's subject below it, or **Not linked**), **Linked** and **Last sign-in with it** (date and time, or **Not yet**) when linked, and **Identity provider** (its display name and issuer address).
 - When the link was made with a different provider than the one now configured, a warning says **This link was made with another identity provider (ISSUER) and no longer signs you in. Unlink it, then link your account at PROVIDER.**
-- The form card is titled **Link your organization account** or **Unlink**. It asks for **Current password** and, when you have two-factor sign-in on, a code field. With a security key usable at this host name, a hint says to leave the code empty so the browser asks for the key; a notice appears if the browser cannot use keys.
+- The form card is titled **Link your organization account** or **Unlink**; its button (**Link your organization account** or **Unlink the organization account**) opens the form in a dialog (without JavaScript the form shows in the card). It asks for **Current password** and, when you have two-factor sign-in on, a code field. With a security key usable at this host name, a hint says to leave the code empty so the browser asks for the key; a notice appears if the browser cannot use keys.
 
 ## Actions
 

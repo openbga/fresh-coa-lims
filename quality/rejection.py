@@ -221,12 +221,7 @@ def _closure(lot, decision, schema, reasons, evidence):
     return closure
 
 
-def rejection_preview(lot):
-    """Read once what rejecting the lot now would freeze and why it is refused, if it is."""
-    if closed_refusal(lot):
-        return _closure(lot, LotState.REJECTED, REJECTION_SCHEMA, [], {})
-    tests = _tests(lot)
-    investigations = _investigations(lot)
+def _rejection_reasons(tests, investigations):
     reasons = [
         f"{item['label']} is open. Conclude it before the lot is rejected: the investigation is "
         "completed whatever is decided about the lot."
@@ -241,6 +236,31 @@ def rejection_preview(lot):
         for row in tests
         if row["state"] == "open" and row["outside_limits"]
     ]
+    return reasons
+
+
+def rejection_refusals(lot):
+    """Why rejecting the lot now is refused (the reasons rejection_preview shows), or []: for
+    the lot record, which offers Reject lot only when signing it would be accepted."""
+    if refusal := closed_refusal(lot):
+        return [refusal]
+    return _rejection_reasons(_tests(lot), _investigations(lot))
+
+
+def cancellation_refusals(lot):
+    """Why cancelling the lot as received in error is refused (cancellation_preview), or []."""
+    if refusal := closed_refusal(lot):
+        return [refusal]
+    return _material_used(lot)
+
+
+def rejection_preview(lot):
+    """Read once what rejecting the lot now would freeze and why it is refused, if it is."""
+    if closed_refusal(lot):
+        return _closure(lot, LotState.REJECTED, REJECTION_SCHEMA, [], {})
+    tests = _tests(lot)
+    investigations = _investigations(lot)
+    reasons = _rejection_reasons(tests, investigations)
     evidence = {
         "requirements": _requirements(lot),
         "receipt": _receipt(lot),

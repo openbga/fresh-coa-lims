@@ -94,6 +94,13 @@ def contract_choices(method_code):
         return None, " ".join(exc.messages)
 
 
+def no_contract_laboratory(method_code):
+    return (
+        f"No contract laboratory is approved for method {method_code}. Quality records and "
+        "signs the approval under Laboratory, Contract laboratories."
+    )
+
+
 def contract_notice(source):
     """What has happened since to the approval a reported result relied on, or ""."""
     try:
@@ -644,9 +651,32 @@ def test_detail(request, pk):
     can_contract = (
         "analyst" in user_roles and is_open and services.contract_refusal(test, current) is None
     )
-    # Offered to quality while the test can take work; the page says why when the signer
-    # recorded any of its data.
+    contract_note = not_completed_note = ""
+    if can_contract and not current:
+        # A first contract result needs a contract laboratory approved for the method (the
+        # recorded one stays selectable when correcting): the same list and message the
+        # contract result page has; shown in the header instead of the action.
+        laboratories, hold = contract_choices(spec.method.code)
+        if hold or not laboratories:
+            contract_note = hold or no_contract_laboratory(spec.method.code)
+            can_contract = False
+    # Offered to quality only when recording it would be accepted (not an author of its data);
+    # otherwise the refusal is said in the header.
     can_not_complete = "quality" in user_roles and is_open
+    if can_not_complete:
+        not_completed_note = (
+            services.subject_refusal(test) or services.not_completed_refusal(request.user, test)
+        ) or ""
+        can_not_complete = not not_completed_note
+    # Review and return: offered only when their pages would accept them (the same refusals);
+    # a refused review says why in the header instead.
+    review_note = ""
+    can_review = can_return = False
+    if "reviewer" in user_roles and test.state == "submitted":
+        subject = services.subject_refusal(test)
+        review_note = subject or services.review_refusal(request.user, test) or ""
+        can_review = not review_note
+        can_return = not (subject or services.return_refusal(request.user, test))
     can_batch = (
         "analyst" in user_roles
         and is_open
@@ -701,10 +731,13 @@ def test_detail(request, pk):
             and current_count == spec.replicates
             and qc_ready,
             "qc_ready": qc_ready,
-            "can_review": "reviewer" in user_roles and test.state == "submitted" and qc_ready,
+            "can_review": can_review,
+            "review_note": review_note,
             "can_not_complete": can_not_complete,
+            "not_completed_note": not_completed_note,
+            "contract_note": contract_note,
             "not_completed": not_completed_view(test, children=children),
-            "can_return": "reviewer" in user_roles and test.state == "submitted" and test.conforms,
+            "can_return": can_return,
             "submit_form": RevisionReasonForm(
                 initial={"expected_revision": test.revision, "reason": "Results complete"}
             ),
@@ -978,12 +1011,7 @@ def contract_result(request, pk):
             label = f"{recorded.get('code', '')} · {recorded.get('name', '')} · as recorded"
             laboratories = [(recorded.get("id"), label), *laboratories]
     if not laboratories:
-        return unavailable(
-            request,
-            f"No contract laboratory is approved for method {spec.method.code}. Quality records "
-            "and signs the approval under Laboratory, Contract laboratories.",
-            back,
-        )
+        return unavailable(request, no_contract_laboratory(spec.method.code), back)
     form = ContractResultForm(
         request.POST or None,
         spec=spec,
@@ -1496,6 +1524,16 @@ def investigation_detail(request, pk):
     tests = [original, *inv.tests.select_related("sample", *PULL).order_by("pk")]
     for test in tests:
         test.values = readings_text(test)
+    # Quality's signed steps are offered only when the server would accept them: the same
+    # refusals authorize and conclude check; otherwise the header says why instead.
+    can_decide = "quality" in user_roles and inv.is_open
+    authorize_note = conclude_note = ""
+    if can_decide:
+        subject = services.subject_refusal(original)
+        authorize_note = subject or services.authorize_refusal(request.user, inv, original) or ""
+        conclude_note = (
+            subject or services.conclude_refusal(request.user, inv, original, tests[1:]) or ""
+        )
     return render(
         request,
         "analytical/investigation_detail.html",
@@ -1509,13 +1547,12 @@ def investigation_detail(request, pk):
             "can_enter": bool(user_roles & {"analyst", "reviewer", "quality"}) and inv.is_open,
             "can_escalate": bool(user_roles & {"reviewer", "quality"})
             and inv.phase == "laboratory",
-            "can_decide": "quality" in user_roles and inv.is_open,
+            "can_decide": can_decide,
             # Quality's next step is the conclusion once nothing refuses it; recording an entry
             # would make them an investigator and bar them from concluding, so it is never
             # quality's primary action.
-            "conclude_ready": "quality" in user_roles
-            and inv.is_open
-            and services.conclude_refusal(request.user, inv, original, tests[1:]) is None,
+            "authorize_note": authorize_note,
+            "conclude_note": conclude_note,
             "used": services.retests_used(inv),
             "allowed": original.spec.max_retests,
         },

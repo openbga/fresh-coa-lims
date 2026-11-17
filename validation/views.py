@@ -26,6 +26,7 @@ from laboratory.ui import (
     paginate,
     person,
     record_page,
+    refused,
     section,
     sign_page,
     status,
@@ -443,9 +444,14 @@ def use_detail(request, pk):
         state=status(label, tone),
         facts=[fact for fact in facts if fact],
         actions=[
-            action("Accept", reverse("validation:use_accept", args=[acceptance.pk]), True)
+            (
+                # Awaiting acceptance: offered when accepting would pass, else why not.
+                refused(accepting)
+                if (accepting := accept_denial(user, acceptance))
+                else action("Accept", reverse("validation:use_accept", args=[acceptance.pk]), True)
+            )
             if services.has_role(user, services.KEEPER)
-            and not services.use_denial(user, acceptance, accept=True)
+            and acceptance.state == services.USE.RECORDED
             else None,
             action(
                 "Withdraw",
@@ -473,6 +479,24 @@ def _configuration_text(configuration):
     return format_html_join("; ", "{}", ((part,) for part in parts))
 
 
+def accept_denial(user, acceptance, missing=None):
+    """Why this person cannot accept the record now, or "": the record page offers Accept only
+    without it, and use_accept refuses with it. missing: method codes without an approved
+    version in force (services.supported_versions), computed when not given."""
+    if denial := services.use_denial(user, acceptance, accept=True):
+        return denial
+    if missing is None:
+        _, missing = services.supported_versions(
+            acceptance.method_codes, services.configuration_in_force()
+        )
+    if missing:
+        return (
+            f"{', '.join(missing)} has no approved version in force. Withdraw this record and "
+            "record the intended use again."
+        )
+    return ""
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def use_accept(request, pk):
@@ -488,12 +512,7 @@ def use_accept(request, pk):
         request.POST or None,
         initial={"expected_revision": acceptance.revision, "token": token},
     )
-    denial = services.use_denial(request.user, acceptance, accept=True)
-    if not denial and missing:
-        denial = (
-            f"{', '.join(missing)} has no approved version in force. Withdraw this record and "
-            "record the intended use again."
-        )
+    denial = accept_denial(request.user, acceptance, missing)
     titles = _method_titles(acceptance.method_codes)
     return sign_page(
         request,

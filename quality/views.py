@@ -118,6 +118,27 @@ def lot_list(request):
     )
 
 
+def closure_offers(user, lot):
+    """Reject lot and Cancel lot received in error, for quality on a lot in quarantine, offered
+    only when signing them would be accepted (quality.rejection's own refusals and denials);
+    otherwise the reason to show in the header instead."""
+    from .rejection import (
+        cancellation_denial,
+        cancellation_refusals,
+        rejection_denial,
+        rejection_refusals,
+    )
+
+    if lot.state != "quarantine" or not user.groups.filter(name="quality").exists():
+        return {"reject_note": "", "can_reject": False, "can_cancel": False}
+    reject_note = rejection_denial(user, lot) or next(iter(rejection_refusals(lot)), "")
+    return {
+        "reject_note": reject_note,
+        "can_reject": not reject_note,
+        "can_cancel": not (cancellation_denial(user, lot) or cancellation_refusals(lot)),
+    }
+
+
 @login_required
 def lot_detail(request, pk):
     access(request.user)
@@ -194,6 +215,7 @@ def lot_detail(request, pk):
             "disposition_denied": services.disposition_denial(request.user, lot)
             if lot.state == "quarantine"
             else "",
+            **closure_offers(request.user, lot),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             # The exported record includes the audit trail, so it needs a role that reads it.
             "can_export": request.user.groups.filter(name__in=AUDIT_READ_ROLES).exists(),

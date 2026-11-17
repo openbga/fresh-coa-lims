@@ -1,16 +1,15 @@
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from catalog import services as catalog_services
-from catalog.models import Material, RevisionStatus
+from catalog.models import Material
 from catalog.services import AUTHOR_ROLE
 from catalog.web import (
+    approval_offer,
     approve_page,
     can,
     form_status,
@@ -260,6 +259,11 @@ def lot_detail(request, pk):
     # Once testing has started, say when the versions in force are no longer the frozen ones:
     # the lot keeps its own until quality replaces them.
     newer = services.newer_versions(lot)
+    # A replacement is offered only when signing it would be accepted: the versions in force
+    # apply to the lot (newer.reasons is shown in the notice otherwise) and this person made
+    # none of the lot's records (services.replacement_denial; shown in the header instead).
+    replace_denied = services.replacement_denial(request.user, lot) if is_quality else ""
+    replaceable = newer is not None and not newer.get("reasons")
     return render(
         request,
         "sampling/lot_detail.html",
@@ -269,7 +273,8 @@ def lot_detail(request, pk):
             "current": current,
             "assignments": assignments,
             "newer": newer,
-            "can_replace": is_quality and newer is not None,
+            "can_replace": is_quality and replaceable and not replace_denied,
+            "replace_note": replace_denied if replaceable else "",
             "decision": decision,
             # Offered to quality people who recorded none of the lot's data; the others read
             # the conflict and who decides it.
@@ -280,6 +285,7 @@ def lot_detail(request, pk):
             # In testing, a chosen requirement is changed only by a signed replacement, also
             # when no version has changed since.
             "can_revisit": is_quality
+            and not replace_denied
             and newer is None
             and testing
             and lot.state == "quarantine"
@@ -775,13 +781,9 @@ def plan_detail(request, pk):
     can_edit = can(request.user, AUTHOR_ROLE)
     for revision in revisions:
         revision.signature_list = [s for s in sigs if s.object_id == str(revision.pk)]
-        revision.can_approve = False
-        if can_edit and revision.status == RevisionStatus.DRAFT:
-            try:
-                catalog_services.ensure_independent(request.user, revision)
-                revision.can_approve = True
-            except PermissionDenied:
-                pass
+        revision.can_approve, revision.approve_note = (
+            approval_offer(request.user, revision) if can_edit else (False, "")
+        )
     return render(
         request,
         "sampling/plan_detail.html",

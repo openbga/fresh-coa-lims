@@ -51,7 +51,7 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
+| **Close study** | Study Active, you are Quality, you did not start the study, and no testing of its pulls is in progress (otherwise the header says "Testing of the study's pulls is in progress; finish it first: …") | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
 | **Record pull** (header) | The study is Active, a pull is scheduled and you are an Analyst | Analyst | The primary button: opens the form for the earliest scheduled pull |
 | **Record pull** (Next column) | Pull Scheduled, study Active and you are an Analyst | Analyst | Opens the form. Where nothing is open to you, the column names the next step ("Record pull", "Accept pull") in muted text |
 | **Mark missed** (Next column) | Pull Scheduled, today is after its window, and you are Analyst or Quality | Analyst, Quality | Opens the reason form |

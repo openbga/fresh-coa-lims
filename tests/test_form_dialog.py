@@ -8,8 +8,10 @@ import inspect
 import json
 import logging
 import re
+from pathlib import Path
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.messages import get_messages
 from django.http import HttpResponse, HttpResponseRedirect
@@ -32,6 +34,7 @@ from tests.test_integrated_journey import PIN, assign_and_sample, observed_test
 from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 DIALOG = {"X-VR-Form": "1"}
+ROOT = Path(settings.BASE_DIR)
 PASSWORD = "Synthetic-dialog-login-2026!"
 
 
@@ -132,6 +135,58 @@ def test_every_form_opens_in_the_dialog():
     named = {name for name, _, _ in routes()}
     assert set(FORM_SURFACES) | set(NOT_FORM_PAGES) <= named, "a listed route no longer exists"
     assert {size for size, _ in FORM_SURFACES.values()} <= {"sm", "md", "lg"}
+
+
+# Templates whose post forms stay where they are, with the reason.
+INLINE_FORMS = {
+    "registration/": "sign-in pages: no session and no workspace page under them",
+    "includes/": "components: a one-button action, a confirmation that is a dialog itself, and "
+    "the form shell other pages render",
+    "layouts/document.html": "the top bar's Sign out button",
+    "core/audit.html": "the review records the events ticked in the list itself",
+    "analytical/lot_testing.html": "a one-button action without fields",
+}
+
+
+def page_templates():
+    """Template name -> the URL names whose page renders it (docs/pages front matter)."""
+    found = {}
+    for doc in (ROOT / "docs/pages").glob("*.md"):
+        head = doc.read_text().split("---")[1]
+        urls = re.search(r"^urls:(.*)$", head, re.M)
+        names = re.search(r"^templates:(.*)$", head, re.M)
+        if urls and names:
+            for name in filter(None, (n.strip() for n in names.group(1).split(","))):
+                found.setdefault(name, set()).update(
+                    u.strip() for u in urls.group(1).split(",") if u.strip()
+                )
+    return found
+
+
+def test_no_form_stays_inline_on_a_page():
+    """A post form on a record, list or account page opens in the dialog from the page
+    (form_page dialog=, or data-vr-local-form on a hand-written form)."""
+    pages, inline = page_templates(), []
+    roots = [ROOT / "templates", *(p for p in ROOT.glob("*/templates") if ".venv" not in p.parts)]
+    for root in roots:
+        for path in root.rglob("*.html"):
+            name = path.relative_to(root).as_posix()
+            if any(name.startswith(prefix) for prefix in INLINE_FORMS):
+                continue
+            if pages.get(name, set()) & set(FORM_SURFACES):
+                continue  # the page is itself a dialog form
+            source = path.read_text()
+            tags = re.findall(r"<form\b[^>]*>", source) + re.findall(
+                r"{%\s*form_page\b[^%]*%}", source
+            )
+            for tag in tags:
+                if re.search(r"""method=["']get""", tag, re.I) or (
+                    tag.startswith("<form") and "post" not in tag.lower()
+                ):
+                    continue
+                if "dialog=" not in tag and "data-vr-local-form" not in tag:
+                    inline.append(f"{name}: {tag[:90]}")
+    assert not inline, "Open these forms in the dialog from the page:\n" + "\n".join(inline)
 
 
 def test_route_patterns_match_their_own_urls_only():

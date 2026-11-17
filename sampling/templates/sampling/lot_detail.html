@@ -5,7 +5,7 @@
 {% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot only %}</li><li>{% if current.material %}{% material_tag material=current.material size="lg" %}{% else %}{% material_tag material=lot.material size="lg" sub=False %}{% endif %}</li><li>Record revision <strong>{{ lot.revision }}</strong></li><li><a href="{% url 'quality:lot_detail' lot.pk %}">Open lot record</a></li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_assign %}<a class="btn btn-outline-secondary" href="{% url 'sampling:assign' lot.pk %}">{% if current %}Change requirements{% else %}Assign requirements{% endif %}</a>{% endif %}
-{% if can_replace %}<a class="btn btn-outline-secondary" href="{% url 'sampling:replace' lot.pk %}">Replace requirements</a>{% endif %}
+{% if can_replace %}<a class="btn btn-outline-secondary" href="{% url 'sampling:replace' lot.pk %}">Replace requirements</a>{% elif replace_note %}<span class="vr-action-note" data-refused="replace">{{ replace_note }}</span>{% endif %}
 {% if can_decide %}<a class="btn btn-primary" href="{% url 'sampling:decide' lot.pk %}">Decide conflicting requirements</a>{% elif can_sample %}<a class="btn btn-primary" href="{% url 'sampling:sampling_new' lot.pk %}">Record sampling</a>{% endif %}
 {% endblock %}
 {% block content %}

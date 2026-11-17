@@ -231,7 +231,10 @@ def test_admin_with_scientific_roles_gets_actions_but_cannot_self_review(client,
     client.force_login(analyst)
     assert b"New material lot</a>" in client.get(reverse("quality:lot_list")).content
     body = client.get(reverse("quality:lot_detail", args=[lot.pk])).content
-    assert b"Add sample</a>" in body and b"Review disposition</a>" in body
+    assert b"Add sample</a>" in body
+    # They recorded this lot's result: disposing it would be refused (no self-review), so the
+    # header says so instead of offering Review disposition.
+    assert b"Review disposition</a>" not in body and b'data-refused="disposition"' in body
     assert b"Review result</a>" not in body
     with pytest.raises(ValidationError, match="own"):
         review_result(

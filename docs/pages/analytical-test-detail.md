@@ -65,7 +65,7 @@ One analytical test: its frozen specification, replicate observations (made here
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record observation** | Test Open, test open for work (see Rules), fewer current values than replicates, and a batch assigned if the method needs one | Analyst | Opens the Record observation form |
-| **Record contract laboratory result** | Test Open, test open for work, no QC batch assigned, no observations | Analyst | Opens the Record contract laboratory result form. When no laboratory is approved for the method you are returned here with "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." |
+| **Record contract laboratory result** | Test Open, test open for work, no QC batch assigned, no observations, and a contract laboratory is approved for the method | Analyst | Opens the Record contract laboratory result form. When no laboratory is approved for the method you are returned here with "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." |
 | **Correct contract laboratory result** (under **More**) | Test Open, test open for work, every current replicate was reported by a contract laboratory | Analyst | Opens the same page to correct the whole result |
 | **Correct** (row) | Test Open, test open for work, row is current and was not reported by a contract laboratory | Analyst | Opens the Correct observation form |
 | **Add to QC batch** | Open, test open for work, method needs a batch, none assigned, no observations, and an open QC batch of the test's method revision accepts tests (the same check the form makes) | Analyst | Opens the Add to QC batch form |
@@ -73,9 +73,9 @@ One analytical test: its frozen specification, replicate observations (made here
 | **Attach raw data** | Test Open and test open for work | Analyst | Opens the Attach raw data form |
 | **Download** (row of Raw data files) | A file is attached | Analyst, reviewer, quality, admin, auditor | Sends the stored file; refused if its checksum no longer matches |
 | **Submit for review** | Open, test open for work, current values equal replicates, and QC ready (no batch needed, the result was reported by a contract laboratory, or its batch is open with QC passed) | Analyst | Posts to this page; freezes the calculation; "Results submitted for independent review." |
-| **Return test** | Submitted and conforming | Reviewer | Opens the Return test form |
-| **Sign review** | Submitted and QC ready | Reviewer | Opens the Sign review page |
-| **Record not completed** | Test Open and open for work (also while a supplier result stands or when you authored the test's data: the page then refuses) | Quality | Opens the Record that a test cannot be completed page |
+| **Return test** | Submitted and conforming, and returning would be accepted (you recorded none of its data; its lot or pull still takes testing) | Reviewer | Opens the Return test form |
+| **Sign review** | Submitted, and reviewing would be accepted (QC passes, you recorded none of its data, its lot or pull still takes testing) | Reviewer | Opens the Sign review page. Otherwise the header says why, for example "You cannot review your own test." |
+| **Record not completed** | Test Open and open for work, and recording it would be accepted (no supplier result stands, you recorded none of its data) | Quality | Opens the Record that a test cannot be completed page |
 
 While a supplier result is proposed or accepted in place of the test, none of the analyst actions above is shown: no **Record observation**, **Record contract laboratory result**, **Add to QC batch**, **Attach raw data** or submit form.
 

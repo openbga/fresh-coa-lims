@@ -109,6 +109,12 @@ def expect_form(page: Page, url: str):
     )
 
 
+def open_page_form(page: Page):
+    """Open the form a record or account page offers in the form dialog (its one opener)."""
+    page.locator(".vr-main [data-vr-local-opener]").click()
+    expect(page.locator("#vr-form-dialog.show form")).to_have_count(1)
+
+
 def submit_for_review(page: Page, reason: str):
     """Open a test's Submit for review form (in the form dialog) and submit it with ``reason``."""
     page.get_by_role("button", name="Submit for review", exact=True).click()

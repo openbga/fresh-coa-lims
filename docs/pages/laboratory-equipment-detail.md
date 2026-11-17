@@ -56,7 +56,7 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 | **Record calibration** | Recorder role | Analyst, Quality | Opens the calibration form |
 | **Record qualification** | Scientific role | Analyst, Reviewer, Quality | Opens the equipment qualification form |
 | **Take out of service** (under **More**) | In service | Analyst, Reviewer, Quality | Opens the reason form |
-| **Return to service** | Out of service | Quality | Opens the signed return-to-service page |
+| **Return to service** | Out of service, and you did not take it out of service (otherwise the header shows "The person who removed equipment from service cannot return it.") | Quality | Opens the signed return-to-service page |
 | **Accept** (in the table) | Calibration awaiting acceptance, not recorded by you | Reviewer | Opens the acceptance signing page |
 
 ## Fields
