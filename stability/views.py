@@ -8,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from analytical import services as analytical
 from analytical.contracts import parse_requirement, resolve_pull
@@ -16,12 +17,14 @@ from laboratory.ui import (
     access,
     action,
     cell,
+    critical,
     day,
     external_link,
     form_page,
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -79,11 +82,16 @@ def can(user, *roles):
     return bool(roles_of(user) & set(roles))
 
 
+# The pull list's filter labels (PULL_STATUS), so a pill reads like the filter that finds it.
+PULL_LABELS = {"due": "Due now", "pulled": "Awaiting acceptance"}
+
+
 def _pull_tone(pull, today):
     timing, label = pull.timing(today)
     tone = {"overdue": "danger", "due": "warning", "upcoming": "neutral"}.get(timing)
     if tone is None:
         tone = {"pulled": "progress", "accepted": "success", "missed": "danger"}[pull.state]
+    label = PULL_LABELS.get(timing, PULL_LABELS.get(pull.state, label))
     if pull.outcome == FAILS:
         # Accepted means the pull and its results were reviewed, not that the results conform.
         return "Accepted · acceptance criteria not met", "danger"
@@ -242,8 +250,7 @@ def protocol_list(request):
     )
     rows = [
         [
-            cell(p.identifier, reverse("stability:protocol_detail", args=[p.pk])),
-            p.title,
+            cell(p.identifier, reverse("stability:protocol_detail", args=[p.pk]), sub=p.title),
             p.product,
             _protocol_state(p),
             day(timezone.localdate(p.approved_at)) if p.approved_at else "",
@@ -258,7 +265,6 @@ def protocol_list(request):
         noun="protocols",
         columns=[
             ("Protocol", "code", False),
-            ("Title", None, False),
             ("Product", "product", False),
             ("State", None, False),
             ("Approved", "created", False),
@@ -336,7 +342,7 @@ def protocol_detail(request, pk):
         action("Add timepoint", reverse("stability:timepoint_new", args=[p.pk]))
         if own_draft and conditions
         else None,
-        action("Withdraw draft", reverse("stability:protocol_withdraw", args=[p.pk]))
+        action("Withdraw draft", reverse("stability:protocol_withdraw", args=[p.pk]), danger=True)
         if draft
         and can(user, *services.AUTHORS)
         and (p.author_id == user.pk or can(user, "quality"))
@@ -355,16 +361,21 @@ def protocol_detail(request, pk):
             ("Product", p.product),
             (
                 "Protocol document",
-                external_link(p.document_url, p.document_ref) if p.document_url else p.document_ref,
+                external_link(p.document_url, p.document_ref)
+                if p.document_url
+                else cell(p.document_ref, code=True),
             ),
-            ("Test profile revision", p.test_profile_ref),
+            (
+                "Test profile revision",
+                cell(p.test_profile_ref, code=True) if p.test_profile_ref else "",
+            ),
             ("Acceptance criteria", _specification_cell(p)),
             ("Basis", p.basis),
-            ("Author", str(p.author)),
-            ("Approved", when(p.approved_at)),
-            ("Content digest", p.content_digest[:12]),
-            ("Revision", p.revision),
+            ("Author", person(p.author)),
+            *([("Approved", when(p.approved_at))] if p.approved_at else []),
+            ("Content digest", cell(p.content_digest[:12], code=True) if p.content_digest else ""),
         ],
+        meta=[("Record revision", p.revision)],
         actions=actions,
         notice=notice,
         sections=[
@@ -658,9 +669,16 @@ def study_list(request):
     )
     rows = [
         [
-            cell(s.identifier, reverse("stability:study_detail", args=[s.pk])),
-            s.lot.number,
-            s.protocol.identifier,
+            cell(
+                s.identifier,
+                reverse("stability:study_detail", args=[s.pk]),
+                sub=s.protocol.identifier,
+            ),
+            cell(
+                s.lot.number,
+                reverse("quality:lot_detail", args=[s.lot_id]),
+                sub=s.protocol.product,
+            ),
             s.container_closure,
             day(s.start_date),
             _study_state(s),
@@ -675,7 +693,6 @@ def study_list(request):
         columns=[
             ("Study", "identifier", False),
             ("Lot", "lot", False),
-            ("Protocol", None, False),
             ("Container closure", None, False),
             ("Time zero", "start", False),
             ("State", None, False),
@@ -719,21 +736,72 @@ def study_new(request):
 
 def _pull_row(pull, user, today):
     label, tone = _pull_tone(pull, today)
-    can_pull = pull.state == "scheduled" and can(user, "analyst")
+    active = pull.study.state == Study.State.ACTIVE
     links = []
-    if can_pull:
+    if pull.state == "scheduled" and active and can(user, "analyst"):
         links.append(("Record pull", reverse("stability:pull_record", args=[pull.pk])))
     if pull.state == "scheduled" and timing_closed(pull, today) and can(user, *services.AUTHORS):
         links.append(("Mark missed", reverse("stability:pull_missed", args=[pull.pk])))
+    # Where nothing is open to this person now, the next step is named, muted, not offered.
+    waiting = {"scheduled": "Record pull", "pulled": "Accept pull"}.get(pull.state, "")
     return [
         cell(pull.timepoint.__str__(), reverse("stability:pull_detail", args=[pull.pk])),
         day(pull.due_date),
         f"{day(pull.window[0])} to {day(pull.window[1])}",
         status(label, tone),
         cell(", ".join(pull.timepoint.test_codes)),
-        pull.pulled_by and str(pull.pulled_by) or "",
-        cell(links[0][0], links[0][1]) if links else "",
+        person(pull.pulled_by),
+        cell(links[0][0], links[0][1]) if links else cell(waiting, muted=True),
     ]
+
+
+def _schedule(pulls, today):
+    """The study's pulls as a grid: one row per storage condition, one column per time point
+    (its label and planned date), each cell the pull's status; None where a condition has no
+    pull at that time point."""
+    columns = sorted(
+        {(p.timepoint.interval_days, p.timepoint.label): p.due_date for p in pulls}.items()
+    )
+    conditions = {}
+    for pull in pulls:
+        row = conditions.setdefault(pull.timepoint.condition, {})
+        row[(pull.timepoint.interval_days, pull.timepoint.label)] = pull
+    rows = []
+    for condition, by_column in conditions.items():
+        cells = []
+        for key, _ in columns:
+            pull = by_column.get(key)
+            if pull is None:
+                cells.append(None)
+                continue
+            label, tone = _pull_tone(pull, today)
+            cells.append(
+                {
+                    "label": label,
+                    "tone": tone,
+                    "href": reverse("stability:pull_detail", args=[pull.pk]),
+                }
+            )
+        rows.append({"condition": condition, "cells": cells})
+    return {
+        "columns": [{"label": label, "date": day(date)} for (_, label), date in columns],
+        "rows": rows,
+    }
+
+
+def _next_pull(pulls, today):
+    """The earliest scheduled pull as a clock fact: its time point and due date in the pull's
+    status tone (Overdue, Due now, Upcoming); blank when none is scheduled."""
+    scheduled = [p for p in pulls if p.state == Pull.State.SCHEDULED]
+    if not scheduled:
+        return ""
+    pull = min(scheduled, key=lambda p: (p.due_date, p.pk))
+    due = day(pull.due_date)
+    detail = format_html('{} · due <time datetime="{}">{}</time>', pull.timepoint, due, due)
+    label, tone = _pull_tone(pull, today)
+    if tone in ("danger", "warning"):  # overdue or due now: the fact that must not hide
+        return critical(label, tone, detail)
+    return cell(detail, pill=(label, tone))
 
 
 def timing_closed(pull, today):
@@ -746,11 +814,20 @@ def study_detail(request, pk):
     s = get_object_or_404(Study.objects.select_related("protocol", "lot", "created_by"), pk=pk)
     user = request.user
     today = timezone.localdate()
-    pulls = list(s.pulls.select_related("timepoint__condition", "pulled_by", "sample"))
+    pulls = list(s.pulls.select_related("study", "timepoint__condition", "pulled_by", "sample"))
+    # Closing is the next step only once no pull is still scheduled; until then the next pull
+    # is the emphasis and Close study stays a secondary button.
+    scheduled = [p for p in pulls if p.state == Pull.State.SCHEDULED]
+    first = min(scheduled, key=lambda p: (p.due_date, p.pk)) if scheduled else None
+    active = s.state == Study.State.ACTIVE
     actions = [
-        action("Close study", reverse("stability:study_close", args=[s.pk]), True)
-        if s.state == "active" and can(user, "quality") and s.created_by_id != user.pk
-        else None
+        # The next pull is the analyst's next step on an active study.
+        action("Record pull", reverse("stability:pull_record", args=[first.pk]), True)
+        if first and active and can(user, "analyst")
+        else None,
+        action("Close study", reverse("stability:study_close", args=[s.pk]), not scheduled)
+        if active and can(user, "quality") and s.created_by_id != user.pk
+        else None,
     ]
     failing = [p for p in pulls if p.outcome == FAILS]
     notice = None
@@ -767,25 +844,27 @@ def study_detail(request, pk):
     return record_page(
         request,
         identifier=s.identifier,
+        schedule=_schedule(pulls, today) if pulls else None,
         title=f"{s.protocol.product} · {s.lot.number}",
         crumbs=crumbs(("Studies", reverse("stability:study_list")), (s.identifier, None)),
         state=_study_state(s),
         facts=[
+            ("Next pull", _next_pull(pulls, today)),
             ("Lot", cell(s.lot.number, reverse("quality:lot_detail", args=[s.lot_id]))),
             (
                 "Protocol",
                 cell(
                     s.protocol.identifier,
                     reverse("stability:protocol_detail", args=[s.protocol_id]),
+                    code=True,
                 ),
             ),
             ("Container and closure", s.container_closure),
-            ("Time zero", day(s.start_date)),
-            ("Lot rule basis at start", s.rule_basis),
-            ("Started by", str(s.created_by)),
-            ("Closed", when(s.closed_at)),
-            ("Revision", s.revision),
+            ("Lot rule basis at start", cell(s.rule_basis, code=True) if s.rule_basis else ""),
+            ("Started by", person(s.created_by)),
+            *([("Closed", when(s.closed_at))] if s.closed_at else []),
         ],
+        meta=[("Time zero", day(s.start_date)), ("Record revision", s.revision)],
         actions=actions,
         sections=[
             section(
@@ -793,10 +872,10 @@ def study_detail(request, pk):
                 [
                     ("Timepoint", False),
                     ("Due", False),
-                    ("Window", False),
+                    ("Window", False, "low"),
                     ("Status", False),
-                    ("Tests", False),
-                    ("Pulled by", False),
+                    ("Tests", False, "low"),
+                    ("Pulled by", False, "medium"),
                     ("Next", False),
                 ],
                 [_pull_row(p, user, today) for p in pulls],
@@ -1055,7 +1134,7 @@ def pull_detail(request, pk):
     if p.state in ("scheduled", "pulled") and can(user, *services.AUTHORS):
         if services.missed_refusal(p) is None:
             detail_actions.append(
-                action("Mark missed", reverse("stability:pull_missed", args=[p.pk]))
+                action("Mark missed", reverse("stability:pull_missed", args=[p.pk]), danger=True)
             )
     tested = has_tests(p)
     blockers, rows, outcome = pull_results(p) if tested else ([], [], "")
@@ -1069,7 +1148,9 @@ def pull_detail(request, pk):
             action("Link evidence", reverse("stability:pull_evidence", args=[p.pk]))
         )
     # A pull tested here is offered for acceptance once its testing is complete; the Tests
-    # section says what is still open.
+    # section says what is still open. The header's primary is the first primary action: the
+    # analyst's Record pull or Assign tests (untested), else Accept pull, so an analyst who is
+    # also a reviewer is offered acceptance first once the tests are done.
     if (
         p.state == "pulled"
         and can(user, "reviewer")
@@ -1097,7 +1178,7 @@ def pull_detail(request, pk):
             section(
                 "Tests",
                 [("Status", False)],
-                [[status(unassigned, "warning")]],
+                [[cell(unassigned, wrap=True)]],
                 "",
                 note="This pull is not tested in the system.",
             )
@@ -1118,7 +1199,7 @@ def pull_detail(request, pk):
             section(
                 "Testing evidence",
                 [("Status", False)],
-                [[status(b, "warning")] for b in blockers]
+                [[cell(b, wrap=True)] for b in blockers]
                 or [[status("Required tests reviewed and conforming", "success")]],
                 "",
                 note="Acceptance requires every required test reviewed, conforming and free of "
@@ -1136,35 +1217,51 @@ def pull_detail(request, pk):
         ),
         state=status(label, tone),
         facts=[
-            (
-                "Study",
-                cell(p.study.identifier, reverse("stability:study_detail", args=[p.study_id])),
-            ),
-            ("Due", day(p.due_date)),
-            ("Window", f"{day(p.window[0])} to {day(p.window[1])}"),
-            ("Required tests", ", ".join(p.timepoint.test_codes)),
-            ("Pulled on", day(p.pulled_on)),
-            ("Pulled by", str(p.pulled_by or "")),
-            (
-                "Quantity",
-                f"{p.quantity.normalize():f} {p.quantity_unit}" if p.quantity is not None else "",
-            ),
-            ("Held at", p.storage_location),
-            ("Chamber", str(p.chamber or "")),
-            ("Sample", p.sample.reference if p.sample_id else ""),
-            ("External sample", p.external_sample_ref),
-            (
-                "External evidence",
-                external_link(p.evidence_url, p.evidence_ref or None)
-                if p.evidence_url
-                else p.evidence_ref,
-            ),
-            ("Deviation", p.deviation_reason),
-            ("Missed reason", p.missed_reason),
-            ("Accepted", when(p.accepted_at)),
-            ("Outcome", p.get_outcome_display()),
-            ("Revision", p.revision),
+            fact
+            for fact in [
+                (
+                    "Due",
+                    critical(label, tone, day(p.due_date))
+                    if p.state == "scheduled" and tone in ("danger", "warning")
+                    else day(p.due_date),
+                ),
+                ("Window", f"{day(p.window[0])} to {day(p.window[1])}"),
+                (
+                    "Study",
+                    cell(
+                        p.study.identifier,
+                        reverse("stability:study_detail", args=[p.study_id]),
+                        code=True,
+                    ),
+                ),
+                ("Required tests", ", ".join(p.timepoint.test_codes)),
+                ("Pulled on", day(p.pulled_on)),
+                ("Pulled by", person(p.pulled_by)),
+                (
+                    "Quantity",
+                    f"{p.quantity.normalize():f} {p.quantity_unit}"
+                    if p.quantity is not None
+                    else "",
+                ),
+                ("Held at", p.storage_location),
+                ("Chamber", str(p.chamber or "")),
+                ("Sample", p.sample.reference if p.sample_id else ""),
+                ("External sample", p.external_sample_ref),
+                (
+                    "External evidence",
+                    external_link(p.evidence_url, p.evidence_ref or None)
+                    if p.evidence_url
+                    else p.evidence_ref,
+                ),
+                ("Deviation", p.deviation_reason),
+                ("Missed reason", p.missed_reason),
+                ("Accepted", when(p.accepted_at)),
+                ("Outcome", p.get_outcome_display()),
+            ]
+            # Facts of steps not reached yet (pulled, accepted, missed) are left out.
+            if fact[1] not in ("", None)
         ],
+        meta=[("Record revision", p.revision)],
         actions=detail_actions,
         sections=sections,
         notice=notice,
@@ -1186,20 +1283,20 @@ def _assignable(pull, rows=None):
 
 
 def _test_state(test):
-    """The test's result and where it stands, as one status: the value first."""
+    """The test's result as plain data, then where it stands as its status label."""
     result = test.reportable_with_unit
     if test.state == "invalidated":
-        return status(f"{result} · invalidated" if result else "Invalidated", "neutral")
+        return cell(result, pill=("Invalidated", "neutral")) if result else status("Invalidated")
     if test.state == "not_completed":
         return status("Not completed", "neutral")
     if test.state == "open":
         return status("Open", "progress")
     if test.conforms is False:
         waiting = "awaiting review" if test.state == "submitted" else "reviewed"
-        return status(f"{result} · out of specification · {waiting}", "danger")
+        return cell(result, pill=(f"Out of specification · {waiting}", "danger"))
     if test.state == "submitted":
-        return status(f"{result} · awaiting review", "info")
-    return status(f"{result} · conforms · reviewed", "success")
+        return cell(result, pill=("Awaiting review", "info"))
+    return cell(result, pill=("Conforms · reviewed", "success"))
 
 
 def _tests_section(pull, rows, blockers, outcome):
@@ -1234,8 +1331,8 @@ def _tests_section(pull, rows, blockers, outcome):
         [
             ("Test", False),
             ("Result and status", False),
-            ("Acceptance criterion", False),
-            ("Kind", False),
+            ("Acceptance criterion", False, "medium"),
+            ("Kind", False, "low"),
         ],
         table,
         "",
@@ -1521,7 +1618,7 @@ def pull_accept(request, pk):
 def reserve_list(request):
     access(request.user)
     form, data = make_filter(request, [("below", "Below minimum quantity")])
-    queryset = ReserveSample.objects.select_related("lot")
+    queryset = ReserveSample.objects.select_related("lot").prefetch_related("obligations")
     if data.get("q"):
         q = data["q"]
         queryset = queryset.filter(Q(identifier__icontains=q) | Q(lot__number__icontains=q))
@@ -1535,14 +1632,15 @@ def reserve_list(request):
     )
     rows = [
         [
-            cell(r.identifier, reverse("stability:reserve_detail", args=[r.pk])),
-            r.lot.number,
+            cell(r.identifier, reverse("stability:reserve_detail", args=[r.pk]), sub=r.lot.number),
             cell(f"{r.quantity.normalize():f} {r.quantity_unit}", numeric=True),
             day(r.retained_on),
             r.storage_location,
             status("Meets minimum", "success")
             if r.meets_minimum
             else status("Below minimum", "warning"),
+            day(_retain_through(r)),
+            status("Active", "hold") if gates.active_holds(r.lot, r).exists() else "",
         ]
         for r in page
     ]
@@ -1554,11 +1652,12 @@ def reserve_list(request):
         noun="reserve samples",
         columns=[
             ("Reserve", "identifier", False),
-            ("Lot", "lot", False),
             ("Quantity", None, True),
             ("Retained", "retained", False),
             ("Location", None, False),
             ("Quantity check", None, False),
+            ("Retain through", None, False),
+            ("Hold", None, False),
         ],
         rows=rows,
         page=page,
@@ -1597,6 +1696,13 @@ def reserve_new(request):
         intro="Reserve records are immutable. The minimum multiple is prefilled from the "
         "researched drug and supplement rules; the quality owner confirms what applies.",
     )
+
+
+def _retain_through(reserve):
+    """The latest date an obligation of the reserve retains it to, or None while an obligation
+    has no anchor yet (its date is unknown) or there is none."""
+    dates = [o.retain_until for o in reserve.obligations.all()]
+    return max(dates) if dates and None not in dates else None
 
 
 def _obligation_row(o, user, today):
@@ -1639,7 +1745,7 @@ def reserve_detail(request, pk):
             ("One test set", f"{r.test_quantity.normalize():f} {r.quantity_unit}"),
             ("Multiple of test set", f"{r.multiple:.2f} (minimum {r.minimum_multiple})"),
             ("Retained on", day(r.retained_on)),
-            ("Recorded by", str(r.recorded_by)),
+            ("Recorded by", person(r.recorded_by)),
         ],
         actions=[
             action(
@@ -1678,8 +1784,8 @@ def reserve_detail(request, pk):
                     [
                         cell(h.identifier, reverse("stability:hold_detail", args=[h.pk])),
                         h.get_kind_display(),
-                        h.get_state_display(),
-                        str(h.placed_by),
+                        _hold_state(h),
+                        person(h.placed_by),
                     ]
                     for h in holds
                 ],
@@ -1688,7 +1794,7 @@ def reserve_detail(request, pk):
             section(
                 "Disposal readiness",
                 [("Blocking reason", False)],
-                [[status(b, "warning")] for b in blockers],
+                [[cell(b, wrap=True)] for b in blockers],
                 "Nothing currently blocks disposal. No disposal action exists in this system yet.",
             ),
         ],
@@ -1798,10 +1904,13 @@ def hold_list(request):
     )
     rows = [
         [
-            cell(h.identifier, reverse("stability:hold_detail", args=[h.pk])),
+            cell(
+                h.identifier,
+                reverse("stability:hold_detail", args=[h.pk]),
+                sub=h.get_kind_display(),
+            ),
             h.lot.number,
-            h.get_kind_display(),
-            h.reference,
+            cell(h.reference, code=True) if h.reference else "",
             _hold_state(h),
             when(h.placed_at),
         ]
@@ -1816,7 +1925,6 @@ def hold_list(request):
         columns=[
             ("Hold", None, False),
             ("Lot", "lot", False),
-            ("Kind", None, False),
             ("Reference", None, False),
             ("State", None, False),
             ("Placed", "placed", False),
@@ -1876,6 +1984,12 @@ def hold_detail(request, pk):
         crumbs=crumbs(("Holds", reverse("stability:hold_list")), (h.identifier, None)),
         state=_hold_state(h),
         facts=[
+            (
+                "Status",
+                critical("On hold", "hold", "QC disposition and disposal of this lot are blocked.")
+                if h.state == "active"
+                else _hold_state(h),
+            ),
             ("Lot", cell(h.lot.number, reverse("quality:lot_detail", args=[h.lot_id]))),
             (
                 "Reserve sample",
@@ -1884,9 +1998,9 @@ def hold_detail(request, pk):
                 else "",
             ),
             ("Kind", h.get_kind_display()),
-            ("Reference", h.reference),
+            ("Reference", cell(h.reference, code=True) if h.reference else ""),
             ("Reason", h.reason),
-            ("Placed by", str(h.placed_by)),
+            ("Placed by", person(h.placed_by)),
             ("Placed", when(h.placed_at)),
             ("Released", when(h.released_at)),
             ("Revision", h.revision),
@@ -1897,13 +2011,6 @@ def hold_detail(request, pk):
             else None
         ],
         related=[h],
-        notice={
-            "tone": "warning",
-            "label": "On hold",
-            "text": "QC disposition and disposal of this lot are blocked.",
-        }
-        if h.state == "active"
-        else None,
     )
 
 

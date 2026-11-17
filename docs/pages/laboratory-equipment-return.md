@@ -4,8 +4,23 @@ urls: laboratory:equipment_return
 views: laboratory.views.equipment_return
 templates: ops/sign.html
 models: laboratory.Equipment, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Sign the return of out-of-service equipment to service, with your assessment of the work done since its last accepted passing calibration. Quality role only.
 ---
+
+## Common tasks
+### Assess the impact and return the equipment to service
+1. Review [[Impact scope]] and each affected use listed below it.
+2. Enter [[Signing username]], your [[Impact assessment]] and your [[Signature PIN]].
+3. Select [[Sign and approve]]. The equipment record opens, back in service.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot return equipment that you took out of service, including by recording its failed calibration.
+- Signing is refused until a passing calibration after the failure is accepted and not expired, and qualification is current when required.
+- If a use or a failed calibration is recorded while you assess, signing is refused. Reload the page and reassess.
+- Your assessment is stored with the failed calibrations and uses it covered.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 
@@ -20,7 +35,7 @@ Approve returning equipment to service after assessing the impact of its failure
 
 ## Layout
 
-- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts (including one line for each use to assess, up to 50, oldest first, as on the equipment record: the work with its link, test code, state and reportable result, or the number of tests in a QC batch; "More uses" gives the count not listed), signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts (including one line for each use to assess, up to 50, oldest first, as on the equipment record: the work with its link, test code, state and reportable result, or the number of tests in a QC batch; "More uses" gives the count not listed), signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

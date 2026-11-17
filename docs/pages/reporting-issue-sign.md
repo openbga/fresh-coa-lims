@@ -4,8 +4,25 @@ urls: reporting:issue_sign
 views: reporting.views.issue_sign
 templates: reporting/sign.html
 models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign and issue version 1 of a certificate of analysis with your PIN. The signature binds the exact evidence you reviewed, and the PDF is stored as issued.
 ---
+
+## Common tasks
+### Issue the certificate
+1. Name the customer or consignee in [[Issued to]], or leave it blank for a general certificate.
+2. Add [[Remarks on the certificate]] if needed, and give a [[Reason for issuing]].
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and issue certificate]].
+### Leave without signing
+1. Select [[Cancel]] to return to the review. Nothing is issued.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+## Good to know
+- A certificate already issued for this lot and the same Issued to is refused. Amend it from its record instead.
+- If the evidence changed after you reviewed it, signing is refused. Go back and review it again.
+- Remarks are printed on the certificate. The reason for issuing is kept with the signature and the audit trail, not printed.
+- An issued version and its PDF never change. A correction is a signed amendment that adds a new version.
+- A laboratory QC disposition is not manufacturer batch release.
 
 ## Purpose
 
@@ -18,7 +35,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 
 ## Layout
 
-- **Dialog** (a full page without JavaScript): heading "Sign and issue certificate", a statement of what your signature records, your name as signer, a link to enrol or change your signature PIN, any error summary, the form, and **Sign and issue certificate** / **Cancel**.
+- **Dialog** (a full page without JavaScript): heading "Sign and issue certificate", a statement of what your signature records, your name as signer, the link **Enroll or change your signature PIN**, any error summary, the form, and **Sign and issue certificate** / **Cancel**.
 - Opening the page never signs. With JavaScript it opens as a modal, focus goes to the PIN (or the error), Escape or **Cancel** leaves without signing.
 
 ## Actions

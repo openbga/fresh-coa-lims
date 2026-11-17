@@ -4,8 +4,22 @@ urls: reporting:amend_preview
 views: reporting.views.amend_preview
 templates: reporting/preview.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: What an amended certificate would contain, built from the lot's current evidence, and which evidence sections changed since the latest version. Nothing is issued here.
 ---
+
+## Common tasks
+### Review and sign an amendment
+1. Read the [[Amendment]] notice for the evidence sections changed since the latest version.
+2. Check the preview, then select [[Continue to signing]]. It shows only to the quality role when nothing blocks it and you authored no records on the lot.
+3. Sign with your PIN on that page using [[Sign and amend certificate]].
+### Find out why an amendment cannot be signed
+1. Read the reasons under [[Cannot issue]]. An amendment is blocked by the same reasons as a first issue.
+## Good to know
+- The version being replaced stays on record unchanged.
+- When the evidence is unchanged since the latest version, amend only to correct the certificate's remarks or wording.
+- An open hold, or any other blocker, prevents an amendment just as it prevents a first issue.
+- Only an issued certificate can be amended.
 
 ## Purpose
 

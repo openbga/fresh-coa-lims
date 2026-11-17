@@ -8,6 +8,7 @@ from decimal import Decimal
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from helpers import pick, wait_for_enhanced
 from playwright.sync_api import expect, sync_playwright
 from test_requirement_replacement_journey import WIDER_THAN_THE_PAGE
 
@@ -115,8 +116,8 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         ).to_be_visible()
         configured = page.locator("dl.vr-facts > div", has_text="Scopes in the configuration")
         expect(configured).to_contain_text("general, eu-market")
-        expect(field("Material")).to_have_value(str(material.pk))
-        field("Stage").select_option("incoming")
+        expect(wait_for_enhanced(field("Material"))).to_have_value(str(material.pk))
+        pick(field("Stage"), "incoming")
         expect(field("Scopes")).to_have_value("general")
         field("Scopes").fill("general, eu-market")
         field("Reason").fill(ASSIGN_REASON)
@@ -211,8 +212,8 @@ def test_conflicting_requirements_hold_a_lot_until_independent_quality_decides(
         )
         expect(panel.locator(".pagedocs-missing")).to_have_count(0)
         expect(panel.get_by_role("heading", name=documentation.title, exact=True)).to_be_visible()
-        expect(panel.get_by_role("heading", name="Who can use it")).to_be_visible()
-        expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+        expect(panel.get_by_text("Who can use it", exact=True)).to_be_visible()
+        expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
         toggle.click()
         expect(panel).not_to_be_visible()
         shots("requirement-decision-review")

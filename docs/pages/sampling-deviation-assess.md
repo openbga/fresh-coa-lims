@@ -4,8 +4,22 @@ urls: sampling:deviation_assess
 views: sampling.views.deviation_assess
 templates: sampling/deviation_assess.html
 models: sampling.DeviationReview, sampling.SamplingRecord, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Quality's signed assessment of a sampling deviation: accept the sample as still acceptable evidence, or reject it. Until it is accepted, the deviation blocks QC disposition.
 ---
+
+## Common tasks
+### Assess the deviation
+1. Read the record under [[Sampling record being assessed]].
+2. In [[Decision]], choose [[Accept the deviation]] or [[Reject the deviation]], and say why in [[Assessment]].
+3. Enter [[Signing username]] and [[Signature PIN]], then select [[Sign assessment]].
+### Resolve a rejected deviation
+1. On the lot's page, an analyst selects [[Correct]] on the record or records a resample with [[Record sampling]].
+## Good to know
+- You cannot assess a sample you sampled, recorded or corrected, whatever roles you hold.
+- Accepting clears the sampling block for this sample. Rejecting keeps the lot blocked until the record is corrected or the material is resampled.
+- A decided assessment cannot be changed. A correction that still has a deviation gets a new assessment.
+- Only the latest record of a lot in Quarantine can be assessed.
 
 ## Purpose
 
@@ -21,7 +35,7 @@ Independent, signed quality assessment of a deviation recorded with a sampling r
 
 ## Layout
 
-- **Breadcrumbs**: Sampling, lot number, "Assess deviation <sample reference>". Header line: sample reference, "assessment record revision N" and the status "Awaiting quality assessment".
+- **Breadcrumbs**: Sampling, lot number, "Assess deviation <sample reference>". Header line: the status "Awaiting quality assessment", the sample reference and "Assessment record revision N".
 - **Sampling record being assessed**: Lot, Sampled (time, sampler, location), Plan, "Containers (sampled / required / total)" with container IDs, Amount, Deviation.
 - **Sign deviation assessment**: statement that your signature records whether the sample remains acceptable evidence ("Accepting clears the sampling block for this sample; rejecting keeps the lot blocked until the record is corrected or the material is resampled."; it also says the server records the time and binds the signature to assessment revision N+1), "Signer:" with your name and username, and a link "Enroll or change your signature PIN".
 - **Form**: Decision, Assessment, Signing username, Signature PIN. Buttons **Cancel** and **Sign assessment**.

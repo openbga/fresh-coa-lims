@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 
-from core.forms import SignForm, StyledForm
+from core.forms import SignForm
 
 from .models import LoginAnnouncement
 from .services import ROLES
@@ -89,11 +89,6 @@ class AccountChangeForm(SignForm):
             self.fields["password_confirmation"] = forms.CharField(
                 required=False, widget=PASSWORD_WIDGET, label="Confirm temporary password"
             )
-        for field in self.fields.values():
-            if not field.widget.is_hidden and not isinstance(
-                field.widget, forms.CheckboxSelectMultiple
-            ):
-                field.widget.attrs.setdefault("class", "form-control")
         self.fields["reason"].max_length = 2000
         self.order_fields(
             [
@@ -119,7 +114,7 @@ class AccountChangeForm(SignForm):
         return values
 
 
-class OwnPasswordForm(StyledForm):
+class OwnPasswordForm(forms.Form):
     current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
     password = forms.CharField(label="New password", widget=PASSWORD_WIDGET)
     password_confirmation = forms.CharField(label="Confirm new password", widget=PASSWORD_WIDGET)
@@ -201,7 +196,7 @@ class PasskeySignInForm(forms.Form):
     )
 
 
-class SignInCodeForm(StyledForm):
+class SignInCodeForm(forms.Form):
     """A code, or a security key's answer that the page's script puts in security_key_response.
 
     keys: whether the account has security keys usable here; app: whether it has an
@@ -248,7 +243,7 @@ class SignInCodeForm(StyledForm):
         return values
 
 
-class TwoFactorStartForm(StyledForm):
+class TwoFactorStartForm(forms.Form):
     current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
     action = forms.ChoiceField(
         choices=[
@@ -312,7 +307,7 @@ class _ActionErrorAtTop:
         return values
 
 
-class SingleSignOnStartForm(_ActionErrorAtTop, StyledForm):
+class SingleSignOnStartForm(_ActionErrorAtTop, forms.Form):
     """Link or unlink, confirmed with the password, for an account without two-factor sign-in."""
 
     current_password = forms.CharField(label="Current password", widget=forms.PasswordInput)
@@ -340,7 +335,7 @@ class SingleSignOnChangeForm(_ActionErrorAtTop, SignInCodeForm):
         self.order_fields(["current_password", "otp_code", "action"])
 
 
-class SecurityKeyNameForm(StyledForm):
+class SecurityKeyNameForm(forms.Form):
     name = forms.CharField(
         label="Name of the key",
         max_length=60,
@@ -366,7 +361,7 @@ class SecurityKeyNameForm(StyledForm):
         return values
 
 
-class TwoFactorConfirmForm(StyledForm):
+class TwoFactorConfirmForm(forms.Form):
     otp_code = _code_field(
         "Code from the app", "The 6-digit code the app shows for this account now."
     )

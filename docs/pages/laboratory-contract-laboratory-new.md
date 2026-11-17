@@ -4,8 +4,22 @@ urls: laboratory:contract_laboratory_new
 views: laboratory.contract_views.contract_laboratory_new
 templates: ops/form.html
 models: laboratory.ContractLaboratory, core.AuditEvent
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Add an outside laboratory to the register by code, name and location. Adding it approves nothing; record an approval for each method next. Quality role only.
 ---
+
+## Common tasks
+### Add a contract laboratory
+1. Enter a short, stable [[Code]], the laboratory's [[Name]] and its [[Location]] (town and country).
+2. Give a [[Reason]] and select [[Add contract laboratory]]. The laboratory's record opens.
+3. Select [[Record approval]] there for each method it may perform.
+### Leave without adding
+1. Select [[Cancel]] to return to the Contract laboratories list. Nothing is saved.
+## Good to know
+- The code, name and location cannot be edited after the laboratory is added, and it cannot be deleted.
+- Codes are unique; a code already in use is refused. Codes differing only in upper or lower case are different codes.
+- Use synthetic names only.
+- Results the laboratory reports are refused until an approval for their method is signed.
 
 ## Purpose
 

@@ -5,7 +5,26 @@ views: validation.views.use_new
 templates: catalog/form.html
 models: validation.UseAcceptance, core.AuditEvent
 reviewed: 2026-11-17
+summary: Record the laboratory's intended use of the system for acceptance: what it is used for, the supported assays, the owners and the validation report. Recording accepts nothing.
 ---
+
+## Common tasks
+### Record the intended use
+1. Fill in [[Title]] and [[Intended use]], then tick each method the laboratory validated for this use in [[Supported assays]].
+2. Choose the [[Process owner]] and the [[System owner]].
+3. Name the [[Validation report]] with its revision. Add the [[Validation report link]] if there is one.
+4. Give a [[Reason]] and select [[Record intended use]]. A different quality person then accepts it from the record.
+### Record what the system is not used for
+1. Describe functions the laboratory does not use, and records it keeps elsewhere, in [[Outside the intended use]].
+2. List issues found in validation, and how each is resolved or restricted, in [[Known issues and conditions]].
+### Leave without recording
+1. Select [[Cancel]] to return to the list. Nothing is recorded.
+## Good to know
+- Only methods with an approved version in force can be chosen. If none is in force, the page says so: approve the methods first.
+- Owners must be active accounts holding the analyst, reviewer, quality or admin role.
+- You cannot accept a record you recorded. A different quality person must sign it.
+- Recorded content is never edited. To correct a record, withdraw it and record a new one.
+- The acceptance signature, not this page, freezes the approved configuration in force and the running release.
 
 ## Purpose
 

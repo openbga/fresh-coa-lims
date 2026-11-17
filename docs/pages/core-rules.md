@@ -4,8 +4,25 @@ urls: core:rules
 views: core.views.rules
 templates: core/rules.html
 models: core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: The rule set revisions lots are received under: required tests, signature meanings and where an additional rule set applies. Quality creates draft revisions for independent approval.
 ---
+
+## Common tasks
+### Create a new revision
+1. In [[New revision]], enter the [[Code]], [[Segment]] and [[Policy]]. Reuse a code to create its next version.
+2. Set [[Effective from]] and [[Effective until]], and enter a [[Reason]].
+3. Select [[Create draft]]. Quality role only.
+### Approve another person's draft
+1. Select [[Review and approve]] beside the draft, then sign the approval on that page.
+### See which revision applies
+1. Read [[Status]] and [[Effective]] in the table. A retired revision shows [[Superseded]].
+## Good to know
+- Approved revisions are never edited. Create a new version of the code to change one.
+- You cannot approve a draft you created. Another quality person approves it.
+- An effective end date is optional for a draft but required for approval.
+- Approving a version retires an overlapping approved version from the new version's start, or from approval if later, never retroactively.
+- Lots keep the revision chosen at receipt until their requirements are assigned again or replaced.
 
 ## Purpose
 
@@ -21,7 +38,7 @@ List rule set revisions (required tests, signature meanings, whether a supplier'
 
 - Title "Rule sets" and a note that presets are synthetic and approved revisions cannot be edited.
 - A second note: "A lot is received under one rule set. A rule set whose policy states `applies_to` is an additional one: it is never chosen at receipt and applies, with the lot's own rule set, to every lot whose requirements are assigned for a material, stage and scope it names."
-- **Revisions table**: Rule ("code vN"), Segment, Status with any approval signatures, Effective (start, and "to <end>" when an end is set; a retired revision adds "Superseded by version N from <time>" or "Superseded by version N before it took effect"), Policy, Action. Under the policy of an additional rule set: "Applies in addition to a lot's own rule set" followed by what it names, for example "· stages incoming · scopes eu-market". Empty: "No rule revisions yet."
+- **Revisions table**: Rule ("code vN", with the segment below), Status (Approved, Draft or the stored status, plus "Superseded" for a retired revision) with the latest approval signature below (signer, meaning, time, revision), Effective (start date, and "to <end date>" below when an end is set, or "from <date>"; a retired revision adds "Superseded by version N from <time>" or "Superseded by version N before it took effect"), Policy (the required test codes, with "Required tests" and the review and disposition meanings below), Action. Under the policy of an additional rule set: "Applies in addition to a lot's own rule set" followed by what it names, for example "· stages incoming · scopes eu-market". Empty: "No rule revisions yet."
 - **New revision** form with **Create draft**, for quality users only, under the note "Use the same code to create the next version. When it is approved, an approved version of the same code whose effective period it overlaps stops applying from this version's start, or from the moment of approval if that is later."
 
 ## Actions
@@ -70,6 +87,6 @@ List rule set revisions (required tests, signature meanings, whether a supplier'
 ## Related pages
 
 - Approve rule revision.
-- [Material lots](/): lots choose an approved rule revision; additional rule sets are not offered there.
+- [Material lots](/lots/): lots choose an approved rule revision; additional rule sets are not offered there.
 - [Lots](/sampling/): Lot requirements and sampling shows the additional rule sets frozen for a lot.
 - [Suppliers](/suppliers/): supplier qualifications are recorded on each supplier record.

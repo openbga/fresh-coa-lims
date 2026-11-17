@@ -5,7 +5,27 @@ views: validation.views.use_list
 templates: validation/list.html, ops/list.html
 models: validation.UseAcceptance
 reviewed: 2026-11-17
+summary: The laboratory's records of its intended use of the system. See which record is accepted and whether the configuration or release changed since, or record a new one.
 ---
+
+## Common tasks
+### Check the current acceptance
+1. Read the notice above the table. [[Current acceptance]] means the approved configuration and the release are those the acceptance froze.
+2. If it shows [[Changed since acceptance]], select the accepted record's number to see each change.
+### Find a record
+1. Type words from the title or the intended use in [[Search]].
+2. To see only one state, choose it in [[Status]], then select [[Apply]].
+3. Select a record number to open it.
+### Record a new intended use
+1. Select [[New intended use]]. It shows only to the quality role.
+2. Fill in the form and select [[Record intended use]] on that page. A different quality person then accepts it.
+### See every record again
+1. Select [[Clear all]].
+## Good to know
+- Only one record is accepted at a time. Accepting a newer record supersedes the one accepted before, and the superseded record is kept.
+- These records hold no work. A change since acceptance is shown so you can assess it under your own change control.
+- The comparison is made each time the page opens, from the approved versions in force now and the release the deployment states.
+- [[Release not compared]] means the deployment does not state its release now, or did not when the record was accepted.
 
 ## Purpose
 
@@ -20,8 +40,8 @@ List the records of the laboratory's intended use of the system and show whether
 
 - Tabs **Intended use** and **Rehearsals**, the title, and an introduction.
 - A notice about the current acceptance (see Rules).
-- A filter bar: **Search**, **Status**, **Apply**, and **Clear filters** once a filter is set.
-- A table with the columns **Record**, **Title**, **State**, **Recorded by**, **Recorded**, **Accepted**, **Changes since acceptance**; paging at 25, 50 or 100 rows.
+- A filter bar: **Search**, **Status**, **Apply**, and **Clear all** once a filter is set.
+- A table with the columns **Record** (with the title under it), **State**, **Recorded by**, **Recorded**, **Accepted**, **Changes since acceptance**; paging at 25, 50 or 100 rows.
 - Empty state "No records yet": "Record the laboratory's intended use, its supported assays and owners, then have a different quality person accept it."
 
 ## Actions

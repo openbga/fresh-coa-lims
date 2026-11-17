@@ -4,8 +4,22 @@ urls: laboratory:qualification_approve
 views: laboratory.views.qualification_approve
 templates: ops/sign.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign approval of qualification evidence that someone else recorded, so the subject is qualified for the activity between the stated dates. Quality role only.
 ---
+
+## Common tasks
+### Approve the qualification
+1. Check [[Subject]], [[Activity]], [[Valid]] and [[Evidence]] against the controlled record.
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and approve]]. The qualification record opens.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- The person who recorded the evidence and the qualified person cannot approve it, whatever roles they hold.
+- Evidence whose last valid day has passed cannot be approved.
+- It qualifies from your signature time, not earlier, and only within its dates.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 
@@ -20,7 +34,7 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 
 ## Layout
 
-- Breadcrumbs, then a signing dialog (a plain card without JavaScript): QUAL-n and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): QUAL-n and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

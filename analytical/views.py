@@ -1,13 +1,17 @@
+import re
+
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.html import format_html
 from django.views.decorators.http import require_http_methods
 
+from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 from quality.models import Lot, Sample
@@ -42,16 +46,8 @@ from .forms import (
 from .models import AnalyticalTest, Investigation, Observation, QCBatch, QCResult
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
-PAGE_SIZE = 30
 # What a page shows of the stability pull a test belongs to: its study, lot and time point.
 PULL = ("pull__study__lot", "pull__timepoint__condition")
-
-
-def query_params(request):
-    """Current filters without the page number, ready for '?{{ params }}page=N'."""
-    params = request.GET.copy()
-    params.pop("page", None)
-    return params.urlencode() + "&" if params else ""
 
 
 def access(user):
@@ -160,7 +156,10 @@ def unavailable(request, message, url):
     return redirect(url)
 
 
-def action_page(request, form, *, title, submit, crumbs, cancel_url, record=None, summary=None):
+def action_page(
+    request, form, *, title, submit, crumbs, cancel_url, record=None, summary=None, held=""
+):
+    """An action form; `held` is why the action cannot be taken now (shown instead of the form)."""
     return render(
         request,
         "analytical/form.html",
@@ -172,6 +171,7 @@ def action_page(request, form, *, title, submit, crumbs, cancel_url, record=None
             "cancel_url": cancel_url,
             "record": record,
             "summary": summary or [],
+            "held": held,
         },
         status=422 if request.method == "POST" else 200,
     )
@@ -180,6 +180,8 @@ def action_page(request, form, *, title, submit, crumbs, cancel_url, record=None
 def sign_page(
     request, form, *, title, submit, meaning, record, record_label, crumbs, cancel_url, summary
 ):
+    # The card's first sentence states the record revision; the facts do not repeat it.
+    summary = [item for item in summary if item[0] != "Record revision"]
     return render(
         request,
         "analytical/sign.html",
@@ -216,6 +218,43 @@ TEST_FILTERS = {
 }
 
 
+class TestFilterForm(forms.Form):
+    """The test list's status filter; the search box is the toolbar's own (q)."""
+
+    state = forms.ChoiceField(
+        label="Status",
+        choices=[(key, label) for key, (label, _) in TEST_FILTERS.items()],
+        required=False,
+    )
+
+
+class BatchFilterForm(forms.Form):
+    """The QC batch list's status filter."""
+
+    state = forms.ChoiceField(
+        label="Status",
+        choices=[
+            ("", "All batches"),
+            *QCBatch.State.choices,
+            # An open batch's QC status (analytical/_qc_status.html), worked out per batch.
+            ("failed", "QC failed"),
+            ("incomplete", "QC incomplete"),
+        ],
+        required=False,
+    )
+
+
+class InvestigationFilterForm(forms.Form):
+    """The investigation list's status filter: open investigations unless another is chosen."""
+
+    state = forms.ChoiceField(
+        label="Status",
+        choices=[("open", "Open"), ("closed", "Closed"), ("all", "All investigations")],
+        required=False,
+        initial="open",
+    )
+
+
 def mark_supplier_results(tests):
     """Set ``supplier_result`` on each open test whose requirement a supplier's certificate
     result is proposed or accepted for: such a test is not work waiting to be done."""
@@ -230,12 +269,24 @@ def mark_supplier_results(tests):
     return tests
 
 
+TEST_COLUMNS = (
+    Column("test", "Test", locked=True),
+    Column("status", "Status"),
+    Column("lot", "Lot"),
+    Column("code", "Code", priority="low"),
+    Column("reportable", "Reportable", css="text-end"),
+    Column("batch", "Batch", priority="low"),
+    Column("assigned", "Assigned", priority="medium"),
+)
+
+
 @login_required
 def test_list(request):
     access(request.user)
-    state = request.GET.get("state", "")
-    if state not in TEST_FILTERS:
-        state = ""
+    filters = TestFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every test
+        filters = TestFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     query = request.GET.get("q", "").strip()
     tests = AnalyticalTest.objects.select_related("lot", "sample", "batch", *PULL).filter(
         TEST_FILTERS[state][1]
@@ -249,7 +300,7 @@ def test_list(request):
             | Q(test_code__icontains=query)
         )
     tests = tests.order_by("-created_at", "-pk")
-    page_obj = Paginator(tests, PAGE_SIZE).get_page(request.GET.get("page"))
+    page_obj = paginate(request, tests)
     mark_supplier_results(page_obj)
     return render(
         request,
@@ -258,28 +309,40 @@ def test_list(request):
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:test_list"),
             "page_obj": page_obj,
+            "columns": TEST_COLUMNS,
             "query": query,
-            "state": state,
-            "states": [(key, label) for key, (label, _) in TEST_FILTERS.items()],
+            "filters": filters,
             "filtered": bool(query or state),
-            "params": query_params(request),
         },
     )
+
+
+BATCH_COLUMNS = (
+    Column("batch", "Batch", locked=True),
+    Column("status", "QC status"),
+    Column("created", "Created", priority="medium"),
+    Column("created_by", "Created by", priority="low"),
+)
 
 
 @login_required
 def batch_list(request):
     access(request.user)
-    state = request.GET.get("state", "")
+    filters = BatchFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every batch
+        filters = BatchFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     batches = QCBatch.objects.select_related("created_by")
-    if state in QCBatch.State.values:
+    if state in ("failed", "incomplete"):
+        # The QC status is computed from each batch's current results, not stored.
+        open_batches = batches.filter(state=QCBatch.State.OPEN)
+        batches = batches.filter(pk__in=[b.pk for b in open_batches if b.qc_status()[0] == state])
+    elif state:
         batches = batches.filter(state=state)
-    else:
-        state = ""
     query = request.GET.get("q", "").strip()
     if query:
         batches = batches.filter(Q(number__icontains=query) | Q(method_code__icontains=query))
-    page = Paginator(batches, PAGE_SIZE).get_page(request.GET.get("page"))
+    page = paginate(request, batches)
     for batch in page:
         batch.status, _ = batch.qc_status()
     return render(
@@ -289,20 +352,32 @@ def batch_list(request):
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:batch_list"),
             "page_obj": page,
+            "columns": BATCH_COLUMNS,
             "query": query,
-            "state": state,
-            "states": QCBatch.State.choices,
+            "filters": filters,
             "filtered": bool(query or state),
             "can_create": "analyst" in roles(request.user),
-            "params": query_params(request),
         },
     )
+
+
+INVESTIGATION_COLUMNS = (
+    Column("investigation", "Investigation", locked=True),
+    Column("status", "Status"),
+    Column("lot", "Lot"),
+    Column("trigger", "Trigger", priority="low"),
+    Column("opened", "Opened", priority="medium"),
+)
 
 
 @login_required
 def investigation_list(request):
     access(request.user)
-    state = request.GET.get("state", "open")
+    filters = InvestigationFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every investigation
+        filters = InvestigationFilterForm({"state": "all"})
+        filters.is_valid()
+    state = filters.cleaned_data["state"] or "open"
     investigations = Investigation.objects.select_related(
         "lot", "test", *(f"test__{name}" for name in PULL)
     )
@@ -310,8 +385,6 @@ def investigation_list(request):
         investigations = investigations.exclude(phase="closed")
     elif state == "closed":
         investigations = investigations.filter(phase="closed")
-    else:
-        state = "all"
     query = request.GET.get("q", "").strip()
     if query:
         investigations = investigations.filter(
@@ -326,11 +399,11 @@ def investigation_list(request):
         {
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:investigation_list"),
-            "page_obj": Paginator(investigations, PAGE_SIZE).get_page(request.GET.get("page")),
+            "columns": INVESTIGATION_COLUMNS,
+            "page_obj": paginate(request, investigations),
             "query": query,
-            "state": state,
+            "filters": filters,
             "filtered": bool(query) or state != "open",
-            "params": query_params(request),
         },
     )
 
@@ -439,11 +512,43 @@ def test_crumbs(test, current=None):
 
 
 def test_summary(test):
+    """The test an action page applies to, as the test record shows it: the test number, name
+    and code chip; the lot with its sample (or stability pull) under it; the specification as
+    code and version with the requirement's hash; the acceptance criterion."""
     spec = test.spec
+    under = (
+        f"stability pull {test.pull.label}" if test.pull_id else f"sample {test.sample.reference}"
+    )
     return [
-        ("Test", f"{test.label} · {spec.name} ({test.test_code})"),
-        ("Lot and stability pull" if test.pull_id else "Lot and sample", test.subject_text),
-        ("Specification", f"{spec.source} · {spec.acceptance}"),
+        (
+            "Test",
+            format_html(
+                '<span class="vr-id">{}</span> {} <code class="vr-code">{}</code>',
+                test.label,
+                spec.name,
+                test.test_code,
+            ),
+        ),
+        (
+            "Lot and stability pull" if test.pull_id else "Lot and sample",
+            format_html(
+                '<span class="vr-nowrap">{}</span><small class="vr-nowrap">{}</small>',
+                test.source_lot.number,
+                under,
+            ),
+        ),
+        (
+            "Specification",
+            # No tooltips here: a titled chip takes keyboard focus, and the signing dialog
+            # gives focus to the first focusable element.
+            format_html(
+                '<code class="vr-code">{}</code><small>requirement hash '
+                '<code class="vr-code">{}</code></small>',
+                source_label(spec.source),
+                test.requirement_hash[:12],
+            ),
+        ),
+        ("Acceptance", spec.acceptance),
         ("Record revision", test.revision),
     ]
 
@@ -482,6 +587,17 @@ def get_test(pk):
         ),
         pk=pk,
     )
+
+
+# A requirement's source names the specification and its version first, e.g.
+# "catalog:syn-assay@v2#rev6/lot-req:…" or "fixture:SYN-SPEC-ASSAY@1".
+SOURCE = re.compile(r"^[^:]+:(?P<code>[^@#/]+)@v?(?P<version>\d+)")
+
+
+def source_label(source):
+    """The specification code and version of a requirement source, else the source itself."""
+    match = SOURCE.match(source)
+    return f"{match['code']} v{match['version']}" if match else source
 
 
 @login_required
@@ -533,6 +649,7 @@ def test_detail(request, pk):
             "page_title": test.label,
             "test": test,
             "spec": spec,
+            "spec_label": source_label(spec.source),
             "subject_closed": subject_closed,
             "observations": observations,
             "current_count": current_count,
@@ -689,6 +806,7 @@ def test_not_completed(request, pk):
                         if test.observations.exists() or files
                         else "It holds no reading or file, so it will not count toward the "
                         "specification's retests.",
+                        True,
                     )
                 ]
                 if test.investigation_id
@@ -697,6 +815,7 @@ def test_not_completed(request, pk):
             (
                 "What follows",
                 FOLLOW_UP_TEXT[follow].format(investigation=investigation, subject=subject),
+                True,
             ),
         ],
     )
@@ -1093,8 +1212,6 @@ def batch_new(request):
         if batch:
             messages.success(request, f"QC batch {batch.number} created.")
             return redirect("analytical:batch_detail", pk=batch.pk)
-    if not methods and not earlier:
-        form.add_error(None, "No approved batch method is available; batches are held.")
     return action_page(
         request,
         form,
@@ -1102,6 +1219,9 @@ def batch_new(request):
         submit="Create batch",
         crumbs=[("QC batches", reverse("analytical:batch_list")), ("New QC batch", None)],
         cancel_url=reverse("analytical:batch_list"),
+        held=""
+        if methods or earlier
+        else "No approved batch method is available; batches are held.",
     )
 
 
@@ -1342,6 +1462,12 @@ def investigation_detail(request, pk):
             "can_escalate": bool(user_roles & {"reviewer", "quality"})
             and inv.phase == "laboratory",
             "can_decide": "quality" in user_roles and inv.is_open,
+            # Quality's next step is the conclusion once nothing refuses it; recording an entry
+            # would make them an investigator and bar them from concluding, so it is never
+            # quality's primary action.
+            "conclude_ready": "quality" in user_roles
+            and inv.is_open
+            and services.conclude_refusal(request.user, inv, original, tests[1:]) is None,
             "used": services.retests_used(inv),
             "allowed": original.spec.max_retests,
         },

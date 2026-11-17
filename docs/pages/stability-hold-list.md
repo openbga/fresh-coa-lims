@@ -4,8 +4,25 @@ urls: stability:hold_list
 views: stability.views.hold_list
 templates: ops/list.html
 models: stability.Hold
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Every hold on lots and reserve samples. An active hold blocks QC disposition and disposal until a different quality signer releases it.
 ---
+
+## Common tasks
+### Find a hold
+1. Type a lot number, reference or reason in [[Search]].
+2. To see only active or released holds, choose it in [[Status]], then select [[Apply]].
+3. Select a hold to open its record.
+### Place a new hold
+1. Select [[New hold]]. It shows to analysts, reviewers and quality users.
+2. Choose the lot and kind on that page, give the reason and select [[Place hold]].
+### See every hold again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A hold tied to one reserve sample still blocks QC disposition of its whole lot.
+- The reserve sample a hold is tied to is not shown here. Open the hold to see it.
+- Whoever placed a hold cannot release it, even with the quality role.
+- The most recently placed hold comes first.
 
 ## Purpose
 
@@ -21,8 +38,8 @@ All holds on lots and reserve samples. A hold blocks QC disposition (and any dis
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title "Holds" and a **New hold** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Hold (links to the record), Lot, Kind, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Hold (links to the record, with its kind under it), Lot, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" with a next step; "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -31,7 +48,7 @@ All holds on lots and reserve samples. A hold blocks QC disposition (and any dis
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New hold** | Your role can create it | Analyst, Reviewer, Quality | Opens the New hold form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

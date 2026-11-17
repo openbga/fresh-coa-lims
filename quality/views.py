@@ -1,7 +1,7 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -9,10 +9,11 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.services import ROLES
 from catalog.web import form_status, run
+from core.grids import Column, paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, require_role
 
-from . import certificates, reliance, services
+from . import certificates, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
 from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
@@ -40,6 +41,26 @@ def access(user):
     require_role(user, "analyst", "reviewer", "quality", "admin", "auditor")
 
 
+# The material lot list's columns (core.grids.Column; keys are saved in users' layouts).
+LOT_COLUMNS = (
+    Column("lot", "Lot", locked=True),
+    Column("status", "Status"),
+    Column("material", "Material"),
+    Column("supplier", "Supplier", priority="medium"),
+    Column("received", "Received", priority="medium"),
+    Column("route", "Where it is"),
+    Column("rules", "Rule set", priority="low"),
+)
+
+
+class LotFilterForm(forms.Form):
+    """The material lot list's status filter; the search box is the toolbar's own (q)."""
+
+    state = forms.ChoiceField(
+        label="Status", choices=[("", "All lots"), *LotState.choices], required=False
+    )
+
+
 @login_required
 def lot_list(request):
     if (
@@ -52,9 +73,10 @@ def lot_list(request):
     lots = Lot.objects.select_related("rules").prefetch_related(
         Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
     )
-    state = request.GET.get("state", "")
-    if state not in LotState.values:
-        state = ""
+    filters = LotFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every lot, as before the filter
+        filters = LotFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     if state:
         lots = lots.filter(state=state)
     query = request.GET.get("q", "").strip()
@@ -67,15 +89,20 @@ def lot_list(request):
                 )
             )
         )
+    page_obj = paginate(request, route.annotate_route(lots))
+    for lot in page_obj:
+        lot.route = route.list_route(lot)
+        lot.route_summary = route.summary(lot.route)
+        lot.hold_labels = route.hold_labels(lot)
     return render(
         request,
         "quality/lot_list.html",
         {
             "page_title": "Material lots",
-            "page_obj": Paginator(lots, 30).get_page(request.GET.get("page")),
+            "page_obj": page_obj,
+            "columns": LOT_COLUMNS,
             "query": query,
-            "state": state,
-            "states": LotState.choices,
+            "filters": filters,
             "filtered": bool(query or state),
             "can_receive": request.user.groups.filter(name="analyst").exists(),
         },
@@ -93,6 +120,35 @@ def lot_detail(request, pk):
     corrected = {receipt.corrects_id for receipt in receipts}
     receipt = next((r for r in receipts if r.pk not in corrected), None)
     can_record = request.user.groups.filter(name="analyst").exists()
+    from analytical import gates
+
+    _, _, tests, investigations = gates.lot_status(lot)
+    from stability.gates import active_holds
+
+    quarantine = lot.state == "quarantine"
+    holds = list(active_holds(lot)) if quarantine else []
+    # Exactly what signing the disposition checks (services.dispose_lot).
+    blockers = services.disposition_blockers(lot) if quarantine else []
+    tests_by_pk = {test.pk: test for test in tests}
+    open_investigations = []
+    for investigation in sorted(investigations.values(), key=lambda i: i.pk):
+        if investigation.is_open:
+            investigation.held_test = tests_by_pk.get(investigation.test_id)
+            open_investigations.append(investigation)
+    reports = list(lot.reports.all())
+    samples = list(lot.samples.prefetch_related("results__analyst"))
+    # Native evidence: each sample's analytical tests, from the tests lot_status already loaded
+    # (no query per sample); an open test answered by an accepted supplier result says so.
+    from analytical.contracts import supplier_results
+
+    standing = supplier_results(lot)["standing"] if tests else {}
+    native_by_sample = {}
+    for test in tests:
+        test.supplier_result = standing.get(test.test_code) if test.state == "open" else None
+        native_by_sample.setdefault(test.sample_id, []).append(test)
+    for sample in samples:
+        sample.native_tests = native_by_sample.get(sample.pk, [])
+    acceptances = reliance.lot_acceptances(lot)
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -102,22 +158,47 @@ def lot_detail(request, pk):
         request,
         "quality/lot_detail.html",
         {
+            "page_title": lot.number,
             "lot": lot,
             "receipt": receipt,
             "receipt_history": receipt_history(receipts),
             "certificates": certificates.lot_summary(lot),
             "supplied": receipt is not None and receipt.source == ReceiptSource.SUPPLIER,
             "certificate_blocker": certificates.recording_requirements(lot)[1],
-            "acceptances": reliance.lot_acceptances(lot),
+            "acceptances": acceptances,
+            "supplier_accepted": any(item.state == "accepted" for item in acceptances),
             "can_record": can_record,
             "can_review": request.user.groups.filter(name="reviewer").exists(),
             "can_dispose": request.user.groups.filter(name="quality").exists(),
+            # A disposition author is refused on the signing page; not offered as the next step.
+            "disposition_denied": services.disposition_denial(request.user, lot)
+            if lot.state == "quarantine"
+            else "",
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             # The exported record includes the audit trail, so it needs a role that reads it.
             "can_export": request.user.groups.filter(name__in=AUDIT_READ_ROLES).exists(),
-            "reports": lot.reports.all(),
+            "reports": reports,
+            "issued": any(report.state == "issued" for report in reports),
+            "blockers": blockers,
+            "holds": holds,
+            "awaiting_review": sum(
+                1
+                for sample in samples
+                for result in sample.results.all()
+                if result.state == "recorded" and result.analyst_id != request.user.pk
+            )
+            if request.user.groups.filter(name="reviewer").exists()
+            else 0,
+            "open_investigations": open_investigations,
+            "route": route.route(
+                lot,
+                assignment=assignment,
+                tests=tests,
+                investigations=investigations.values(),
+                reports=reports,
+            ),
             "assignment": assignment,
-            "samples": lot.samples.prefetch_related("results__analyst"),
+            "samples": samples,
             "signatures": lot_signatures,
             # A lot is also signed when its requirements are replaced during testing.
             "disposition_signed": any(s.meaning in DECISION_MEANINGS for s in lot_signatures),
@@ -147,6 +228,7 @@ def decision_display(lot, signatures):
     return {
         "evidence": evidence,
         "signature": signature,
+        "signatures": [signature] if signature else [],
         "reason": signature.audit_event.reason if signature else "",
         "grounds": RejectionGrounds(grounds).label if grounds in RejectionGrounds.values else "",
         "tests": len(evidence.get("tests", [])),
@@ -182,6 +264,7 @@ def receipt_history(receipts):
         {
             "receipt": receipt,
             "title": "Receipt details corrected" if receipt.corrects_id else "Receipt recorded",
+            "icon": "pencil-square" if receipt.corrects_id else "",
             "changes": [
                 (label, shown[receipt.corrects_id][key], shown[receipt.pk][key])
                 for key, label in RECEIPT_LABELS
@@ -194,11 +277,18 @@ def receipt_history(receipts):
     ]
 
 
-def form_page(request, form, title, submit):
+def form_page(request, form, title, submit, lot):
+    """An action page on a lot record (add a sample, record a result)."""
     return render(
         request,
         "quality/form.html",
-        {"form": form, "title": title, "submit": submit},
+        {
+            "page_title": title,
+            "form": form,
+            "submit": submit,
+            "lot": lot,
+            "cancel_url": reverse("quality:lot_detail", args=[lot.pk]),
+        },
         status=422 if request.method == "POST" else 200,
     )
 
@@ -376,7 +466,7 @@ def sample_new(request, pk):
         )
         if sample:
             return redirect("quality:lot_detail", pk=lot.pk)
-    return form_page(request, form, f"Add sample · {lot.number}", "Add sample")
+    return form_page(request, form, f"Add sample · {lot.number}", "Add sample", lot)
 
 
 @login_required
@@ -391,7 +481,9 @@ def result_new(request, pk):
         )
         if result:
             return redirect("quality:lot_detail", pk=sample.lot_id)
-    return form_page(request, form, f"Record result · {sample.reference}", "Record result")
+    return form_page(
+        request, form, f"Record result · {sample.reference}", "Record result", sample.lot
+    )
 
 
 @login_required
@@ -419,6 +511,7 @@ def sign(request, pk, action):
         request,
         "signatures/sign.html",
         {
+            "page_title": "Sign result review" if is_review else "Sign lot disposition",
             "form": form,
             "lot": lot,
             "record": obj,

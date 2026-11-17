@@ -26,6 +26,7 @@ from .ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -84,7 +85,7 @@ def _uses_section(uses, total, *, with_approval):
                 use.report_number,
                 day(use.report_date),
                 *([cell(use.approval.label, _approval_url(use.approval))] if with_approval else []),
-                str(use.used_by),
+                person(use.used_by),
             ]
         )
     note = (
@@ -122,6 +123,26 @@ LABORATORY_STATUS = [
     ("current", "Approved for a method today"),
     ("none", "No approval in force today"),
 ]
+
+
+# A laboratory's approvals ranked for its list row: in force first (the soonest to expire, so
+# an expiring approval shows), then starting later, awaiting signature, expired, revoked.
+APPROVAL_RANK = [
+    "Expiring soon",
+    "Approved",
+    "Approved, starts later",
+    "Awaiting approval",
+    "Expired",
+    "Revoked",
+]
+
+
+def _approval_state(approvals, today):
+    """The state pill of the laboratory's first approval by APPROVAL_RANK (approvals ordered by
+    valid until, so the soonest-expiring wins a tie); blank when it has none."""
+    states = [contract.approval_status(approval, today) for approval in approvals]
+    best = min(states, key=lambda state: APPROVAL_RANK.index(state[0]), default=None)
+    return status(*best) if best else ""
 
 
 @login_required
@@ -171,11 +192,15 @@ def contract_laboratory_list(request):
     page, sort, descending = paginate(
         request, queryset, {"code": ["code"], "name": ["name", "code"]}, "code"
     )
+    approvals = ContractApproval.objects.filter(laboratory__in=list(page)).order_by("valid_until")
+    by_laboratory = {}
+    for approval in approvals:
+        by_laboratory.setdefault(approval.laboratory_id, []).append(approval)
     rows = [
         [
-            cell(item.code, _laboratory_url(item)),
-            item.name,
+            cell(item.code, _laboratory_url(item), sub=item.name),
             item.location,
+            _approval_state(by_laboratory.get(item.pk, []), today),
             cell(str(item.current_count), numeric=True),
             cell(str(item.waiting_count), numeric=True),
         ]
@@ -189,8 +214,8 @@ def contract_laboratory_list(request):
         noun="contract laboratories",
         columns=[
             ("Code", "code", False),
-            ("Name", "name", False),
             ("Location", None, False),
+            ("Approval", None, False),
             ("Methods approved today", None, True),
             ("Approvals awaiting signature", None, True),
         ],
@@ -264,7 +289,7 @@ def contract_laboratory_detail(request, pk):
             ("Code", laboratory.code),
             ("Name", laboratory.name),
             ("Location", laboratory.location),
-            ("Added by", str(laboratory.created_by)),
+            ("Added by", person(laboratory.created_by)),
             ("Added", when(laboratory.created_at)),
         ],
         actions=[
@@ -344,7 +369,7 @@ def _approval_facts(approval, *, approve):
         ("Evidence", approval.evidence_ref),
         ("Evidence link", external_link(approval.evidence_url)),
         ("Scope", approval.scope_note),
-        ("Recorded by", str(approval.recorded_by)),
+        ("Recorded by", person(approval.recorded_by)),
     ]
     if not approve:
         facts.append(("Accepted reports that relied on it", approval.uses.count()))
@@ -386,7 +411,7 @@ def contract_approval_detail(request, pk):
             ("Evidence reference", approval.evidence_ref),
             ("Evidence link", external_link(approval.evidence_url)),
             ("Scope", approval.scope_note),
-            ("Recorded by", str(approval.recorded_by)),
+            ("Recorded by", person(approval.recorded_by)),
             ("Recorded", when(approval.recorded_at)),
             ("Approved", when(approval.approved_at)),
             ("Revoked", when(approval.revoked_at)),
@@ -398,7 +423,12 @@ def contract_approval_detail(request, pk):
             )
             if keeper and not contract.approval_denial(user, approval, approve=True)
             else None,
-            action("Revoke", reverse("laboratory:contract_approval_revoke", args=[approval.pk]))
+            action(
+                "Revoke",
+                reverse("laboratory:contract_approval_revoke", args=[approval.pk]),
+                danger=True,
+                more=True,
+            )
             if keeper and not contract.approval_denial(user, approval, approve=False)
             else None,
         ],

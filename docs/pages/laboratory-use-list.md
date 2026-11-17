@@ -4,8 +4,24 @@ urls: laboratory:use_list
 views: laboratory.views.use_list
 templates: ops/list.html
 models: laboratory.ResourceUse
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Append-only record of the equipment and reagent lots used for work, by whom and when. Find the uses for a sample, lot, test or resource, or record a new use.
 ---
+
+## Common tasks
+### Find uses
+1. Type a sample reference, lot number, QC batch number, test code, asset ID or reagent lot identifier in [[Search]].
+2. Select [[Apply]], then select a resource or the work to open it.
+### Record a new use
+1. Select [[New use]]. It shows only for the analyst role.
+2. Fill in the form on that page. Your qualification and every resource are checked first.
+### See every use again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Refused attempts are not listed here. They are kept in the audit trail.
+- Uses cannot be edited or deleted.
+- Uses recorded while entering results in testing appear here too.
+- The newest use comes first.
 
 ## Purpose
 
@@ -21,7 +37,7 @@ Append-only record of the eligible equipment and reagents used for work.
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New use** button for Analyst. The introduction is below the title and action row.
-- **Toolbar**: **Search** (a sample reference, a lot number, a QC batch number or work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"; searching a sample reference finds the uses recorded for that sample, whether the work was recorded against the sample or against one of its native analytical tests; searching a lot number finds uses recorded against the lot's samples and analytical tests; searching a stability study identifier, or the lot number of a stability study, finds uses recorded against the tests of that study's pulls; searching a QC batch number finds uses recorded against that batch; every matching record is searched, with no cap). There is no Status filter. **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (a sample reference, a lot number, a QC batch number or work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"; searching a sample reference finds the uses recorded for that sample, whether the work was recorded against the sample or against one of its native analytical tests; searching a lot number finds uses recorded against the lot's samples and analytical tests; searching a stability study identifier, or the lot number of a stability study, finds uses recorded against the tests of that study's pulls; searching a QC batch number finds uses recorded against that batch; every matching record is searched, with no cap). There is no Status filter. **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Used (time), Resource (links), Work, Activity, Test, By. Sort by Used (newest first by default). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record the equipment and reagents used for a sample before testing.", with **New use** for Analysts); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
@@ -31,7 +47,7 @@ Append-only record of the eligible equipment and reagents used for work.
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New use** | Your role can create it | Analyst | Opens the New use form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

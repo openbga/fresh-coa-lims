@@ -4,8 +4,21 @@ urls: reporting:new
 views: reporting.views.report_new
 templates: reporting/report_new.html
 models: quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Choose the released lot a new certificate of analysis will cover. Nothing is created or signed here; you review the exact evidence next.
 ---
+
+## Common tasks
+### Start a certificate for a lot
+1. In [[Released lot]], type a lot number or material and choose the lot.
+2. Select [[Review certificate]] to see the certificate built from its evidence.
+### Leave without choosing
+1. Select [[Cancel]] to return to the list.
+## Good to know
+- Only lots with a signed QC disposition are listed. A lot still in Quarantine cannot have a certificate yet.
+- Lots that already have certificates are listed too. The review page shows the certificates already opened for the lot.
+- Choosing a lot here creates, issues and records nothing.
+- Only the quality role can open this page.
 
 ## Purpose
 
@@ -18,7 +31,7 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 ## Layout
 
 - **Breadcrumbs**: Certificates › New certificate of analysis.
-- **Form**: **Released lot** menu with its help text, a note that you review the exact evidence before signing, **Review certificate** and **Cancel**.
+- **Form**: **Released lot** (type to search) with its help text, a note that you review the exact evidence before signing, **Review certificate** and **Cancel**.
 
 ## Actions
 
@@ -31,7 +44,7 @@ Chooses the released lot a new certificate of analysis will cover. Nothing is cr
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Released lot (`lot`) | `Lot.state`, `Lot.number` | Menu, first entry "Select a lot" | Yes | Every lot whose state is Released, ordered by lot number, including lots that already have certificates. Help text: "Only lots with a signed QC disposition are listed." |
+| Released lot (`lot`) | `Lot.state`, `Lot.number` | Type-to-search choice (searches lot number and material) | Yes | Every lot whose state is Released, including lots that already have certificates. The server checks the chosen lot again |
 
 ## Rules and hidden logic
 

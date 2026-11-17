@@ -8,6 +8,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from analytical import services as analytical
@@ -93,7 +94,7 @@ def test_supplier_result_from_qualification_to_certificate(
             expect(page.locator('#vr-nav [aria-current="page"]')).to_have_text("Suppliers")
             expect(page.get_by_text("No qualification is recorded.")).to_be_visible()
             page.get_by_role("link", name="Record qualification", exact=True).click()
-            page.get_by_label(re.compile("^Material")).select_option(index=1)
+            pick(page.get_by_label(re.compile("^Material")), label=str(world["material"]))
             page.get_by_role("button", name="Continue", exact=True).click()
             expect(
                 page.get_by_role("heading", name=re.compile("^Record qualification"), level=1)
@@ -188,7 +189,7 @@ def test_supplier_result_from_qualification_to_certificate(
             expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
                 "data-pagedocs-for", "quality:acceptance_new"
             )
-            expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+            expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
             toggle.click()
             page.get_by_role("button", name="Propose supplier result", exact=True).click()
             expect(page.get_by_role("alert")).to_be_visible()  # A reason is required.
@@ -248,7 +249,8 @@ def test_supplier_result_from_qualification_to_certificate(
             journey.sign(
                 people["approver"], "Independent synthetic QC disposition", "Sign approved"
             )
-            expect(page.get_by_text("Released", exact=True)).to_be_visible()
+            meta = page.locator(".vr-page-meta")
+            expect(meta.get_by_text("Released", exact=True)).to_be_visible()
             page.get_by_role("link", name="Issue certificate of analysis", exact=True).click()
             expect(
                 page.get_by_text("Results accepted from the supplier's certificate of analysis.")

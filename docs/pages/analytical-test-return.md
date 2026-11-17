@@ -4,8 +4,20 @@ urls: analytical:test_return
 views: analytical.views.test_return
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, quality.Lot
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: A reviewer sends a conforming submitted test back to the analyst for correction. No signature is made, and the observations stay as recorded.
 ---
+
+## Common tasks
+### Return the test for correction
+1. Explain what must be corrected in [[Reason]].
+2. Select [[Return test]]. The test is open again so the analyst can correct and resubmit it.
+### Keep the test as submitted
+1. Select [[Cancel]] to go back to the test record without returning it.
+## Good to know
+- Out-of-specification results cannot be returned. The investigation decides whether the result is invalid.
+- You cannot return a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded.
+- Returning clears the reportable result, the conformance and the submitter. The observations stay.
 
 ## Purpose
 
@@ -20,7 +32,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 ## Layout
 
 - Heading "Return T-n for correction".
-- Summary card: test facts (Specification with its acceptance) and the Reportable result with unit, e.g. "99.8 %", "<10 CFU/g" or "Absent".
+- Summary card: test facts (Specification as code and version with its hash, and Acceptance) and the Reportable result with unit, e.g. "99.8 %", "<10 CFU/g" or "Absent".
 - Form: **Reason**, hidden revision, **Cancel**, **Return test**.
 
 ## Actions

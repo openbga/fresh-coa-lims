@@ -5,7 +5,23 @@ views: analytical.views.test_not_completed
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Investigation, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: Quality signs that an open test cannot be completed and why. The test and its data are kept; the test is repeated, or an investigation decides what follows.
 ---
+
+## Common tasks
+### Record that a test cannot be completed
+1. On the test record, select [[Record not completed]].
+2. Read [[What follows]] in the summary: a repeat, a new investigation, or the test's own investigation.
+3. Choose the [[Cause]], where the test is repeated when asked, and give the reason.
+4. Enter your signing username and PIN and select [[Sign: not completed]].
+### Repeat the test on a replacement sample
+1. First record the replacement sample on the lot record.
+2. Then record the test as not completed and choose [[On another sample of the lot]] and that sample.
+## Good to know
+- Only a quality person who recorded none of the test's data can sign this; holding other roles never waives it.
+- Readings outside the limits are never discarded: they open an investigation instead of a repeat.
+- The test and everything recorded on it stay as they were; it no longer counts toward the lot or the pull.
+- A retest that held no reading or file does not use up the specification's retest allowance.
 
 ## Purpose
 
@@ -23,10 +39,10 @@ A quality person signs that an open test cannot be completed (the sample was los
 - Breadcrumbs (Testing, the lot or stability pull, the test, "Not completed").
 - Card "Record that T-n cannot be completed": "Your signature records not completed for T-n at record revision N", then a summary, the signer, a link "Enroll or change your signature PIN", the form, **Cancel** and **Sign: not completed**.
 - **Summary rows**, top to bottom:
-  - **Test**: label, name and test code.
-  - **Lot and sample** (or **Lot and stability pull**).
-  - **Specification**: source and acceptance.
-  - **Record revision**.
+  - **Test**: the test number, its name and the test code.
+  - **Lot and sample** (or **Lot and stability pull**): the lot number, with the sample (or stability pull) under it.
+  - **Specification**: the specification code and version, with the start of the requirement's hash under it.
+  - **Acceptance**: the frozen acceptance criterion.
   - **Kind**: the test's kind (Original, Retest, Resample, Rerun after QC failure, Repeat under replaced requirements, Repeat of a test not completed).
   - **Recorded**: the current readings as recorded, joined with ", ", or "No result recorded".
   - **Outside the limits**: only when readings are judged outside the limits (see Rules); those readings.
@@ -34,7 +50,7 @@ A quality person signs that an open test cannot be completed (the sample was los
   - **Raw-data files**: only when there are some: "N kept with the test".
   - **QC batch**: only when the test is in one; its number.
   - **Retest allowance**: only for a test of an investigation. "It holds readings or files, so it still counts toward the specification's retests." or "It holds no reading or file, so it will not count toward the specification's retests."
-  - **What follows**: one of the three cases below.
+  - **What follows**: one of the three cases below, across the full width (as is **Retest allowance**).
 
 ## Actions
 

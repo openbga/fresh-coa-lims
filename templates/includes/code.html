@@ -1,0 +1,11 @@
+{% comment %}
+A code that is not the row's own link (Line emphasis kit 2): test, method, specification and rule
+set codes with their version, batch numbers, document references, supplier lots, hashes. Data
+voice, never uppercased. Rendered by {% code %} ({% load ui %}).
+Parameters:
+  value  the code
+  href   optional link
+  title  optional tooltip text
+  hash   truthy for a hash: the first 12 characters, the full value in the tooltip
+Usage: {% code value=test.test_code %}  {% code value=sig.content_hash hash=True %}
+{% endcomment %}<code class="vr-code"{% if full %} title="{{ full }}"{% endif %}>{% if href %}<a href="{{ href }}">{{ shown }}</a>{% else %}{{ shown }}{% endif %}</code>

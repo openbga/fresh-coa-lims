@@ -4,8 +4,22 @@ urls: reporting:amend_sign
 views: reporting.views.amend_sign
 templates: reporting/sign.html
 models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Sign an amendment of an issued certificate with your PIN. It adds a new version that supersedes the earlier one, which stays unchanged.
 ---
+
+## Common tasks
+### Sign the amendment
+1. Give the [[Reason for amendment]]. It is printed on the amended certificate.
+2. Check [[Remarks on the certificate]]. They start as the latest version's remarks; a blank field removes them from the new version.
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and amend certificate]].
+### Leave without signing
+1. Select [[Cancel]] to return to the amendment review. Nothing changes.
+## Good to know
+- If another version was issued or the evidence changed after you reviewed it, signing is refused. Review it again.
+- You cannot amend a certificate for a lot where you recorded the lot, a sample or a result.
+- The earlier version's PDF and content never change. The new version links to it.
+- An amendment cannot change Issued to. A certificate for another recipient is a new certificate.
 
 ## Purpose
 

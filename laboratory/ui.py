@@ -8,18 +8,20 @@ import re
 
 from django import forms
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.paginator import Paginator
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
+from core import grids
 from core.models import AuditEvent, ElectronicSignature
+from core.people import person  # noqa: F401 (re-exported: one person display app-wide)
 from core.services import require_role
+from core.templatetags.ui import when as shown_when
 
 READERS = ("analyst", "reviewer", "quality", "admin", "auditor")
-PAGE_SIZES = (25, 50, 100)
 
 # Sibling lists under one sidebar item, shown as tabs on the overview and every list.
 SECTION_TABS = {
@@ -91,9 +93,38 @@ def make_filter(request, choices=None):
 # --- Cells -----------------------------------------------------------------------------------
 
 
-def cell(text="", href=None, tone=None, numeric=False, link_rel=None):
-    """One table/fact value. `tone` renders `text` as a status label (text plus glyph)."""
-    return {"text": text, "href": href, "tone": tone, "numeric": numeric, "rel": link_rel}
+def cell(
+    text="",
+    href=None,
+    tone=None,
+    numeric=False,
+    link_rel=None,
+    pill=None,
+    sub="",
+    code=False,
+    critical=False,
+    muted=False,
+    wrap=False,
+):
+    """One table/fact value. `tone` renders `text` as a status label (text plus glyph; filled for
+    the states that must not hide: danger, hold, warning); `pill` (label, tone) adds a status
+    label after plain `text` (a clock fact: date, then its state); `code` renders `text` as a code
+    chip; `sub` is a muted second line (an attribute of the value, e.g. a name under a code).
+    `critical` (a record fact only): the fact that must not hide in its region, shown as a filled
+    status label in its tone with `sub` as the detail line; at most one per region."""
+    return {
+        "text": text,
+        "href": href,
+        "tone": tone,
+        "numeric": numeric,
+        "rel": link_rel,
+        "pill": pill,
+        "sub": sub,
+        "code": code,
+        "critical": critical,
+        "muted": muted,
+        "wrap": wrap,
+    }
 
 
 def wrap(value):
@@ -189,6 +220,11 @@ def status(label, tone="neutral"):
     return cell(label, tone=tone)
 
 
+def critical(label, tone, detail=""):
+    """A critical fact's value: the filled status label, with the identifier or detail under it."""
+    return cell(label, tone=tone, sub=detail, critical=True)
+
+
 def external_link(url, label=None):
     """Untrusted external link: validated http(s) at input; never trusted for navigation."""
     if not url:
@@ -216,14 +252,26 @@ def paginate(request, queryset, sorts, default):
         if descending
         else expressions
     )
-    queryset = queryset.order_by(*ordering, "pk")
-    try:
-        per_page = int(request.GET.get("per_page", PAGE_SIZES[0]))
-    except ValueError:
-        per_page = PAGE_SIZES[0]
-    per_page = per_page if per_page in PAGE_SIZES else PAGE_SIZES[0]
-    page = Paginator(queryset, per_page).get_page(request.GET.get("page"))
+    page = grids.paginate(request, queryset.order_by(*ordering, "pk"))
     return page, base, descending
+
+
+def grid_columns(columns):
+    """core.grids.Column for each (label, sort key or None, numeric[, priority]): keys are the
+    labels as slugs (saved in users' column layouts, so a label change bumps the grid version);
+    the first column is the row identifier and stays shown."""
+    return [
+        grids.Column(
+            slugify(label),
+            label,
+            asc=key or "",
+            desc=f"-{key}" if key else "",
+            locked=index == 0,
+            css="text-end" if numeric else "",
+            priority=rest[0] if rest else "",
+        )
+        for index, (label, key, numeric, *rest) in enumerate(columns)
+    ]
 
 
 def list_page(
@@ -249,18 +297,18 @@ def list_page(
         "page_title": title,
         "intro": intro,
         "noun": noun,
-        "columns": [
-            {"label": label, "sort": key, "numeric": numeric} for label, key, numeric in columns
-        ],
+        "columns": grid_columns(columns),
+        "grid": f"{request.resolver_match.namespace}.{request.resolver_match.url_name}",
         "rows": [[wrap(c) for c in row] for row in rows],
         "page_obj": page,
-        "sort": sort,
-        "descending": descending,
+        "sort": f"-{sort}" if descending else sort,
         "filter_form": filter_form,
+        # The toolbar's search box is the q field; the other fields sit beside it.
+        "query": (filter_form["q"].value() or "") if "q" in filter_form.fields else "",
+        "filter_fields": [field for field in filter_form if field.name != "q"],
         "filtered": filtered,
         "new": new,
         "empty_body": empty_body,
-        "page_sizes": PAGE_SIZES,
         "tabs": section_tabs(request),
         **(extra or {}),
     }
@@ -272,23 +320,58 @@ def list_page(
 
 def history_for(*objs):
     query = Q()
+    models = {}
     for obj in objs:
         query |= Q(object_type=obj._meta.label_lower, object_id=str(obj.pk))
+        models[obj._meta.label_lower] = type(obj)
     events = list(
         AuditEvent.objects.filter(query).select_related("actor").order_by("occurred_at", "id")
     )
     for event in events:
-        # Show old/new only for changes to an existing record, never whole creation payloads.
+        # Show old/new only for changes to an existing record, never whole creation payloads,
+        # in the page's words: the field's label, a choice's label and the app's date format.
+        # The record revision is the counter shown with the signatures, not a change.
+        model = models.get(event.object_type)
         event.changes = (
             [
-                (key, _brief(event.before.get(key)), _brief(event.after.get(key)))
+                (
+                    _field_label(model, key),
+                    _shown(model, key, event.before.get(key)),
+                    _shown(model, key, event.after.get(key)),
+                )
                 for key in sorted(set(event.before) | set(event.after))
-                if event.before.get(key) != event.after.get(key)
+                if key != "revision" and event.before.get(key) != event.after.get(key)
             ]
             if event.before
             else []
         )
     return events
+
+
+def _field(model, key):
+    try:
+        return model._meta.get_field(key) if model else None
+    except FieldDoesNotExist:
+        return None
+
+
+def _field_label(model, key):
+    field = _field(model, key)
+    label = getattr(field, "verbose_name", None) or key.replace("_", " ")
+    return str(label)[:1].upper() + str(label)[1:]
+
+
+ISO_MOMENT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def _shown(model, key, value):
+    """A recorded value as the page shows it; the audit trail keeps the raw value."""
+    field = _field(model, key)
+    if field is not None and field.choices and value is not None:
+        return dict(field.flatchoices).get(value, value)
+    if isinstance(value, str) and ISO_MOMENT.match(value):
+        return shown_when(value)
+    return _brief(value)
 
 
 BRIEF_LIMIT = 240
@@ -304,10 +387,27 @@ def _brief(value):
 
 
 def signatures_for(*objs):
+    """The objects' signatures, oldest first, each with `record`: the signed record named as the
+    page names it ("Protocol SYN-QA-STAB v1"), not its stored type and number."""
     query = Q()
+    names = {}
     for obj in objs:
         query |= Q(object_type=obj._meta.label_lower, object_id=str(obj.pk))
-    return ElectronicSignature.objects.filter(query).order_by("signed_at", "id")
+        names[(obj._meta.label_lower, str(obj.pk))] = record_name(obj)
+    signatures = list(ElectronicSignature.objects.filter(query).order_by("signed_at", "id"))
+    for signature in signatures:
+        signature.record = names.get(
+            (signature.object_type, signature.object_id),
+            f"{signature.object_type} {signature.object_id}",
+        )
+    return signatures
+
+
+def record_name(obj):
+    """A record as people name it: its kind (the model's verbose name) and its identifier."""
+    kind = str(obj._meta.verbose_name)
+    identifier = getattr(obj, "identifier", None) or getattr(obj, "label", None) or str(obj)
+    return f"{kind[:1].upper()}{kind[1:]} {identifier}"
 
 
 def record_page(
@@ -322,9 +422,20 @@ def record_page(
     sections=(),
     related=(),
     notice=None,
+    schedule=None,
+    meta=(),
     status_code=200,
 ):
-    """`related` are objects whose signatures and audit history appear on the page."""
+    """`related` are objects whose signatures and audit history appear on the page. `schedule`
+    (a stability study's pulls as a condition by time point grid) is shown before `sections`.
+    `meta` is the muted line under the title: (label, value) pairs such as the record revision.
+
+    The header shows at most one primary action (last) and three others; the rest go under
+    More (docs/ui-standards.md)."""
+    actions = [a for a in actions if a]
+    primary = next((a for a in actions if a["primary"]), None)
+    visible = [a for a in actions if a is not primary and not a["more"]]
+    rare = [a for a in actions if a is not primary and a["more"]]
     return render(
         request,
         "ops/record.html",
@@ -334,18 +445,24 @@ def record_page(
             "crumbs": crumbs,
             "state": state,
             "facts": [(label, wrap(value)) for label, value in facts],
-            "actions": [a for a in actions if a],
+            "primary_action": primary,
+            "actions": visible[:3],
+            "more_actions": visible[3:] + rare,
             "sections": sections,
             "signatures": signatures_for(*related),
             "history": history_for(*related),
             "notice": notice,
+            "schedule": schedule,
+            "meta": [(label, value) for label, value in meta if value not in (None, "")],
         },
         status=status_code,
     )
 
 
 def section(title, columns, rows, empty, note=""):
-    """`columns`: list of (label, numeric)."""
+    """`columns`: list of (label, numeric) or (label, numeric, priority): "low", then "medium",
+    give way first when the table does not fit its panel (static/js/app.js), so the record's
+    status column stays in view."""
     return {
         "title": title,
         "columns": columns,
@@ -355,8 +472,12 @@ def section(title, columns, rows, empty, note=""):
     }
 
 
-def action(label, href, primary=False):
-    return {"label": label, "href": href, "primary": primary}
+def action(label, href, primary=False, *, danger=False, more=False):
+    """A header action. The header rule (includes/more_actions.html): one primary, the role's
+    next step, last; the actions that resolve the record's current state stay visible
+    (`danger` for a destructive one: outlined red); `more` puts a rare, corrective or
+    administrative action under More."""
+    return {"label": label, "href": href, "primary": primary, "danger": danger, "more": more}
 
 
 # --- Forms and signing -----------------------------------------------------------------------
@@ -464,7 +585,7 @@ def impact_row(use, resolved):
         detail.get("state", ""),
         detail.get("result", ""),
         cell(str(detail["tests"]), numeric=True) if batch else "",
-        str(use.used_by),
+        person(use.used_by),
     ]
 
 

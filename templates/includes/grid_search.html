@@ -1,0 +1,8 @@
+{% load ui %}{% comment %}List search box for a GET toolbar, rendered by {% grid_search %} ({% load ui %}) and by {% grid_toolbar %}. Parameters: value, placeholder, label (default "Search"), name (default "q"), id (default "grid-q").{% endcomment %}
+{% with field_id=id|default:"grid-q" %}
+<div class="vr-field vr-grid-search">
+  <label class="form-label" for="{{ field_id }}">{{ label|default:"Search" }}</label>
+  {% icon name="search" %}
+  <input class="form-control" type="search" id="{{ field_id }}" name="{{ name|default:'q' }}" value="{{ value|default:'' }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %} autocomplete="off" spellcheck="false">
+</div>
+{% endwith %}

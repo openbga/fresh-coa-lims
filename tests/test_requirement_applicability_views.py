@@ -78,7 +78,7 @@ def test_requirements_are_assigned_under_several_scopes_through_the_form(client,
     assert assignment.status == "ready" and assignment.scopes == ["general", "cust-a", "eu-market"]
     shown = text(response)
     assert "Stage and scopes" in shown and "general, cust-a, eu-market" in shown
-    assert "synthetic-rt-eu-market v1</a> (eu-market)" in shown
+    assert "synthetic-rt-eu-market v1</a></code> (eu-market)" in shown
     assert "Additional rule sets" in shown and "synthetic-cust-rules v1 · requires assay" in shown
     assert '<th scope="col">Stated by</th>' in shown and "<td>general, eu-market</td>" in shown
     # The form opens again with what the lot was assigned under.

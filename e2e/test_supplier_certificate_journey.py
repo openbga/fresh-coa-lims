@@ -4,6 +4,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import AuditEvent
@@ -77,7 +78,7 @@ def test_certificate_recorded_corrected_read_and_withdrawn(
         field("Assay limits on the certificate").fill("98.0 - 102.0 %")
         field("Total aerobic count result (CFU/g)").fill("10")
         field("Total aerobic count stated as less than this value").check()
-        page.get_by_label("Identity result", exact=True).select_option(label="Conforms")
+        pick(page.get_by_label("Identity result", exact=True), label="Conforms")
         page.get_by_role("button", name="Record supplier certificate", exact=True).click()
         expect(
             page.get_by_text("Enter the wording of the result on the certificate.")
@@ -112,7 +113,7 @@ def test_certificate_recorded_corrected_read_and_withdrawn(
         expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
             "data-pagedocs-for", "quality:certificate_detail"
         )
-        expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+        expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
         toggle.click()
         shots("supplier-certificate-record")
 

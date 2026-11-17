@@ -4,8 +4,22 @@ urls: login_passkey
 views: accounts.views.login_passkey
 templates: registration/login_passkey.html
 models: accounts.User, accounts.SecurityKey
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Sign in with a passkey or security key alone, without typing your password. The key checks your PIN, fingerprint or face itself.
 ---
+
+## Common tasks
+### Sign in with your passkey
+1. Select [[Use your passkey]], then choose the key when your browser asks.
+2. Let the key check your PIN, fingerprint or face. You go to the page you asked for, or to the dashboard.
+### Sign in with your password instead
+1. Select [[Sign in with your password]]. The page you asked for is kept.
+## Good to know
+- Only a key that checks your PIN, fingerprint or face works here. Any other key works only after your password.
+- A key works only at the address where it was added. A key added at another address is not found here.
+- Use the key within the time the page shows (300 seconds by default). A late answer is refused as expired and is not counted against the account.
+- While sign-in to an account is paused after failed attempts, its keys are refused here too.
+- Signing in with a key approves nothing. Your signature PIN is still entered for every signature.
 
 ## Purpose
 
@@ -30,7 +44,7 @@ The brand, the heading **Sign in with a passkey** and the lead **Use a passkey o
 
 | Action | Shown when | Result |
 |---|---|---|
-| **Use your passkey** | Always on this page | Asks your browser for a passkey or security key stored for this site; the browser lists the keys it holds and you pick one. The page's script submits the answer and, when it is accepted, signs you in and opens the requested local page, or Material lots by default |
+| **Use your passkey** | Always on this page | Asks your browser for a passkey or security key stored for this site; the browser lists the keys it holds and you pick one. The page's script submits the answer and, when it is accepted, signs you in and opens the requested local page, or the Dashboard by default |
 | **Sign in with your password** | Always | Returns to Sign in, keeping the requested page |
 | **Sign in with a passkey** (on Sign in) | `PASSKEY_SIGN_IN` is true and the site is opened by a host name, not an IP address | Posts to this page, which starts a new request for the browser and shows this page |
 

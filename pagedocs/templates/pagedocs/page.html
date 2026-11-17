@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ui %}
 {% block title %}{% if doc %}{{ doc.title }} · {% endif %}Page documentation · OpenBGA QM LIMS{% endblock %}
 {% block page_header %}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="breadcrumb">{% if target %}<li class="breadcrumb-item"><a href="{{ target }}">Back to the page</a></li>{% endif %}<li class="breadcrumb-item active" aria-current="page">Page documentation</li></ol></nav>
-<div class="pagedocs-standalone">{% include "pagedocs/content.html" %}</div>
+{% if target %}{% breadcrumbs record="Back to the page" record_url=target current="Page documentation" %}{% else %}{% breadcrumbs current="Page documentation" %}{% endif %}
+<div class="pagedocs-standalone">{% include "pagedocs/content.html" with doc=doc url_name=url_name only %}</div>
 {% endblock %}

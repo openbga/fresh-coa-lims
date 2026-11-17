@@ -4,8 +4,24 @@ urls: laboratory:use_new
 views: laboratory.views.use_new
 templates: ops/form.html
 models: laboratory.ResourceUse, quality.Sample, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Record the equipment and reagent lots you use for work on a sample. Each resource and your own qualification for the activity must be eligible now. Analyst role only.
 ---
+
+## Common tasks
+### Record a use
+1. Enter [[Sample reference]] exactly as recorded and the method or activity code in [[Activity]].
+2. Add [[Test code]] and [[Test profile revision]] if known.
+3. Tick what you use under [[Equipment]] and [[Reagents and standards]].
+4. Give a [[Reason or work context]] and select [[Record use]]. The Resource use list opens.
+### Leave without recording
+1. Select [[Cancel]] to return to the Resource use list. Nothing is saved.
+## Good to know
+- If any resource or your qualification is not eligible, nothing is recorded and the page lists each reason.
+- Refused attempts are recorded in the audit trail.
+- Only the analyst role can record a use. Reviewer and quality roles are refused.
+- You need approved, current qualification for exactly this activity code. Upper and lower case are ignored.
+- Rejected lots are not offered. Unfit equipment is listed, but choosing it is refused.
 
 ## Purpose
 

@@ -34,11 +34,13 @@
 "OQ-003" = [
     "accounts/tests/test_administration.py",
     "accounts/tests/test_announcement.py",
+    "e2e/test_focus_return.py",
     "e2e/test_login_announcement.py",
     "e2e/test_signature_dialog.py",
     "e2e/test_user_management.py",
     "e2e/test_workflow_guards.py",
     "tests/test_core.py",
+    "tests/test_form_dialog.py",
     "tests/test_journey.py",
     "tests/test_security_hardening.py",
     "tests/test_session_controls.py",
@@ -75,6 +77,7 @@
     "tests/test_calculation_bench_journey.py",
     "tests/test_core.py",
     "tests/test_journey.py",
+    "tests/test_lookups.py",
     "tests/test_security_hardening.py",
 ]
 "OQ-005" = [
@@ -166,6 +169,7 @@
     "e2e/test_native_journey.py",
     "e2e/test_supplier_reliance_journey.py",
     "reporting/tests/test_admin_access.py",
+    "reporting/tests/test_certificate_pdf.py",
     "reporting/tests/test_evidence.py",
     "reporting/tests/test_native.py",
     "reporting/tests/test_services.py",
@@ -245,6 +249,23 @@
     "e2e/test_login_layout.py",
     "e2e/test_section_navigation.py",
     "e2e/test_shell_layout.py",
+    "tests/test_dashboard.py",
+]
+"Shared interface components, form controls and per-user preferences" = [
+    "e2e/test_alignment.py",
+    "e2e/test_controls.py",
+    "e2e/test_list_columns.py",
+    "e2e/test_panel_spacing.py",
+    "e2e/test_raw_values.py",
+    "tests/test_controls.py",
+    "tests/test_css_tokens.py",
+    "tests/test_form_dialog.py",
+    "tests/test_icons.py",
+    "tests/test_include_isolation.py",
+    "tests/test_list_grids.py",
+    "tests/test_lot_route.py",
+    "tests/test_preferences.py",
+    "tests/test_ui_standards.py",
 ]
 
 [skips]
@@ -252,3 +273,5 @@
 # incomplete.
 "reporting/tests/test_services.py::test_write_review_pdfs" = "Writes certificates to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."
 "tests/test_backup_restore_checks.py::test_backup_restore_and_verify_round_trip" = "Needs pg_dump and pg_restore of the server's major version or newer, which CI's application job lacks; CI's container-smoke job runs the same backup, restore and check cycle with the application image."
+"reporting/tests/test_certificate_pdf.py::test_write_certificate_review_pdfs" = "Writes certificates to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."
+"tests/test_lot_record_export.py::test_write_lot_record_review_pdfs" = "Writes printed lot records to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."

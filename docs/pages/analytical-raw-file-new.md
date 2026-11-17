@@ -5,7 +5,21 @@ views: analytical.rawdata.raw_file_new, analytical.rawdata.raw_file_download
 templates: analytical/raw_file_form.html, analytical/_summary.html, analytical/_raw_files.html, 413.html
 models: analytical.RawDataFile, analytical.AnalyticalTest, quality.Lot, core.AuditEvent
 reviewed: 2026-11-17
+summary: Attach a raw-data file, such as an instrument export or a notebook page, to an open test so a reviewer can check the original. The file is kept unchanged.
 ---
+
+## Common tasks
+### Attach a raw-data file
+1. Choose the file in [[File]] and say what it holds in [[What the file is]].
+2. Select [[Attach file]]. The file appears under [[Raw data files]] on the test record.
+### Download an attached file
+1. On the test record, select [[Download]] on the file's row under [[Raw data files]].
+## Good to know
+- Files are never opened, changed or deleted. If you attached the wrong file, attach the right one and say so in its description.
+- Attaching makes you an author of the test's data: you cannot review the test or sign the lot's QC disposition.
+- The same file content cannot be attached twice to one test.
+- A test holding a raw-data file counts as tested here, so a supplier's result can no longer stand in for its requirement.
+- A download first checks the file against its checksum and is refused if they no longer match.
 
 ## Purpose
 

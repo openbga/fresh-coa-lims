@@ -4,8 +4,27 @@ urls: laboratory:calibration_list
 views: laboratory.views.calibration_list
 templates: ops/list.html
 models: laboratory.Calibration, laboratory.Equipment
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Every recorded calibration across all equipment. See which are awaiting acceptance, accepted or failed, and accept one that someone else recorded.
 ---
+
+## Common tasks
+### Find calibrations
+1. Type an asset ID in [[Search]].
+2. To narrow by state, choose [[Awaiting acceptance]], [[Accepted]] or [[Failed]] in [[Status]].
+3. Select [[Apply]], then select an asset to open its equipment record.
+### Accept a calibration
+1. Select [[Accept]] in the row. It shows only to a reviewer, on a calibration awaiting acceptance that someone else recorded.
+2. Sign with your PIN on that page.
+### Record a new calibration
+1. Select the asset, then select [[Record calibration]] on the equipment record. It shows for the analyst and quality roles.
+### See every calibration again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A passing calibration counts toward fitness only after it is accepted. A failure counts as soon as it is recorded.
+- Failed lists every failed calibration, accepted or not.
+- Search matches the asset ID only.
+- The most recently performed calibration comes first.
 
 ## Purpose
 
@@ -21,7 +40,7 @@ Every recorded calibration; the reviewer's queue of calibrations awaiting indepe
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and introduction ("Every recorded calibration. Passing records count only after independent acceptance; failures block use as soon as they are recorded.").
-- **Toolbar**: **Search** (equipment asset ID contains the text, max 100 characters) and **Status** (All, Awaiting acceptance, Accepted, Failed). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
+- **Toolbar**: **Search** (equipment asset ID contains the text, max 100 characters) and **Status** (All, Awaiting acceptance, Accepted, Failed). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Equipment, Performed, Due (inclusive), Outcome, State, Recorded by, Action. Sort by Performed (newest first by default), Equipment or Due. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record a calibration from an equipment page."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
@@ -30,7 +49,7 @@ Every recorded calibration; the reviewer's queue of calibrations awaiting indepe
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

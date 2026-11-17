@@ -5,7 +5,26 @@ views: validation.views.rehearsal_new
 templates: catalog/form.html
 models: validation.Rehearsal, core.AuditEvent
 reviewed: 2026-11-17
+summary: Record a recovery, downtime or upgrade rehearsal after it took place. You then attach its evidence, and a quality person who did not record it accepts it.
 ---
+
+## Common tasks
+### Record a rehearsal
+1. Choose what was rehearsed in [[Rehearsal of]], and fill in [[Title]], [[Performed on]] and [[Release]].
+2. Fill in [[Environment]], [[Procedure]] and [[Acceptance criteria]].
+3. Choose the [[Outcome]] and describe the [[Observations]].
+4. Give a [[Reason]] and select [[Record rehearsal]]. Then attach its evidence on the record.
+### Record an upgrade rehearsal
+1. Choose [[Upgrade]] in [[Rehearsal of]] and name the release upgraded from in [[Release before]].
+2. Put the release upgraded to in [[Release]].
+### Record a rehearsal that did not meet its criteria
+1. Choose [[Criteria not met]] in [[Outcome]].
+2. State what was not met and the actions taken or planned in [[Issues and actions]].
+## Good to know
+- [[Release]] starts filled with the running release when the deployment states one. Check it before saving.
+- The performed date cannot be in the future. A rehearsal is recorded after it took place.
+- Recording is not an acceptance. A quality person who did not record it accepts it once its evidence is attached.
+- Recorded content is never edited. To correct a rehearsal, withdraw it and record a new one.
 
 ## Purpose
 

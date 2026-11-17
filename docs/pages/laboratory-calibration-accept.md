@@ -4,8 +4,23 @@ urls: laboratory:calibration_accept
 views: laboratory.views.calibration_accept
 templates: ops/sign.html
 models: laboratory.Calibration, core.ElectronicSignature
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Sign your review of a calibration that someone else recorded. Once accepted, a passing calibration counts toward the equipment's fitness. Reviewer role only.
 ---
+
+## Common tasks
+### Accept the calibration
+1. Check the facts shown, including [[Outcome]], [[Due (inclusive)]] and [[Reference standard]].
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and review]]. The equipment record opens.
+### Leave without signing
+1. Select [[Cancel]]. If the page says you cannot sign, select [[Back to record]]. Nothing is signed.
+## Good to know
+- You cannot accept a calibration you recorded, whatever other roles you hold.
+- A passing calibration counts toward fitness from your signature time.
+- If the calibration changed after you opened the page, signing is refused. Reload and review it again.
+- Accepted calibrations cannot be changed.
+- Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose
 
@@ -20,7 +35,7 @@ Independently review calibration evidence and accept its outcome with meaning **
 
 ## Layout
 
-- Breadcrumbs (Laboratory, Equipment, the asset, Accept calibration), then a signing dialog (a plain card without JavaScript): the record ("ASSET calibration N") and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs (Laboratory, Equipment, the asset, Accept calibration), then a signing dialog (a plain card without JavaScript): the record ("ASSET calibration N") and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

@@ -5,7 +5,26 @@ views: quality.rejection_views.lot_reject
 templates: quality/closure.html
 models: quality.Lot, core.ElectronicSignature, core.AuditEvent, core.PINCredential
 reviewed: 2026-11-17
+summary: Sign the rejection of a quarantined lot that failed its requirements or cannot be used. Quality role only. The lot is not released and keeps every record as shown.
 ---
+
+## Common tasks
+### Reject the lot
+1. Review [[The lot now]], [[What stands in the way of release]] and [[Tests]]. Your signature freezes what they show.
+2. Choose the [[Grounds for the rejection]] and enter the [[Reason for the rejection]].
+3. Optionally name the deviation or nonconformance record in [[Record in the quality system]].
+4. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and reject the lot]].
+### Clear what stops the rejection
+1. If [[The lot cannot be rejected yet]] shows, conclude each open investigation and submit each test holding a result outside its limits.
+2. Then open this page again and sign.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed and the lot stays in quarantine.
+## Good to know
+- A lot need not be fully tested, or have failed, to be rejected. State why in the reason.
+- You cannot reject a lot holding your own receipt, supplier certificate, sampling or test data, or a supplier result you proposed. Another quality person signs.
+- Nothing is deleted. Open tests stay unfinished in the record, and the lot takes no more records.
+- If the lot changes after you opened the page, nothing is signed. Review the lot as it is now and sign again.
+- What happens to the material is decided and recorded in the quality system, not here.
 
 ## Purpose
 
@@ -69,4 +88,4 @@ Quality signs the rejection of a lot in quarantine: the lot did not meet its req
 - Sign lot disposition (releasing instead)
 - Cancel lot received in error
 - [Signature PIN](/signature-pin/)
-- [Material lots](/)
+- [Material lots](/lots/)

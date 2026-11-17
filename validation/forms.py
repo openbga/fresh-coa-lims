@@ -1,6 +1,7 @@
 from django import forms
 
 from catalog.forms import GroupedForm, reason_field
+from core.lookups import RemoteSelect
 from laboratory.forms import SigningForm
 from suppliers.models import http_url
 
@@ -45,10 +46,13 @@ class UseAcceptanceForm(GroupedForm):
         "approved version in force can be chosen; the acceptance freezes that version.",
     )
     process_owner = OwnerChoiceField(
-        queryset=None, help_text="The person responsible for the business process."
+        queryset=None,
+        widget=RemoteSelect("owner-candidates"),
+        help_text="The person responsible for the business process.",
     )
     system_owner = OwnerChoiceField(
         queryset=None,
+        widget=RemoteSelect("owner-candidates"),
         help_text="The person responsible for the availability and maintenance of the system "
         "and for the security of its data.",
     )

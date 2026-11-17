@@ -4,8 +4,25 @@ urls: quality:disposition
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: laboratory.ContractApproval, quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, suppliers.SupplierQualification, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign the QC disposition that releases a quarantined lot. Quality role only, never someone who authored the lot's data. QC disposition does not mean manufacturer release.
 ---
+
+## Common tasks
+### Release the lot
+1. Read any warnings above the form. They are for information and do not block signing.
+2. Enter a [[Reason]], your [[Signing username]] and your [[Signature PIN]].
+3. Select [[Sign approved]]. The lot becomes Released and you return to the lot record.
+### Find out why you cannot sign
+1. If [[Not permitted]] shows, you authored some of the lot's data. Select [[Return to the lot]]; another quality person signs.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot disposition a lot holding your own receipt, supplier certificate, sampling or test data, or a supplier result you proposed, whatever roles you hold.
+- The page opens before the lot is ready. Missing evidence, active holds and open investigations are checked when you sign.
+- The QC disposition card on the lot record lists what would block signing, in the same order.
+- Any change to the lot after you opened the page makes signing fail. Reload and review before signing.
+- A supplier result that does not meet the specification, or a discrepancy on receipt, does not block signing. Only an active hold does.
 
 ## Purpose
 
@@ -19,7 +36,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 
 ## Layout
 
-- A signing dialog (a plain card without JavaScript): meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
+- Breadcrumbs Lots › the lot number › the title. A signing dialog (a plain card without JavaScript), headed with the title: meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
 - **Supplier certificate notice**: above the form, one warning for each supplier certificate of the lot that is not withdrawn and states a result which does not meet the specification (see Rules). It is information only.
 - **Supplier result notice**: above the form, one warning for each supplier result that was accepted in place of a laboratory test and still stands (see Rules). It is information only.
 - **Contract laboratory notice**: above the form, one warning for each test of the lot whose result was reported by a contract laboratory under an approval that has been revoked since (see Rules). It is information only.
@@ -89,7 +106,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - **Stale page**: any new sample, test change or hold since opening, receipt details recorded later or corrected, a supplier certificate recorded, corrected or withdrawn, and a supplier result proposed, accepted or withdrawn in place of a test, change the lot revision: "Record changed. Reload and review before signing."
 - **Identity and PIN**: "Enter your own signing username and PIN." on a mismatch (audited as `signature.identity_denied`); "Enroll a signature PIN first."; "Signature PIN was not accepted."; 5 consecutive failures lock the PIN for 15 minutes ("Signature PIN is temporarily locked."). Failures are recorded (`signature.denied`) even though the disposition is refused.
 - **Session**: defaults are a 15-minute idle and 8-hour absolute limit; sessions without recorded login times count as expired. On expiry the next request signs you out with "Your session expired. Sign in again to continue." The inline "Session expired. Sign in again before signing." is an extra safeguard at the moment of signing.
-- **Effect**: one transaction sets Released, raises the lot revision by 1, writes `signed.approved` and stores an immutable signature (signer, meaning, server time, bound revision, content hash). There is no reject or reversal path in this version.
+- **Effect**: one transaction sets Released, raises the lot revision by 1, writes `signed.approved` and stores an immutable signature (signer, meaning, server time, bound revision, content hash). A lot is rejected, or cancelled as received in error, through its own signed pages (Reject lot, Cancel lot received in error on the lot record); a released lot has no reversal path in this version.
 
 ## Related pages
 

@@ -4,8 +4,23 @@ urls: core:pin
 views: core.views.pin
 templates: core/form.html
 models: core.PINCredential, core.AuditEvent
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Enroll or replace your own signature PIN, the secret you re-enter for every electronic signature. You confirm the change with your login password.
 ---
+
+## Common tasks
+### Enroll or change your PIN
+1. Enter your [[Current login password]].
+2. Enter 8 to 32 digits in [[New signature PIN]].
+3. Select [[Save]]. [[Your signature PIN]] then shows Enrolled.
+### Check your PIN's state
+1. Read [[Your signature PIN]]: Enrolled, with failed attempts and any lock, or Enrollment required.
+## Good to know
+- Your PIN is never shown, and the page never shows its stored form. The fields are blank after an error.
+- A wrong login password counts towards the same lock as a failed sign-in.
+- Saving a new PIN clears failed attempts and any temporary PIN lock.
+- Five wrong PINs in a row while signing lock your PIN for 15 minutes.
+- A shared demonstration account cannot change its published PIN here.
 
 ## Purpose
 
@@ -18,7 +33,8 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 
 ## Layout
 
-- Title "Signature PIN", two masked fields and **Save**.
+- Title "Signature PIN", then **Your signature PIN** with the PIN's state as the admin account page shows it: "Enrolled; N failed attempts" (with "lock until <time>" when a lock time is recorded) or "Enrollment required"; never the PIN or its hash.
+- The required-fields note, two masked fields and **Save**.
 - For a shared demonstration account: the title and an explanation, without fields.
 
 ## Actions

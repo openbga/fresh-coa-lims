@@ -4,8 +4,23 @@ urls: analytical:qc_record
 views: analytical.views.qc_record
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.QCBatch, analytical.QCResult
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record the result of one QC check of a batch, with the equipment and lots used and where the original observation is kept.
 ---
+
+## Common tasks
+### Record the QC result
+1. Enter the value exactly as read in [[Observed value]].
+2. Tick the [[Equipment used]] and [[Reagent and standard lots used]], when shown, and fill in [[Original record]].
+3. Select [[Record QC result]].
+### Change a QC result already recorded
+1. A check is recorded only once. On the batch record, select [[Correct]] on its row instead.
+## Good to know
+- A failing value is saved as entered and sets the batch to QC failed.
+- Never enter a nondetect as zero.
+- Recording QC makes you an author: you cannot review the batch's tests or reject the batch.
+- QC entries close once a test in the batch is submitted.
+- The bench checks your qualification for the method and every instrument and lot you tick. A refusal saves nothing.
 
 ## Purpose
 

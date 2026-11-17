@@ -20,6 +20,7 @@ from .eligibility import (
     equipment_filter,
     equipment_queryset,
     equipment_status,
+    reagent_eligibility,
     reagent_status,
 )
 from .forms import (
@@ -45,6 +46,7 @@ from .ui import (
     access,
     action,
     cell,
+    critical,
     day,
     external_link,
     form_page,
@@ -54,6 +56,7 @@ from .ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     roles_of,
     run_form,
@@ -237,8 +240,11 @@ def equipment_list(request):
         label, tone, _ = equipment_status(item)
         rows.append(
             [
-                cell(item.asset_id, reverse("laboratory:equipment_detail", args=[item.pk])),
-                item.description,
+                cell(
+                    item.asset_id,
+                    reverse("laboratory:equipment_detail", args=[item.pk]),
+                    sub=item.description,
+                ),
                 item.category,
                 item.location,
                 day(item.last_due),
@@ -252,7 +258,6 @@ def equipment_list(request):
         noun="equipment",
         columns=[
             ("Asset", "asset", False),
-            ("Description", None, False),
             ("Category", "category", False),
             ("Location", None, False),
             ("Calibration due", "due", False),
@@ -307,7 +312,7 @@ def _equipment_crumbs(item, current):
 def equipment_detail(request, pk):
     access(request.user)
     item = get_object_or_404(equipment_queryset().select_related("status_changed_by"), pk=pk)
-    label, tone, _ = equipment_status(item)
+    label, tone, fitness = equipment_status(item)
     user = request.user
     calibrations = list(item.calibrations.select_related("recorded_by"))
     qualifications = list(item.qualifications.select_related("recorded_by"))
@@ -331,7 +336,7 @@ def equipment_detail(request, pk):
                 external_link(c.certificate_url, c.certificate_ref or c.certificate_url)
                 if c.certificate_url
                 else c.certificate_ref,
-                str(c.recorded_by),
+                person(c.recorded_by),
                 cell("Accept", reverse("laboratory:calibration_accept", args=[c.pk]))
                 if offer
                 else "",
@@ -408,7 +413,7 @@ def equipment_detail(request, pk):
                     work_cell(u, recent_work),
                     u.activity,
                     u.test_code,
-                    str(u.used_by),
+                    person(u.used_by),
                 ]
                 for u in uses
             ],
@@ -426,7 +431,10 @@ def equipment_detail(request, pk):
         if can(user, "analyst", "reviewer", "quality")
         else None,
         action(
-            "Take out of service", reverse("laboratory:equipment_out_of_service", args=[item.pk])
+            "Take out of service",
+            reverse("laboratory:equipment_out_of_service", args=[item.pk]),
+            danger=True,
+            more=True,
         )
         if not out_of_service and can(user, "analyst", "reviewer", "quality")
         else None,
@@ -441,12 +449,19 @@ def equipment_detail(request, pk):
         crumbs=crumbs(("Equipment", reverse("laboratory:equipment_list")), (item.asset_id, None)),
         state=status(label, tone),
         facts=[
+            # The due date of the latest counted calibration, in the fitness pill's tone.
+            (
+                "Calibration due",
+                critical(label, tone, day(item.last_due))
+                if fitness in ("overdue", "due_soon")
+                else day(item.last_due),
+            ),
             ("Category", item.category),
             ("Location", item.location),
             ("Qualification required", "Yes" if item.requires_qualification else "No"),
             ("Service state", status(item.get_state_display(), _tone(not out_of_service))),
             ("Last status change", when(item.status_changed_at)),
-            ("Changed by", str(item.status_changed_by or "")),
+            ("Changed by", person(item.status_changed_by)),
             ("Revision", item.revision),
         ],
         actions=actions,
@@ -470,6 +485,10 @@ def qualification_status(q, today):
             return f"Approved, starts {q.valid_from.isoformat()}", "info", "scheduled"
         if q.valid_until < today:
             return "Expired", "danger", "expired"
+        # Still effective (key "approved", as the filter "Approved and effective" finds it), and
+        # found by "Expiring within 30 days": the label reagents and suppliers use.
+        if (q.valid_until - today).days <= DUE_SOON_DAYS:
+            return "Expiring soon", "warning", "approved"
         return "Approved", "success", "approved"
     tone = {"recorded": "progress", "revoked": "danger"}[q.state]
     return q.get_state_display(), tone, q.state
@@ -599,7 +618,7 @@ def calibration_list(request):
             day(c.due_date),
             status(c.get_outcome_display(), "success" if c.outcome == "pass" else "danger"),
             status(c.get_state_display(), "success" if c.state == "accepted" else "progress"),
-            str(c.recorded_by),
+            person(c.recorded_by),
             cell("Accept", reverse("laboratory:calibration_accept", args=[c.pk]))
             if c.state == "recorded"
             and c.recorded_by_id != request.user.pk
@@ -690,7 +709,7 @@ def calibration_accept(request, pk):
             ("Outcome", status(cal.get_outcome_display(), _tone(cal.outcome == "pass"))),
             ("Reference standard", cal.standard_ref),
             ("Tolerance note", cal.tolerance_note),
-            ("Recorded by", str(cal.recorded_by)),
+            ("Recorded by", person(cal.recorded_by)),
         ],
         revision=cal.revision,
         cancel_url=reverse("laboratory:equipment_detail", args=[cal.equipment_id]),
@@ -843,7 +862,12 @@ def qualification_detail(request, pk):
         action("Approve", reverse("laboratory:qualification_approve", args=[q.pk]), True)
         if q.state == "recorded" and eligible_actor and can(user, "quality")
         else None,
-        action("Revoke", reverse("laboratory:qualification_revoke", args=[q.pk]))
+        action(
+            "Revoke",
+            reverse("laboratory:qualification_revoke", args=[q.pk]),
+            danger=True,
+            more=True,
+        )
         if q.state == "approved" and q.user_id != user.pk and can(user, "quality")
         else None,
     ]
@@ -863,7 +887,7 @@ def qualification_detail(request, pk):
             ("Evidence reference", q.evidence_ref),
             ("Evidence link", external_link(q.evidence_url)),
             ("Scope", q.scope_note),
-            ("Recorded by", str(q.recorded_by)),
+            ("Recorded by", person(q.recorded_by)),
             ("Revision", q.revision),
         ],
         actions=actions,
@@ -977,8 +1001,11 @@ def reagent_list(request):
         label, tone = reagent_status(lot, today)
         rows.append(
             [
-                cell(lot.identifier, reverse("laboratory:reagent_detail", args=[lot.pk])),
-                lot.name,
+                cell(
+                    lot.identifier,
+                    reverse("laboratory:reagent_detail", args=[lot.pk]),
+                    sub=lot.name,
+                ),
                 lot.get_kind_display(),
                 lot.lot_number,
                 day(lot.expiry_date),
@@ -993,7 +1020,6 @@ def reagent_list(request):
         noun="lots",
         columns=[
             ("Identifier", "identifier", False),
-            ("Name", "name", False),
             ("Kind", None, False),
             ("Supplier lot", None, False),
             ("Expiry (last day of use)", "expiry", False),
@@ -1052,7 +1078,7 @@ def reagent_detail(request, pk):
         action("Release for use", reverse("laboratory:reagent_release", args=[lot.pk]), True)
         if lot.state == "received" and lot.recorded_by_id != user.pk and can(user, "reviewer")
         else None,
-        action("Reject lot", reverse("laboratory:reagent_reject", args=[lot.pk]))
+        action("Reject lot", reverse("laboratory:reagent_reject", args=[lot.pk]), danger=True)
         if lot.state != "rejected" and can(user, "analyst", "reviewer", "quality")
         else None,
     ]
@@ -1070,11 +1096,17 @@ def reagent_detail(request, pk):
         ),
         state=status(label, tone),
         facts=[
+            # Expiry first, in the status tone while the lot is expired or expiring soon.
+            (
+                "Expiry (last day of use)",
+                critical(label, tone, day(lot.expiry_date))
+                if label in ("Expired", "Expiring soon")
+                else day(lot.expiry_date),
+            ),
             ("Kind", lot.get_kind_display()),
             ("Supplier", lot.supplier),
             ("Supplier lot", lot.lot_number),
             ("Received or prepared", day(lot.received_on)),
-            ("Expiry (last day of use)", day(lot.expiry_date)),
             ("Assigned purity", purity),
             (
                 "Source lot",
@@ -1092,7 +1124,7 @@ def reagent_detail(request, pk):
                 if lot.certificate_url
                 else lot.certificate_ref,
             ),
-            ("Recorded by", str(lot.recorded_by)),
+            ("Recorded by", person(lot.recorded_by)),
             ("Released", when(lot.released_at)),
             ("Revision", lot.revision),
         ],
@@ -1115,21 +1147,33 @@ def reagent_detail(request, pk):
                 "Uses",
                 [("Used", False), ("Work", False), ("Activity", False), ("By", False)],
                 [
-                    [when(u.used_at), work_cell(u, lot_work), u.activity, str(u.used_by)]
+                    [when(u.used_at), work_cell(u, lot_work), u.activity, person(u.used_by)]
                     for u in lot_uses
                 ],
                 "No use recorded.",
             ),
         ],
         related=[lot],
-        notice={
+        notice=_reagent_notice(lot, label),
+    )
+
+
+def _reagent_notice(lot, label):
+    """Why the lot cannot be used now, under the header: rejected, expired (danger) or awaiting
+    release (info), with the reasons reagent_eligibility gives when the lot is used."""
+    if lot.state == "rejected":
+        return {
             "tone": "danger",
             "label": "Rejected",
             "text": "This lot cannot be used; prepared solutions from it are also blocked.",
         }
-        if lot.state == "rejected"
-        else None,
-    )
+    if label not in ("Expired", "Awaiting release"):
+        return None
+    return {
+        "tone": "danger" if label == "Expired" else "info",
+        "label": label,
+        "text": " ".join(reagent_eligibility(lot).reasons),
+    }
 
 
 @login_required
@@ -1156,7 +1200,7 @@ def reagent_release(request, pk):
             ("Supplier lot", lot.lot_number),
             ("Expiry (last day of use)", day(lot.expiry_date)),
             ("Certificate", lot.certificate_ref),
-            ("Recorded by", str(lot.recorded_by)),
+            ("Recorded by", person(lot.recorded_by)),
         ],
         revision=lot.revision,
         cancel_url=detail,
@@ -1272,7 +1316,7 @@ def use_list(request):
                 work_cell(u, work),
                 u.activity,
                 u.test_code,
-                str(u.used_by),
+                person(u.used_by),
             ]
         )
     return list_page(

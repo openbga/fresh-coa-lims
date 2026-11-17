@@ -7,6 +7,7 @@ from django.utils.html import escape
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
 from core.forms import SignatureIdentityForm
+from core.lookups import RemoteSelect
 from core.models import RuleSet
 from core.services import APPLIES_TO, applies_at
 from suppliers.models import Supplier
@@ -19,11 +20,6 @@ from .services import RECEIPT_FIELDS
 
 class StyledForm(forms.Form):
     reason = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), max_length=2000)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
 
 
 RECEIPT_GROUPS = [
@@ -63,6 +59,7 @@ class ReceiptForm(GroupedForm):
     source = forms.ChoiceField(choices=UNSTATED + ReceiptSource.choices)
     supplier = forms.ModelChoiceField(
         queryset=Supplier.objects.all(),
+        widget=RemoteSelect("suppliers"),
         required=False,
         help_text="Required for a lot received from a supplier. A quality user adds suppliers "
         "to the register.",

@@ -4,8 +4,24 @@ urls: catalog:methods
 views: catalog.views.method_list
 templates: catalog/method_list.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Every analytical method, linked to its controlled procedure and suitability evidence. Find a method, see whether it has an approved version, or start a new one.
 ---
+
+## Common tasks
+### Find a method
+1. Type part of a method code or title in [[Search]], then select [[Apply]].
+2. Select a method code to open its record.
+### Start a new method
+1. Select [[New method]]. It shows only to users with the quality role.
+2. Enter the method and its draft version 1 on that page.
+### See every method again
+1. Select [[Clear all]] to remove the search.
+## Good to know
+- Has approved version means a version was signed, not that one applies today. Open the method to see the version in force.
+- Draft pending means at least one draft is waiting to be approved or withdrawn.
+- Versions counts every version, including withdrawn ones.
+- Search covers method codes and titles only.
 
 ## Purpose
 
@@ -22,9 +38,9 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 - **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
-- **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear filters** when filtered.
-- **Table**: Method (code link, sortable), Title, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
-- **Footer**: "Showing X–Y of N methods", with Previous / Next when there are several pages.
+- **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear all** when filtered.
+- **Table**: Method (code link with the title under it, sortable), Versions, Status ("Has approved version" or "No approved version", plus "Draft pending"). **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
+- **Footer**: "Showing X–Y of N methods", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No methods yet" ("Add the first method and link its controlled procedure and suitability evidence.") with **New method** for quality; "No methods match these filters" ("Change or clear the filters.") with **Clear filters**.
 
 ## Actions
@@ -48,7 +64,7 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 ## Rules and hidden logic
 
 - **Order**: code ascending by default; `sort` accepts code or -code.
-- **Paging**: 25 rows per page; `per_page` accepts 25, 50 or 100.
+- **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Permissions**: read roles checked on the server; New method also enforced on its own page.
 - **Not enforced by this page**: "Has approved version" does not mean the version is effective now.
 

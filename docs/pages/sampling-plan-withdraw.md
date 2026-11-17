@@ -4,8 +4,19 @@ urls: sampling:plan_withdraw
 views: sampling.views.plan_withdraw
 templates: catalog/form.html
 models: sampling.SamplingPlanRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Withdraw a draft sampling plan version that will not be approved, with a reason. The draft stays in the history and can no longer be edited or approved.
 ---
+
+## Common tasks
+### Withdraw the draft
+1. Enter a [[Reason]] and select [[Withdraw draft]].
+### Keep the draft
+1. Select [[Cancel]] to return to the plan without changes.
+## Good to know
+- Only drafts can be withdrawn. An approved version stays as approved; create a new version to replace it.
+- A withdrawn draft cannot be used again. Create a new version to continue.
+- The draft's author may withdraw it. No second person and no signature are needed.
 
 ## Purpose
 

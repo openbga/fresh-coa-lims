@@ -4,8 +4,25 @@ urls: reporting:detail
 views: reporting.views.report_detail
 templates: reporting/report_detail.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, quality.Lot, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, and the PDFs to download.
 ---
+
+## Common tasks
+### Download the current certificate
+1. Select [[Download PDF]] at the top of the page.
+### Open or download an earlier version
+1. In [[Versions]], select a version to open it, or [[Download PDF]] on its row.
+### Amend an issued certificate
+1. Select [[Amend certificate]]. It shows only to the quality role.
+2. Review the changes on that page, then sign the amendment with your PIN.
+### Issue a certificate that was not issued
+1. Select [[Review and issue]]. It shows to the quality role while no version is issued.
+## Good to know
+- An amendment adds a new version. The earlier one stays unchanged and is marked Superseded.
+- The certificate shown is the stored version as issued, never rebuilt from today's records.
+- Every PDF download is recorded in the certificate's history.
+- History shows only to the quality, auditor and admin roles.
 
 ## Purpose
 
@@ -19,11 +36,11 @@ One certificate of analysis series: its status, every issued version with who si
 
 ## Layout
 
-- **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended), "Current: version N", and actions.
+- **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended), "Current: version N", and actions. An amended certificate also opens the Record panel with the fact **Amended** (blue) and "Current version N; earlier versions stay on record unchanged" under it.
 - **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened, and the current PDF SHA-256.
 - **Versions** (once issued): Version, Kind, Status, Issued, Signed by, Reason, Files.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
-- **History** (quality, auditor and admin only): audit events for this record, oldest first, or "No history yet."
+- **History** (quality, auditor and admin only): audit events for this record, oldest first, or the empty state "No history yet".
 - A record with no version says "No version has been issued. A draft record holds no evidence."
 
 ## Actions
@@ -62,4 +79,4 @@ One certificate of analysis series: its status, every issued version with who si
 ## Related pages
 
 - [Certificates of analysis](/reports/)
-- Certificate version, Amend certificate, the lot record ([Material lots](/)).
+- Certificate version, Amend certificate, the lot record ([Material lots](/lots/)).

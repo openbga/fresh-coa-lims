@@ -699,6 +699,7 @@ def test_overview_counts_laboratories_and_the_list_counts_methods(client, people
     assert counts["Contract laboratories with an approval expiring within 30 days"] == 1
     row = client.get(listing).context["rows"][0]
     # Two approvals of one method in force are one method; two wait for a signature.
+    assert row[2]["text"] == "Expiring soon"  # the approval that most needs attention
     assert [cell["text"] for cell in row[3:5]] == ["1", "2"]
     for status in ("waiting", "expiring", "current"):
         assert "cl-syn-001" in client.get(listing, {"status": status}).content.decode(), status

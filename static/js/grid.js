@@ -3,8 +3,16 @@
 // Django renders rows, sort links, filters, counts and pagination. This file only lets a user hide,
 // show and reorder columns of <table data-vr-grid="app.list" data-vr-grid-version="1"> whose header
 // cells carry data-vr-col="id" (plus data-vr-col-locked / data-vr-col-hidden). The layout is saved
-// as column IDs in localStorage "vr-grid:<user>:<grid>:v<version>"; no row, filter or sort data.
+// per user on the server as column IDs, preference "grid:<grid>:v<version>" (static/js/
+// preferences.js, core/preferences.py); no row, filter or sort data. Page size and sort are kept
+// by the server itself (core.preferences.GridPreferenceMiddleware).
 // The shared Columns dialog (#vr-columns-dialog) lives in base.html.
+//
+// Column priority: a header with data-vr-col-priority="low" is hidden by default whenever the
+// table would not fit its own panel with it: a laptop window, the help drawer open, the sidebar
+// expanded. The table's width decides, not the window's. It is a default only: the user can show
+// the column in Columns, and a saved layout always wins. Until a layout is saved, the defaults
+// follow the panel's width as it changes.
 (function () {
   "use strict";
 
@@ -13,37 +21,26 @@
   var dialogOpener = null;
 
   function storageKey(table) {
-    var user = document.body.getAttribute("data-vr-user") || "anonymous";
-    return "vr-grid:" + user + ":" + table.getAttribute("data-vr-grid") + ":v" + (table.getAttribute("data-vr-grid-version") || "1");
+    return "grid:" + table.getAttribute("data-vr-grid") + ":v" + (table.getAttribute("data-vr-grid-version") || "1");
   }
 
   function readLayout(key) {
-    try {
-      var value = JSON.parse(localStorage.getItem(key) || "null");
-      if (value && Array.isArray(value.order) && Array.isArray(value.hidden)) {
-        return value;
-      }
-    } catch (error) {
-      // Unavailable or corrupt storage: fall back to the declared defaults.
+    var value = window.vrPreferences ? window.vrPreferences.get(key) : null;
+    if (value && Array.isArray(value.order) && Array.isArray(value.hidden)) {
+      return value;
     }
-    return null;
+    return null; // Nothing saved, or no longer valid: the declared defaults apply.
   }
 
   function writeLayout(key, layout) {
-    try {
-      if (layout) {
-        localStorage.setItem(key, JSON.stringify(layout));
-      } else {
-        localStorage.removeItem(key);
-      }
-    } catch (error) {
-      // Storage blocked: the layout applies to this page only.
+    if (window.vrPreferences) {
+      window.vrPreferences.set(key, layout || null);
     }
   }
 
   function enhance(table) {
-    if (table.dataset.vrGridReady === "true") {
-      return;
+    if (table.closest("[data-vr-form-page]") || table.dataset.vrGridReady === "true") {
+      return; // Form grids keep fixed columns and never open another dialog.
     }
     var headerRow = table.tHead && table.tHead.rows[0];
     var body = table.tBodies[0];
@@ -71,6 +68,8 @@
         label: (th.getAttribute("data-vr-col-label") || th.textContent).replace(/\s+/g, " ").trim() || id,
         locked: th.hasAttribute("data-vr-col-locked"),
         hiddenByDefault: th.hasAttribute("data-vr-col-hidden"),
+        lowPriority: th.getAttribute("data-vr-col-priority") === "low",
+        mediumPriority: th.getAttribute("data-vr-col-priority") === "medium",
       });
     }
     // Locked columns keep their place: leading ones before every movable column, the rest trailing.
@@ -92,11 +91,15 @@
       colReorder: { columns: ":not(.vr-col-locked)" },
     });
 
-    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table) };
+    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table), cramped: 0 };
     grids[table.getAttribute("data-vr-grid")] = grid;
     applyLayout(grid, readLayout(grid.key));
+    watchWidth(grid);
 
     dt.on("columns-reordered", function () { save(grid); });
+    document.querySelectorAll('[data-vr-columns-for="' + table.getAttribute("data-vr-grid") + '"]').forEach(function (button) {
+      button.hidden = Boolean(button.closest("[data-vr-form-page]"));
+    });
   }
 
   function byId(grid, id) {
@@ -136,10 +139,55 @@
   function applyLayout(grid, layout) {
     grid.dt.colReorder.order(resolveOrder(grid, layout && layout.order), true);
     grid.columns.forEach(function (col) {
-      var hidden = layout ? layout.hidden.indexOf(col.id) !== -1 : col.hiddenByDefault;
+      var hidden = layout ? layout.hidden.indexOf(col.id) !== -1 : hiddenByDefault(col, grid.cramped);
       grid.dt.column(col.id + ":name").visible(col.locked ? true : !hidden, false);
     });
     grid.dt.columns.adjust();
+  }
+
+  // cramped: 0 the table fits, 1 low-priority columns give way, 2 medium-priority ones too.
+  function hiddenByDefault(col, cramped) {
+    return col.hiddenByDefault || (col.lowPriority && cramped >= 1) || (col.mediumPriority && cramped >= 2);
+  }
+
+  // The scrolling box the table sits in: its width is the room the table has.
+  function frameOf(grid) {
+    return grid.table.closest(".vr-table-wrap") || grid.table.parentElement;
+  }
+
+  // Without a saved layout, low-priority columns show only while the table fits its frame with
+  // them, and medium-priority ones only while it fits without the low ones. Measured from all
+  // shown, so the answer never depends on the previous one.
+  function fit(grid) {
+    if (readLayout(grid.key) || !grid.columns.some(function (col) {
+      return (col.lowPriority || col.mediumPriority) && !col.hiddenByDefault;
+    })) {
+      return;
+    }
+    var frame = frameOf(grid);
+    for (grid.cramped = 0; grid.cramped <= 2; grid.cramped += 1) {
+      applyLayout(grid, null);
+      if (grid.table.scrollWidth <= frame.clientWidth + 1) {
+        return;
+      }
+    }
+    grid.cramped = 2; // still too wide: the panel scrolls sideways rather than hide more
+  }
+
+  // Refit when the frame's width changes (window, help drawer, sidebar), not when its height does.
+  function watchWidth(grid) {
+    fit(grid);
+    if (!window.ResizeObserver) {
+      return;
+    }
+    var width = frameOf(grid).clientWidth;
+    new ResizeObserver(function () {
+      var now = frameOf(grid).clientWidth;
+      if (now !== width) {
+        width = now;
+        fit(grid);
+      }
+    }).observe(frameOf(grid));
   }
 
   function save(grid) {
@@ -157,11 +205,6 @@
       status: dialog.querySelector("[data-vr-columns-status]"),
       title: dialog.querySelector(".modal-title"),
     };
-  }
-
-  function iconMarkup(name) {
-    var sprite = document.body.getAttribute("data-vr-icons") || "";
-    return '<svg class="vr-icon" aria-hidden="true" focusable="false"><use href="' + sprite + "#i-" + name + '"></use></svg>';
   }
 
   function renderDialog(grid, focus) {
@@ -195,14 +238,12 @@
       } else {
         var position = movable.indexOf(id);
         [["up", "arrow-up", position === 0], ["down", "arrow-down", position === movable.length - 1]].forEach(function (spec) {
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "btn btn-outline-secondary btn-sm";
+          var button = window.vrUi.button("", "secondary", true);
           button.setAttribute("data-vr-col-move", spec[0]);
           button.setAttribute("data-vr-col-id", id);
           button.setAttribute("aria-label", "Move " + col.label + " " + spec[0]);
           button.disabled = spec[2];
-          button.innerHTML = iconMarkup(spec[1]);
+          button.innerHTML = window.vrUi.icon(spec[1]);
           item.append(button);
         });
       }
@@ -243,6 +284,10 @@
   document.addEventListener("click", function (event) {
     var opener = event.target.closest("[data-vr-columns-for]");
     var parts = dialogParts();
+    if (opener && opener.closest("#vr-form-dialog")) {
+      event.preventDefault();
+      return;
+    }
     if (opener && parts && window.bootstrap) {
       dialogGrid = grids[opener.getAttribute("data-vr-columns-for")];
       if (!dialogGrid) {
@@ -261,8 +306,9 @@
     }
     if (event.target.closest("[data-vr-columns-reset]") && dialogGrid) {
       dialogGrid.dt.colReorder.reset();
-      applyLayout(dialogGrid, null);
       writeLayout(dialogGrid.key, null);
+      applyLayout(dialogGrid, null);
+      fit(dialogGrid);
       renderDialog(dialogGrid); // Focus stays on the Reset button the user pressed.
       announce("Columns reset to the default layout.");
     }
@@ -286,6 +332,9 @@
   });
 
   function initGrids() {
+    document.querySelectorAll("[data-vr-form-page] [data-vr-columns-for]").forEach(function (button) {
+      button.hidden = true;
+    });
     if (!window.DataTable) {
       return; // Library unavailable: lists still work as plain server-rendered tables.
     }

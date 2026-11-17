@@ -4,8 +4,29 @@ urls: sampling:lot
 views: sampling.views.lot_detail
 templates: sampling/lot_detail.html, sampling/includes/replacement.html, sampling/includes/decision.html, sampling/includes/decisions.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, sampling.SamplingRecord, sampling.SamplingPlanRevision, core.RuleSet, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One lot's requirements and sampling: the approved specification, methods and sampling plan frozen for it or its applicability hold, the sampling records, and what sampling still blocks.
 ---
+
+## Common tasks
+### Assign or change the lot's requirements
+1. Select [[Assign requirements]], or [[Change requirements]] when requirements exist. It shows to analysts and quality while the lot is in Quarantine and before testing starts.
+### Record sampling
+1. Select [[Record sampling]]. Only analysts see it, once requirements are assigned and not on hold.
+2. Enter what was actually sampled on that page.
+### Decide requirements the specifications state differently
+1. Select [[Decide conflicting requirements]]. Quality sees it while the lot is on hold before testing, if they recorded none of the lot's data.
+### Correct a record or assess a deviation
+1. Select [[Correct]] on a current record to add a correction. Analysts only.
+2. Select [[Assess deviation]] to accept or reject a deviation. Quality only, never the person who sampled, recorded or corrected it.
+### Replace the requirements during testing
+1. Select [[Replace requirements]]. Quality sees it once testing has started and the versions in force are no longer the frozen ones.
+## Good to know
+- The readiness panel covers sampling only. Testing and other gates still apply before QC disposition.
+- Later approvals do not change the frozen requirements. The lot keeps them until they are assigned again or, during testing, replaced.
+- Once any test exists for the lot, its requirements cannot be assigned again. Only quality's signed replacement changes them.
+- Quality can assign requirements but cannot record or correct sampling. Those are analyst actions.
+- A correction adds a record marked Current. The original stays, marked Corrected.
 
 ## Purpose
 
@@ -25,7 +46,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
 
 ## Layout
 
-- **Breadcrumbs**: Sampling, lot number. Under the heading: "Lot status" (Quarantine or Released), "record revision N" and a link **Open lot record**.
+- **Breadcrumbs**: Sampling, lot number. Under the heading: the lot status label (Quarantine, Released, Rejected or Cancelled), the material (the assigned catalog material with its kind's icon and code, or the material as received before requirements are assigned), "Record revision N" and a link **Open lot record**.
 - **Closed banner** (lot not in Quarantine): "Closed" and "This lot is no longer in quarantine. Its requirements and sampling records are read-only."
 - **Sampling readiness for QC disposition** (first panel): "No sampling blockers" with "Every sample has current sampling provenance against the assigned plan. Testing and other gates still apply.", or a "Blocked" alert "QC disposition is blocked by sampling until:" listing the reasons (see Rules).
 - **Current requirements**: when testing has started on a quarantined lot, a "Fixed" note reads "Testing has started, so these requirements cannot be assigned again. When a specification, a method or the rule set is revised, quality can replace them with a signature; tests whose requirement changes are then superseded and repeated."
@@ -39,7 +60,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
   - On hold for conflicting requirements (quarantined lot, before testing): under the reasons, **Requirements the specifications state differently**: "Nothing is merged and neither statement is picked. A quality person who recorded none of this lot's data decides which requirement applies and signs the decision", ending ", once the other reasons above are resolved in the configuration." when other reasons also hold the lot under the versions in force now. A quality user who authored none of the lot's data also sees the link **Decide conflicting requirements** when nothing else holds the lot. Then one group per test, headed by its code and name: "The statements differ in: limits." and a list of the statements, each like "SPEC-TEST-EU v1 (eu-market) · Assay: 99 – 101 % · rounded to 2 decimals · method M-TEST-001 v2" (the specification version is a link; every scope that states it so is named; "· information only" when not required).
   - Assigned: Material, Stage and scope, Specification (link to its version), Sampling plan (link, basis, "at least" amount), Rule set (when present), Frozen (who, when, shortened hash); then a table Test (code and name), Acceptance criterion, Method version (with controlled procedure), Suitability evidence, Required ("Required" or "Information only").
   - Assigned under several scopes, or with an additional rule set: the facts read Stage and scopes, and Specifications (a link to each version with its scope in brackets, for example "SPEC-TEST-EU v1 (eu-market)"); **Additional rule sets** lists each as "code vN · requires <tests>"; the table gains the column **Stated by**, the scopes whose specification states the test.
-- **Sampling records**: table Sample, Sampled, "Containers (sampled / required / total)", Amount, Plan, Deviation, Status ("Current" or "Corrected"), and **Correct** for analysts. A resample shows "Resample of <original sample>" under its reference. A deviation shows its assessment status ("Awaiting quality assessment", "Accepted by quality" or "Rejected by quality"), who decided and when, and an **Assess deviation** button. Empty: "No sampling recorded" ("Record sampling against the assigned plan once requirements are assigned."), with a **Record sampling** button for analysts when requirements are assigned.
+- **Sampling records**: table Sample (with "sampled" and the time under it), Sampled by (with the location under it), "Containers (sampled / required / total)", Amount, Plan, Deviation, Status ("Current" or "Corrected"), and **Correct** for analysts. A resample shows "Resample of <original sample>" under its reference. A deviation shows its assessment status ("Awaiting quality assessment", "Accepted by quality" or "Rejected by quality"), who decided and when, and an **Assess deviation** button. Empty: "No sampling recorded" ("Record sampling against the assigned plan once requirements are assigned."), with a **Record sampling** button for analysts when requirements are assigned.
 - **Earlier requirement assignments**: shown when more than one assignment exists; each marked "Superseded". An earlier signed replacement is titled "Requirements replaced during testing" and an earlier signed decision "Conflicting requirements decided by quality", each with "Signed by" and the signer. A hold that was decided stays listed as "Applicability hold".
 - **History**: audit events of all assignments, sampling records and deviation assessments.
 
@@ -73,7 +94,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
 | Frozen hash | `LotAssignment.payload_hash` | SHA-256, shortened | — | Hash of the frozen requirement content. |
 | Acceptance criterion | payload test line | Decimal limits with unit, or expected text | — | "≥" or ">" lower, "≤" or "<" upper, "(rounded to N)" when rounding applies. |
 | Sample | `Sample.reference` | Text | — | Sample identifier; corrections show "Corrects record N". |
-| Sampled | `SamplingRecord.sampled_at`, `sampled_by`, `location` | Date and time, user, text | — | When, by whom and where; "Recorded by" appears when another user entered it. |
+| Sampled / Sampled by | `SamplingRecord.sampled_at`, `sampled_by`, `location` | Date and time, user, text | — | When (under the sample), by whom and where; "recorded by" appears when another user entered it. When the table does not fit, Amount and then Plan give way first. |
 | Containers | `containers_sampled`, `containers_required`, `containers_total` | Integers | — | Sampled / required by the plan / in the lot, then the container IDs. |
 | Amount | `SamplingRecord.quantity`, `quantity_unit` | Decimal with unit | — | Total amount collected. |
 | Deviation | `SamplingRecord.deviation` | Text | — | "Deviation" label and text, or "None". |
@@ -100,7 +121,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
 ## Related pages
 
 - [Lots](/sampling/)
-- [Material lots](/)
+- [Material lots](/lots/)
 - Assign requirements, Decide conflicting requirements, Replace lot requirements, Record sampling, Correct sampling.
 - Specification version (from a specification link). [Rule sets](/rules/)
 - Test record (from a test listed under Replaced).

@@ -4,8 +4,24 @@ urls: analytical:contract_result
 views: analytical.views.contract_result
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.ContractLaboratory, laboratory.ContractApproval, laboratory.ContractUse
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record what a contract laboratory's report states for a test, every replicate at once, or correct that result as a whole. The laboratory needs an approval covering the report date.
 ---
+
+## Common tasks
+### Record a contract laboratory result
+1. Choose the [[Contract laboratory]], then enter the [[Report number]] and [[Date of the report]].
+2. Enter [[Where the report is kept]] and each replicate's result as the report states it.
+3. Select [[Record contract laboratory result]].
+### Correct a recorded result
+1. On the test record, select [[Correct contract laboratory result]]. The form starts with the recorded values.
+2. Change what was wrong, enter the [[Reason for correction]] and select [[Correct contract laboratory result]].
+## Good to know
+- A test is tested here or reported by a contract laboratory, never both. It then takes no observation and cannot join a QC batch.
+- Enter values as reported: do not convert another unit or enter a nondetect as zero. No calculation is applied.
+- The laboratory's batch QC, instruments and reagents stay in its report, which the reviewer checks.
+- Recording or correcting the result makes you an author, so you cannot review the test.
+- A correction that keeps the laboratory and the report keeps the approval already relied on, even after it was revoked.
 
 ## Purpose
 
@@ -21,7 +37,7 @@ Records what an outside contract laboratory's report states for a test, as the t
 ## Layout
 
 - Heading "Record contract laboratory result · T-n" ("Correct contract laboratory result · T-n" for a correction) and breadcrumbs.
-- Summary card: Test, Lot and sample, Specification, Record revision, Method, Replicates and **What is checked**. A correction adds Result being corrected, Reported by and Report kept at, and one more sentence under What is checked.
+- Summary card: Test (number, name and code), Lot and sample (sample under the lot), Specification (code and version, hash under it), Acceptance, Record revision, Method, Replicates and **What is checked**. A correction adds Result being corrected, Reported by and Report kept at, and one more sentence under What is checked.
 - Note: "Fields marked * are required. The server records the time and your identity."
 - Form: **Contract laboratory**, **Report number**, **Date of the report**, **Where the report is kept**, then the result fields of every replicate. A correction ends with **Reason for correction**.
 - Result fields, numeric and count tests: **Reported value (unit)** and **Reported as less than this value**. Qualitative tests: **Reported result** (radio pair) and **Wording on the report**. With more than one replicate each label starts with the replicate, for example "Replicate 2 reported value (%)".

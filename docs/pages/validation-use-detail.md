@@ -5,7 +5,27 @@ views: validation.views.use_detail
 templates: ops/record.html
 models: validation.UseAcceptance, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: One record of the laboratory's intended use: its content, the supported assays, the configuration its acceptance froze and, once accepted, what changed since.
 ---
+
+## Common tasks
+### Accept the intended use
+1. Select [[Accept]]. It shows to the quality role while the record awaits acceptance, unless you recorded it.
+2. Review the facts and sign with your PIN on that page using [[Sign and accept]].
+### See what changed since acceptance
+1. Read the notice at the top. [[Changed since acceptance]] means approved versions or the release differ from those frozen.
+2. Check [[Changes since acceptance]]: each row is a code whose approved version in force is not the one frozen.
+### Check the supported assays
+1. In [[Supported assays]], compare the version accepted with the one in force now. [[None in force]] marks a method with no approved version now.
+### Withdraw a record that will not be accepted
+1. Select [[Withdraw]]. It shows to the quality role while the record awaits acceptance.
+2. Give a reason on that page, then record a new intended use to correct it.
+## Good to know
+- Accept does not show once the process owner or system owner is no longer an active account with a working role. Withdraw the record and record it again.
+- The record holds no work. Changes are shown for the laboratory to assess under its own change control.
+- A superseded record is kept as accepted, with a link to the record that replaced it.
+- An accepted record cannot be withdrawn. Only accepting a newer record supersedes it.
+- While the record awaits acceptance, Approved configuration in force now shows what the signature would freeze; afterwards the frozen copy is shown.
 
 ## Purpose
 
@@ -33,7 +53,7 @@ Show one record of the laboratory's intended use: its content, the supported ass
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Accept** | Awaiting acceptance, you are Quality and did not record it, and both owners are still active | Quality | Opens the signing page |
-| **Withdraw** | Awaiting acceptance | Quality | Opens the withdrawal page |
+| **Withdraw** (under **More**) | Awaiting acceptance | Quality | Opens the withdrawal page |
 
 ## Fields
 

@@ -4,8 +4,24 @@ urls: quality:acceptance_detail
 views: quality.acceptance_views.acceptance_detail
 templates: ops/record.html
 models: quality.SupplierResultAcceptance, quality.SupplierCertificateResult, quality.SupplierCertificate, quality.Lot, quality.LotReceipt, suppliers.Supplier, suppliers.SupplierQualification, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One supplier result proposed or accepted in place of a laboratory test: what it relies on, its state, signatures and history. A reviewer accepts it; it can be withdrawn while the lot is in quarantine.
 ---
+
+## Common tasks
+### Accept a proposed result
+1. Select [[Accept]]. It shows to reviewers who did not propose it or record its certificate or the lot's receipt details.
+2. Check the record against the supplier's certificate and sign on that page.
+### Withdraw a result
+1. Select [[Withdraw]]. A proposal needs a reason; an accepted result needs the signature of a reviewer or quality.
+### Check what the result relies on
+1. Read [[Details]] and follow the certificate, supplier and qualification links to compare them.
+## Good to know
+- An accepted result answers its requirement for the whole lot and is named as the supplier's result on the certificate of analysis.
+- [[No longer stands]] means something it relied on changed. It answers nothing and blocks disposition until withdrawn.
+- A proposal awaiting acceptance blocks the lot's QC disposition.
+- The details are frozen when the result is proposed. Later changes to the certificate or receipt details do not alter them.
+- A withdrawn record is final. Propose the supplier's result again from the supplier certificate record.
 
 ## Purpose
 
@@ -77,4 +93,4 @@ One result of a supplier's certificate proposed or accepted in place of the labo
 - Supplier qualification record; Supplier record.
 - Lot testing; Sign lot disposition.
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

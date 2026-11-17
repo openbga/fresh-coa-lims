@@ -8,7 +8,7 @@
   <p>Your account has no laboratory role. Ask your organization's account administrator to assign the role appropriate to your work.</p>
   {% else %}
   <p>Your account does not have permission to perform this action.</p>
-  <p><a href="{% url 'quality:lot_list' %}">Return to the workspace</a></p>
+  <p><a href="{% url 'quality:dashboard' %}">Return to the workspace</a></p>
   {% endif %}
   <p><a href="{% url 'accounts:access' %}">View account access</a> for your roles and next steps.</p>
 {% else %}

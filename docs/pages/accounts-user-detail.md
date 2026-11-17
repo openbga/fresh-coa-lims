@@ -4,8 +4,26 @@ urls: accounts:user_detail
 views: accounts.views.user_detail
 templates: accounts/user.html, includes/history_item.html
 models: accounts.User, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: One account's identity, roles, sign-in and PIN state, and its full history. Start any signed account change from here. Admin role only.
 ---
+
+## Common tasks
+### Correct the name or roles
+1. Select [[Update identity]] or [[Assign roles]], then sign the change on that page.
+### Deactivate or reactivate the account
+1. Select [[Deactivate account]], or [[Reactivate account]] for an inactive account. Sign the change on that page.
+### Help someone who is locked out
+1. Open [[More]] and choose [[Force password reset]], [[Clear PIN lockout]] or [[Reset two-factor sign-in]]. Each shows only when it applies.
+2. Enter a reason and sign the change on that page.
+### Review what changed
+1. In Account history, select [[Inspect recorded values]] on an event to see the values before and after it.
+## Good to know
+- Reset two-factor sign-in and Remove organization sign-in link are never offered for your own account. Change your own on Two-factor sign-in or Organization sign-in.
+- Clear PIN lockout keeps the PIN. Require PIN re-enrollment removes it, but earlier signatures stay.
+- A stopped two-factor sign-in is shown in bold, followed by ": reset it once the person's identity is verified". Reset it only once the person's identity is verified.
+- The owner's own password and two-factor changes appear in the history unsigned. Administrator changes carry a signature.
+- Staff and superuser flags are shown read-only. No action here changes them.
 
 ## Purpose
 
@@ -17,7 +35,7 @@ Signed-in, active users with the explicit **admin** role; other users receive 40
 
 ## Layout
 
-The **Users and roles** breadcrumb precedes account facts and the action links. **Account history** shows newest events with recorded values and any signature manifestation. There are 30 events per page; an empty history says **No account events recorded.**
+The breadcrumbs (Users and roles › username) precede the title, with the account's status and roles below it. The first three account actions are buttons at the right of the header; the others are in its **More** menu. The **Account** card lists the account facts. **Account history** shows newest events with recorded values and any signature manifestation, then "Showing X–Y of N account events" with paging. There are 30 events per page; an empty history says **No account events recorded**.
 
 ## Actions
 
@@ -33,7 +51,8 @@ The **Users and roles** breadcrumb precedes account facts and the action links. 
 | Reset two-factor sign-in | The account has a confirmed authenticator, a security key, recovery codes or a stopped second factor, and it is not your own account; an unconfirmed setup alone does not count | Opens removal of the authenticator app, security keys and recovery codes |
 | Remove organization sign-in link | The account is linked for single sign-on and it is not your own account | Opens removal of the link |
 | Inspect recorded values | Each history event | Expands preserved Before/After values |
-| Previous / Next | An adjacent history page exists | Moves through account history |
+| More | More than three account actions apply | Opens the menu with the remaining account actions |
+| First / previous / next / last page | More than one history page | Moves through account history |
 
 Visible actions still enforce their rules on submission, including no self-addition of roles and last-active-admin protection.
 

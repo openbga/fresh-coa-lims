@@ -1,0 +1,20 @@
+{% comment %}
+Where a record is in its flow (Line §5): one step per stage, done / current / held / rejected /
+pending, with the stage label and a short detail line; the bar is decorative and the text says the
+same. Rendered by {% route %} ({% load ui %}); the stages come from the view (quality/route.py).
+Parameters:
+  stages  iterable of {key, label, state, progress, detail}; progress is the current stage's done
+          share in steps of 10 (styled by data-progress, no inline style)
+  label   accessible name of the list (default "Where it is")
+  micro   truthy for the lot list's compact variant: the bars only, then the summary line
+  summary the one line shown under the micro route (quality.route.summary)
+Usage: {% route stages=route label="Where the lot is" %}
+       {% route stages=row.route micro=True summary=row.route_summary %}
+{% endcomment %}{% if micro %}<div class="vr-microroute-cell"><ol class="vr-microroute" aria-hidden="true">{% for step in stages %}<li data-state="{{ step.state }}"></li>{% endfor %}</ol><span class="vr-microroute-text">{{ summary }}</span></div>{% else %}<ol class="vr-route" aria-label="{{ label|default:'Where it is' }}">
+  {% for step in stages %}<li class="vr-route-step" data-state="{{ step.state }}"{% if step.state == "current" or step.state == "held" %} data-progress="{{ step.progress }}" aria-current="step"{% endif %}>
+    <span class="vr-route-bar" aria-hidden="true"></span>
+    <span class="vr-route-label">{{ step.label }}<span class="visually-hidden">: {% if step.state == "done" %}done{% elif step.state == "current" %}in progress{% elif step.state == "held" %}on hold{% elif step.state == "rejected" %}rejected{% else %}not reached{% endif %}</span></span>
+    {% if step.detail %}<span class="vr-route-detail">{{ step.detail }}</span>{% endif %}
+  </li>
+  {% endfor %}
+</ol>{% endif %}

@@ -131,7 +131,7 @@ def test_qualification_is_recorded_in_two_steps_and_signed_by_another(client, wo
     page = text(client.get(record))
     assert "Approved" in page and f'href="{revoke_url}"' in page
     assert "No supplier result has relied on it." in page
-    assert "signed.approved" in page
+    assert 'data-audit-action="signed.approved"' in page
     # The supplier's record lists it.
     page = text(client.get(detail))
     assert f'href="{record}"' in page and qualification.label in page
@@ -253,7 +253,7 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
     acceptance.refresh_from_db()
     assert acceptance.state == "accepted"
     page = text(client.get(detail))
-    assert "Accepted" in page and "signed.accepted" in page
+    assert "Accepted" in page and 'data-audit-action="signed.accepted"' in page
     assert reviewer.get_full_name() in page  # The signature names its signer.
     assert f'href="{accept_url}"' not in page
 
@@ -283,7 +283,7 @@ def test_a_supplier_result_is_proposed_accepted_and_withdrawn_through_the_pages(
     assert acceptance.state == "withdrawn" and acceptance.withdrawn_by == reviewer
     page = text(client.get(detail))
     assert "Withdrawn" in page and "Tested in the laboratory instead" in page
-    assert "signed.withdrawn" in page and f'href="{withdraw_url}"' not in page
+    assert 'data-audit-action="signed.withdrawn"' in page and f'href="{withdraw_url}"' not in page
     again = client.get(withdraw_url, follow=True)
     assert "already withdrawn" in text(again)
     assert "Withdrawn" in text(client.get(lot_url))
@@ -523,3 +523,14 @@ def test_testing_pages_after_release_and_the_raw_data_page(client, world):
     listed = text(client.get(reverse("analytical:test_list"), {"q": lot.number}))
     assert listed.count("Not tested · supplier result") == 4
     assert AnalyticalTest.objects.filter(lot=lot, state="open").count() == 4
+
+
+def test_supplier_list_shows_each_suppliers_best_qualification_state(client, world):
+    sign_in(client, world, "auditor")
+    url = reverse("suppliers:list")
+    assert "Awaiting approval" not in text(client.get(url))
+    qualify(world, sign=False)
+    assert "Awaiting approval" in text(client.get(url))
+    qualify(world, valid_until=today() + timedelta(days=10))
+    page = text(client.get(url))
+    assert "Expiring soon" in page and "Awaiting approval" not in page

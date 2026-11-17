@@ -1,5 +1,5 @@
-{% comment %}The signed decision behind a lot's current requirements. Parameter: assignment (origin decided, with .signature).{% endcomment %}
-<div class="alert alert-info" role="status">{% include "includes/status.html" with label="Decided" tone="info" plain=True %}<div class="text-break">
-  <p class="mb-1">The specifications that apply to this lot state {{ assignment.payload.decisions|length|pluralize:"a test,tests" }} differently, and quality decided which requirement applies. {% if assignment.signature %}Signed by <strong>{{ assignment.signature.signer_name }}</strong> with the meaning requirements decided on <time datetime="{{ assignment.signature.signed_at|date:'c' }}">{{ assignment.signature.signed_at|date:"Y-m-d H:i T" }}</time>, bound to lot revision {{ assignment.signature.revision }}.{% else %}Recorded by {{ assignment.assigned_by.get_full_name|default:assignment.assigned_by.username }}.{% endif %} Reason: {{ assignment.reason }}</p>
-  {% include "sampling/includes/decisions.html" with decisions=assignment.payload.decisions %}
-</div></div>
+{% load ui %}{% comment %}The signed decision behind a lot's current requirements. Include with assignment=... only (origin decided, with .signature).{% endcomment %}
+{% notice tone="info" label="Decided" class="text-break" %}
+  <p class="mb-1">The specifications that apply to this lot state {{ assignment.payload.decisions|length|pluralize:"a test,tests" }} differently, and quality decided which requirement applies. {% if assignment.signature %}Signed by <strong>{{ assignment.signature.signer_name }}</strong> with the meaning requirements decided on <time datetime="{{ assignment.signature.signed_at|date:'c' }}">{{ assignment.signature.signed_at|date:"Y-m-d H:i T" }}</time>, bound to lot revision {{ assignment.signature.revision }}.{% else %}Recorded by {{ assignment.assigned_by|person }}.{% endif %} Reason: {{ assignment.reason }}</p>
+  {% include "sampling/includes/decisions.html" with decisions=assignment.payload.decisions only %}
+{% endnotice %}

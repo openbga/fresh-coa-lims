@@ -1,0 +1,28 @@
+{% comment %}
+A list's rows or, when there are none or a filter is invalid, its one state (docs/ui-standards.md, Lists and forms): the
+body and the pagination footer; else the filter error, no results, or empty state through
+{% empty_state %}. Rendered by the {% list_results %} block tag ({% load ui %}); the tag's body is
+the table (normally <div class="vr-table-wrap"><table ...></table></div>).
+Parameters:
+  items          a Django Page (page_obj) or any list/queryset; a Page adds the pagination footer
+  noun           plural noun for the count and pager, e.g. "material lots"
+  filtered       truthy when a filter or search is active; also the footer's "matching filters"
+  invalid        truthy when the filter form is invalid: the error state, even when items has rows
+  clear_url      URL without filters, for Clear filters (default: no button)
+  paginate       False to leave out the footer for a Page
+  grid           the table's grid key ({% grid_table grid=... %}): the Columns button in the foot
+  sizes          truthy when the view honours ?per_page= (core.grids.paginate): rows per page
+  empty_title, empty_body          the empty state (nothing exists yet)
+  action_url, action_label         its create action; give action_url only to users who may create
+  no_results_title, no_results_body  default "No <noun> match these filters" / "Check the spelling or clear the filters."
+  error_body     default "Correct the highlighted filter above. No results are shown until every filter is valid."
+Usage:
+  {% list_results items=page_obj noun="material lots" filtered=filtered clear_url=request.path empty_title="No material lots yet" action_url=create_url action_label="New material lot" %}
+    <div class="vr-table-wrap"><table class="table table-hover vr-table">...</table></div>
+  {% endlist_results %}
+{% endcomment %}
+{% load ui %}{% if invalid %}{% firstof error_body "Correct the highlighted filter above. No results are shown until every filter is valid." as error_text %}{% empty_state kind="error" title="These filters cannot be applied" body=error_text clear_url=clear_url %}
+{% elif has_rows %}{{ body }}
+{% if paginated %}{% pagination page_obj=items noun=noun filtered=filtered sizes=sizes grid=grid %}{% elif grid %}<div class="vr-table-footer">{% grid_columns_button grid=grid %}</div>{% endif %}
+{% elif filtered %}{% firstof noun "records" as plural %}{% firstof no_results_title "No "|add:plural|add:" match these filters" as nr_title %}{% firstof no_results_body "Check the spelling or clear the filters." as nr_body %}{% empty_state kind="no-results" title=nr_title body=nr_body clear_url=clear_url %}
+{% else %}{% empty_state kind="empty" title=empty_title body=empty_body action_url=action_url action_label=action_label %}{% endif %}

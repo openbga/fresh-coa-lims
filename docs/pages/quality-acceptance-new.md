@@ -4,8 +4,23 @@ urls: quality:acceptance_new
 views: quality.acceptance_views.acceptance_new
 templates: catalog/form.html
 models: quality.SupplierResultAcceptance, quality.SupplierCertificateResult, quality.SupplierCertificate, quality.Lot, quality.LotReceipt, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Propose that one result on a supplier's certificate stands in for the laboratory's test of that requirement. A proposal answers nothing until a reviewer signs the acceptance.
 ---
+
+## Common tasks
+### Propose a supplier result
+1. Check every fact in the [[Record]] card. It is what the proposal relies on and freezes.
+2. Explain why in [[Reason for relying on the supplier's result]].
+3. Select [[Propose supplier result]]. The new record opens, awaiting acceptance by a reviewer.
+### Submit after what it relies on changed
+1. If the page says what the proposal would rely on changed, review the [[Record]] card as shown now, then submit again.
+## Good to know
+- A proposal blocks the lot's QC disposition until a reviewer accepts it or it is withdrawn.
+- Every rule set the lot is under must allow it, and a signed qualification must cover the supplier, material, test and date received.
+- Proposing makes you an author of the lot's data: you cannot accept it or sign the lot's disposition, also after a withdrawal.
+- Only one proposal or acceptance stands for a requirement of a lot at a time.
+- Once the laboratory has started testing the requirement, a supplier result cannot stand in for it.
 
 ## Purpose
 
@@ -79,4 +94,4 @@ Proposes that one result stated on a supplier's certificate stands in for the la
 - Supplier qualification record; Supplier record.
 - Lot record; Lot testing.
 - [Rule sets](/rules/)
-- [Material lots](/)
+- [Material lots](/lots/)

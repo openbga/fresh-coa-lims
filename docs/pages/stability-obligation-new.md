@@ -5,7 +5,22 @@ views: stability.views.obligation_new
 templates: ops/form.html
 models: stability.RetentionObligation, core.AuditEvent
 reviewed: 2026-11-17
+summary: Record one retention obligation for a reserve sample: what starts the clock, the anchor date if known, and how many months to retain it.
 ---
+
+## Common tasks
+### Record a retention obligation
+1. Choose the [[Anchor kind]], for example the expiry or shelf-life date.
+2. Enter the [[Anchor date]], or leave it blank if it is not yet known.
+3. Enter the [[Months retained after the anchor]] and the [[Basis]].
+4. Enter a [[Reason]] and select [[Record obligation]].
+### Set the anchor later
+1. Leave [[Anchor date]] blank. Once the date is known, select [[Set anchor]] on the reserve record.
+## Good to know
+- Record one obligation for each applicable basis. Each computes its own deadline.
+- An unknown anchor keeps the reserve retained until the anchor is set.
+- The deadline is the anchor date plus the months, in calendar months.
+- An obligation cannot be changed once recorded. Only a missing anchor date can be set, once.
 
 ## Purpose
 
@@ -19,7 +34,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 
 ## Layout
 
-- Breadcrumbs (Stability and retention, Reserve samples, New retention obligation), title "New retention obligation", introduction "One obligation per applicable retention basis...", the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Reserve samples, New retention obligation), title "New retention obligation", introduction "One obligation per applicable retention basis...", the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

@@ -4,8 +4,28 @@ urls: catalog:specification_revision
 views: catalog.views.specification_revision
 templates: catalog/specification_revision.html
 models: catalog.SpecificationRevision, catalog.SpecificationTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One version of a specification: its facts, tests and acceptance criteria, signatures and history. Quality users build the draft here and send it for independent approval.
 ---
+
+## Common tasks
+### Add a test to the draft
+1. Select [[Add test]]. It shows only to quality users while the version is a draft.
+### Remove a test from the draft
+1. Select [[Remove]] on the test's row, then give a reason on that page. It shows only to quality users on a draft.
+### Approve the version
+1. Select [[Review and approve]]. It shows only if you did not create or change this draft.
+2. Check the content and sign with your PIN on that page.
+### Withdraw the draft
+1. Select [[Withdraw draft]], then give a reason on that page.
+### Open the method of a test
+1. In [[Tests and acceptance criteria]], select the method code.
+## Good to know
+- If you created or changed this draft, [[Independent approval]] shows and another quality user must sign it.
+- Tests cannot be edited. To change one, remove it and add it again.
+- Approval needs at least one test, and each method needs an approved version that applies when this version takes effect.
+- An approved version shows [[Frozen]]: it and its tests cannot be changed. Create a new version from the specification record.
+- Lots keep the version frozen when their requirements were assigned.
 
 ## Purpose
 
@@ -21,12 +41,12 @@ One version of a specification: its facts, the tests and acceptance criteria, si
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, specification code, "Version N". Under the heading: status, "record revision N" and the specification title.
+- **Breadcrumbs**: Specifications and methods, specification code, "Version N". Under the heading: status, "Record revision N" and the specification title.
 - **Alerts**: "Independent approval" ("You authored or edited this draft, so another quality approver must sign it.") for quality users on a draft they cannot approve; "Frozen" for approved versions ("This approved version and its tests cannot be changed. Content hash" and the full hash).
 - **Version facts**: Material, Stage and scope, Effective, Basis, Author, Reason for version.
 - **Tests and acceptance criteria**: table with #, Test (code and name), Method (link), Acceptance criterion, Rounding, Replication, Required, and **Remove** for draft editors. Empty state "No tests yet" ("Approval requires at least one test with an approved method.") with an **Add test** button for quality.
-- **Signatures**: signer, meaning, time, record revision, hash, or "Not signed."
-- **History**: attributed audit events for this version only (not the specification's), oldest first, or "No recorded history."
+- **Signatures**: one line per signature: "Signed", the signer, the meaning, the time, "Record revision N" and the start of the content hash; "Not signed." when none.
+- **History**: attributed audit events for this version only (not the specification's), oldest first, or the empty state "No recorded history".
 - **Foot line**: the version identifier, when the page was viewed and by whom.
 
 ## Actions

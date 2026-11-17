@@ -1,2 +1,2 @@
-{% comment %}Key facts of the record an action applies to. Parameters: summary (label, value pairs).{% endcomment %}
-{% if summary %}<dl class="vr-facts">{% for label, value in summary %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+{% load ui %}{% comment %}Key facts of the record an action applies to. Include with summary=... only: (label, value) pairs, or (label, value, True) for a long fact that spans the full row.{% endcomment %}
+{% if summary %}<dl class="vr-facts">{% for item in summary %}{% fact label=item.0 value=item.1 wide=item.2 %}{% endfor %}</dl>{% endif %}

@@ -20,7 +20,6 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from core.audit import record_event
-from core.forms import StyledForm
 from core.services import require_role
 from core.uploads import refuse_over_ceiling, size_text
 
@@ -125,7 +124,7 @@ def verified_content(stored):
     return data
 
 
-class RawFileForm(StyledForm):
+class RawFileForm(forms.Form):
     file = forms.FileField(
         label="File",
         help_text=(

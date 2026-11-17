@@ -41,7 +41,7 @@ from core.services import AUDIT_READ_ROLES, require_role
 from quality.models import Lot
 
 from .evidence import canonical_hash
-from .render import RenderError, _deny_fetcher
+from .render import FONT_URL, RenderError, write_pdf
 
 SCHEMA = "oq.lot-record/1"
 MANIFEST_SCHEMA = "oq.lot-record-manifest/1"
@@ -605,8 +605,8 @@ def _printed_value(obj, f, c, people, names):
         if not entry:
             return {"text": "No content."}
         return {"text": f"File {entry['path']}, {entry['size']} bytes, SHA-256 {entry['sha256']}"}
-    if value is None or value == "":
-        return {"text": "—"}
+    if value is None or value == "" or (isinstance(f, models.JSONField) and value in ({}, [])):
+        return {"text": "—"}  # blank, as "How to read this record" says; record.json keeps it
     if _is_reference(f):
         label = label_of(f.related_model)
         if label == USER_LABEL:
@@ -758,13 +758,14 @@ def _printed(c, sections, signatures, events, reviews, people, checks, meta):
 
 
 def render_record_pdf(context, *, synthetic_notice=False):
+    """The printed copy, in the shared print style; it loads only the certificate font."""
     try:
-        from weasyprint import HTML
-
         html = render_to_string(
             "reporting/pdf/lot_record.html", {**context, "synthetic_notice": synthetic_notice}
         )
-        data = HTML(string=html, url_fetcher=_deny_fetcher()).write_pdf()
+        data, served = write_pdf(html)
+        if FONT_URL not in served:
+            raise RenderError("The record font was not loaded.")
     except Exception as exc:  # renderer and font failures stop the export
         raise RenderError(str(exc) or exc.__class__.__name__) from exc
     if not data.startswith(b"%PDF-"):

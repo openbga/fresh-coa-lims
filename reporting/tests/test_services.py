@@ -139,13 +139,13 @@ def test_multipage_certificate_keeps_header_and_page_numbers(people):
     text = pdf_text(bytes(version.pdf))
     assert "Page 1 of" in text
     assert "Page 2 of" in text
-    assert text.count("Independent review") >= 2  # table header repeats on later pages
+    assert text.count("INDEPENDENT REVIEW") >= 2  # table header repeats on later pages
     assert "impurity-59" in text
     # The final hash is grouped with the technical identifiers, never alone on the last page.
     pages = text.split("\x0c")
     last = [p for p in pages if p.strip()][-1]
-    assert "Technical identifiers" in last and version.evidence_hash[:16] in last
-    assert "Electronic signatures" in text
+    assert "TECHNICAL IDENTIFIERS" in last and version.evidence_hash[:16] in last
+    assert "ELECTRONIC SIGNATURES" in text
 
 
 def test_pdf_never_includes_pin_or_credentials(people, lot):
@@ -245,14 +245,18 @@ def test_renderer_refuses_external_resources(monkeypatch, tmp_path):
         '<img src="data:image/png;base64,iVBORw0KGgo=">'
         "<p>Synthetic certificate body</p>"
     )
-    monkeypatch.setattr(render, "render_to_string", lambda *args, **kwargs: hostile)
+    page = render.render_to_string("reporting/pdf/certificate.html", {"snapshot": {}})
+    page = page.replace("</body>", hostile + "</body>")
+    monkeypatch.setattr(render, "render_to_string", lambda *args, **kwargs: page)
     data = render.render_certificate({})
     assert data.startswith(b"%PDF-")
     assert opened == []
-    fetcher = render._deny_fetcher()
-    for url in (secret.as_uri(), "http://127.0.0.1:9/x.css", "data:text/plain,x"):
-        with pytest.raises(ValueError, match="may not load"):
-            fetcher.fetch(url)
+    # The PDF fetcher serves the font and glyphs by exact URL and nothing else; with an empty
+    # allowlist it serves nothing.
+    for fetcher in (render._fetcher({}, set()), render._fetcher(render.resources(), set())):
+        for url in (secret.as_uri(), "http://127.0.0.1:9/x.css", "data:text/plain,x", "certfont:x"):
+            with pytest.raises(ValueError, match="may not load"):
+                fetcher.fetch(url)
 
 
 def test_cannot_issue_twice_but_series_is_per_recipient(people, lot):

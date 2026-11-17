@@ -4,8 +4,26 @@ urls: analytical:observation_new
 views: analytical.views.observation_new
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record the next replicate of an open test, with the equipment and lots used and where the original observation is kept.
 ---
+
+## Common tasks
+### Record a numeric or count reading
+1. Enter the reading exactly as read in [[Observed value]], or [[Observed count]] for a count.
+2. For a result below the reporting limit, enter the limit and tick [[Reported as less than this value]].
+3. Tick the [[Equipment used]] and [[Reagent and standard lots used]], fill in [[Original record]] and select [[Record observation]].
+### Record a qualitative reading
+1. Choose the outcome under [[Observed result]] and describe it in [[What was observed]].
+2. Fill in [[Original record]] and select [[Record observation]].
+### Record a calculated result
+1. Enter each input the form asks for. The server calculates the value with the approved formula.
+2. Fill in [[Original record]] and select [[Record observation]].
+## Good to know
+- Never enter a nondetect as zero. A less-than result is stored as recorded and never converted to zero or to the number.
+- The bench checks your qualification for the method and every instrument and lot you tick. A refusal saves nothing.
+- When the method runs in a QC batch, the test must be added to a batch before you can record.
+- Recording makes you an author of the test's data, so you cannot review it.
 
 ## Purpose
 
@@ -20,7 +38,7 @@ Record the next replicate observation of a test, with the location of its origin
 ## Layout
 
 - Heading "Record replicate N · T-n" and breadcrumbs.
-- Summary card: Test, Lot and sample, Specification, Record revision, Unit (numeric and count tests only).
+- Summary card: Test (number, name and code), Lot and sample (sample under the lot), Specification (code and version, hash under it), Acceptance, Record revision, Unit (numeric and count tests only).
 - Form, numeric and count tests: **Observed value** (**Observed count** for counts), **Reported as less than this value**, **Original record**.
 - Form, qualitative tests: **Observed result** (radio pair), **What was observed**, **Original record**.
 - Form, calculated methods: one field per approved input (labelled with its name and unit), **Original record**. No value or less-than field.

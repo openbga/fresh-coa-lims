@@ -4,8 +4,23 @@ urls: stability:pull_record
 views: stability.views.pull_record
 templates: ops/form.html
 models: stability.Pull, stability.ProtocolTimepoint, laboratory.ResourceUse, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Record that a scheduled stability pull was taken: when, how much, where it is held and in which chamber. Analysts only.
 ---
+
+## Common tasks
+### Record the pull
+1. Check [[Pulled on]], which defaults to today, and enter the [[Quantity]] and [[Quantity unit]].
+2. Enter [[Where the pull is held]] and, if one is used, choose the [[Storage chamber]].
+3. Enter a [[Reason]] and select [[Record pull]].
+### Record a pull taken outside its window
+1. Enter why in [[Deviation reason]]. The window dates are shown at the top of the page.
+2. Select [[Record pull]].
+## Good to know
+- A pull dated outside its window is refused without a deviation reason.
+- Only chambers fit for use are listed, and fitness is checked again when you save.
+- You become the puller, so you cannot accept this pull later.
+- The pull cannot be dated in the future and cannot be recorded again once saved.
 
 ## Purpose
 

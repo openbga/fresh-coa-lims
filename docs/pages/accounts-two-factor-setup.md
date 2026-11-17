@@ -4,8 +4,25 @@ urls: accounts:two_factor_setup
 views: accounts.views.two_factor_setup
 templates: accounts/two_factor_setup.html, accounts/two_factor_codes.html
 models: accounts.User, accounts.RecoveryCode, core.AuditEvent
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Add your account to an authenticator app with the QR code or key, then confirm it with a code the app shows. Confirming turns two-factor sign-in on.
 ---
+
+## Common tasks
+### Add the account to your app
+1. Scan the QR code with your authenticator app, or enter the [[Key]] shown under [[Account]] in the app.
+### Confirm and turn it on
+1. Enter the 6-digit code the app shows in [[Code from the app]].
+2. Select [[Confirm and turn on]].
+3. Save the recovery codes shown once, then select [[I have saved the codes]].
+### Stop setting up
+1. Select [[Cancel]] to return to Two-factor sign-in. The app is not added.
+## Good to know
+- Keep the key private: anyone who has it can produce your codes. It is shown only while you set up.
+- Finish within 10 minutes of starting, or start again from Two-factor sign-in.
+- A recovery code is not accepted here. Enter the code from the app.
+- Wrong codes count toward the sign-in failure limit, and can pause sign-in for the account for a while.
+- Confirming replaces any earlier app and all earlier recovery codes. Until then your current app keeps working.
 
 ## Purpose
 
@@ -17,7 +34,7 @@ Any signed-in user who has just started setup on Two-factor sign-in (password, p
 
 ## Layout
 
-The **Two-factor sign-in** breadcrumb is followed by two cards.
+The breadcrumbs **Account access › Two-factor sign-in** is followed by two cards.
 
 1. **1. Add this account to your authenticator app**: a QR code (black on white in both themes), **Account** (your username) and **Key** in groups of four characters, with a warning to keep the key private. The key is shown only while you set up.
 2. **2. Confirm with a code from the app**: a note that the current app keeps working until the new one is confirmed (when you already have an app), the time limit, and the code field.

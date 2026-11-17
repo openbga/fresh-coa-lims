@@ -4,6 +4,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import AuditEvent
@@ -61,27 +62,29 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
 
         # The analyst receives a lot; incomplete receipt details are refused and kept on screen.
         login("analyst")
+        page.goto(live_server.url + "/lots/")
         page.locator(".vr-page-actions").get_by_role("link", name="New material lot").click()
         expect(page.locator('#vr-nav [aria-current="page"]')).to_have_text("Lots")
         field("Lot number").fill("SYN-BROWSER-R-001")
         field("Material").fill("Synthetic botanical extract")
-        field("Rule set").select_option(label="synthetic v1")
-        field("Source").select_option(label="Received from a supplier")
+        pick(field("Rule set"), label="synthetic v1")
+        pick(field("Source"), label="Received from a supplier")
         field("Supplier lot number").fill("SUP-LOT-SYN-001")
         field("Delivery or batch document").fill("DN-SYN-0042")
         field("Quantity received").fill("125.50")
-        field("Quantity unit").select_option(label="kg")
+        pick(field("Quantity unit"), label="kg")
         field("Number of containers").fill("5")
         field("Containers").fill("25 kg fibre drums")
-        field("Examination on receipt").select_option(label="Discrepancy found")
+        pick(field("Examination on receipt"), label="Discrepancy found")
         field("Reason").fill("Synthetic delivery received")
         page.get_by_role("button", name="Receive lot", exact=True).click()
         expect(page.get_by_role("alert")).to_contain_text("Your entries were kept.")
         expect(page.get_by_text("Select the supplier the lot was received from.")).to_be_visible()
         expect(page.get_by_text("Describe the discrepancy found on receipt.")).to_be_visible()
         expect(field("Lot number")).to_have_value("SYN-BROWSER-R-001")
-        page.get_by_label("Supplier", exact=True).select_option(
-            label="sup-syn-001 · Synthetic Ingredients Supply"
+        pick(
+            page.get_by_label("Supplier", exact=True),
+            label="sup-syn-001 · Synthetic Ingredients Supply",
         )
         field("Examination notes").fill("Synthetic drum 3 arrived with a torn outer label.")
         page.screenshot(path=str(artifacts / "receipt-new-lot-desktop.png"), full_page=True)
@@ -93,10 +96,11 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
 
         expect(page.get_by_text("Lot received in quarantine.")).to_be_visible()
         lot_url = page.url
-        receipt = page.locator("section", has=page.get_by_role("heading", name="Receipt"))
+        receipt = page.get_by_role("region", name="Receipt", exact=True)
         expect(receipt).to_contain_text("Received from a supplier")
         expect(receipt).to_contain_text("SUP-LOT-SYN-001")
-        expect(receipt).to_contain_text("125.5 kg")
+        # The quantity received is a fact of the Lot panel (not repeated in Receipt).
+        expect(page.get_by_role("region", name="Lot", exact=True)).to_contain_text("125.5 kg")
         expect(receipt).to_contain_text("5 · 25 kg fibre drums")
         expect(receipt).to_contain_text("Discrepancy found")
         expect(receipt).to_contain_text("A discrepancy does not hold the lot by itself.")
@@ -122,15 +126,17 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
             "data-pagedocs-for", "quality:receipt_correct"
         )
-        expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+        expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
         toggle.click()
         page.get_by_role("button", name="Correct receipt details", exact=True).click()
 
         expect(page).to_have_url(lot_url)
         expect(page.get_by_text("Receipt details corrected; the original is kept.")).to_be_visible()
-        receipt = page.locator("section", has=page.get_by_role("heading", name="Receipt"))
-        expect(receipt.locator(".vr-history-item")).to_have_count(2)
-        corrected = receipt.locator(".vr-history-item").nth(1)
+        # The receipt history is a collapsed panel: open it, then read its entries.
+        history = page.locator("details", has=page.get_by_role("heading", name="Receipt history"))
+        history.locator("summary").click()
+        expect(history.locator(".vr-history-item")).to_have_count(2)
+        corrected = history.locator(".vr-history-item").nth(1)
         expect(corrected).to_contain_text("Receipt details corrected")
         expect(corrected.locator("del")).to_have_text("SUP-LOT-SYN-001")
         expect(corrected).to_contain_text("SUP-LOT-SYN-002")
@@ -145,13 +151,14 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
         # An auditor traces the lot from the supplier and from the supplier's lot number, and
         # cannot change either.
         login("auditor")
+        page.goto(live_server.url + "/lots/")
         page.get_by_label("Find lot").fill("sup-lot-syn-002")
-        page.get_by_role("button", name="Search", exact=True).click()
+        page.get_by_role("button", name="Apply", exact=True).click()
         row = page.get_by_role("row", name=re.compile("SYN-BROWSER-R-001"))
         expect(row).to_contain_text("Synthetic Ingredients Supply")
         expect(row).to_contain_text("SUP-LOT-SYN-002")
         page.get_by_label("Find lot").fill("sup-lot-syn-001")  # The replaced record is not found.
-        page.get_by_role("button", name="Search", exact=True).click()
+        page.get_by_role("button", name="Apply", exact=True).click()
         expect(page.get_by_text("No material lots match these filters")).to_be_visible()
         nav.get_by_role("link", name="Suppliers", exact=True).click()
         expect(page.get_by_role("link", name="New supplier")).to_have_count(0)

@@ -1,0 +1,7 @@
+{% comment %}
+What kind of test a row is, after the test name (Line §6): the app's own kind label ("Retest",
+"Resample", "Rerun after QC failure", "Repeat under replaced requirements"; "Original" only when
+the test has children). A tag, not a status pill. Rendered by {% kind_tag %} ({% load ui %}).
+Parameters: label.
+Usage: {{ test.test_code }} {% if test.kind != "original" %}{% kind_tag label=test.get_kind_display %}{% endif %}
+{% endcomment %}<span class="vr-kind-tag">{{ label }}</span>

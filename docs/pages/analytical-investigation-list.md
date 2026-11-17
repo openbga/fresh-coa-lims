@@ -2,10 +2,24 @@
 title: Testing: investigations
 urls: analytical:investigation_list
 views: analytical.views.investigation_list
-templates: analytical/investigation_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_investigation_status.html
+templates: analytical/investigation_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_investigation_status.html
 models: analytical.Investigation
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Out-of-specification investigations, open ones by default. An open investigation holds its lot, or its stability pull, until quality signs a conclusion.
 ---
+
+## Common tasks
+### Find an investigation
+1. Type a lot number, study identifier or test code in [[Find]].
+2. Select [[Apply]], then select an investigation number to open it.
+### See closed investigations
+1. Choose [[Closed]] or [[All investigations]] in [[Status]], then select [[Apply]].
+### Go back to the open investigations
+1. Select [[Clear all]].
+## Good to know
+- The list shows only open investigations unless you choose another status.
+- A submitted out-of-specification result, or an out-of-limit value in a rejected QC batch, opens an investigation automatically.
+- An investigation of a stability test holds its pull, not the lot. The Lot column then shows the study's lot as plain text.
 
 ## Purpose
 
@@ -21,8 +35,8 @@ List out-of-specification investigations. An open investigation holds its lot, o
 
 - **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Testing", followed by the introduction.
-- **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Show open** when a search is entered or Status is not Open.
-- **Table** (caption "Investigations, newest first"): Investigation, Status, Lot, Test, Trigger, Opened. Footer count and pager.
+- **Filter bar**: **Find**, **Status** (default **Open**), **Apply**, and **Clear all** when a search is entered or Status is not Open; it returns to the open investigations.
+- **Table**: Investigation, Status, Lot (with the test and its code under it, and the stability pull for a stability test), Trigger, Opened. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit. Footer: "Showing X–Y of N investigations", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - For an investigation of a stability test the Lot column shows the study's lot number as plain text, then a link to the stability pull with the note "stability pull". The investigation belongs to the pull, not to the lot.
 - **Empty states**: "No open investigations" ("A submitted out-of-specification result opens an investigation automatically.") and "No investigations match" ("Search covers lot numbers, stability study identifiers and test codes.").
 
@@ -30,7 +44,7 @@ List out-of-specification investigations. An open investigation holds its lot, o
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Apply** / **Show open** | Always / a search is entered or Status is not Open | Any viewer | Applies the filter or returns to open investigations |
+| **Apply** / **Clear all** | Always / a search is entered or Status is not Open | Any viewer | Applies the filter or returns to open investigations |
 | Investigation, Lot and Test links | Each row | Any viewer | Open the investigation, the lot's testing page (or the stability pull) or the test |
 
 ## Fields
@@ -46,7 +60,7 @@ List out-of-specification investigations. An open investigation holds its lot, o
 ## Rules and hidden logic
 
 - **Default**: only open investigations; any status value other than open or closed shows all.
-- **Order and paging**: newest first; 30 per page.
+- **Order and paging**: newest first; 25 rows per page by default, or 50 or 100 through **Rows per page**.
 - Investigations are opened by the system when a submitted result is out of specification or when a rejected QC batch had out-of-limit values.
 
 ## Related pages

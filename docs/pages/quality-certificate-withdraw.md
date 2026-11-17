@@ -4,8 +4,23 @@ urls: quality:certificate_withdraw
 views: quality.certificate_views.certificate_withdraw
 templates: catalog/form.html
 models: quality.SupplierCertificateWithdrawal, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.Lot
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Withdraw a supplier certificate record that should not stand, for example one recorded on the wrong lot. The record and its results are kept and marked as withdrawn.
 ---
+
+## Common tasks
+### Withdraw a certificate record
+1. Check the lot and the certificate in the [[Record]] card.
+2. Say why the record should not stand in [[Reason for withdrawal]].
+3. Select [[Withdraw supplier certificate]]. The certificate record then shows Withdrawn.
+### Leave without withdrawing
+1. Select [[Cancel]] to return to the certificate record. Nothing is saved.
+## Good to know
+- A withdrawal is final. No page reverses it, and a withdrawn record cannot be corrected.
+- A new certificate, also one with the same number, can be recorded for the lot while it is in Quarantine.
+- Proposals or acceptances taken from this record stop standing and block disposition until withdrawn on their own record.
+- Withdrawing makes you an author of the lot's data: you cannot sign its disposition, even with the quality role.
+- A withdrawal deletes nothing and does not place or release a hold.
 
 ## Purpose
 
@@ -66,4 +81,4 @@ The page has no hidden field. The server checks the record itself when saving.
 - Lot record; Sign lot disposition.
 - Supplier result acceptance record; Withdraw supplier result.
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

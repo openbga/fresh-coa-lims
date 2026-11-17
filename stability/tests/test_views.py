@@ -485,3 +485,96 @@ def test_oversized_protocol_preselection_is_ignored(client, people):
     client.force_login(people["analyst"])
     response = client.get(reverse("stability:study_new"), {"protocol": "9" * 5000})
     assert response.status_code == 200
+
+
+def test_study_record_shows_the_pull_schedule_by_condition_and_time_point(client, people):
+    study = started_study(people)  # pulls due at day 30 (overdue), 100 (due now), 180 (upcoming)
+    client.force_login(people["auditor"])
+    body = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
+    assert "Pull schedule" in body
+    for pull in study.pulls.all():
+        assert reverse("stability:pull_detail", args=[pull.pk]) in body
+        assert pull.timepoint.label in body and pull.due_date.isoformat() in body
+    # Every cell is the same status label in its tone; no cell is filled.
+    assert "vr-due-now" not in body
+    assert 'data-tone="warning"' in body and "</svg>Due now</span>" in body
+    assert "</svg>Overdue</span>" in body and "</svg>Upcoming</span>" in body
+
+
+def test_pull_labels_match_the_filter_and_the_study_shows_its_next_pull(client, people):
+    study = started_study(people)  # pulls due at day 30 (overdue), 100 (due now), 180 (upcoming)
+    client.force_login(people["auditor"])
+    listed = client.get(reverse("stability:pull_list")).content.decode()
+    assert "</svg>Due now</span>" in listed and "</svg>Due</span>" not in listed
+    record = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
+    first = min(study.pulls.all(), key=lambda pull: pull.due_date)
+    assert "Next pull" in record
+    due = first.due_date.isoformat()
+    # Overdue: the critical fact, the filled pill with the pull and its due date under it.
+    assert f'due <time datetime="{due}">{due}</time></small>' in record
+    assert "</svg>Overdue</span>" in record
+    pull = study.pulls.get(timepoint__interval_days=100)
+    detail = client.get(reverse("stability:pull_detail", args=[pull.pk])).content.decode()
+    assert detail.index(">Due<") < detail.index(">Study<")  # Due and Window come first
+
+
+def test_reserve_list_shows_retain_through_and_active_holds(client, people):
+    lot = make_lot(people)
+    reserve = services.record_reserve(
+        actor=people["quality"],
+        lot=lot,
+        reason="Reserve",
+        identifier="RES-RT",
+        container_description="Package",
+        storage_location="Cabinet",
+        quantity="25",
+        test_quantity="10",
+        quantity_unit="g",
+        minimum_multiple=2,
+        retained_on=timezone.localdate(),
+    )
+    for months in (12, 24):
+        services.add_obligation(
+            actor=people["quality"],
+            lot=lot,
+            reserve=reserve,
+            reason="Retention",
+            anchor_kind="last_distribution",
+            anchor_date=timezone.localdate(),
+            offset_months=months,
+            basis="Synthetic basis",
+        )
+    client.force_login(people["auditor"])
+    url = reverse("stability:reserve_list")
+    latest = max(o.retain_until for o in reserve.obligations.all())
+    page = client.get(url).content.decode()
+    assert latest.isoformat() in page and 'data-tone="hold"' not in page
+    services.place_hold(
+        actor=people["quality"], lot=lot, kind="quality", reason="Synthetic hold", reserve=reserve
+    )
+    page = client.get(url).content.decode()
+    assert 'data-tone="hold"' in page and ">Active<" in page
+
+
+def test_an_analyst_who_is_also_a_reviewer_is_offered_acceptance_once_the_tests_are_done(
+    client, people, django_user_model
+):
+    from django.contrib.auth.models import Group
+
+    from .helpers import assign, pulled, reviewed, specified_study
+
+    study, _ = specified_study(people)
+    pull = pulled(people, study)
+    tests = assign(people, pull)
+    both = django_user_model.objects.create_user("analyst_reviewer", password="synthetic-pass-2026")
+    both.groups.add(*Group.objects.filter(name__in=["analyst", "reviewer"]))
+    client.force_login(both)  # analyst and reviewer who authored nothing on this pull
+    url = reverse("stability:pull_detail", args=[pull.pk])
+    accept_url = reverse("stability:pull_accept", args=[pull.pk])
+    assert accept_url not in client.get(url).content.decode()  # tests still open
+    for test in tests:
+        reviewed(people, test)
+    page = client.get(url).content.decode()
+    assert f'class="btn btn-primary" href="{accept_url}"' in page
+    header = page[page.index('class="vr-page-actions"') :].split("</div>", 1)[0]
+    assert header.count("btn-primary") == 1

@@ -2,11 +2,12 @@ from django.urls import path
 
 from reporting import views as reporting_views
 
-from . import acceptance_views, certificate_views, rejection_views, views
+from . import acceptance_views, certificate_views, dashboard, rejection_views, views
 
 app_name = "quality"
 urlpatterns = [
-    path("", views.lot_list, name="lot_list"),
+    path("", dashboard.dashboard, name="dashboard"),
+    path("lots/", views.lot_list, name="lot_list"),
     path("lots/new/", views.lot_new, name="lot_new"),
     path("lots/<int:pk>/", views.lot_detail, name="lot_detail"),
     # The export reads every app's records, so it lives in reporting; it is part of the lot.

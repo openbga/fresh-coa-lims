@@ -4,8 +4,21 @@ urls: analytical:batch_new
 views: analytical.views.batch_new
 templates: analytical/form.html
 models: analytical.QCBatch
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Start a QC batch for one approved batch-method revision, then record its QC checks and add tests to it. Analysts only.
 ---
+
+## Common tasks
+### Create a QC batch
+1. Enter the [[Batch number]] and choose the [[Method revision]].
+2. Enter a [[Reason]] and select [[Create batch]]. The batch opens, ready for its QC checks.
+### Create a batch for tests on an earlier method revision
+1. In [[Method revision]], choose the revision marked "earlier version, for tests in progress".
+## Good to know
+- A test joins only a batch of the exact method revision frozen for it. An earlier revision is offered while tests in progress need it.
+- The method revision and its QC checks are frozen into the batch when you create it.
+- When no approved batch method is available, the page shows [[On hold]] instead of the form.
+- Batch numbers are unique; a number already used is refused.
 
 ## Purpose
 
@@ -19,7 +32,7 @@ Create a QC batch for one approved batch-method revision: the revision in force,
 ## Layout
 
 - Heading "New QC batch"; form: **Batch number**, **Method revision**, **Reason**, **Cancel**, **Create batch**.
-- When neither a method in force nor an earlier revision needed by tests in progress is available the form shows "No approved batch method is available; batches are held."
+- When neither a method in force nor an earlier revision needed by tests in progress is available, the page shows the blocking notice "On hold: No approved batch method is available; batches are held." and **Back to the list** instead of the form.
 
 ## Actions
 

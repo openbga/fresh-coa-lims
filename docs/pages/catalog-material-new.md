@@ -4,8 +4,22 @@ urls: catalog:material_new
 views: catalog.views.material_new
 templates: catalog/form.html
 models: catalog.Material
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Create a controlled material or product so that specifications and sampling plans can refer to it. Only the quality role can create materials.
 ---
+
+## Common tasks
+### Create a material
+1. In [[Code]], enter a short stable identifier, for example api-syn-001.
+2. Enter the [[Name]] and choose the [[Kind]].
+3. Explain why in [[Reason]], then select [[Create material]]. The Materials list opens.
+### Leave without creating
+1. Select [[Cancel]] to return to the Materials list.
+## Good to know
+- The code, name and kind cannot be edited or deleted after creation. Check them before you create the material.
+- A code can be used only once. An existing code is refused.
+- Use synthetic names only.
+- A material needs no approval or signature. Your reason is kept in the audit trail.
 
 ## Purpose
 

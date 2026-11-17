@@ -1,9 +1,9 @@
-{% comment %}Status of an analytical test as text plus tone. Parameters: test, plain.{% endcomment %}
-{% if test.state == "invalidated" %}{% include "includes/status.html" with label="Invalidated" tone="neutral" plain=plain %}
-{% elif test.state == "not_completed" %}{% include "includes/status.html" with label="Not completed" tone="neutral" plain=plain %}
-{% elif test.state == "superseded" %}{% include "includes/status.html" with label="Superseded · requirements replaced" tone="neutral" plain=plain %}
-{% elif test.state == "open" and test.supplier_result %}{% include "includes/status.html" with label="Not tested · supplier result" tone="info" plain=plain %}
-{% elif test.state == "open" %}{% include "includes/status.html" with label="Open" tone="progress" plain=plain %}
-{% elif test.conforms is False %}{% if test.state == "submitted" %}{% include "includes/status.html" with label="Out of specification · awaiting review" tone="danger" plain=plain %}{% else %}{% include "includes/status.html" with label="Out of specification · reviewed" tone="danger" plain=plain %}{% endif %}
-{% elif test.state == "submitted" %}{% include "includes/status.html" with label="Awaiting review" tone="info" plain=plain %}
-{% else %}{% include "includes/status.html" with label="Reviewed · conforms" tone="success" plain=plain %}{% endif %}
+{% load ui %}{% comment %}Status of an analytical test as text plus tone. Include with test=... plain=... only.{% endcomment %}
+{% if test.state == "invalidated" %}{% status label="Invalidated" tone="neutral" plain=plain %}
+{% elif test.state == "not_completed" %}{% status label="Not completed" tone="neutral" plain=plain %}
+{% elif test.state == "superseded" %}{% status label="Superseded · requirements replaced" tone="neutral" plain=plain %}
+{% elif test.state == "open" and test.supplier_result %}{% status label="Not tested · supplier result" tone="info" plain=plain %}
+{% elif test.state == "open" %}{% status label="Open" tone="progress" plain=plain %}
+{% elif test.conforms is False %}{% if test.state == "submitted" %}{% status label="Out of specification · awaiting review" tone="danger" plain=plain %}{% else %}{% status label="Out of specification · reviewed" tone="danger" plain=plain %}{% endif %}
+{% elif test.state == "submitted" %}{% status label="Awaiting review" tone="info" plain=plain %}
+{% else %}{% status label="Reviewed · conforms" tone="success" plain=plain %}{% endif %}

@@ -4,8 +4,31 @@ urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
 models: catalog.Method, catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One method and all its versions, newest first: procedure, suitability evidence, batch QC checks, calculation, signatures and history. Quality users build and approve drafts here.
 ---
+
+## Common tasks
+### Approve a draft version
+1. On the draft's card, select [[Review and approve]]. It shows only if you did not create or change that draft.
+2. Check the content and sign with your PIN on that page.
+### Start a new version
+1. Select [[New version]]. The draft copies the latest version's calculation and inputs, and its QC checks when it runs in a QC batch.
+### Set up the calculation of a draft
+1. Select [[Set formula]], or [[Change formula]] once one is set, and enter the formula, result unit and decimals.
+2. Select [[Add input]] once for each name the formula uses.
+3. To start again, select [[Clear calculation]]. It removes the formula and every input.
+### Add or remove batch QC checks
+1. On a draft that runs in a QC batch, select [[Add QC check]].
+2. To take a check or an input off, select [[Remove]] on its row.
+### Withdraw a draft
+1. Select [[Withdraw draft]] on the draft's card, then give a reason on that page. It shows only to quality users.
+## Good to know
+- You cannot approve a draft you created or changed, including its QC checks or calculation. The card then says another quality approver must sign.
+- A draft's procedure, suitability, resource options and effective period are fixed when it is created. To change them, create a new version.
+- The version in force is the approved one that applies now. Approving a later overlapping version retires it; it keeps its content and signature.
+- Approval is refused while the names in the formula and the inputs do not match exactly.
+- Lots keep the method versions frozen when their requirements were assigned.
 
 ## Purpose
 
@@ -20,8 +43,8 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, Methods, method code. The method title is under the heading.
-- **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Summary (only when entered), Controlled procedure, Suitability, Effective, QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Record revision, Author.
+- **Breadcrumbs**: Specifications and methods, Methods, method code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the method title.
+- **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Controlled procedure, Suitability, Effective, Summary (only when entered), QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Record revision, Author.
 - **Batch QC checks** (batch methods only): table Check, "Limits (inclusive)", with **Remove** on drafts for quality. Empty: "No QC checks yet. Approval requires at least one." **Add QC check** on drafts for quality.
 - **Calculation** (every version): formula, result unit and decimals, and a table Input, Unit with **Remove** on drafts for quality. Without a calculation: "No calculation. Results are entered directly." Without inputs: "No inputs yet. Approval requires one input for each name in the formula." On drafts for quality: **Set formula** (**Change formula** once set), **Add input** and, when there is a calculation, **Clear calculation**.
 - **Signatures** under each version: signer, meaning, time, record revision, hash, or "Not signed."

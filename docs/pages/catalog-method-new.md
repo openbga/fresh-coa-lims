@@ -4,8 +4,26 @@ urls: catalog:method_new
 views: catalog.views.method_new
 templates: catalog/form.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create a method with its draft version 1, linking the controlled procedure and the evidence that it suits its intended use. Only the quality role can create methods.
 ---
+
+## Common tasks
+### Create a method
+1. Enter the [[Code]] and [[Title]], then the [[Technique]] and the [[Controlled procedure]].
+2. Choose the [[Suitability basis]] and enter the [[Suitability evidence]].
+3. Set the [[Effective period]] and the [[Reason for change]], then select [[Create draft]]. The method record opens.
+4. Add batch QC checks or a calculation there if needed. Another quality user then approves the version.
+### Make a method that runs in a QC batch
+1. Tick [[Runs in a QC batch]]. Add at least one batch QC check on the method record before approval.
+### Require an instrument or reagent with every result
+1. Tick [[Records an instrument]] or [[Records a reagent or standard]]. Every result and batch QC entry must then record one.
+## Good to know
+- The code and title cannot be changed after creation, and the draft's content is fixed. To change the content, create a new version.
+- You become the author of version 1, so another quality user must approve it.
+- Tests cannot rely on the method until a version is approved.
+- The effective end is exclusive. Approving a later overlapping version ends this one earlier.
+- An existing method code is refused.
 
 ## Purpose
 

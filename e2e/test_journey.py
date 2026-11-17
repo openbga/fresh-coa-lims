@@ -5,6 +5,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.utils import timezone
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import ElectronicSignature, RuleSet
@@ -47,22 +48,23 @@ def test_lot_to_signed_disposition(live_server, settings, artifacts):
             page.get_by_label("Username").fill(username)
             page.get_by_label(re.compile(r"^Password\b")).fill(password)
             page.get_by_role("button", name="Sign in", exact=True).click()
-            expect(page.get_by_role("heading", name="Material lots", exact=True)).to_be_visible()
+            expect(page.get_by_role("heading", name="Dashboard", exact=True)).to_be_visible()
 
         login("analyst")
         page.locator(".vr-page-actions").get_by_role("link", name="New material lot").click()
         page.get_by_label(re.compile(r"^Lot number\b")).fill("SYNTHETIC-BROWSER-001")
         page.get_by_label(re.compile(r"^Material\b")).fill("Synthetic calibration material")
-        page.get_by_label(re.compile(r"^Rule set\b")).select_option(label="browser-synthetic v1")
+        pick(page.get_by_label(re.compile(r"^Rule set\b")), label="browser-synthetic v1")
         # Receipt details are part of receiving a lot; the date received defaults to today.
-        page.get_by_label(re.compile(r"^Source\b")).select_option(label="Made on site")
+        pick(page.get_by_label(re.compile(r"^Source\b")), label="Made on site")
         page.get_by_label(re.compile(r"^Delivery or batch document\b")).fill("BR-SYNTHETIC-001")
         page.get_by_label(re.compile(r"^Quantity received\b")).fill("5")
-        page.get_by_label(re.compile(r"^Quantity unit\b")).select_option(label="kg")
+        pick(page.get_by_label(re.compile(r"^Quantity unit\b")), label="kg")
         page.get_by_label(re.compile(r"^Number of containers\b")).fill("1")
         page.get_by_label(re.compile(r"^Containers\b")).fill("Synthetic 5 kg jar")
-        page.get_by_label(re.compile(r"^Examination on receipt\b")).select_option(
-            label="No discrepancy found"
+        pick(
+            page.get_by_label(re.compile(r"^Examination on receipt\b")),
+            label="No discrepancy found",
         )
         page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic receipt")
         page.get_by_role("button", name="Receive lot", exact=True).click()
@@ -100,7 +102,7 @@ def test_lot_to_signed_disposition(live_server, settings, artifacts):
         page.get_by_label(re.compile(r"^Signature PIN\b")).fill(pin)
         page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic disposition")
         page.get_by_role("button", name="Sign approved", exact=True).click()
-        expect(page.get_by_text("Released", exact=True)).to_be_visible()
+        expect(page.locator(".vr-page-meta").get_by_text("Released", exact=True)).to_be_visible()
         screenshots = artifacts
         page.screenshot(path=str(screenshots / "journey-desktop.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})

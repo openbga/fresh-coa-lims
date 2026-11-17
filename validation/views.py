@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html, format_html_join
 from django.views.decorators.http import require_http_methods
 
 from catalog.web import form_status, run
@@ -23,6 +24,7 @@ from laboratory.ui import (
     list_page,
     make_filter,
     paginate,
+    person,
     record_page,
     section,
     sign_page,
@@ -202,10 +204,9 @@ def use_list(request):
         label, tone = services.use_status(item)
         rows.append(
             [
-                cell(item.label, use_url(item)),
-                item.title,
+                cell(item.label, use_url(item), sub=item.title),
                 status(label, tone),
-                str(item.recorded_by),
+                person(item.recorded_by),
                 day(timezone.localdate(item.recorded_at)),
                 day(timezone.localdate(item.accepted_at)) if item.accepted_at else "",
                 _drift_text(rows_now, finding) if current and item.pk == current.pk else "",
@@ -229,7 +230,6 @@ def use_list(request):
         noun="records",
         columns=[
             ("Record", None, False),
-            ("Title", "title", False),
             ("State", None, False),
             ("Recorded by", None, False),
             ("Recorded", "recorded", False),
@@ -360,9 +360,14 @@ def _changes_section(rows):
     )
 
 
+def _chip(text):
+    """A code kept whole on one line (Line code chip), for codes inside a sentence of facts."""
+    return format_html('<code class="vr-code">{}</code>', text)
+
+
 def _outside_text(acceptance, configuration):
     outside = services.outside_assays(acceptance.method_codes, configuration)
-    return ", ".join(outside) if outside else "None"
+    return format_html_join(", ", "{}", ((_chip(code),) for code in outside)) if outside else "None"
 
 
 @login_required
@@ -416,7 +421,7 @@ def use_detail(request, pk):
         ("Validation report", acceptance.validation_ref),
         ("Validation report link", external_link(acceptance.validation_url)),
         ("Known issues and conditions", acceptance.open_issues),
-        ("Recorded by", str(acceptance.recorded_by)),
+        ("Recorded by", person(acceptance.recorded_by)),
         ("Recorded", stamp(acceptance.recorded_at)),
         ("Accepted", stamp(acceptance.accepted_at)),
         ("Accepted release", _release_text(acceptance.accepted_release))
@@ -442,7 +447,12 @@ def use_detail(request, pk):
             if services.has_role(user, services.KEEPER)
             and not services.use_denial(user, acceptance, accept=True)
             else None,
-            action("Withdraw", reverse("validation:use_withdraw", args=[acceptance.pk]))
+            action(
+                "Withdraw",
+                reverse("validation:use_withdraw", args=[acceptance.pk]),
+                danger=True,
+                more=True,
+            )
             if not services.use_denial(user, acceptance, accept=False)
             else None,
         ],
@@ -456,9 +466,11 @@ def _configuration_text(configuration):
     parts = []
     for key, label in services.KINDS:
         entries = configuration.get(key, [])
-        listed = ", ".join(f"{e['code']} v{e['version']}" for e in entries) or "none"
-        parts.append(f"{label}s: {listed}")
-    return "; ".join(parts)
+        listed = format_html_join(
+            ", ", "{}", ((_chip(f"{e['code']} v{e['version']}"),) for e in entries)
+        )
+        parts.append(format_html("{}s: {}", label, listed or "none"))
+    return format_html_join("; ", "{}", ((part,) for part in parts))
 
 
 @login_required
@@ -499,9 +511,13 @@ def use_accept(request, pk):
             ("Outside the intended use", acceptance.exclusions),
             (
                 "Supported assays",
-                ", ".join(
-                    f"{titles.get(e['code'], e['code'])} ({e['code']} v{e['version']})"
-                    for e in supported
+                format_html_join(
+                    ", ",
+                    "{} {}",
+                    (
+                        (titles.get(e["code"], e["code"]), _chip(f"{e['code']} v{e['version']}"))
+                        for e in supported
+                    ),
                 ),
             ),
             (
@@ -520,7 +536,7 @@ def use_accept(request, pk):
                 "Supersedes",
                 f"{current.label}, accepted {stamp(current.accepted_at)}" if current else "None",
             ),
-            ("Recorded by", str(acceptance.recorded_by)),
+            ("Recorded by", person(acceptance.recorded_by)),
         ],
         revision=acceptance.revision,
         cancel_url=detail,
@@ -622,9 +638,8 @@ def rehearsal_list(request):
         label, tone = services.rehearsal_status(item)
         rows.append(
             [
-                cell(item.label, rehearsal_url(item)),
+                cell(item.label, rehearsal_url(item), sub=item.title),
                 item.get_kind_display(),
-                item.title,
                 day(item.performed_on),
                 item.release,
                 status(label, tone),
@@ -641,7 +656,6 @@ def rehearsal_list(request):
         columns=[
             ("Record", None, False),
             ("Rehearsal of", "kind", False),
-            ("Title", "title", False),
             ("Performed", "performed", False),
             ("Release", None, False),
             ("Status", None, False),
@@ -705,7 +719,7 @@ def _files_section(files):
             item.description,
             cell(size_text(item.size), numeric=True),
             item.sha256,
-            str(item.uploaded_by),
+            person(item.uploaded_by),
             stamp(item.uploaded_at),
         ]
         for item in files
@@ -716,9 +730,9 @@ def _files_section(files):
             ("File", False),
             ("What it is", False),
             ("Size", True),
-            ("SHA-256", False),
-            ("Attached by", False),
-            ("Attached", False),
+            ("SHA-256", False, "low"),
+            ("Attached by", False, "medium"),
+            ("Attached", False, "medium"),
         ],
         rows,
         "No evidence attached yet.",
@@ -741,7 +755,7 @@ def _rehearsal_facts(rehearsal):
         ("Outcome", rehearsal.get_outcome_display()),
         ("Observations", rehearsal.observations),
         ("Issues and actions", rehearsal.issues_and_actions),
-        ("Recorded by", str(rehearsal.recorded_by)),
+        ("Recorded by", person(rehearsal.recorded_by)),
     ]
     return [fact for fact in facts if fact]
 
@@ -791,7 +805,12 @@ def rehearsal_detail(request, pk):
             action("Accept", reverse("validation:rehearsal_accept", args=[rehearsal.pk]), True)
             if not services.rehearsal_denial(user, rehearsal, accept=True)
             else None,
-            action("Withdraw", reverse("validation:rehearsal_withdraw", args=[rehearsal.pk]))
+            action(
+                "Withdraw",
+                reverse("validation:rehearsal_withdraw", args=[rehearsal.pk]),
+                danger=True,
+                more=True,
+            )
             if services.has_role(user, *services.REHEARSAL_RECORDERS)
             and not services.rehearsal_denial(user, rehearsal, accept=False)
             else None,
@@ -906,7 +925,11 @@ def rehearsal_accept(request, pk):
             *_rehearsal_facts(rehearsal),
             (
                 "Evidence files",
-                "; ".join(f"{f.filename} ({f.description}, SHA-256 {f.sha256})" for f in files)
+                format_html_join(
+                    "; ",
+                    '{} ({}, SHA-256 <code class="vr-code" title="{}">{}</code>)',
+                    ((f.filename, f.description, f.sha256, f.sha256[:12]) for f in files),
+                )
                 or "None",
             ),
         ],

@@ -5,6 +5,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from core.models import ElectronicSignature
@@ -90,7 +91,7 @@ def test_quality_rejects_a_lot_and_cancels_one_received_in_error(
         page.get_by_role("button", name="Sign and reject the lot", exact=True).click()
         expect(page.get_by_text("This field is required.").first).to_be_visible()
         expect(field("Signature PIN")).to_have_value("")
-        field("Grounds for the rejection").select_option(index=1)
+        pick(field("Grounds for the rejection"), index=1)
         field("Record in the quality system").fill("NCR-SYN-020")
         field("Signing username").fill("rt_approver")
         field("Signature PIN").fill("00000000")
@@ -115,10 +116,10 @@ def test_quality_rejects_a_lot_and_cancels_one_received_in_error(
 
         # The list filtered by status shows the lot.
         page.goto(list_url)
-        page.get_by_label("Status", exact=True).select_option(label="Rejected")
+        pick(page.get_by_label("Status", exact=True), label="Rejected")
         page.get_by_role("button", name=re.compile("^(Filter|Apply|Search)")).first.click()
         expect(page.get_by_role("link", name=lot.number, exact=True)).to_be_visible()
-        page.get_by_label("Status", exact=True).select_option(label="Quarantine")
+        pick(page.get_by_label("Status", exact=True), label="Quarantine")
         page.get_by_role("button", name=re.compile("^(Filter|Apply|Search)")).first.click()
         expect(page.get_by_role("link", name=lot.number, exact=True)).to_have_count(0)
         browser.close()
@@ -146,6 +147,7 @@ def test_quality_cancels_a_lot_received_in_error(live_server, django_user_model,
 
         login("rt_approver")
         page.goto(lot_url)
+        page.get_by_role("button", name="More", exact=True).click()  # a corrective action
         page.get_by_role("link", name="Cancel lot received in error").click()
         expect(page).to_have_url(cancel_url)
         field("What was recorded in error").fill("Synthetic: delivery recorded twice")

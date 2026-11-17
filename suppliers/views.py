@@ -3,14 +3,17 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from catalog.web import can, form_status, history, page, run, sorted_by
+from core.grids import Column
 from core.services import require_role
 
 from . import services
 from .forms import SupplierForm
 from .models import Supplier
+from .qualification import qualification_status
 
 SECTION = "Suppliers"
 # A lot's receipt details are append-only; the record without a correction is the current one.
@@ -19,6 +22,33 @@ CURRENT = Q(receipts__corrected_by__isnull=True)
 
 def read_access(request):
     require_role(request.user, *services.READ_ROLES)
+
+
+SUPPLIER_COLUMNS = (
+    Column("supplier", "Supplier", asc="code", desc="-code", locked=True),
+    Column("location", "Location", priority="medium"),
+    Column("qualification", "Qualification"),
+    Column("lots", "Lots received", css="text-end"),
+    Column("created", "Created", priority="low"),
+)
+
+
+# A supplier's qualifications ranked for its list row: the one that lets results be relied on
+# soonest and longest first, then those awaiting approval, then expired and revoked.
+QUALIFICATION_RANK = [
+    "Approved",
+    "Expiring soon",
+    "Approved, starts later",
+    "Awaiting approval",
+    "Expired",
+    "Revoked",
+]
+
+
+def best_qualification(qualifications, today):
+    """(label, tone) of the supplier's best qualification state, or None when it has none."""
+    states = [qualification_status(q, today) for q in qualifications]
+    return min(states, key=lambda state: QUALIFICATION_RANK.index(state[0]), default=None)
 
 
 @login_required
@@ -41,12 +71,17 @@ def supplier_list(request):
         },
         "code",
     )
+    page_obj = page(request, suppliers.prefetch_related("qualifications"))
+    today = timezone.localdate()
+    for supplier in page_obj:
+        supplier.qualification = best_qualification(supplier.qualifications.all(), today)
     return render(
         request,
         "suppliers/list.html",
         {
             "page_title": SECTION,
-            "page_obj": page(request, suppliers),
+            "columns": SUPPLIER_COLUMNS,
+            "page_obj": page_obj,
             "query": query,
             "sort": sort,
             "filtered": bool(query),

@@ -355,6 +355,24 @@ def disposition_denial(actor, lot):
     return SELF_DISPOSITION if actor.pk in disposition_authors(lot) else ""
 
 
+def disposition_blockers(lot):
+    """Every message that blocks signing the QC disposition of lot, in the order dispose_lot
+    reports them: active stability holds, then, for native evidence or outside DEBUG, the
+    sampling and analytical evidence. Read-only; dispose_lot calls it on the locked row and the
+    lot record shows exactly this list."""
+    from analytical.gates import lot_blockers
+    from analytical.models import AnalyticalTest
+    from sampling.services import current_assignment
+    from sampling.services import lot_blockers as sampling_blockers
+    from stability.gates import lot_blockers as hold_blockers
+
+    problems = hold_blockers(lot)
+    native = current_assignment(lot) is not None or AnalyticalTest.objects.filter(lot=lot).exists()
+    if native or not settings.DEBUG:
+        problems += sampling_blockers(lot) + lot_blockers(lot)
+    return problems
+
+
 @sensitive_variables("pin")
 def dispose_lot(*, actor, pin, lot, expected_revision, reason):
     def apply(locked):
@@ -365,14 +383,13 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
         if problems := hold_blockers(locked):
             raise ValidationError(problems)
         required = set(effective_rules(locked.rules))
-        from analytical.gates import lot_blockers, lot_evidence
+        from analytical.gates import lot_evidence
         from analytical.models import AnalyticalTest
         from sampling.services import (
             current_assignment,
             current_requirements,
             require_additional_rules,
         )
-        from sampling.services import lot_blockers as sampling_blockers
 
         assignment = current_assignment(locked)
         native = assignment is not None or AnalyticalTest.objects.filter(lot=locked).exists()
@@ -382,7 +399,8 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
             require_additional_rules(locked)
             if not locked.samples.exists():
                 raise ValidationError("The lot requires a sampled and tested record.")
-            problems = sampling_blockers(locked) + lot_blockers(locked)
+            # The holds were found empty above under this lock, so this is the evidence part.
+            problems = disposition_blockers(locked)
             if problems:
                 raise ValidationError(problems)
             if actor.pk in disposition_authors(locked):

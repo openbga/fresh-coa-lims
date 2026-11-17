@@ -1,0 +1,9 @@
+{% load ui %}{% comment %}
+Structured data as ordinary facts (Line emphasis kit 4, option A): one {% fact %} per key into the
+surrounding dl.vr-facts, flat; keys humanised, nested keys prefixed by their parent
+("applies_to.materials" → "Applies to materials"); lists of codes as {% code %} chips; booleans
+Yes/No; ISO moments through |when; empty "—". Never a repr. Rendered by {% policy_facts %}
+({% load ui %}). For a table cell use {% value_list compact=True %}.
+Parameters: data (a dict, e.g. RuleSet.policy); exclude (comma-separated keys shown elsewhere).
+Usage: <dl class="vr-facts">{% policy_facts data=record.policy %}{% fact label="Author" … %}</dl>
+{% endcomment %}{% for label, kind, value in rows %}{% if kind == "empty" %}{% fact label=label value=None %}{% elif kind == "codes" and value|length > 3 %}{% fact label=label wide=True %}{% for item in value %}{% code value=item %}{% if not forloop.last %} {% endif %}{% endfor %}{% endfact %}{% elif kind == "codes" %}{% fact label=label %}{% for item in value %}{% code value=item %}{% if not forloop.last %} {% endif %}{% endfor %}{% endfact %}{% elif kind == "moment" %}{% fact label=label %}{{ value|when }}{% endfact %}{% else %}{% fact label=label value=value %}{% endif %}{% endfor %}

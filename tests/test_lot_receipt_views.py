@@ -72,7 +72,11 @@ def test_new_lot_form_groups_the_receipt_details(client, people, rules, supplier
         assert f"<legend>{legend}</legend>" in body
     for label in ("Lot number", "Supplier lot number", "Date received", "Number of containers"):
         assert label in body
-    assert "sup-syn-001 · Synthetic Ingredients Supply" in body
+    # The supplier menu loads the register from its lookup as the analyst types.
+    lookup = reverse("core:lookup", args=["suppliers"])
+    assert 'name="supplier"' in body and f'data-vr-lookup="{lookup}"' in body
+    offered = [item["text"] for item in client.get(lookup).json()["results"]]
+    assert offered == ["sup-syn-001 · Synthetic Ingredients Supply"]
     assert f'value="{timezone.localdate().isoformat()}"' in body  # Today, in the laboratory zone.
 
 

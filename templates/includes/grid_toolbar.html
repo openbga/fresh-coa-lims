@@ -1,0 +1,53 @@
+{% comment %}
+The one list toolbar (docs/ui-standards.md, Lists and forms), above the list's table: search, up
+to three everyday filters, More filters (a Bootstrap collapse), Apply, Clear all when anything is
+active, Columns at the right, then the active filters as removable chips. A GET form to this page:
+the server filters, sorts and paginates; changing a filter returns to page 1. Rendered by
+{% grid_toolbar %} ({% load ui %}).
+Parameters:
+  label        accessible name of the form, e.g. "Filter material lots" (required)
+  q            current search text; search_label (default "Search"), placeholder and search_id
+               (default "grid-q") tune the search box
+  no_search    truthy for a list without free-text search
+  inline       bound fields shown in the row (a filter form, or a list of its fields)
+  more         bound fields behind More filters; omit when there are none
+  more_open    truthy when one of the "more" filters is active; the panel also opens when invalid
+  invalid      truthy when the filter form has errors; opens More filters
+  chips        the active filters as [{label, value, remove_url}]: removable chips under the toolbar
+  active       truthy when any filter or search is active (a default value is not); shows Clear all.
+               chips or q also count
+  clear_url    target of Clear all; default request.path
+  grid         the table's data-vr-grid key: renders the Columns button
+  sort         the current sort value, carried when hidden is not given
+  hidden       bound hidden fields to carry; without it sort and rows per page are carried
+  submit_label the submit's words (default "Apply")
+  note         one sentence of help under the fields (e.g. how dates are read)
+  extra_name, extra_value, extra_label   a second submit button (e.g. name="export" value="csv"
+               "Export filtered CSV")
+Usage:
+  {% grid_toolbar label="Filter material lots" q=query inline=filter_form active=filtered sort=sort %}
+{% endcomment %}
+{% load ui %}{% firstof grid label "grid" as grid_name %}{% with more_id=grid_name|slugify|add:"-more" %}
+<form class="vr-grid-toolbar" method="get" action="{{ request.path }}" role="search" aria-label="{{ label }}" novalidate>
+  {% if not no_search %}{% firstof search_label "Search" as search_text %}{% grid_search value=q id=search_id label=search_text name="q" placeholder=placeholder %}{% endif %}
+  {% for field in inline %}{% if field.is_hidden %}{{ field }}{% else %}{{ field.as_field_group }}{% endif %}{% endfor %}
+  <div class="vr-filter-actions">
+    {% if more %}<button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ more_id }}" aria-expanded="{% if more_open or invalid %}true{% else %}false{% endif %}" aria-controls="{{ more_id }}">{% icon name="funnel" %}More filters</button>{% endif %}
+    <button class="btn btn-outline-secondary" type="submit">{{ submit_label|default:"Apply" }}</button>
+    {% if extra_name %}<button class="btn btn-outline-secondary" type="submit" name="{{ extra_name }}" value="{{ extra_value }}">{{ extra_label }}</button>{% endif %}
+    {% if active or chips or q %}<a class="btn btn-link" href="{% if clear_url %}{{ clear_url }}{% else %}{{ request.path }}{% endif %}">Clear all</a>{% endif %}
+  </div>
+  {% if grid %}<div class="vr-grid-tools">{% grid_columns_button grid=grid %}</div>{% endif %}
+  {% if more %}
+  <div class="vr-grid-more collapse{% if more_open or invalid %} show{% endif %}" id="{{ more_id }}">
+    {% for field in more %}{{ field.as_field_group }}{% endfor %}
+  </div>
+  {% endif %}
+  {% if note %}<p class="form-text vr-grid-note">{{ note }}</p>{% endif %}
+  {% if hidden %}{% for field in hidden %}{{ field }}{% endfor %}{% else %}
+  {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+  {% if request.GET.per_page %}<input type="hidden" name="per_page" value="{{ request.GET.per_page }}">{% endif %}
+  {% endif %}
+</form>
+{% filter_chips chips=chips %}
+{% endwith %}

@@ -4,8 +4,23 @@ urls: stability:overview
 views: stability.views.overview
 templates: ops/overview.html
 models: stability.Pull, stability.Protocol, stability.Study, stability.Hold, stability.RetentionObligation, stability.ReserveSample
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Stability work queues at a glance: overdue and due pulls, pulls awaiting acceptance, draft protocols, active holds and reserve gaps. Each count opens the list that resolves it.
 ---
+
+## Common tasks
+### See what needs attention
+1. Look for queues marked [[Needs attention]]. A queue with nothing waiting shows [[Clear]].
+2. Select a queue name, such as [[Pulls overdue]], to open its list already filtered to those records.
+### Open a stability list
+1. Select [[Protocols]], [[Studies]], [[Pulls]], [[Reserves]] or [[Holds]] in the tabs above the title.
+### Check reserves and retention
+1. Select [[Reserves below minimum quantity]] or [[Retention anchors not yet known]] to open the reserve samples list.
+## Good to know
+- The pull queues count pulls of active studies only. The pulls list they open also shows pulls of closed studies, so its count can be higher.
+- Due now runs from the first to the last day of a pull's window, by today's local date. Overdue means the window has closed and the pull was not taken.
+- An accepted pull can still be outside its acceptance criteria. [[Pulls outside acceptance criteria]] counts those.
+- [[Retention anchors not yet known]] counts obligations, not reserves, and opens the whole reserve samples list rather than a filtered one.
 
 ## Purpose
 
@@ -19,7 +34,7 @@ Work queues for stability pulls, studies, protocols, holds, retention anchors an
 ## Layout
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
-- Title "Stability and retention", the introduction (a pull is tested in the system against the acceptance criteria of its protocol, or linked to an external stability system where one is used) and one list of queues, each with a count. A zero count is shown in a neutral tone. The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Pulls outside acceptance criteria (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
+- Title "Stability and retention", the introduction (a pull is tested in the system against the acceptance criteria of its protocol, or linked to an external stability system where one is used) and today's date under the title. One table of queues: Queue (links to the filtered list), Records (the count) and Attention ("Needs attention" in the queue's tone when the count is above zero, "Clear" in the neutral tone when it is zero). The queues: Pulls overdue; Pulls due now; Pulls awaiting acceptance (active studies only); Pulls outside acceptance criteria (active studies only); Active studies; Protocols awaiting approval; Active holds; Retention anchors not yet known; Reserves below minimum quantity.
 
 Queue names wrap on narrow screens to keep counts and attention labels easier to see. Wide tables can be scrolled sideways.
 

@@ -5,7 +5,21 @@ views: validation.views.rehearsal_file_new, validation.views.rehearsal_file
 templates: analytical/raw_file_form.html
 models: validation.RehearsalFile, validation.Rehearsal, core.AuditEvent
 reviewed: 2026-11-17
+summary: Attach a file of evidence to a rehearsal, such as a restore check report or a reconciliation record. The file is kept exactly as received, with its SHA-256.
 ---
+
+## Common tasks
+### Attach a file of evidence
+1. Choose the file in [[File]]. [[Size limit]] shows the largest file accepted.
+2. Describe it in [[What the file is]], for example restore check report.
+3. Select [[Attach file]]. You return to the rehearsal.
+### Leave without attaching
+1. Select [[Cancel]] to return to the rehearsal. Nothing is stored.
+## Good to know
+- Only the person who recorded the rehearsal attaches its evidence, and only while it awaits acceptance.
+- An empty file, or one whose content is already attached to this rehearsal, is refused.
+- An attached file cannot be removed or replaced. Check the file before you attach it.
+- Attaching raises the record's revision, so a signing page opened before is refused as changed.
 
 ## Purpose
 

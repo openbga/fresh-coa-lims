@@ -51,12 +51,17 @@ MIDDLEWARE = [
     "config.security.ContentSecurityPolicyMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # Outside the session, sign-in and CSRF layers, so it sees their redirects too: a redirect
+    # answering the form dialog becomes an HTMX instruction (core/form_dialog.py).
+    "core.form_dialog.FormDialogMiddleware",
     # Ahead of the CSRF check, which is the first code to read a submitted form.
     "core.uploads.UploadSizeMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "core.session_control.ControlledSessionMiddleware",
+    # Re-applies each user's saved page size and sort to list views (presentation only).
+    "core.preferences.GridPreferenceMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 ROOT_URLCONF = "config.urls"
@@ -73,6 +78,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.account_navigation",
                 "core.context_processors.product",
+                "core.form_surfaces.form_presentation",
             ]
         },
     }

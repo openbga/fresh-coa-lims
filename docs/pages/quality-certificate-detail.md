@@ -4,8 +4,26 @@ urls: quality:certificate_detail
 views: quality.certificate_views.certificate_detail
 templates: quality/certificate_detail.html
 models: quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Lot, quality.LotReceipt, suppliers.Supplier
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One supplier certificate of a lot: what it states, each result compared with the lot's requirement, and its history. Analysts can correct it, withdraw it or propose a result in place of a test.
 ---
+
+## Common tasks
+### Propose a result in place of a test
+1. In [[Results stated by the supplier]], select [[Propose in place of a test]] under the result. Analysts only, while the lot is in Quarantine.
+2. When a result cannot be proposed, its line says why. Fix the cause or test the requirement in the laboratory.
+### Correct the certificate record
+1. Select [[Correct supplier certificate]] and fix what was entered wrongly. The earlier record stays in [[History]].
+### Withdraw a record that should not stand
+1. Select [[Withdraw supplier certificate]], for example for a certificate recorded on the wrong lot.
+### Check the lot number against the receipt
+1. Read [[Lot number on the certificate]]. It shows [[As on the receipt]] or [[Differs from the receipt]].
+## Good to know
+- A stated result counts towards QC disposition only once a reviewer accepts it in place of a test.
+- A result that does not meet the specification does not hold the lot. Place a hold from [[Holds]] if it must not be dispositioned.
+- Comparisons stand as recorded. [[Requirement no longer current]] means the requirements changed since; correct the record to compare again.
+- Correcting or withdrawing this record makes any proposal or acceptance taken from it stop standing until it is withdrawn on its own record.
+- A withdrawn record stays readable but cannot be corrected or withdrawn again.
 
 ## Purpose
 
@@ -95,4 +113,4 @@ Shows one supplier certificate of a lot: the current record of what the certific
 - Supplier record; Sign lot disposition.
 - [Holds](/stability/holds/)
 - [Audit trail](/audit/)
-- [Material lots](/)
+- [Material lots](/lots/)

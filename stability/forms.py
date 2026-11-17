@@ -2,6 +2,7 @@ from django import forms
 from django.utils import timezone
 
 from catalog.models import Specification
+from core.lookups import RemoteSelect
 from laboratory.eligibility import equipment_eligibility
 from laboratory.forms import (
     DATE,
@@ -40,6 +41,7 @@ class SpecificationChoiceField(forms.ModelChoiceField):
 class ProtocolForm(forms.ModelForm):
     specification = SpecificationChoiceField(
         queryset=Specification.objects.none(),
+        widget=RemoteSelect("specifications"),
         required=False,
         label="Acceptance criteria (specification)",
         help_text="The specification whose approved version in force states the acceptance "
@@ -104,7 +106,7 @@ class TimepointForm(forms.ModelForm):
 class StudyForm(forms.Form):
     identifier = forms.CharField(max_length=60)
     protocol = forms.ModelChoiceField(queryset=Protocol.objects.none(), label="Approved protocol")
-    lot = forms.ModelChoiceField(queryset=Lot.objects.none())
+    lot = forms.ModelChoiceField(queryset=Lot.objects.none(), widget=RemoteSelect("study-lots"))
     container_closure = forms.CharField(max_length=200, label="Container and closure")
     start_date = date_field(
         label="Time zero", help_text="Date the study actually started; today or earlier."
@@ -226,6 +228,7 @@ class ReserveForm(forms.ModelForm):
             "minimum_multiple",
             "retained_on",
         ]
+        widgets = {"lot": RemoteSelect("lots")}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -244,7 +247,9 @@ class ObligationForm(forms.ModelForm):
     def __init__(self, *args, with_lot=False, **kwargs):
         super().__init__(*args, **kwargs)
         if with_lot:
-            self.fields["lot"] = forms.ModelChoiceField(queryset=WITH_MATERIAL.order_by("number"))
+            self.fields["lot"] = forms.ModelChoiceField(
+                queryset=WITH_MATERIAL.order_by("number"), widget=RemoteSelect("lots")
+            )
             self.order_fields(["lot", *self.Meta.fields, "reason"])
 
 
@@ -254,7 +259,7 @@ class AnchorForm(forms.Form):
 
 
 class HoldForm(forms.Form):
-    lot = forms.ModelChoiceField(queryset=Lot.objects.none())
+    lot = forms.ModelChoiceField(queryset=Lot.objects.none(), widget=RemoteSelect("lots"))
     kind = forms.ChoiceField(choices=Hold.Kind.choices)
     reference = forms.CharField(
         max_length=200, required=False, help_text="Investigation, CAPA or matter ID."

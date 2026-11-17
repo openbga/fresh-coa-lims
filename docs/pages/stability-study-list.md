@@ -4,8 +4,25 @@ urls: stability:study_list
 views: stability.views.study_list
 templates: ops/list.html
 models: stability.Study
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: Every stability study, one per approved protocol, lot and container closure. Find a study, open its pull schedule, or start a new study.
 ---
+
+## Common tasks
+### Find a study
+1. Type a study ID, lot number or product in [[Search]].
+2. To see only one state, choose it in [[Status]].
+3. Select [[Apply]], then select a study to open its record.
+### Start a new study
+1. Select [[New study]]. It shows only to analysts and quality users.
+2. Choose the approved protocol and the lot on that page and select [[Start study]]. Its pulls are scheduled from time zero.
+### See every study again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- The latest time zero comes first, not the study recorded most recently.
+- Search covers study IDs, lot numbers and the protocol's product. It does not search the container closure.
+- A second study with the same protocol, lot and container closure is refused.
+- Completed and Terminated studies are closed. Their pulls take no more testing.
 
 ## Purpose
 
@@ -21,8 +38,8 @@ One study per approved protocol, lot and container closure; the entry point to e
 
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and a **New study** button for Analyst, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (study ID, lot number or product) and **Status** (All, Active, Completed, Terminated). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Study (links to the record), Lot (number), Protocol (protocol identifier), Container closure, Time zero, State. Sort by Time zero (newest first by default), Study (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (study ID, lot number or product) and **Status** (All, Active, Completed, Terminated). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Study (links to the record, with the protocol identifier under it), Lot (links to the lot, with the protocol's product under it), Container closure, Time zero, State. Sort by Time zero (newest first by default), Study (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Start a study on an approved protocol to schedule its pulls."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -31,7 +48,7 @@ One study per approved protocol, lot and container closure; the entry point to e
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New study** | Your role can create it | Analyst, Quality | Opens the New study form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

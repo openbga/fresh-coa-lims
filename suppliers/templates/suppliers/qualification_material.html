@@ -1,18 +1,9 @@
 {% extends "base.html" %}
-{% comment %}First step of recording a supplier qualification: choose the material. Nothing is written.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% load ui %}
+{% comment %}First step of recording a supplier qualification: choose the material. Nothing is written. Context: page_title, crumbs, supplier, form, cancel_url.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">A qualification covers one material. Choose it first: the tests it can cover are those of the material's specifications.</p>{% endblock %}
 {% block content %}
-<section class="card mb-3" aria-labelledby="facts-heading">
-  <div class="card-header"><h2 class="card-title" id="facts-heading">Record</h2></div>
-  <div class="card-body"><dl class="vr-facts mb-0"><div><dt>Supplier</dt><dd>{{ supplier }}</dd></div></dl></div>
-</section>
-<form class="vr-form" method="get" novalidate>
-  {% include "includes/form_errors.html" with form=form %}
-  {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
-  <div class="vr-form-actions">
-    <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
-    <button class="btn btn-primary" type="submit">Continue</button>
-  </div>
-</form>
+{% panel title="Record" heading_id="facts-heading" class="mb-3" %}<dl class="vr-facts mb-0">{% fact label="Supplier" value=supplier %}</dl>{% endpanel %}
+{% form_page form=form method="get" cancel_url=cancel_url submit_label="Continue" %}{% endform_page %}
 {% endblock %}

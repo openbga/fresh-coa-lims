@@ -1,126 +1,202 @@
 {% extends "base.html" %}
-{% block title %}{{ lot.number }} · OpenBGA QM LIMS{% endblock %}
-{% block page_header %}{% endblock %}
-{% block content %}
-<p><a href="{% url 'quality:lot_list' %}">Material lots</a></p><h1>{{ lot.number }}</h1>
-<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{% include "quality/includes/lot_status.html" %}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<br>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% endfor %}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
-{% if lot.state == 'quarantine' %}<div class="d-flex flex-wrap gap-2 mb-4">{% if can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">Add sample</a>{% endif %}{% if can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a><a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">Reject lot</a><a class="btn btn-outline-secondary" href="{% url 'quality:lot_cancel' lot.pk %}">Cancel lot received in error</a>{% endif %}</div>{% endif %}
-{% if decision %}
-<section class="card mb-4" aria-labelledby="decision-heading">
-  <div class="card-header"><h2 class="card-title mb-0" id="decision-heading">{% if lot.state == 'rejected' %}Rejection{% else %}Cancelled as received in error{% endif %}</h2></div>
-  <div class="card-body">
-    <dl class="vr-facts">
-      {% if decision.grounds %}<div><dt>Grounds</dt><dd>{{ decision.grounds }}</dd></div>{% endif %}
-      <div><dt>Reason</dt><dd>{{ decision.reason|linebreaksbr }}</dd></div>
-      <div><dt>Record in the quality system</dt><dd>{{ decision.evidence.reference|default:"Not stated" }}</dd></div>
-      {% if decision.signature %}<div><dt>Signed by</dt><dd>{{ decision.signature.signer_name }} · <time datetime="{{ decision.signature.signed_at|date:'c' }}">{{ decision.signature.signed_at|date:"Y-m-d H:i" }} UTC</time> · lot revision {{ decision.signature.revision }}</dd></div>{% endif %}
-      {% if lot.state == 'rejected' %}<div><dt>Tests at the rejection</dt><dd>{{ decision.tests }}{% if decision.unfinished %} · {{ decision.unfinished|length }} not finished: {% for row in decision.unfinished %}{{ row.label }} {{ row.test_code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</dd></div>{% endif %}
-    </dl>
-    {% if lot.state == 'rejected' %}{% if decision.evidence.outstanding %}<h3 class="h6 mt-3">What stood in the way of release</h3><ul class="mb-0 ps-3 text-break">{% for item in decision.evidence.outstanding %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">The release gates found nothing missing or failing when the lot was rejected.</p>{% endif %}{% endif %}
-    <p class="mt-3 mb-0">The lot takes no more receipt, sampling, certificate or test records and keeps every record as it was signed. {% if lot.state == 'rejected' %}What happens to the material is decided and recorded in the quality system.{% else %}Its number is not used again.{% endif %}</p>
-  </div>
-</section>
+{% load ui %}
+{% comment %}The central lot record: key facts, receipt, supplier certificates and results, samples and results, certificates of analysis and every electronic signature on the lot and its results.{% endcomment %}
+{% block page_title_class %} vr-data{% endblock %}
+{% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% breadcrumbs section="Lots" section_url=list_url current=lot.number %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot size="lg" only %}</li>{% for inv in open_investigations %}<li>{% status label=inv.get_phase_display tone="danger" size="lg" %}</li>{% endfor %}{% if assignment.status == "hold" %}<li>{% status label=assignment.get_status_display tone="warning" size="lg" %}</li>{% endif %}{% for hold in holds %}<li><a href="{% url 'stability:hold_detail' hold.pk %}" title="{{ hold.identifier }}">{% status label=hold.get_kind_display|add:" hold" tone="hold" size="lg" %}</a></li>{% endfor %}<li>{% if assignment %}{% material_tag material=assignment.material size="lg" %}{% else %}{% material_tag material=lot.material size="lg" %}{% endif %}</li>{% fill line %}{% if receipt %}Received <strong>{{ receipt.received_on|when:"date" }}</strong> · {% endif %}Record revision <strong class="vr-data">{{ lot.revision }}</strong>{% endfill %}{% endpage_meta %}{% endblock %}
+{% block page_actions %}
+{% if lot.state == 'quarantine' %}
+{% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
+{% if can_record and can_dispose and not disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
+{% if can_dispose and disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
+{% if can_dispose %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
+{% if can_dispose and not disposition_denied %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
+{% else %}
+{% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
+{% if lot.state == 'released' and can_issue_coa %}<a class="btn btn-primary" href="{% url 'reporting:issue_preview' lot.pk %}">Issue certificate of analysis</a>{% endif %}
 {% endif %}
-<p><a href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling</a> · {% if assignment %}{{ assignment.get_status_display }}{% else %}Not assigned{% endif %} · <a href="{% url 'analytical:lot_testing' lot.pk %}">Testing and investigations</a>{% if can_export %} · <a href="{% url 'quality:lot_record' lot.pk %}">Export record</a>{% endif %}</p>
-<section class="card mb-4" aria-labelledby="receipt-heading">
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h2 class="card-title mb-0" id="receipt-heading">Receipt</h2>
-    {% if can_record and lot.state == 'quarantine' %}{% if receipt %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:receipt_correct' lot.pk %}">Correct receipt details</a>{% else %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:receipt_new' lot.pk %}">Record receipt details</a>{% endif %}{% endif %}
-  </div>
-  <div class="card-body">
-    {% if receipt %}
-    <dl class="vr-facts">
-      <div><dt>Source</dt><dd>{{ receipt.get_source_display }}</dd></div>
-      {% if receipt.supplier %}<div><dt>Supplier</dt><dd><a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.code }}</a> · {{ receipt.supplier.name }}, {{ receipt.supplier.location }}</dd></div>
-      <div><dt>Supplier lot number</dt><dd>{{ receipt.supplier_lot|default:"Not known" }}</dd></div>
-      <div><dt>Manufacturer</dt><dd>{% if receipt.manufacturer %}{{ receipt.manufacturer }}{% if receipt.manufacturer_location %}, {{ receipt.manufacturer_location }}{% endif %}{% else %}Not stated{% endif %}</dd></div>
-      {% if receipt.manufacturer_lot %}<div><dt>Manufacturer lot number</dt><dd>{{ receipt.manufacturer_lot }}</dd></div>{% endif %}{% endif %}
-      <div><dt>Delivery or batch document</dt><dd>{{ receipt.shipment_ref }}</dd></div>
-      <div><dt>Date received</dt><dd><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></dd></div>
-      <div><dt>Quantity received</dt><dd>{{ receipt.quantity_text }} {{ receipt.quantity_unit }}</dd></div>
-      <div><dt>Containers</dt><dd>{{ receipt.containers }} · {{ receipt.container_description }}</dd></div>
-      <div><dt>Examination on receipt</dt><dd>{% if receipt.has_discrepancy %}{% include "includes/status.html" with label=receipt.get_condition_display tone="warning" %}{% else %}{% include "includes/status.html" with label=receipt.get_condition_display tone="success" %}{% endif %}{% if receipt.condition_notes %}<br>{{ receipt.condition_notes|linebreaksbr }}{% endif %}</dd></div>
-    </dl>
-    {% if receipt.has_discrepancy %}<p>A discrepancy does not hold the lot by itself. Place a hold from <a href="{% url 'stability:hold_list' %}">Holds</a> if the lot must not be dispositioned until it is resolved.</p>{% endif %}
-    <h3 class="h6 mt-3">Receipt history</h3>
-    <ol class="vr-timeline mb-0">
-      {% for entry in receipt_history %}{% include "includes/history_item.html" with title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by by="Recorded by" reason=entry.receipt.reason changes=entry.changes %}{% endfor %}
-    </ol>
-    {% else %}
-    <p class="mb-0">Receipt details are not recorded: this lot was received before they were kept.{% if lot.state == 'quarantine' %} An analyst can record them while the lot is in quarantine.{% endif %}</p>
-    {% endif %}
-  </div>
-</section>
-<section class="card mb-4" aria-labelledby="certificates-heading">
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h2 class="card-title mb-0" id="certificates-heading">Supplier certificates</h2>
-    {% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}
-  </div>
-  <div class="card-body">
-    {% if certificates %}
-    <p>Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests. A stated result counts towards QC disposition only when it is accepted in place of a test; propose one from its certificate.</p>
-    <div class="table-responsive">
-      <table class="table mb-0" aria-labelledby="certificates-heading">
-        <thead><tr><th scope="col">Certificate</th><th scope="col">Issued by</th><th scope="col">Date</th><th scope="col">Lot number on the certificate</th><th scope="col">Results stated</th><th scope="col">Status</th></tr></thead>
-        <tbody>
-          {% for item in certificates %}
-          <tr>
-            <th scope="row"><a href="{% url 'quality:certificate_detail' item.certificate.pk %}">{{ item.certificate.number }}</a></th>
-            <td>{{ item.certificate.issued_by }}</td>
-            <td><time datetime="{{ item.certificate.issued_on|date:'Y-m-d' }}">{{ item.certificate.issued_on|date:"Y-m-d" }}</time></td>
-            <td>{{ item.certificate.stated_lot }}{% if item.lot_check == "differs" %} {% include "includes/status.html" with label="Differs from the receipt" tone="warning" plain=True %}{% endif %}</td>
-            <td>{{ item.rows|length }} stated{% if not item.withdrawn %}<div>{% if item.failing %}{% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %} {% for row in item.failing %}{{ row.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% include "includes/status.html" with label="All meet the specification" tone="success" plain=True %}{% endif %}</div>{% if item.replaced %}<div>{% include "includes/status.html" with label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}{% endif %}</td>
-            <td>{% if item.withdrawn %}{% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% else %}{% include "includes/status.html" with label="Current" tone="info" plain=True %}{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% elif not receipt %}
-    <p class="mb-0">No supplier certificate is recorded. Receipt details come first.</p>
-    {% elif not supplied %}
-    <p class="mb-0">This lot was made on site, so it has no supplier certificate.</p>
-    {% else %}
-    <p class="mb-0">No supplier certificate is recorded.</p>
-    {% endif %}
-    {% if can_record and supplied and lot.state == 'quarantine' and certificate_blocker %}<p class="mt-3 mb-0">{{ certificate_blocker }}</p>{% endif %}
-    {% if certificates and receipt and not supplied and lot.state == 'quarantine' %}<p class="mt-3 mb-0">The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies.</p>{% endif %}
-  </div>
-</section>
-{% if acceptances %}
-<section class="card mb-4" aria-labelledby="acceptances-heading">
-  <div class="card-header"><h2 class="card-title mb-0" id="acceptances-heading">Supplier results in place of tests</h2></div>
-  <div class="card-body">
-    <p>Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.</p>
-    <div class="table-responsive">
-      <table class="table mb-0" aria-labelledby="acceptances-heading">
-        <thead><tr><th scope="col">Record</th><th scope="col">Test</th><th scope="col">Supplier's result</th><th scope="col">Certificate</th><th scope="col">Qualification</th><th scope="col">Proposed by</th><th scope="col">Status</th></tr></thead>
-        <tbody>
-          {% for item in acceptances %}
-          <tr>
-            <th scope="row"><a href="{% url 'quality:acceptance_detail' item.pk %}">{{ item.label }}</a></th>
-            <td>{{ item.evidence.name }}<div class="vr-muted small">{{ item.test_code }}</div></td>
-            <td>{{ item.evidence.stated.result }}{% if item.evidence.unit %} {{ item.evidence.unit }}{% endif %}{% if item.evidence.stated.wording %}<div class="vr-muted small">Stated as: {{ item.evidence.stated.wording }}</div>{% endif %}</td>
-            <td>{{ item.evidence.certificate.number }}</td>
-            <td>{{ item.evidence.qualification.label }}</td>
-            <td>{{ item.proposed_by.get_full_name|default:item.proposed_by.get_username }}</td>
-            <td>{% if item.state == "withdrawn" %}{% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% elif item.problems %}{% include "includes/status.html" with label="No longer stands" tone="danger" plain=True %}<div class="small">{{ item.problems|join:"; " }}. Withdraw it.</div>{% elif item.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% if item.notice %}<div>{% include "includes/status.html" with label="Qualification revoked since" tone="warning" plain=True %}</div>{% endif %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-{% endif %}
-<h2>Samples and results</h2>
-{% for sample in samples %}<section class="card mb-3"><div class="card-body"><h3>{{ sample.reference }}</h3><p>Collected {{ sample.collected_at }} UTC</p>{% if can_record and lot.state == 'quarantine' %}<a href="{% url 'quality:result_new' sample.pk %}">Record result</a>{% endif %}
-<div class="table-responsive"><table class="table"><thead><tr><th>Test</th><th>Result</th><th>Limits</th><th>Analyst</th><th>Review</th></tr></thead><tbody>{% for result in sample.results.all %}<tr><td>{{ result.test_code }}</td><td>{{ result.value }} {{ result.unit }}{% if not result.conforms %} <strong>Out of specification</strong>{% endif %}</td><td>{{ result.lower_limit }}–{{ result.upper_limit }} {{ result.unit }}</td><td>{{ result.analyst }}</td><td>{% if can_review and result.state == 'recorded' and result.analyst_id != request.user.pk %}<a href="{% url 'quality:review' result.pk %}">Review result</a>{% else %}{{ result.state|capfirst }}{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No results recorded.</td></tr>{% endfor %}</tbody></table></div></div></section>{% empty %}<p>No samples recorded.</p>{% endfor %}
-{% if lot.state == 'released' %}<h2>Certificates of analysis</h2>
-{% if can_issue_coa %}<p><a class="btn btn-primary" href="{% url 'reporting:issue_preview' lot.pk %}">Issue certificate of analysis</a></p>{% endif %}
-<ul>{% for report in reports %}<li><a href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></li>{% empty %}<li>No certificate issued yet.</li>{% endfor %}</ul>{% endif %}
-<h2>Electronic signatures</h2>
-{% for signature in result_signatures %}<p>Result {{ signature.object_id }} revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% endfor %}
-{% for signature in signatures %}<p>Lot revision {{ signature.revision }} · {{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at }} UTC</p>{% endfor %}
-{% if not disposition_signed %}<p>No lot disposition signature yet.</p>{% endif %}
 {% endblock %}
+{% block content %}
+{% panel title="Where the lot is" heading_id="route-heading" hidden_title=True %}{% route stages=route label="Where the lot is" %}{% endpanel %}
+{% if open_investigations %}{% with inv=open_investigations.0 %}{% notice tone="hold" label="On hold" %}<a class="vr-id" href="{% url 'analytical:investigation_detail' inv.pk %}">{{ inv.label }}</a> · {{ inv.get_phase_display }}{% if inv.held_test %} · {{ inv.held_test.label }} {{ inv.held_test.test_code }}{% if inv.held_test.sample %}, sample {{ inv.held_test.sample.reference }}{% endif %}{% endif %}. An open investigation holds its lot, or its stability pull, until quality signs a conclusion.{% endnotice %}{% endwith %}
+{% elif holds %}{% with hold=holds.0 %}{% notice tone="hold" label="On hold" %}<a class="vr-id" href="{% url 'stability:hold_detail' hold.pk %}">{{ hold.identifier }}</a> ({{ hold.get_kind_display|lower }} hold) is active: {{ hold.reason }}{% endnotice %}{% endwith %}
+{% elif assignment.status == "hold" %}{% notice tone="warning" label="Applicability hold" %}{% for reason in assignment.hold_reasons %}{{ reason }} {% endfor %}<a href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling</a>{% endnotice %}{% endif %}
+{% if decision %}
+{% if lot.state == 'rejected' %}{% firstof "Rejection" as decision_title %}{% else %}{% firstof "Cancelled as received in error" as decision_title %}{% endif %}
+{% panel title=decision_title heading_id="decision-heading" %}
+  <dl class="vr-facts">
+    {% if decision.grounds %}{% fact label="Grounds" value=decision.grounds %}{% endif %}
+    {% fact label="Reason" wide=True %}{{ decision.reason|linebreaksbr }}{% endfact %}
+    {% fact label="Record in the quality system" value=decision.evidence.reference|default:"Not stated" %}
+    {% if lot.state == 'rejected' %}{% fact label="Tests at the rejection" wide=True %}{{ decision.tests }}{% if decision.unfinished %} · {{ decision.unfinished|length }} not finished: {% for row in decision.unfinished %}{{ row.label }} {{ row.test_code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% endfact %}{% endif %}
+  </dl>
+  {% if decision.signature %}{% signature_list signatures=decision.signatures subject="Lot" %}{% endif %}
+  {% if lot.state == 'rejected' %}{% if decision.evidence.outstanding %}<h3 class="h6 mt-3">What stood in the way of release</h3><ul class="mb-0 ps-3 text-break">{% for item in decision.evidence.outstanding %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">The release gates found nothing missing or failing when the lot was rejected.</p>{% endif %}{% endif %}
+  <p class="mt-3 mb-0">The lot takes no more receipt, sampling, certificate or test records and keeps every record as it was signed. {% if lot.state == 'rejected' %}What happens to the material is decided and recorded in the quality system.{% else %}Its number is not used again.{% endif %}</p>
+{% endpanel %}
+{% endif %}
+{% record_layout aside_label="QC disposition" %}
+{% fill lead %}
+{% panel title="Lot" heading_id="lot-heading" %}
+  {% fill actions %}<a class="vr-panel-link" href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling{% icon name="arrow-right" %}</a><a class="vr-panel-link" href="{% url 'analytical:lot_testing' lot.pk %}">Testing and investigations{% icon name="arrow-right" %}</a>{% endfill %}
+  <dl class="vr-facts vr-facts-3 mb-0">
+    {% fact label="Supplier" %}{% if receipt.supplier %}<a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.name }}</a>{% if receipt.supplier_lot %}<small>{% code value=receipt.supplier_lot %}</small>{% endif %}{% elif receipt %}{{ receipt.get_source_display }}{% endif %}{% endfact %}
+    {% fact label="Received" %}{% if receipt %}{{ receipt.received_on|when:"date" }}<small>by {{ receipt.recorded_by|person }}</small>{% endif %}{% endfact %}
+    {% fact label="Quantity" %}{% if receipt %}<span class="vr-data">{{ receipt.quantity_text }} {{ receipt.quantity_unit }}</span><small>{{ receipt.containers }} · {{ receipt.container_description }}</small>{% endif %}{% endfact %}
+    {% fact label="Rule set" %}{% code value=lot.rules %}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<small>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% if forloop.last %}</small>{% endif %}{% endfor %}{% endfact %}
+    {% fact label="Requirements" %}{% if assignment.status == "ready" %}{% status label=assignment.get_status_display tone="success" %}{% elif assignment %}{% status label=assignment.get_status_display tone="warning" %}{% else %}{% status label="Not assigned" tone="neutral" %}{% endif %}{% endfact %}
+    {% fact label="Specification" %}{% if assignment.specification_revision %}{% code value=assignment.specification_revision %}{% endif %}{% endfact %}
+  </dl>
+{% endpanel %}
+{% endfill %}
+{% fill aside %}
+{% if lot.state == 'quarantine' %}
+{% panel title="QC disposition" heading_id="disposition-heading" %}
+  {% fill count %}{% if blockers %}{{ blockers|length }}{% endif %}{% endfill %}
+  <dl class="vr-facts">{% if blockers %}{% fact label="Evidence" critical="danger" %}{% status label="Blocked" tone="danger" %}{% endfact %}{% else %}{% fact label="Evidence" critical="success" %}{% status label="Complete" tone="success" %}{% endfact %}{% endif %}</dl>
+  {% if blockers %}<p class="mb-2">QC disposition cannot be approved until these are resolved:</p>
+  <ul class="vr-checklist">{% for item in blockers %}<li>{% status label=item tone="danger" plain=True %}</li>{% endfor %}</ul>
+  {% else %}<p class="mb-0">{% if supplier_accepted %}Every requirement has a reviewed, conforming result or an accepted supplier result, and no investigation is open.{% else %}Every required test has a reviewed, conforming result and no investigation is open.{% endif %} This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.</p>{% endif %}
+{% endpanel %}
+{% elif lot.state == 'released' %}
+{% panel title="Certificates of analysis" heading_id="reports-heading" count=reports|length %}
+  <p>{% if issued %}{% status label="Issued" tone="success" %}{% else %}{% status label="Not issued" tone="neutral" %}{% endif %}</p>
+  {% if reports %}<ul class="mb-0 ps-3">{% for report in reports %}<li><a class="vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></li>{% endfor %}</ul>{% else %}{% empty_state title="No certificate issued yet" %}{% endif %}
+{% endpanel %}
+{% endif %}
+{% endfill %}
+{% panel title="Receipt" heading_id="receipt-heading" %}
+  {% fill actions %}{% if can_record and lot.state == 'quarantine' %}{% if receipt %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:receipt_correct' lot.pk %}">Correct receipt details</a>{% else %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:receipt_new' lot.pk %}">Record receipt details</a>{% endif %}{% endif %}{% endfill %}
+  {% if receipt %}
+  <dl class="vr-facts">
+    {% fact label="Source" value=receipt.get_source_display %}
+    {% if receipt.supplier %}{% fact label="Supplier" %}<a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.code }}</a> · {{ receipt.supplier.name }}, {{ receipt.supplier.location }}{% endfact %}
+    {% fact label="Supplier lot number" value=receipt.supplier_lot|default:"Not known" %}
+    {% fact label="Manufacturer" %}{% if receipt.manufacturer %}{{ receipt.manufacturer }}{% if receipt.manufacturer_location %}, {{ receipt.manufacturer_location }}{% endif %}{% else %}Not stated{% endif %}{% endfact %}
+    {% if receipt.manufacturer_lot %}{% fact label="Manufacturer lot number" value=receipt.manufacturer_lot %}{% endif %}{% endif %}
+    {% fact label="Delivery or batch document" value=receipt.shipment_ref %}
+    {% fact label="Containers" %}{{ receipt.containers }} · {{ receipt.container_description }}{% endfact %}
+    {% fact label="Examination on receipt" %}{% if receipt.has_discrepancy %}{% status label=receipt.get_condition_display tone="warning" %}{% else %}{% status label=receipt.get_condition_display tone="success" %}{% endif %}{% if receipt.condition_notes %}<br>{{ receipt.condition_notes|linebreaksbr }}{% endif %}{% endfact %}
+  </dl>
+  {% if receipt.has_discrepancy %}<p>A discrepancy does not hold the lot by itself. Place a hold from <a href="{% url 'stability:hold_list' %}">Holds</a> if the lot must not be dispositioned until it is resolved.</p>{% endif %}
+  {% else %}
+  <p class="mb-0">Receipt details are not recorded: this lot was received before they were kept.{% if lot.state == 'quarantine' %} An analyst can record them while the lot is in quarantine.{% endif %}</p>
+  {% endif %}
+{% endpanel %}
+{% if receipt %}{% history_panel events=receipt_history title="Receipt history" heading_id="receipt-history-heading" collapsible=True %}
+  {% for entry in receipt_history %}{% history_item title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by by="Recorded by" reason=entry.receipt.reason changes=entry.changes icon=entry.icon %}{% endfor %}
+{% endhistory_panel %}{% endif %}
+{% panel title="Supplier certificates" heading_id="certificates-heading" %}
+  {% fill actions %}{% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}{% endfill %}
+  {% if certificates %}
+  <p>Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests. A stated result counts towards QC disposition only when it is accepted in place of a test; propose one from its certificate.</p>
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="certificates-heading">
+      <thead><tr><th scope="col">Certificate</th><th scope="col">Issued by</th><th scope="col">Date</th><th scope="col">Lot number on the certificate</th><th scope="col">Results stated</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for item in certificates %}
+        <tr>
+          <th scope="row"><a href="{% url 'quality:certificate_detail' item.certificate.pk %}">{{ item.certificate.number }}</a></th>
+          <td>{{ item.certificate.issued_by }}</td>
+          <td><time datetime="{{ item.certificate.issued_on|date:'Y-m-d' }}">{{ item.certificate.issued_on|date:"Y-m-d" }}</time></td>
+          <td>{{ item.certificate.stated_lot }}{% if item.lot_check == "differs" %} {% status label="Differs from the receipt" tone="warning" plain=True %}{% endif %}</td>
+          <td>{{ item.rows|length }} stated{% if not item.withdrawn %}<div>{% if item.failing %}{% status label="Does not meet the specification" tone="danger" plain=True %} {% for row in item.failing %}{{ row.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% else %}{% status label="All meet the specification" tone="success" plain=True %}{% endif %}</div>{% if item.replaced %}<div>{% status label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}{% endif %}</td>
+          <td>{% if item.withdrawn %}{% status label="Withdrawn" tone="neutral" plain=True %}{% else %}{% status label="Current" tone="info" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif not receipt %}
+  <p class="mb-0">No supplier certificate is recorded. Receipt details come first.</p>
+  {% elif not supplied %}
+  <p class="mb-0">This lot was made on site, so it has no supplier certificate.</p>
+  {% else %}
+  <p class="mb-0">No supplier certificate is recorded.</p>
+  {% endif %}
+  {% if can_record and supplied and lot.state == 'quarantine' and certificate_blocker %}<p class="mt-3 mb-0">{{ certificate_blocker }}</p>{% endif %}
+  {% if certificates and receipt and not supplied and lot.state == 'quarantine' %}<p class="mt-3 mb-0">The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies.</p>{% endif %}
+{% endpanel %}
+{% if acceptances %}
+{% panel title="Supplier results in place of tests" heading_id="acceptances-heading" %}
+  <p>Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.</p>
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="acceptances-heading">
+      <thead><tr><th scope="col">Record</th><th scope="col">Test</th><th scope="col">Supplier's result</th><th scope="col">Certificate</th><th scope="col">Qualification</th><th scope="col">Proposed by</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for item in acceptances %}
+        <tr>
+          <th scope="row"><a href="{% url 'quality:acceptance_detail' item.pk %}">{{ item.label }}</a></th>
+          <td>{{ item.evidence.name }}<div class="vr-muted small">{{ item.test_code }}</div></td>
+          <td>{{ item.evidence.stated.result }}{% if item.evidence.unit %} {{ item.evidence.unit }}{% endif %}{% if item.evidence.stated.wording %}<div class="vr-muted small">Stated as: {{ item.evidence.stated.wording }}</div>{% endif %}</td>
+          <td>{{ item.evidence.certificate.number }}</td>
+          <td>{{ item.evidence.qualification.label }}</td>
+          <td>{{ item.proposed_by|person }}</td>
+          <td>{% if item.state == "withdrawn" %}{% status label="Withdrawn" tone="neutral" plain=True %}{% elif item.problems %}{% status label="No longer stands" tone="danger" plain=True %}<div class="small">{{ item.problems|join:"; " }}. Withdraw it.</div>{% elif item.state == "accepted" %}{% status label="Accepted" tone="success" plain=True %}{% if item.notice %}<div>{% status label="Qualification revoked since" tone="warning" plain=True %}</div>{% endif %}{% else %}{% status label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endpanel %}
+{% endif %}
+{% panel title="Samples and results" heading_id="samples-heading" flush=True %}
+  {% fill count %}{% if awaiting_review %}{{ awaiting_review }} awaiting review{% elif samples %}{{ samples|length }}{% endif %}{% endfill %}
+  {% for sample in samples %}
+  {% panel_section rule=forloop.counter0 %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <h3 class="h6 mb-0"><span class="vr-id">{{ sample.reference }}</span> <span class="vr-sub">collected {{ sample.collected_at|when }}</span></h3>
+      {% if can_record and lot.state == 'quarantine' %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:result_new' sample.pk %}">Record result<span class="visually-hidden"> for {{ sample.reference }}</span></a>{% endif %}
+    </div>
+    {% if sample.native_tests %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table mb-0">
+        <caption class="visually-hidden">Tests of sample {{ sample.reference }}</caption>
+        <thead><tr><th scope="col">Test</th><th scope="col">Code</th><th scope="col">Status</th><th scope="col" class="text-end">Reportable</th></tr></thead>
+        <tbody>
+          {% for t in sample.native_tests %}
+          <tr>
+            <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}</th>
+            <td>{% code value=t.test_code %}</td>
+            <td>{% include "analytical/_test_status.html" with test=t plain=True only %}</td>
+            <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% if t.spec.unit %} <span class="vr-muted small">{{ t.spec.unit }}</span>{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% if not sample.native_tests or sample.results.all %}
+    <div class="vr-table-wrap">
+      <table class="table vr-table mb-0">
+        <caption class="visually-hidden">Results of sample {{ sample.reference }}</caption>
+        <thead><tr><th scope="col">Test</th><th scope="col">Result</th><th scope="col">Limits</th><th scope="col">Analyst</th><th scope="col">Review</th></tr></thead>
+        <tbody>
+          {% for result in sample.results.all %}
+          <tr>
+            <th scope="row">{{ result.test_code }}</th>
+            <td>{{ result.value }} {{ result.unit }}{% if not result.conforms %} {% status label="Out of specification" tone="danger" plain=True %}{% endif %}</td>
+            <td>{{ result.lower_limit }}–{{ result.upper_limit }} {{ result.unit }}</td>
+            <td>{{ result.analyst }}</td>
+            <td>{% if can_review and result.state == 'recorded' and result.analyst_id != request.user.pk %}<a href="{% url 'quality:review' result.pk %}">Review result</a>{% else %}{{ result.state|capfirst }}{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5">No results recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endpanel_section %}
+  {% empty %}
+  {% panel_section %}{% empty_state title="No samples recorded" %}{% endpanel_section %}
+  {% endfor %}
+{% endpanel %}
+{% panel title="Electronic signatures" heading_id="signatures-heading" %}
+  {% if result_signatures %}<h3 class="h6">Results</h3>{% signature_list signatures=result_signatures subject="Result" numbered=True %}<h3 class="h6 mt-3">Lot</h3>{% endif %}
+  {% if signatures %}{% signature_list signatures=signatures subject="Lot" %}{% endif %}
+  {% if not disposition_signed %}<p class="mb-0{% if signatures %} mt-3{% endif %}">No lot disposition signature yet.</p>{% endif %}
+{% endpanel %}
+{% endrecord_layout %}
+{% endblock %}
+{% block record_foot %}{% record_foot identifier=lot.number %}{% endblock %}

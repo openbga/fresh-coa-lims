@@ -4,8 +4,24 @@ urls: laboratory:overview
 views: laboratory.views.overview
 templates: ops/overview.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification, laboratory.ContractApproval
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Work queues for laboratory fitness: equipment calibration and service, reagent lots, qualifications and contract laboratory approvals. Each queue opens the list that resolves it.
 ---
+
+## Common tasks
+### See what needs attention
+1. Look for queues marked [[Needs attention]]. [[Clear]] means nothing is waiting.
+2. Select a queue name, for example [[Calibration overdue]], to open the list already filtered to those records.
+### Find work waiting for a signature
+1. Select [[Calibrations awaiting acceptance]], [[Reagent lots awaiting release]] or [[Qualifications awaiting approval]].
+2. Open a record from that list. You cannot sign evidence you recorded yourself.
+### Open a laboratory list
+1. Select a tab: [[Equipment]], [[Calibrations]], [[Qualifications]], [[Reagents and standards]], [[Contract laboratories]] or [[Resource use]].
+## Good to know
+- The counts cover everyone's records, not only your own work.
+- Equipment that is not calibrated, has failed or is not qualified has no queue here. Use the Not calibrated or qualified status on the Equipment list.
+- The two contract laboratory queues count laboratories, not approvals, so each count matches the list it opens.
+- A qualification approved to start later is not counted as expiring until it is in effect.
 
 ## Purpose
 

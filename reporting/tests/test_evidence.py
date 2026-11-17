@@ -274,15 +274,15 @@ def test_certificate_renders_frozen_and_new_evidence(good):
     legacy = certificate_row(html, "assay")  # frozen before this change: no acceptance key
     assert "<td>100.25</td>" in legacy
     assert '<td class="text-end">100.3 mg/g</td>' in legacy
-    assert "<td>98 to no upper limit mg/g</td>" in legacy
+    assert "<td>98 to no upper limit mg/g</td>" in legacy  # numeric limits stay on one line
     pathogen = certificate_row(html, "pathogen")
     assert "<td>Absent; Absent</td>" in pathogen
     assert '<td class="text-end">Absent</td>' in pathogen
-    assert "<td>Absent in 25 g (expected: Absent)</td>" in pathogen
+    assert '<td class="vr-wrap">Absent in 25 g (expected: Absent)</td>' in pathogen
     tamc = certificate_row(html, "tamc")
     assert "<td>&lt;10; 50</td>" in tamc
     assert '<td class="text-end">&lt;10; 50 CFU/g</td>' in tamc
-    assert "<td>less than 1000 CFU/g</td>" in tamc
+    assert '<td class="vr-wrap">less than 1000 CFU/g</td>' in tamc
     assert "None" not in html
 
 

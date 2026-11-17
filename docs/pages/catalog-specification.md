@@ -4,8 +4,24 @@ urls: catalog:specification
 views: catalog.views.specification_detail
 templates: catalog/specification_detail.html
 models: catalog.Specification, catalog.SpecificationRevision, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One specification: the material, stage and scope it applies to, every version with its status, effective period and approval, and its history.
 ---
+
+## Common tasks
+### Open a version and its tests
+1. In [[Versions]], select a version number to see its tests, signatures and history.
+### Start a new version
+1. Select [[New version]]. It shows only to users with the quality role.
+2. Enter the basis, effective period and reason on that page. The draft copies the tests of the latest version.
+### See which version is in force
+1. Under the title, read [[Approved]] with the version in force, or [[No approved version]] when none applies now.
+## Good to know
+- The version in force is the approved one that applies now. A newer approved version may not have started yet.
+- Approving a later overlapping version retires an earlier one. The earlier version keeps its content and signature and shows Superseded.
+- Lots keep the version frozen when their requirements were assigned.
+- A scope other than general is an overlay: it applies in full beside the lot's other specifications and is never merged with them.
+- Approved and withdrawn versions cannot be changed. Create a new version instead.
 
 ## Purpose
 
@@ -19,11 +35,11 @@ Shows one specification: what it applies to, all of its versions with status, ef
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, the specification code. The specification title is shown under the heading.
+- **Breadcrumbs**: Specifications and methods, the specification code. Under the heading: **Approved** for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; the material (its kind's icon, name and code); "Version N in force"; and the stage. The title is the first fact of Applicability.
 - **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them)".
 - **Versions** table, newest version first: Version (link), Status, Effective, Tests, Author, Approval.
-- **Approval column**: each signature as "Signed", signer name, meaning, time, "record revision N" and a shortened content hash; "Not signed." when none.
-- **History**: audit events of the specification and of all its versions (version creation, tests added or removed, approvals, withdrawals), oldest first, or "No recorded history."
+- **Approval column**: each signature as one line: "Signed", the signer, the meaning, the time, "Record revision N" and the start of the content hash; "Not signed." when none.
+- **History**: audit events of the specification and of all its versions (version creation, tests added or removed, approvals, withdrawals), oldest first, or the empty state "No recorded history".
 - **Foot line**: identifier and when the page was viewed and by whom.
 
 ## Actions

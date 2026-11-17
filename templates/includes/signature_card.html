@@ -1,0 +1,25 @@
+{% load ui %}{% comment %}
+The signing card of a signed transition (docs/ui-standards.md, Signing and review): a band with
+the signature seal and the title, what the signature records in a summary well, then the signing
+form (username, signature PIN and reason re-entered for every signature). Rendered by the
+{% signature_card %} block tag ({% load ui %}); the body is the form or the denial.
+Parameters:
+  title       the band's heading, e.g. "Sign lot disposition"
+  heading_id  id of the heading, which labels the card (default "sign-title"; signature-dialog.js
+              labels its <dialog> with #sign-title)
+  hook        optional data attribute name on the card, e.g. "signature-dialog" (the script moves
+              the card into a modal <dialog>); leave it out when signing is denied
+  class       extra classes on the card
+Parts: summary (the template's sentences: meaning, record, revision, signer, PIN enrolment link).
+Usage:
+  {% signature_card title="Sign lot disposition" hook="signature-dialog" %}
+    {% fill summary %}<p>Your signature records …</p>{% endfill %}
+    {% form_page form=form cancel_url=lot_url cancel_hook="signature-cancel" submit_label="Sign approved" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
+  {% endsignature_card %}
+{% endcomment %}{% firstof heading_id "sign-title" as label_id %}<section class="card vr-sign-card{% if class %} {{ class }}{% endif %}" aria-labelledby="{{ label_id }}"{% if hook %} data-{{ hook }}{% endif %}>
+  <div class="vr-sign-band"><span class="vr-sign-seal">{% icon name="vector-pen" %}</span><h2 class="vr-sign-title" id="{{ label_id }}">{{ title }}</h2></div>
+  <div class="card-body vr-panel-body">
+    {% if slots.summary %}<div class="vr-sign-summary">{{ slots.summary }}</div>{% endif %}
+    {{ body }}
+  </div>
+</section>

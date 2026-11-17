@@ -5,7 +5,22 @@ views: stability.views.reserve_new
 templates: ops/form.html
 models: stability.ReserveSample, core.AuditEvent
 reviewed: 2026-11-17
+summary: Record an identified reserve sample of a lot, with its quantity, one test set and the minimum multiple to keep. A reserve record cannot be changed afterwards.
 ---
+
+## Common tasks
+### Record a reserve sample
+1. Enter the [[Identifier]], choose the [[Lot]], and enter the [[Container description]] and [[Storage location]].
+2. Enter the [[Quantity]], the [[Test quantity]] for one complete test set, and the [[Quantity unit]].
+3. Check [[Minimum multiple]], prefilled with 2, and enter [[Retained on]].
+4. Enter a [[Reason]] and select [[Record reserve sample]].
+### Record its retention obligations
+1. On the reserve record that opens, select [[Record retention obligation]] for each retention basis that applies.
+## Good to know
+- The record cannot be edited after you save. Check the entries first.
+- A quantity below the minimum is accepted, and the reserve is then labeled Below minimum.
+- The prefilled multiple of 2 reflects researched drug and supplement rules. The quality owner confirms what applies.
+- A lot cancelled as received in error is not offered.
 
 ## Purpose
 
@@ -18,7 +33,7 @@ Record an identified reserve sample. Reserve records are immutable.
 
 ## Layout
 
-- Breadcrumbs (Reserve samples, New reserve sample), title, the introduction (reserve records are immutable; minimum multiple is prefilled from researched drug and supplement rules and the quality owner confirms what applies), the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Reserve samples, New reserve sample), title, the introduction (reserve records are immutable; minimum multiple is prefilled from researched drug and supplement rules and the quality owner confirms what applies), the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

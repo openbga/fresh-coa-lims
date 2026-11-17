@@ -4,8 +4,23 @@ urls: stability:timepoint_new
 views: stability.views.timepoint_new
 templates: ops/form.html
 models: stability.ProtocolTimepoint, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Add a pull time point to a draft protocol: its storage condition, days from time zero, window and the tests required at that pull. Only the protocol's author can add it.
 ---
+
+## Common tasks
+### Add a timepoint
+1. Choose the [[Condition]] and enter the [[Label]], for example 3 months.
+2. Enter [[Interval (days)]] from time zero, where 0 is time zero, and the [[Window (± days)]].
+3. List the test codes in [[Tests]], separated by commas.
+4. Enter a [[Reason]] and select [[Add timepoint]]. You return to the protocol record.
+### Pull the same time point under another condition
+1. Back on the protocol record, select [[Add timepoint]] again and choose the other condition.
+## Good to know
+- Each condition can have only one timepoint per interval.
+- The window is the days allowed either side of the due date. A pull taken outside it needs a deviation reason.
+- Test codes are not checked against the specification here. A protocol that names a specification is checked when it is approved.
+- Saving changes the protocol revision. An approval page opened earlier must be reloaded before it can be signed.
 
 ## Purpose
 
@@ -18,7 +33,7 @@ Add a pull timepoint and its required tests to a draft protocol.
 
 ## Layout
 
-- Breadcrumbs (Protocols, the protocol, Add timepoint), title "Add timepoint" with the protocol identifier, the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Protocols, the protocol, Add timepoint), title "Add timepoint" with the protocol identifier, the form in one panel, and a **Cancel** / submit row.
 
 ## Actions
 

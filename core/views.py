@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import PINForm, RuleForm, SignForm
+from .grids import Column
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
     AUDIT_READ_ROLES,
@@ -30,7 +31,7 @@ def pin(request):
         return render(
             request,
             "core/form.html",
-            {"heading": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
+            {"page_title": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
             status=403 if request.method == "POST" else 200,
         )
     form = PINForm(request.POST or None)
@@ -41,7 +42,20 @@ def pin(request):
             return redirect("core:pin")
         except ValidationError as exc:
             form.add_error(None, exc)
-    return render(request, "core/form.html", {"form": form, "heading": "Signature PIN"})
+    from .models import PINCredential
+
+    return render(
+        request,
+        "core/form.html",
+        {
+            "form": form,
+            "page_title": "Signature PIN",
+            # The state the admin user page shows; never the encoded PIN.
+            "credential": PINCredential.objects.filter(user=request.user)
+            .only("failures", "locked_until")
+            .first(),
+        },
+    )
 
 
 @login_required
@@ -68,7 +82,12 @@ def rules(request):
     return render(
         request,
         "core/rules.html",
-        {"rules": revisions, "form": form, "can_configure": can_configure},
+        {
+            "page_title": "Rule sets",
+            "rules": revisions,
+            "form": form,
+            "can_configure": can_configure,
+        },
     )
 
 
@@ -128,12 +147,23 @@ def rule_approve(request, pk):
         "core/form.html",
         {
             "form": form,
-            "heading": f"Approve {rule}",
+            "page_title": f"Approve {rule}",
             "signing": True,
             "record": rule,
             "retires": retires,
         },
     )
+
+
+# The audit trail's columns (core.grids.Column; keys are saved in users' layouts).
+AUDIT_COLUMNS = (
+    Column("select", "Select", locked=True),
+    Column("time", "Time / actor", locked=True),
+    Column("action", "Action / record"),
+    Column("values", "Original / new values"),
+    Column("reason", "Reason"),
+    Column("review", "Review status"),
+)
 
 
 @login_required
@@ -192,6 +222,14 @@ def audit(request):
             ):
                 raise forms.ValidationError("From date must be on or before through date.")
             return values
+
+    class AuditReviewForm(forms.Form):
+        conclusion = forms.CharField(
+            label="Review conclusion",
+            widget=forms.Textarea(attrs={"rows": 3}),
+            help_text="Record what you checked and any follow-up needed. Previous conclusions "
+            "remain available. You cannot review your own events.",
+        )
 
     filters = AuditFilters(request.GET)
     for field in filters.fields.values():
@@ -279,7 +317,13 @@ def audit(request):
             "can_review": can_review,
             "filters": filters,
             "error": error,
-            "conclusion": conclusion,
+            "page_title": "Audit trail",
+            "columns": tuple(
+                column
+                for column in AUDIT_COLUMNS
+                if can_review or column.key != "select"  # only reviewers select events
+            ),
+            "review_form": AuditReviewForm(initial={"conclusion": conclusion}),
             "selected_ids": selected_ids,
             "base_query": base_query,
             "filtered": any(request.GET.get(key) for key in filters.fields),

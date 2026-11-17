@@ -4,8 +4,25 @@ urls: catalog:specification_approve
 views: catalog.views.specification_approve
 templates: catalog/approve.html
 models: catalog.SpecificationRevision, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Review a draft specification version and sign its approval with your PIN. Only a quality user who did not create or change the draft can sign.
 ---
+
+## Common tasks
+### Approve the draft
+1. Check the tests and limits under [[Content being approved]].
+2. Write what you checked in [[Approval comment]] and enter your [[Signing username]].
+3. Enter your [[Signature PIN]] and select [[Sign and approve]]. The version page opens.
+### Check what your approval retires
+1. When [[Retires earlier]] shows, read which approved versions stop applying when you sign, and from when.
+### Set up a signature PIN
+1. If you have no PIN yet, select [[Enroll or change your signature PIN]].
+## Good to know
+- If you created or changed the draft, [[Not permitted]] shows instead of the form. No role, including administrator, can bypass this.
+- Signing is refused without a test, or when a test's method has no approved version that applies when this version takes effect.
+- If a later version is already approved for these dates, [[Cannot be approved]] shows and no PIN is asked for. Withdraw this draft and create a new version.
+- If anyone changes the draft after you open this page, signing fails. Reload and review it again.
+- A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned.
 
 ## Purpose
 
@@ -22,7 +39,7 @@ Independent review and electronic signature that approves a draft specification 
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, specification code, "Version N", Approve.
-- **Header line**: the version, "record revision N" and its status.
+- **Header line**: its status, the version and "Record revision N".
 - **Content being approved**: Material, Stage and scope, Effective, Basis, Author, and the tests table (or "No tests yet. Approval requires at least one test.").
 - **Sign approval**: the statement of what your signature means ("approved", the record revision, the resulting revision and a content hash), "Signer:" with your name and username, and a link "Enroll or change your signature PIN".
 - **Retires earlier** (information alert above the signer line, when this version overlaps approved versions): "This version overlaps the effective period of N approved version(s). Your signature also retires it/them:" then each version with "never applies: this version takes over before it starts", "stops applying on <time>" (this version's start, when it is still ahead) or "stops applying at the moment of your signature, because this version's start has already passed"; then "A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned; quality decides for each lot in testing whether to replace them."

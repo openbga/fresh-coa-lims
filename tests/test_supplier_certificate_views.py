@@ -404,7 +404,12 @@ def test_withdrawal_marks_the_record_and_ends_its_actions(client, world):
     page = client.get(url("certificate_withdraw", certificate))
     body = page.content.decode()
     assert page.status_code == 200
-    for shown in ("Withdraw supplier certificate", "btn btn-danger", "COA-SYN-0001", "wrong lot"):
+    for shown in (
+        "Withdraw supplier certificate",
+        "btn btn-outline-danger",
+        "COA-SYN-0001",
+        "wrong lot",
+    ):
         assert shown in body
     response = client.post(url("certificate_withdraw", certificate), {"reason": ""})
     assert response.status_code == 422 and not SupplierCertificateWithdrawal.objects.exists()

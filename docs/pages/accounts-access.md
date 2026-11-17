@@ -4,8 +4,28 @@ urls: accounts:access
 views: accounts.views.access
 templates: accounts/access.html
 models: accounts.User
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Your laboratory roles, links to your own sign-in settings, and the next step when you have no role yet. Account administrators also see how roles are managed.
 ---
+
+## Common tasks
+### Open your work
+1. Select [[Open workspace]]. It shows only when you hold at least one laboratory role, and opens the dashboard.
+### Change your sign-in settings
+1. Select [[Change password]] to replace your login password.
+2. Select [[Two-factor sign-in]] to add a security key, passkey or authenticator app.
+3. Select [[Organization sign-in]] to link your organization account. It shows only when single sign-on is set up.
+### Ask for a laboratory role
+1. If the page says your account has no laboratory role, give your username to your organization's account administrator.
+2. Select [[Sign out]] in the top bar while access is arranged.
+### Manage users and roles
+1. With the admin role, select [[Manage users and roles]] to open the account list.
+## Good to know
+- Signing in, or holding superuser status, does not grant laboratory access. Only an assigned laboratory role does.
+- The admin role permits account administration and read access. It does not grant scientific approval authority.
+- Each action still requires its designated role, and independent review where it applies. A menu link only means you can read that area.
+- Administrators cannot grant themselves additional roles or remove the last active admin.
+- This page changes nothing. The command shown to administrators is guidance for the deployment operator, not a button.
 
 ## Purpose
 
@@ -17,7 +37,7 @@ Any signed-in user, including an account with no laboratory role. A required pas
 
 ## Layout
 
-The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. The page shows your username, assigned roles or access-request guidance, **Change password**, **Two-factor sign-in** and, when the deployment configures single sign-on, **Organization sign-in**. Administrators also see **Account and role management**, applicable management links and command guidance.
+The heading is **No laboratory role assigned** when none is present, otherwise **Account access**. With a role, the **Assigned laboratory roles** card shows your username, your roles and **Open workspace**; without one, a "No role" notice gives your username and the access-request guidance. The **Sign-in** card links **Change password**, **Two-factor sign-in** and, when the deployment configures single sign-on, **Organization sign-in**. Administrators also see the **Account and role management** card: the read-only Django admin link (bootstrap administrators), the **Manage users and roles** button (admin role) and the command guidance.
 
 The shared menu shows destinations your assigned roles can open. All five roles can read the laboratory areas under **Work**, **Configuration** and **Records**. **Audit trail** appears only for admin, quality or auditor; **Users and roles** and **Sign-in announcement** appear only for admin. Without a recognized role, only the **Account** section remains, with **Signature PIN** and **Account access**. No empty laboratory sections are shown.
 
@@ -25,7 +45,7 @@ The shared menu shows destinations your assigned roles can open. All five roles 
 
 | Action | Shown when | Result |
 |---|---|---|
-| Open workspace | At least one recognized laboratory role | Opens Material lots; later actions still check their own permissions |
+| Open workspace | At least one recognized laboratory role | Opens the Dashboard; later actions still check their own permissions |
 | Change password | Always | Opens your password-change form |
 | Manage users and roles | Explicit admin role | Opens Users and roles |
 | View accounts in Django admin | Account administrator with staff status and user view/change permission | Opens the read-only Django account list |
@@ -55,7 +75,7 @@ The operator's `assign_roles` command replaces the complete role set. Include ev
 
 ## Related pages
 
-- [Material lots](/)
+- [Dashboard](/)
 - [Users and roles](/accounts/users/)
 - [Change password](/accounts/password/)
 - [Two-factor sign-in](/accounts/two-factor/)

@@ -4,8 +4,26 @@ urls: laboratory:equipment_list
 views: laboratory.views.equipment_list
 templates: ops/list.html
 models: laboratory.Equipment, laboratory.Calibration, laboratory.Qualification
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Every registered instrument with its fitness for use today. Find equipment, see when its calibration is due and open its record, or register new equipment.
 ---
+
+## Common tasks
+### Find equipment
+1. Type an asset ID, description or category in [[Search]].
+2. To see one fitness state only, choose it in [[Status]], for example [[Calibration overdue]] or [[Out of service]].
+3. Select [[Apply]], then select an asset to open its record.
+### Register new equipment
+1. Select [[New equipment]]. It shows only for the analyst and quality roles.
+2. Fill in the form on that page. The equipment is not fit for use until a passing calibration is accepted.
+### See every item again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- A passing calibration counts only after a different reviewer accepts it. Until then it does not change the fitness shown here.
+- A failed calibration counts as soon as it is recorded and takes the equipment out of service.
+- Fitness is checked in this order: out of service, not calibrated, calibration failed, overdue, not qualified, due soon, ready. Overdue and unqualified equipment shows Calibration overdue.
+- Due soon means the calibration due date, the last valid day, is within 30 days.
+- Search does not cover the location.
 
 ## Purpose
 
@@ -21,8 +39,8 @@ Find equipment and see at a glance whether it is fit for use today.
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New equipment** button for Analyst, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Asset (links to the record), Description, Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness (the Fitness sort orders by service state, then asset, not by the label text). Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (asset ID, description or category contains the text) and **Status** (All, Ready, Calibration due soon, Calibration overdue, Not calibrated or qualified, Out of service). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Asset (links to the record, with the description under it), Category, Location, Calibration due, Fitness. Sort by Asset (default), Category, Calibration due or Fitness (the Fitness sort orders by service state, then asset, not by the label text). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Register an instrument to track calibration, qualification and use.", with **New equipment** for roles that can register); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -31,7 +49,7 @@ Find equipment and see at a glance whether it is fit for use today.
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New equipment** | Your role can create it | Analyst, Quality | Opens the New equipment form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

@@ -1,0 +1,26 @@
+{% load ui %}{% comment %}
+A form's action row (docs/ui-standards.md, Lists and forms): destructive action first, then
+Cancel (btn-link), then the one primary button last. {% form_page %} renders it; a form built by
+hand ends with it. Rendered by the {% form_actions %} block tag ({% load ui %}); its body is
+further buttons or links.
+Parameters:
+  submit_label  the submit button's words (default "Save changes")
+  cancel_url    where Cancel returns; without it there is no Cancel link
+  cancel_label  Cancel's words (default "Cancel")
+  cancel_hook   optional data attribute name on the Cancel link, rendered as data-<cancel_hook>
+                (signature-dialog.js reads data-signature-cancel)
+  destructive   truthy when the submit ends or voids something: btn-outline-danger, at the start
+  secondary     truthy for a btn-outline-secondary submit
+  no_submit     truthy to leave out the submit
+  name, value   optional name/value of the submit button (a form with several actions)
+  submit_icon   optional Bootstrap Icons name before the submit's words (vector-pen on signing)
+Body: further buttons, e.g. "Save and add another". The primary stays first in the markup, so
+Enter submits it, and is shown last (order-last).
+Usage: {% form_actions cancel_url=cancel_url submit_label="Create draft" %}{% endform_actions %}
+{% endcomment %}
+<div class="vr-form-actions">
+  {% if destructive and not no_submit %}<button class="btn btn-outline-danger vr-form-actions-start" type="submit"{% if name %} name="{{ name }}" value="{{ value }}"{% endif %}>{% if submit_icon %}{% icon name=submit_icon %}{% endif %}{{ submit_label|default:"Save changes" }}</button>{% endif %}
+  {% if cancel_url %}<a class="btn btn-link" href="{{ cancel_url }}"{% if cancel_hook %} data-{{ cancel_hook }}{% endif %}>{{ cancel_label|default:"Cancel" }}</a>{% endif %}
+  {% if not destructive and not no_submit %}<button class="btn {% if secondary %}btn-outline-secondary{% else %}btn-primary{% endif %}{% if extra %} order-last{% endif %}" type="submit"{% if name %} name="{{ name }}" value="{{ value }}"{% endif %}>{% if submit_icon %}{% icon name=submit_icon %}{% endif %}{{ submit_label|default:"Save changes" }}</button>{% endif %}
+  {% if extra %}{{ extra }}{% endif %}
+</div>

@@ -4,8 +4,24 @@ urls: stability:protocol_approve
 views: stability.views.protocol_approve
 templates: ops/sign.html
 models: stability.Protocol, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Sign the approval of a complete draft protocol: its conditions, timepoints, tests and named specification. Quality users only, and never the protocol's author.
 ---
+
+## Common tasks
+### Approve the protocol
+1. Check [[Conditions]], [[Timepoints]] and [[Acceptance criteria]] in the summary.
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and approve]]. Earlier approved versions of this code become Superseded.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot approve a protocol you authored, even with the quality role.
+- When the protocol names a specification, approval is refused until the version in force states every test, with a method in force.
+- If the protocol changed after you opened this page, signing is refused. Reload and review it first.
+- New studies start only on the current approved version. Studies already started on an earlier version are not changed.
 
 ## Purpose
 
@@ -19,7 +35,8 @@ Approve the complete protocol (conditions, timepoints, tests) with meaning **app
 
 ## Layout
 
-- Title "Approve <code> v<n>". A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Title "Approve <code> v<n>". A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
+- **Denied**: when you may not sign (for example you authored the record), the card shows the facts and a red "Not permitted" notice with the reason and **Back to record** instead of the signer line, the PIN link and the form; the page answers 403 and nothing is signed.
 
 ## Actions
 

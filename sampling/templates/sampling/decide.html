@@ -1,43 +1,34 @@
 {% extends "base.html" %}
+{% load ui %}
 {% comment %}Signed decision of a lot's conflicting requirements before testing. Context: lot, preview, current, form, blocked, cancel_url, crumbs.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
-{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ lot.number }}</span> · lot record revision {{ lot.revision }} · {% include "includes/status.html" with label="Applicability hold" tone="hold" %}</p>{% endblock %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% status label="Applicability hold" tone="hold" %}</li><li class="vr-id">{{ lot.number }}</li><li>Lot record revision {{ lot.revision }}</li>{% endpage_meta %}{% endblock %}
 {% block content %}
-<section class="card mb-3" aria-labelledby="applies-heading">
-  <div class="card-header"><h2 class="card-title" id="applies-heading">What applies to this lot</h2></div>
-  <div class="card-body">
+{% panel title="What applies to this lot" heading_id="applies-heading" class="mb-3" %}
     <p>Every specification of the scopes this lot was assigned under applies in full. Where they state a test alike it is one requirement. Where they state it differently nothing is merged and neither statement is picked for you: the lot stays on hold until a quality person who recorded none of its data decides which requirement applies.</p>
     <p>A lot has to meet every specification that binds it. Choose the statement under which a passing result also meets the others, or give the reason another specification does not bind this lot. The statements not chosen stay in the record with your decision.</p>
     <dl class="vr-facts mb-0">
-      <div><dt>Material and stage</dt><dd>{{ current.material }} · {{ current.get_stage_display }}</dd></div>
-      <div><dt>Scopes</dt><dd>{{ current.scope_list|join:", " }}</dd></div>
-      <div><dt>Specifications in force</dt><dd>{% for spec in preview.specifications %}<a href="{% url 'catalog:specification_revision' spec.revision_id %}">{{ spec.code }} v{{ spec.version }}</a> ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div>
-      {% if preview.additional_rules %}<div><dt>Additional rule sets in force</dt><dd>{% for rule in preview.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
-      {% if preview.plan %}<div><dt>Sampling plan</dt><dd>{{ preview.plan }}{% if preview.plan.pk == current.plan_revision_id %} · kept{% endif %}</dd></div>{% endif %}
-      <div><dt>Rule set</dt><dd>{{ lot.rules }}{% if preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>, the version in force{% endif %}</dd></div>
-      <div><dt>Hold recorded</dt><dd>{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time></dd></div>
+      {% fact label="Material and stage" %}{{ current.material }} · {{ current.get_stage_display }}{% endfact %}
+      {% fact label="Scopes" %}{{ current.scope_list|join:", " }}{% endfact %}
+      {% fact label="Specifications in force" %}{% for spec in preview.specifications %}<a href="{% url 'catalog:specification_revision' spec.revision_id %}">{{ spec.code }} v{{ spec.version }}</a> ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}{% endfact %}
+      {% if preview.additional_rules %}{% fact label="Additional rule sets in force" %}{% for rule in preview.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% endfact %}{% endif %}
+      {% if preview.plan %}{% fact label="Sampling plan" %}{{ preview.plan }}{% if preview.plan.pk == current.plan_revision_id %} · kept{% endif %}{% endfact %}{% endif %}
+      {% fact label="Rule set" %}{{ lot.rules }}{% if preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>, the version in force{% endif %}{% endfact %}
+      {% fact label="Hold recorded" %}{{ current.assigned_by|person }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time>{% endfact %}
     </dl>
-  </div>
-</section>
+{% endpanel %}
 {% if preview.reasons %}
-<section class="card mb-3" aria-labelledby="refused-heading">
-  <div class="card-header"><h2 class="card-title" id="refused-heading">The requirements cannot be decided now</h2></div>
-  <div class="card-body">
-    <div class="alert alert-warning mb-3" role="alert">{% include "includes/status.html" with label="Refused" tone="warning" plain=True %}<div class="text-break"><ul class="mb-0 ps-3">{% for reason in preview.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+{% panel title="The requirements cannot be decided now" heading_id="refused-heading" class="mb-3" %}
+    {% notice tone="warning" label="Refused" blocking=True class="mb-3 text-break" %}<ul class="mb-0 ps-3">{% for reason in preview.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endnotice %}
     <p class="mb-0">A decision settles only what the specifications state differently. Resolve these in the configuration first; this page then offers the decision. <a class="btn btn-outline-secondary ms-2" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
-  </div>
-</section>
+{% endpanel %}
 {% endif %}
-<section class="card mb-3" aria-labelledby="conflicts-heading">
-  <div class="card-header"><h2 class="card-title" id="conflicts-heading">Requirements stated differently</h2><span class="vr-count">{{ preview.conflicts|length }}</span></div>
-  <div class="card-body">
-    {% if preview.possible and not blocked %}{% include "sampling/includes/conflicts.html" with conflicts=preview.conflicts choose=True form_id="decision-form" %}{% else %}{% include "sampling/includes/conflicts.html" with conflicts=preview.conflicts %}{% endif %}
-  </div>
-</section>
+{% panel title="Requirements stated differently" heading_id="conflicts-heading" count=preview.conflicts|length class="mb-3" %}
+    {% if preview.possible and not blocked %}{% include "sampling/includes/conflicts.html" with conflicts=preview.conflicts choose=True only %}{% else %}{% include "sampling/includes/conflicts.html" with conflicts=preview.conflicts only %}{% endif %}
+{% endpanel %}
 {% if preview.agreed %}
-<section class="card vr-table-card mb-3" aria-labelledby="agreed-heading">
-  <div class="card-header"><h2 class="card-title" id="agreed-heading">Requirements stated one way</h2><span class="vr-count">{{ preview.agreed|length }}</span></div>
-  <div class="card-body"><p class="mb-0">These are frozen with your decision as the specifications in force state them. Nothing is chosen for them.</p></div>
+{% panel title="Requirements stated one way" heading_id="agreed-heading" count=preview.agreed|length table=True class="mb-3" %}
+  <p>These are frozen with your decision as the specifications in force state them. Nothing is chosen for them.</p>
   <div class="vr-table-wrap">
     <table class="table vr-table" aria-labelledby="agreed-heading">
       <thead><tr><th scope="col">Test</th><th scope="col">Requirement</th><th scope="col">Stated by</th></tr></thead>
@@ -46,31 +37,19 @@
       </tbody>
     </table>
   </div>
-</section>
+{% endpanel %}
 {% endif %}
 {% if preview.possible or blocked %}
-<section class="card" aria-labelledby="sign-title">
-  <div class="card-body">
-    <h2 id="sign-title" class="card-title">Sign decision</h2>
+{% signature_card title="Sign decision" %}
     {% if blocked %}
-    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div class="text-break">{{ blocked }} Independence cannot be bypassed by any role, including administrators.</div></div>
+    {% notice tone="warning" label="Not permitted" blocking=True class="text-break" %}{{ blocked }} Independence cannot be bypassed by any role, including administrators.{% endnotice %}
     <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
     {% else %}
     <p>Your signature records the meaning <strong>requirements decided</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>: the requirements chosen above are frozen for the lot together with the requirements stated one way, as shown. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If a specification, a method or a rule set in force changes before you sign, signing fails and you must review again.</p>
-    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
-    <form method="post" id="decision-form" autocomplete="off" novalidate>
-      {% csrf_token %}
-      {% include "includes/form_errors.html" with form=form %}
-      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
-      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-      <div class="vr-form-actions">
-        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Sign decision and freeze requirements</button>
-      </div>
-    </form>
+    <p>Signer: <strong>{{ request.user|person }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    {% form_page form=form id="decision-form" cancel_url=cancel_url submit_label="Sign decision and freeze requirements" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
     {% endif %}
-  </div>
-</section>
+{% endsignature_card %}
 {% endif %}
 {% endblock %}
-{% block record_foot %}{% include "includes/record_foot.html" with identifier=lot.number %}{% endblock %}
+{% block record_foot %}{% record_foot identifier=lot.number %}{% endblock %}

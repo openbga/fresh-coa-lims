@@ -1,35 +1,24 @@
 {% extends "base.html" %}
-{% comment %}Signing action for a controlled revision. Context: kind, revision, form, blocked, crumbs, cancel_url, detail_template.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
-{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ revision }}</span> · record revision {{ revision.revision }} · {% include "catalog/includes/revision_status.html" with status=revision.status %}</p>{% endblock %}
+{% load ui %}
+{% comment %}Signing action for a controlled revision. Context: page_title, kind, revision, form, blocked, refusal, retires, crumbs, cancel_url, detail_template (the revision's content partial).{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "catalog/includes/revision_status.html" with status=revision.status only %}</li><li class="vr-id">{{ revision }}</li><li>Record revision {{ revision.revision }}</li>{% endpage_meta %}{% endblock %}
 {% block content %}
-{% include detail_template %}
-<section class="card" aria-labelledby="sign-title">
-  <div class="card-body">
-    <h2 id="sign-title" class="card-title">Sign approval</h2>
-    {% if blocked %}
-    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div>{{ blocked }} Independent approval cannot be bypassed by any role, including administrators.</div></div>
-    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ revision }}</a></p>
-    {% elif refusal %}
-    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Cannot be approved" tone="warning" plain=True %}<div class="text-break">{{ refusal }}</div></div>
-    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ revision }}</a></p>
-    {% else %}
-    <p>Your signature records the meaning <strong>approved</strong> for {{ kind|lower }} <strong>{{ revision }}</strong> exactly as shown above, at record revision <strong>{{ revision.revision }}</strong>. The server records the time and binds the signature to the resulting revision {{ revision.revision|add:"1" }} and a hash of its content. If anyone changes the draft before you sign, signing fails and you must review again.</p>
-    {% if retires %}
-    <div class="alert alert-info" role="status">{% include "includes/status.html" with label="Retires earlier" tone="info" plain=True %}<div class="text-break"><p class="mb-1">This version overlaps the effective period of {{ retires|length }} approved version{{ retires|length|pluralize }}. Your signature also retires {{ retires|length|pluralize:"it,them" }}:</p><ul class="mb-1 ps-3">{% for item in retires %}<li><strong>{{ item.revision }}</strong> {% if item.never %}never applies: this version takes over before it starts{% else %}stops applying {% if item.moment > revision.effective_from %}at the moment of your signature, because this version's start has already passed{% else %}on <time datetime="{{ item.moment|date:'c' }}">{{ item.moment|date:"Y-m-d H:i T" }}</time>{% endif %}{% endif %}.{% if item.tests %} {{ item.tests }} test{{ item.tests|pluralize }} in progress {{ item.tests|pluralize:"is,are" }} frozen to it and keep{{ item.tests|pluralize:"s," }} it.{% if item.revision.requires_batch %} A QC batch of that version can still be created for them, and for nothing else.{% endif %}{% endif %}</li>{% endfor %}</ul><p class="mb-0">A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned; quality decides for each lot in testing whether to replace them.</p></div></div>
-    {% endif %}
-    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
-    <form method="post" autocomplete="off" novalidate>
-      {% csrf_token %}
-      {% include "includes/form_errors.html" with form=form %}
-      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
-      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-      <div class="vr-form-actions">
-        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
-        <button class="btn btn-primary" type="submit">Sign and approve</button>
-      </div>
-    </form>
-    {% endif %}
-  </div>
-</section>
+{% include detail_template with revision=revision only %}
+{% signature_card title="Sign approval" %}
+  {% if blocked %}
+  {% notice tone="warning" label="Not permitted" blocking=True %}{{ blocked }} Independent approval cannot be bypassed by any role, including administrators.{% endnotice %}
+  <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ revision }}</a></p>
+  {% elif refusal %}
+  {% notice tone="warning" label="Cannot be approved" blocking=True class="text-break" %}{{ refusal }}{% endnotice %}
+  <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ revision }}</a></p>
+  {% else %}
+  <p>Your signature records the meaning <strong>approved</strong> for {{ kind|lower }} <strong>{{ revision }}</strong> exactly as shown above, at record revision <strong>{{ revision.revision }}</strong>. The server records the time and binds the signature to the resulting revision {{ revision.revision|add:"1" }} and a hash of its content. If anyone changes the draft before you sign, signing fails and you must review again.</p>
+  {% if retires %}
+  {% notice tone="info" label="Retires earlier" class="text-break" %}<p class="mb-1">This version overlaps the effective period of {{ retires|length }} approved version{{ retires|length|pluralize }}. Your signature also retires {{ retires|length|pluralize:"it,them" }}:</p><ul class="mb-1 ps-3">{% for item in retires %}<li><strong>{{ item.revision }}</strong> {% if item.never %}never applies: this version takes over before it starts{% else %}stops applying {% if item.moment > revision.effective_from %}at the moment of your signature, because this version's start has already passed{% else %}on <time datetime="{{ item.moment|date:'c' }}">{{ item.moment|date:"Y-m-d H:i T" }}</time>{% endif %}{% endif %}.{% if item.tests %} {{ item.tests }} test{{ item.tests|pluralize }} in progress {{ item.tests|pluralize:"is,are" }} frozen to it and keep{{ item.tests|pluralize:"s," }} it.{% if item.revision.requires_batch %} A QC batch of that version can still be created for them, and for nothing else.{% endif %}{% endif %}</li>{% endfor %}</ul><p class="mb-0">A retired version keeps its approved content and signature. Lots keep the versions frozen when their requirements were assigned; quality decides for each lot in testing whether to replace them.</p>{% endnotice %}
+  {% endif %}
+  <p>Signer: <strong>{{ request.user|person }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+  {% form_page form=form cancel_url=cancel_url submit_label="Sign and approve" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
+  {% endif %}
+{% endsignature_card %}
 {% endblock %}

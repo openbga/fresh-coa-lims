@@ -1,4 +1,4 @@
-"""Keeps docs/pages in step with the URLconf. See .agents/skills/page-documentation/SKILL.md."""
+"""Keeps docs/pages in step with the URLconf. See .agents/skills/document-page/SKILL.md."""
 
 from collections import Counter
 
@@ -9,6 +9,7 @@ from django.utils.module_loading import import_string
 
 from pagedocs.coverage import (
     EXEMPT_NAMES,
+    FRIENDLY_LAYER_REQUIRED,
     PENDING_NAMESPACES,
     documented_routes,
     named_routes,
@@ -18,7 +19,7 @@ from pagedocs.docs import REQUIRED_SECTIONS, all_docs
 
 DOCS = all_docs()
 ROUTES = set(named_routes())
-SKILL = "Use the page-documentation skill (.agents/skills/page-documentation/SKILL.md)."
+SKILL = "Use the document-page skill (.agents/skills/document-page/SKILL.md)."
 
 
 def test_every_page_route_has_a_doc():
@@ -42,6 +43,14 @@ def test_pending_namespaces_still_have_undocumented_pages():
             assert set(routes) - covered, (
                 f"'{namespace}' is fully documented: remove it from PENDING_NAMESPACES"
             )
+
+
+def test_friendly_layer_roll_out():
+    without = sorted(doc.path.name for doc in DOCS if not doc.tasks)
+    if FRIENDLY_LAYER_REQUIRED:
+        assert not without, f"Docs without the friendly layer: {without}. {SKILL}"
+    else:
+        assert without, "Every doc has the friendly layer: set FRIENDLY_LAYER_REQUIRED = True"
 
 
 def test_exemptions_are_live_routes():

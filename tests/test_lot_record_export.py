@@ -3,6 +3,8 @@
 import hashlib
 import io
 import json
+import os
+import pathlib
 import threading
 import zipfile
 from datetime import timedelta
@@ -333,8 +335,8 @@ def test_record_is_read_in_one_read_only_snapshot(released, monkeypatch):
     assert all(e["fields"]["action"] != "synthetic.meanwhile" for e in record["audit_trail"])
 
 
-def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(released):
-    raw = released["raw"]
+def alter_raw_file(raw):
+    """Change a stored raw-data file behind the application, as damage or tampering would."""
     with connection.cursor() as cursor:
         cursor.execute("ALTER TABLE analytical_rawdatafile DISABLE TRIGGER analytical_append_only")
         try:
@@ -346,6 +348,11 @@ def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(relea
             cursor.execute(
                 "ALTER TABLE analytical_rawdatafile ENABLE TRIGGER analytical_append_only"
             )
+
+
+def test_a_file_that_no_longer_matches_its_checksum_is_copied_and_reported(released):
+    raw = released["raw"]
+    alter_raw_file(raw)
     package = export(released)
     _, _, members = unpack(package)
     record = json.loads(members["record.json"])
@@ -613,3 +620,134 @@ def test_page_needs_sign_in_and_an_existing_lot(client, released):
     assert client.get(url).status_code == 302
     login(client, released["people"]["auditor"])
     assert client.get(reverse("quality:lot_record", args=[999999])).status_code == 404
+
+
+def test_write_lot_record_review_pdfs(released):
+    """Visual inspection aid: set OQ_PDF_OUT to a directory to keep sample printed records."""
+    out = os.environ.get("OQ_PDF_OUT")
+    if not out:
+        pytest.skip("OQ_PDF_OUT not set")
+    pathlib.Path(out, "lot-record.pdf").write_bytes(unpack(export(released))[2]["record.pdf"])
+    alter_raw_file(released["raw"])
+    differs = unpack(export(released))[2]["record.pdf"]
+    pathlib.Path(out, "lot-record-differs.pdf").write_bytes(differs)
+
+
+def printed_text(package):
+    from reporting.tests.test_certificate_pdf import pdf_text  # reading order (pdftotext -raw)
+
+    return pdf_text(unpack(package)[2]["record.pdf"])
+
+
+RECORD_PHRASES = (
+    # Identity and facts (labels, table heads and section titles print in capitals)
+    "Record of lot SYN-INTEGRATED-001",
+    "Synthetic demonstration data. This document has no regulatory or commercial standing.",
+    "MATERIAL Synthetic reference powder",
+    "STATUS Released",
+    "RECORD REVISION",
+    "EXPORTED BY Synthetic auditor (synthetic_auditor)",
+    f"PURPOSE {PURPOSE}",
+    "PRODUCED BY OpenBGA QM LIMS",
+    # How to read, contents
+    "HOW TO READ THIS RECORD",
+    "This is the printed copy.",
+    "Times are in UTC. Numbers are printed exactly as recorded. A dash means the field is blank.",
+    "are shortened here and kept in full in record.json.",
+    "CONTENTS",
+    "PART RECORDS",
+    "Audit trail events",
+    "Audit trail reviews",
+    # Records and configuration
+    "CONFIGURATION THE RECORDS NAME",
+    "As it stood at the export.",
+    "CONFIGURATION: RULE SETS",
+    "Audit trail: entered",
+    "SIGNED BY MEANING DATE AND TIME (UTC) REVISION SIGNED CONTENT SHA-256",
+    # Audit trail, reviews, files, checks
+    "Every event on the lot's records, oldest first.",
+    "TIME (UTC) PERSON ACTION RECORD REASON CHANGES",
+    "REVIEWED BY",
+    "Synthetic review of the lot's events",
+    "the review covered",
+    "PATH IN THE PACKAGE",
+    "Each checksum or hash recomputed from what is stored with it.",
+    "Matches",
+)
+
+
+def test_printed_record_shows_every_element(released):
+    """The printed copy keeps every element (.local/evidence/reports/lot-record-checklist.md),
+    identity on every page, and states a mismatch in words, never by colour alone."""
+    intact = printed_text(export(released))
+    spoken = " ".join(intact.split())
+    for phrase in RECORD_PHRASES:
+        assert phrase in spoken, phrase
+    assert "checks match. See Checks for what was recomputed." in spoken
+    pages = [page for page in intact.split("\x0c") if page.strip()]
+    for number, page in enumerate(pages, 1):
+        flat_page = " ".join(page.split())
+        assert "OpenBGA QM LIMS" in flat_page, number
+        assert "Record of lot SYN-INTEGRATED-001 · exported" in flat_page, number
+        assert f"Page {number} of {len(pages)}" in flat_page, number
+
+    alter_raw_file(released["raw"])
+    differs = " ".join(printed_text(export(released)).split())
+    assert "1 of" in differs and "checks do not match." in differs
+    assert "the checks that differ are listed under Checks." in differs
+    assert "Does not match" in differs and "Stored:" in differs and "Computed:" in differs
+
+
+def test_a_missing_font_stops_the_export_and_records_nothing(released, monkeypatch, tmp_path):
+    from reporting import render
+
+    monkeypatch.setattr(render, "_font_path", lambda: tmp_path / "absent.woff2")
+    before = AuditEvent.objects.count()
+    with pytest.raises(RenderError, match="font"):
+        export(released)
+    assert AuditEvent.objects.count() == before
+
+
+def test_blank_structured_values_print_as_a_dash():
+    """An empty structured value prints as a dash, as "How to read this record" says; record.json
+    keeps the value itself."""
+    from analytical.models import AnalyticalTest
+
+    field = AnalyticalTest._meta.get_field("not_completed_record")
+    for blank in ({}, []):
+        printed = lot_record._printed_value(
+            AnalyticalTest(not_completed_record=blank), field, None, {}, {}
+        )
+        assert printed == {"text": "—"}
+    filled = lot_record._printed_value(
+        AnalyticalTest(not_completed_record={"cause": "equipment"}), field, None, {}, {}
+    )
+    assert filled["block"] and '"cause": "equipment"' in filled["text"]
+
+
+def test_signature_meanings_print_in_words():
+    """The printed record shows a signature meaning as the screen does ("not completed"), not
+    as its stored code; the code stays in record.json."""
+    from django.template.loader import render_to_string
+
+    record = {
+        "title": "T-1 assay",
+        "ref": "analytical.analyticaltest:1",
+        "rows": [],
+        "part": "lot",
+        "events": 1,
+        "entered": True,
+        "later": 0,
+        "signatures": [
+            {
+                "name": "Synthetic approver",
+                "meaning": "not_completed",
+                "signed_at": "2026-11-17 12:00:00 UTC",
+                "revision": 2,
+                "content_hash": "a" * 64,
+                "outcome": "intact",
+            }
+        ],
+    }
+    html = render_to_string("reporting/pdf/_lot_record_entry.html", {"record": record})
+    assert "<td>not completed</td>" in html and "not_completed" not in html

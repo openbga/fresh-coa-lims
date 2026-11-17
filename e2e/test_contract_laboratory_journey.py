@@ -6,6 +6,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from analytical import services as analytical
@@ -67,7 +68,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             page.set_viewport_size({"width": 1440, "height": 1000})
 
         def fill_report(date):
-            page.get_by_label("Contract laboratory").select_option(index=1)
+            pick(page.get_by_label("Contract laboratory"), index=1)
             field("Report number").fill(REPORT)
             field("Date of the report").fill(date.isoformat())
             field("Where the report is kept").fill("DMS-SYN-CLR-0042")
@@ -136,7 +137,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             expect(panel.locator("[data-pagedocs-for]")).to_have_attribute(
                 "data-pagedocs-for", "analytical:contract_result"
             )
-            expect(panel.get_by_role("heading", name="Rules and hidden logic")).to_be_visible()
+            expect(panel.get_by_text("Rules and hidden logic", exact=True)).to_be_visible()
             toggle.click()
             # A report dated before the approval began is refused beside the laboratory.
             fill_report(today - timedelta(days=11))
@@ -150,9 +151,12 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             expect(page.get_by_text("It was not tested in this laboratory.")).to_be_visible()
             expect(page.get_by_text("Approval relied on:")).to_be_visible()
             expect(page.get_by_text("QAG-SYN-001 rev 1")).to_be_visible()
+            # A correction is corrective, so it sits under More in the header.
+            page.locator(".vr-page-actions").get_by_role("button", name="More").click()
             expect(
                 page.get_by_role("link", name="Correct contract laboratory result", exact=True)
             ).to_be_visible()
+            page.keyboard.press("Escape")
             shots("contract-result-recorded")
             field("Reason").fill("Report transcribed")
             page.get_by_role("button", name="Submit for review", exact=True).click()
@@ -172,7 +176,8 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             goto("quality:lot_detail", lot.pk)
             page.get_by_role("link", name="Review disposition", exact=True).click()
             sign(people["approver"], "Independent synthetic QC disposition", "Sign approved")
-            expect(page.get_by_text("Released", exact=True)).to_be_visible()
+            meta = page.locator(".vr-page-meta")
+            expect(meta.get_by_text("Released", exact=True)).to_be_visible()
             page.get_by_role("link", name="Issue certificate of analysis", exact=True).click()
             printed = (
                 "Tested by contract laboratory Synthetic Contract Analytics, Synthetic City, "

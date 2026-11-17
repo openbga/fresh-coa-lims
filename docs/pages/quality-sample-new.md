@@ -4,8 +4,22 @@ urls: quality:sample_new
 views: quality.views.sample_new
 templates: quality/form.html
 models: quality.Sample, quality.Lot
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Record a sample taken from a quarantined lot, with its reference and the time it was collected. Analysts only.
 ---
+
+## Common tasks
+### Add a sample
+1. Enter a [[Reason]] for recording the sample.
+2. Enter the sample [[Reference]] and the time in [[Collected at]]. It starts at the current time.
+3. Select [[Add sample]]. You return to the lot record.
+### Leave without saving
+1. Select [[Cancel]] to return to the lot record. Nothing is saved.
+## Good to know
+- A sample reference must be unique across all lots, not only this one.
+- Only a lot in Quarantine accepts new samples.
+- This records the sample's identity only. QC disposition also needs a sampling record for each sample, on Requirements and sampling.
+- Adding a sample changes the lot's record revision, so a signing page opened earlier fails and must be reloaded.
 
 ## Purpose
 
@@ -17,14 +31,14 @@ Record a sample taken from a quarantined lot so results can be recorded against 
 
 ## Layout
 
-- Title "Add sample · <lot number>", the form, **Add sample** and **Cancel**.
+- Breadcrumbs Lots › the lot number, the title "Add sample · <lot number>", the required-fields note, the form, **Cancel** and **Add sample**.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Add sample** | Always | Analyst | Creates the sample and returns to the lot record |
-| **Cancel** | Always | Any | Returns to Material lots without saving |
+| **Cancel** | Always | Any | Returns to the lot record without saving |
 
 ## Fields
 

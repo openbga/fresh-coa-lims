@@ -4,8 +4,26 @@ urls: core:audit
 views: core.views.audit
 templates: core/audit.html
 models: core.AuditEvent, core.AuditReview
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Inspect, filter and export recorded changes, and record an independent review of selected events. Admin, quality and auditor can view; quality and auditor can review.
 ---
+
+## Common tasks
+### Find events
+1. Fill in any of [[Record type]], [[Record ID]], [[Actor]], [[Action]], [[From date]] and [[Through date]].
+2. Select [[Apply]]. Select [[Clear all]] to see every event again.
+### Export events to a spreadsheet
+1. Set the filters, then select [[Export filtered CSV]]. The file holds every matching event, not only this page.
+### Record an independent review
+1. Tick the events you checked in the [[Select]] column. Only events on the page shown can be ticked.
+2. Write what you checked and any follow-up in [[Review conclusion]].
+3. Select [[Record independent review]].
+## Good to know
+- You cannot review your own events. Their box is disabled and marked [[Your event]].
+- Opening, filtering or exporting events is not a review. Only a recorded conclusion is.
+- A review is not an electronic signature, so no PIN is asked. Earlier conclusions stay visible.
+- Dates cover whole days in the deployment time zone.
+- One review covers 1 to 50 events, all on the page shown.
 
 ## Purpose
 
@@ -19,21 +37,22 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Layout
 
-- **Filters** card: six filters, **Filter**, **Clear filters**, **Export filtered CSV**.
-- Count line: "N matching events" and the review scope note.
-- **Events table**: Select (reviewers only), Time / actor, Action / record, Original / new values (expand "Inspect values"), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
-- **Review conclusion** box and **Record independent review** for quality/auditor users; paging for all viewers.
-- Empty: "No events match these filters…" when filtered, else "No audit events recorded yet."
+- **Toolbar** at the top of the events card: six filters, **Apply**, **Export filtered CSV**, and **Clear all** when a filter is set; under them "Dates include the entire day in the deployment time zone."
+- Count line (when events match): "N matching events" and the review scope note.
+- **Events table**: Select (reviewers only), Time / actor, Action / record, Original / new values (expand "Inspect values": each recorded field and its value, exactly as recorded, laid out as labelled lines rather than raw data), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
+- **Review conclusion** box and **Record independent review** for quality/auditor users, under the table.
+- **Footer** for all viewers: **Columns** (choose and order the columns, saved for your account), "Showing X–Y of N audit events" and, with more than one page, first, previous, "Page N of M", next and last page buttons.
+- Empty: "No events match these filters" with "Clear or adjust the filters to inspect other records." and **Clear filters** when filtered; "These filters cannot be applied" when a filter is invalid; else "No audit events recorded yet".
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Filter** | Always | Admin, quality, auditor | Reloads with the filters applied |
-| **Clear filters** | Always | Admin, quality, auditor | Removes all filters |
+| **Apply** | Always | Admin, quality, auditor | Reloads with the filters applied |
+| **Clear all** / **Clear filters** | A filter is set | Admin, quality, auditor | Removes all filters |
 | **Export filtered CSV** | Always | Admin, quality, auditor | Downloads `audit.csv` of all matching events (all pages); not a review |
 | **Record independent review** | Quality/auditor role | Quality, auditor | Records one review over the checked events; "Independent review recorded for N events." |
-| **Previous** / **Next** | More pages | Admin, quality, auditor | Moves a page; keeps filters |
+| First / previous / next / last page | More pages | Admin, quality, auditor | Moves to that page; keeps filters |
 
 ## Fields
 
@@ -67,5 +86,5 @@ Inspect recorded changes, export them, and record an independent review of selec
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - [Rule sets](/rules/)

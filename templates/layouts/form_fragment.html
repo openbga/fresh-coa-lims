@@ -1,0 +1,20 @@
+{% load ui %}{% comment %}
+A dedicated form page fetched into the shared form dialog (X-VR-Form: 1, core/form_surfaces.py):
+the same blocks as layouts/document.html without the shell. templates/base.html extends this
+layout instead of the document when the context processor sets form_surface_layout. The page
+header's actions (page_actions) are moved into the dialog header by form-dialog.js; history
+panels render nothing here ({% history_panel %} reads form_dialog), so the form's action row stays
+the dialog's last element.
+{% endcomment %}<section data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size|default:'lg' }}">
+  <div class="vr-page-header">
+    {% block breadcrumbs %}{% endblock %}
+    <h1 class="vr-page-title">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+  </div>
+  {% block page_meta %}{% endblock %}
+  {% block page_intro %}{% endblock %}
+  <div class="vr-page-actions">{% block page_actions %}{% endblock %}</div>
+  {% messages %}
+  {% block content %}{% endblock %}
+</section>
+{% block extra_css %}{% endblock %}
+{% block extra_js %}{% endblock %}

@@ -1,5 +1,5 @@
-{% comment %}Investigation phase/outcome as text plus tone. Parameters: inv, plain. An open investigation holds its lot or, for a stability test, its pull.{% endcomment %}
-{% if inv.phase == "laboratory" %}{% if inv.lot_id %}{% include "includes/status.html" with label="Phase I open · lot held" tone="hold" plain=plain %}{% else %}{% include "includes/status.html" with label="Phase I open · pull held" tone="hold" plain=plain %}{% endif %}
-{% elif inv.phase == "full" %}{% if inv.lot_id %}{% include "includes/status.html" with label="Phase II open · lot held" tone="hold" plain=plain %}{% else %}{% include "includes/status.html" with label="Phase II open · pull held" tone="hold" plain=plain %}{% endif %}
-{% elif inv.outcome == "confirmed" %}{% include "includes/status.html" with label="Closed · OOS confirmed" tone="danger" plain=plain %}
-{% else %}{% include "includes/status.html" with label="Closed · original invalidated" tone="neutral" plain=plain %}{% endif %}
+{% load ui %}{% comment %}Investigation phase/outcome as text plus tone. Include with inv=... plain=... only. An open investigation holds its lot or, for a stability test, its pull.{% endcomment %}
+{% if inv.phase == "laboratory" %}{% if inv.lot_id %}{% status label="Phase I open · lot held" tone="hold" plain=plain %}{% else %}{% status label="Phase I open · pull held" tone="hold" plain=plain %}{% endif %}
+{% elif inv.phase == "full" %}{% if inv.lot_id %}{% status label="Phase II open · lot held" tone="hold" plain=plain %}{% else %}{% status label="Phase II open · pull held" tone="hold" plain=plain %}{% endif %}
+{% elif inv.outcome == "confirmed" %}{% status label="Closed · OOS confirmed" tone="danger" plain=plain %}
+{% else %}{% status label="Closed · original invalidated" tone="neutral" plain=plain %}{% endif %}

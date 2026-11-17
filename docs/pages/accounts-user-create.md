@@ -4,8 +4,26 @@ urls: accounts:user_create
 views: accounts.views.user_create
 templates: accounts/form.html
 models: accounts.User, auth.Group, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Create a named account with its initial password and laboratory roles. Your signature PIN authorizes it, and the new user must change the password at first sign-in.
 ---
+
+## Common tasks
+### Create an account
+1. Enter the [[Username]], [[First name]] and [[Last name]], and an [[Email]] if you have one.
+2. Under [[Roles]], check each role the person needs.
+3. Enter the [[Initial password]] and [[Confirm initial password]], then a [[Reason]].
+4. Enter your own [[Signing username]] and [[Signature PIN]], then select [[Sign and create account]].
+### Leave without creating
+1. Select [[Cancel]], or [[Return without changes]] when your PIN is not enrolled. You return to Users and roles.
+### Enroll your PIN first
+1. Select [[Enroll or change your signature PIN]]. It sets your own PIN, not the new user's.
+## Good to know
+- No email is sent. Share the initial password privately; the user must change it at first sign-in.
+- The new account starts without a signature PIN. Its owner enrolls one after changing the password.
+- An account with no role checked can sign in but has no laboratory access.
+- The admin role does not grant scientific approval. Assign the laboratory roles the person's work needs.
+- Passwords and PINs are never copied into the account history or the signature.
 
 ## Purpose
 

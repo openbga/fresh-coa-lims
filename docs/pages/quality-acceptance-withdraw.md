@@ -4,8 +4,23 @@ urls: quality:acceptance_withdraw
 views: quality.acceptance_views.acceptance_withdraw
 templates: catalog/form.html, ops/sign.html
 models: quality.SupplierResultAcceptance, quality.Lot, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Withdraw a supplier result proposed or accepted in place of a test while the lot is in quarantine. A proposal takes a reason, an accepted result a signature. The record is kept.
 ---
+
+## Common tasks
+### Withdraw a proposal
+1. Check the [[Record]] card, then explain why in [[Reason for withdrawal]].
+2. Select [[Withdraw supplier result]]. You return to the record, now Withdrawn.
+### Withdraw an accepted result
+1. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]]. Reviewer or quality role only.
+2. Select [[Sign and withdraw]]. You return to the record, now Withdrawn.
+## Good to know
+- Afterwards nothing answers the requirement until the laboratory tests it or a new proposal is accepted.
+- A withdrawal is final. The record, its evidence and its signatures are kept.
+- If a reviewer accepts the proposal after you open the page, your reason is not enough: withdrawing it then takes a signature.
+- The analyst who proposed the result stays an author of the lot's data and still cannot sign its disposition.
+- Supplier results of a lot that is no longer in quarantine cannot be withdrawn.
 
 ## Purpose
 
@@ -68,4 +83,4 @@ Withdraws a supplier result that was proposed or accepted in place of a test, wh
 - Supplier certificate record (to propose the result again); Propose supplier result in place of a test.
 - Lot record; Lot testing.
 - [Signature PIN](/signature-pin/)
-- [Material lots](/)
+- [Material lots](/lots/)

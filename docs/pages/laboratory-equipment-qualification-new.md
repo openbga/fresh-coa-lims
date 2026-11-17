@@ -4,8 +4,22 @@ urls: laboratory:equipment_qualification_new
 views: laboratory.views.qualification_new
 templates: ops/form.html
 models: laboratory.Qualification, laboratory.Equipment, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Record installation, operational or performance qualification evidence for one instrument. It counts toward fitness only after a different quality user approves it.
 ---
+
+## Common tasks
+### Record qualification evidence for this equipment
+1. Enter the stage in [[Stage or intended use]], for example IQ, OQ, PQ or requalification.
+2. Enter [[Evidence reference]], [[Valid from]] and [[Valid until (inclusive)]], with [[Scope note]] or [[Evidence link]] if needed.
+3. Give a [[Reason]] and select [[Record qualification]]. The qualification record opens, awaiting approval.
+### Leave without recording
+1. Select [[Cancel]] to return to the equipment record. Nothing is saved.
+## Good to know
+- The equipment counts the evidence only once a quality user other than you approves it, from the approval time and within its dates.
+- Equipment registered without Requires qualification does not need this evidence to be fit for use.
+- Evidence cannot be edited after it is recorded. Record new evidence instead.
+- Valid until is the last valid day and cannot be before Valid from.
 
 ## Purpose
 

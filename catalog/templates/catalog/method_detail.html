@@ -1,38 +1,35 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
-{% block page_meta %}<p class="vr-page-meta">{{ method.title }}</p>{% endblock %}
-{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_version_new' method.pk %}">New version</a>{% endif %}{% endblock %}
+{% load ui %}
+{% comment %}A method and its versions, newest first. Context: page_title, method, revisions, in_force (the approved version in force now), history, crumbs, can_edit.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ method.title }}</li>{% endpage_meta %}{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_version_new' method.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
 {% block content %}
-{% for revision in revisions %}
-<section class="card mb-3" aria-labelledby="version-{{ revision.pk }}">
-  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <h2 class="card-title mb-0" id="version-{{ revision.pk }}">Version {{ revision.version }} · {% include "catalog/includes/revision_status.html" with status=revision.status plain=True %}</h2>
-    {% if revision.status == "draft" and can_edit %}<div class="d-flex gap-2">
-      <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_withdraw' revision.pk %}">Withdraw draft<span class="visually-hidden"> version {{ revision.version }}</span></a>
-      {% if revision.can_approve %}<a class="btn btn-sm btn-primary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% else %}<span class="small">Another quality approver must sign this draft.</span>{% endif %}
-    </div>{% endif %}
-  </div>
-  <div class="card-body">
-    <dl class="vr-facts">
-      <div><dt>Technique</dt><dd>{{ revision.technique }}</dd></div>
-      <div><dt>Controlled procedure</dt><dd>{{ revision.document_ref }}</dd></div>
-      <div><dt>Suitability</dt><dd>{{ revision.get_suitability_kind_display }} · {{ revision.suitability_ref }}</dd></div>
-      <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
-      {% if revision.summary %}<div><dt>Summary</dt><dd>{{ revision.summary|linebreaksbr }}</dd></div>{% endif %}
-      <div><dt>QC batch</dt><dd>{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}</dd></div>
-      <div><dt>Instrument</dt><dd>{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
-      <div><dt>Reagent or standard</dt><dd>{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
-      <div><dt>Record revision</dt><dd>{{ revision.revision }}</dd></div>
-      <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
-    </dl>
-    {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all editable=revision.is_draft %}{% endif %}
-    {% include "catalog/includes/calculation.html" %}
-    {% include "catalog/includes/signatures.html" with signatures=revision.signature_list %}
-  </div>
-</section>
+{% for revision in revisions %}{% with pk=revision.pk|stringformat:"s" %}{% with heading_id="version-"|add:pk %}
+{% panel heading_id=heading_id class="mb-3" %}
+  {% fill title %}Version {{ revision.version }} · {% include "catalog/includes/revision_status.html" with status=revision.status plain=True only %}{% endfill %}
+  {% fill actions %}{% if revision.status == "draft" and can_edit %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_withdraw' revision.pk %}">Withdraw draft<span class="visually-hidden"> version {{ revision.version }}</span></a>
+    {% if revision.can_approve %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% else %}<span class="small">Another quality approver must sign this draft.</span>{% endif %}{% endif %}{% endfill %}
+  <dl class="vr-facts">
+    {% fact label="Technique" value=revision.technique %}
+    {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}
+    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {% code value=revision.suitability_ref %}{% endfact %}
+    {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
+    {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
+    {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
+    {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
+    {% fact label="Reagent or standard" %}{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
+    {% fact label="Record revision" value=revision.revision %}
+    {% fact label="Author" value=revision.author|person %}
+  </dl>
+  {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all editable=revision.is_draft can_edit=can_edit revision=revision only %}{% endif %}
+  {% include "catalog/includes/calculation.html" with revision=revision can_edit=can_edit only %}
+  {% signature_list signatures=revision.signature_list hash=True %}
+{% endpanel %}
+{% endwith %}{% endwith %}
 {% empty %}
-{% include "catalog/includes/empty.html" with title="No versions" body="Create the first version of this method." %}
+{% empty_state title="No versions" body="Create the first version of this method." %}
 {% endfor %}
-{% include "catalog/includes/history.html" %}
+{% history_panel events=history empty_title="No recorded history" class="mt-3" %}{% endhistory_panel %}
 {% endblock %}
-{% block record_foot %}{% include "includes/record_foot.html" with identifier=method.code %}{% endblock %}
+{% block record_foot %}{% record_foot identifier=method.code %}{% endblock %}

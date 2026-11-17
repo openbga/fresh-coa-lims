@@ -1,40 +1,34 @@
 {% extends "base.html" %}
+{% load ui %}
 {% comment %}One supplier certificate of a lot: its current record, the results it states and its history.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_title_class %} vr-data{% endblock %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}
-<ul class="vr-page-meta">
-  <li>{% if withdrawn %}{% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% else %}{% include "includes/status.html" with label="Supplier's results" tone="info" plain=True %}{% endif %}</li>
+{% page_meta %}
+  <li>{% if withdrawn %}{% status label="Withdrawn" tone="neutral" plain=True %}{% else %}{% status label="Supplier's results" tone="info" plain=True %}{% endif %}</li>
   <li>Lot <a class="vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></li>
   <li>{{ lot.material }}</li>
-</ul>
+{% endpage_meta %}
 {% endblock %}
 {% block page_actions %}{% if can_correct %}<a class="btn btn-outline-secondary" href="{% url 'quality:certificate_correct' certificate.pk %}">Correct supplier certificate</a>{% endif %}{% if can_withdraw %}<a class="btn btn-outline-danger" href="{% url 'quality:certificate_withdraw' certificate.pk %}">Withdraw supplier certificate</a>{% endif %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">Results stated by the supplier, compared with this lot's approved requirements. They are not the laboratory's own tests. A stated result answers a requirement and counts towards QC disposition only when it is accepted in place of a test, under a signed qualification of the supplier.</p>{% endblock %}
 {% block content %}
 {% if withdrawn %}
-<div class="alert alert-secondary" role="status">
-  {% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}
-  <div>This certificate record was withdrawn and no longer stands. It is kept as recorded.<br>Reason: {{ certificate.withdrawal.reason|linebreaksbr }}</div>
-</div>
+{% notice tone="neutral" label="Withdrawn" %}This certificate record was withdrawn and no longer stands. It is kept as recorded.<br>Reason: {{ certificate.withdrawal.reason|linebreaksbr }}{% endnotice %}
 {% endif %}
-<section class="card mb-3" aria-labelledby="certificate-heading">
-  <div class="card-header"><h2 class="card-title" id="certificate-heading">Certificate</h2></div>
-  <div class="card-body">
+{% panel title="Certificate" class="mb-3" %}
     <dl class="vr-facts mb-0">
-      <div><dt>Certificate number</dt><dd>{{ certificate.number }}</dd></div>
-      <div><dt>Issued by</dt><dd>{{ certificate.issued_by }}</dd></div>
-      <div><dt>Date of the certificate</dt><dd><time datetime="{{ certificate.issued_on|date:'Y-m-d' }}">{{ certificate.issued_on|date:"Y-m-d" }}</time></dd></div>
-      <div><dt>Lot number on the certificate</dt><dd>{{ certificate.stated_lot }}{% if lot_check == "differs" %} {% include "includes/status.html" with label="Differs from the receipt" tone="warning" plain=True %}{% elif lot_check == "match" %} {% include "includes/status.html" with label="As on the receipt" tone="success" plain=True %}{% endif %}</dd></div>
-      {% if receipt and receipt.supplier %}<div><dt>Receipt</dt><dd><a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.code }}</a> · {{ receipt.supplier.name }}; supplier lot {{ receipt.supplier_lot|default:"not known" }}{% if receipt.manufacturer_lot %}; manufacturer lot {{ receipt.manufacturer_lot }}{% endif %}</dd></div>{% endif %}
-      <div><dt>Where the certificate is kept</dt><dd>{{ certificate.document_ref }}</dd></div>
-      <div><dt>Notes</dt><dd>{{ certificate.notes|default:"None"|linebreaksbr }}</dd></div>
-      <div><dt>Recorded</dt><dd><time datetime="{{ certificate.recorded_at|date:'c' }}">{{ certificate.recorded_at|date:"Y-m-d H:i T" }}</time> by {{ certificate.recorded_by.get_full_name|default:certificate.recorded_by.get_username }}</dd></div>
+      {% fact label="Certificate number" %}{{ certificate.number }}{% endfact %}
+      {% fact label="Issued by" %}{{ certificate.issued_by }}{% endfact %}
+      {% fact label="Date of the certificate" %}<time datetime="{{ certificate.issued_on|date:'Y-m-d' }}">{{ certificate.issued_on|date:"Y-m-d" }}</time>{% endfact %}
+      {% fact label="Lot number on the certificate" %}{{ certificate.stated_lot }}{% if lot_check == "differs" %} {% status label="Differs from the receipt" tone="warning" plain=True %}{% elif lot_check == "match" %} {% status label="As on the receipt" tone="success" plain=True %}{% endif %}{% endfact %}
+      {% if receipt and receipt.supplier %}{% fact label="Receipt" %}<a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.code }}</a> · {{ receipt.supplier.name }}; supplier lot {{ receipt.supplier_lot|default:"not known" }}{% if receipt.manufacturer_lot %}; manufacturer lot {{ receipt.manufacturer_lot }}{% endif %}{% endfact %}{% endif %}
+      {% fact label="Where the certificate is kept" %}{{ certificate.document_ref }}{% endfact %}
+      {% fact label="Notes" %}{{ certificate.notes|default:"None"|linebreaksbr }}{% endfact %}
+      {% fact label="Recorded" %}<time datetime="{{ certificate.recorded_at|date:'c' }}">{{ certificate.recorded_at|date:"Y-m-d H:i T" }}</time> by {{ certificate.recorded_by|person }}{% endfact %}
     </dl>
-  </div>
-</section>
-<section class="card vr-table-card mb-3" aria-labelledby="results-heading">
-  <div class="card-header"><h2 class="card-title" id="results-heading">Results stated by the supplier</h2><span class="vr-count">{{ rows|length }}</span></div>
-  <div class="card-body">
+{% endpanel %}
+{% panel title="Results stated by the supplier" heading_id="results-heading" count=rows|length class="mb-3" %}
     {% if failing and not withdrawn %}<p>A supplier result that does not meet the specification does not hold the lot by itself. Place a hold from <a href="{% url 'stability:hold_list' %}">Holds</a> if the lot must not be dispositioned until it is resolved.</p>{% endif %}
     {% if replaced %}<p>A result was compared with a requirement that is no longer current for this lot. Its comparison stands as recorded{% if can_correct %}; correct the certificate record to compare it with the current requirements{% endif %}.</p>{% endif %}
     <div class="vr-table-wrap">
@@ -48,26 +42,20 @@
             <td class="vr-wrap">{{ row.line.method|default:"Not stated" }}</td>
             <td class="vr-wrap">{{ row.line.limits|default:"Not stated" }}</td>
             <td class="vr-wrap small">{{ row.acceptance }}<div class="vr-muted">{{ row.source }}</div></td>
-            <td>{% if row.line.conforms %}{% include "includes/status.html" with label="Meets the specification" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %}{% endif %}{% if row.replaced %}<div>{% include "includes/status.html" with label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}</td>
+            <td>{% if row.line.conforms %}{% status label="Meets the specification" tone="success" plain=True %}{% else %}{% status label="Does not meet the specification" tone="danger" plain=True %}{% endif %}{% if row.replaced %}<div>{% status label="Requirement no longer current" tone="warning" plain=True %}</div>{% endif %}</td>
           </tr>
           {% if row.standing or row.can_propose or row.refusal %}
           <tr>
-            <td colspan="6" class="vr-wrap small"><span class="vr-muted">In place of a test:</span> {% if row.standing %}<a class="vr-id" href="{% url 'quality:acceptance_detail' row.standing.pk %}">{{ row.standing.label }}</a> {% if row.standing.problems %}{% include "includes/status.html" with label="No longer stands" tone="danger" plain=True %} Withdraw it before proposing a result again.{% elif row.standing.state == "accepted" %}{% include "includes/status.html" with label="Accepted" tone="success" plain=True %}{% else %}{% include "includes/status.html" with label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}{% if row.elsewhere %} <span class="vr-muted">Taken from another record: {{ row.standing.evidence.certificate.number }}.</span>{% endif %}{% elif row.can_propose %}<a href="{% url 'quality:acceptance_new' row.line.pk %}">Propose in place of a test<span class="visually-hidden">: {{ row.name }}</span></a>{% else %}Not available: {{ row.refusal }}{% endif %}</td>
+            <td colspan="6" class="vr-wrap small"><span class="vr-muted">In place of a test:</span> {% if row.standing %}<a class="vr-id" href="{% url 'quality:acceptance_detail' row.standing.pk %}">{{ row.standing.label }}</a> {% if row.standing.problems %}{% status label="No longer stands" tone="danger" plain=True %} Withdraw it before proposing a result again.{% elif row.standing.state == "accepted" %}{% status label="Accepted" tone="success" plain=True %}{% else %}{% status label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}{% if row.elsewhere %} <span class="vr-muted">Taken from another record: {{ row.standing.evidence.certificate.number }}.</span>{% endif %}{% elif row.can_propose %}<a href="{% url 'quality:acceptance_new' row.line.pk %}">Propose in place of a test<span class="visually-hidden">: {{ row.name }}</span></a>{% else %}Not available: {{ row.refusal }}{% endif %}</td>
           </tr>
           {% endif %}
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-</section>
-<section class="card mb-3" aria-labelledby="history-heading">
-  <div class="card-header"><h2 class="card-title" id="history-heading">History</h2></div>
-  <div class="card-body">
-    <ol class="vr-timeline mb-0">
-      {% for entry in history %}{% include "includes/history_item.html" with title=entry.title at=entry.at actor=entry.actor by=entry.by reason=entry.reason changes=entry.changes %}{% endfor %}
-    </ol>
-  </div>
-</section>
+{% endpanel %}
+{% history_panel events=history %}
+  {% for entry in history %}{% history_item title=entry.title at=entry.at actor=entry.actor by=entry.by reason=entry.reason changes=entry.changes %}{% endfor %}
+{% endhistory_panel %}
 {% endblock %}
-{% block record_foot %}{% include "includes/record_foot.html" with identifier=certificate.number %}{% endblock %}
+{% block record_foot %}{% record_foot identifier=certificate.number %}{% endblock %}

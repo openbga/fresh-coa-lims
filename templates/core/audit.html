@@ -1,32 +1,34 @@
 {% extends 'base.html' %}
-{% block title %}Audit trail · OpenBGA QM LIMS{% endblock %}
-{% block page_heading %}Audit trail{% endblock %}
-{% block page_intro %}<p class="text-body-secondary">Inspect recorded changes and document independent review of selected events.</p>{% endblock %}
+{% load ui %}
+{% comment %}Audit trail: filter and inspect recorded changes, export them, and record an independent review of selected events (quality, auditor). Context: page, filters, filtered, can_review, review_form, selected_ids, error.{% endcomment %}
+{% block page_intro %}<p class="vr-page-intro">Inspect recorded changes and document independent review of selected events.</p>{% endblock %}
 {% block content %}
-<form method="get" class="card mb-4" aria-label="Filter audit events">
-  <div class="card-body">
-    {% if filters.non_field_errors %}<div class="alert alert-danger" role="alert">{{ filters.non_field_errors }}</div>{% endif %}
-    <div class="row g-3">
-      {% for field in filters %}<div class="col-md-4"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.errors %}<div class="text-danger" role="alert">{{ field.errors }}</div>{% endif %}</div>{% endfor %}
-    </div>
-    <p class="form-text">Dates include the entire day in the deployment time zone.</p>
-    <div class="d-flex gap-2 mt-3"><button class="btn btn-primary">Filter</button><a class="btn btn-outline-secondary" href="{% url 'core:audit' %}">Clear filters</a><button name="export" value="csv" class="btn btn-outline-secondary">Export filtered CSV</button></div>
-  </div>
-</form>
-{% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
-<p>{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. {% if can_review %}Review applies only to the checked events on this page; {% endif %}Filters and CSV exports do not record a review.</p>
-{% if can_review %}<form method="post" aria-label="Record audit review">{% csrf_token %}{% endif %}
-<div class="table-responsive"><table class="table align-top"><caption class="visually-hidden">Audit events and previous independent reviews</caption><thead><tr>{% if can_review %}<th scope="col">Select</th>{% endif %}<th scope="col">Time / actor</th><th scope="col">Action / record</th><th scope="col">Original / new values</th><th scope="col">Reason</th><th scope="col">Review status</th></tr></thead><tbody>
-{% for event in page %}<tr>
-{% if can_review %}<td>{% if event.actor_id == request.user.pk %}<input class="form-check-input" type="checkbox" disabled aria-label="Your own event cannot be reviewed"><span class="d-block small">Your event</span>{% else %}<input class="form-check-input" type="checkbox" name="events" value="{{ event.pk }}" aria-label="Review event {{ event.pk }}" {% if event.pk|stringformat:'s' in selected_ids %}checked{% endif %}>{% endif %}</td>{% endif %}
-<td><time datetime="{{ event.occurred_at|date:'c' }}">{{ event.occurred_at|date:'Y-m-d H:i:s T' }}</time><br>{{ event.actor }}</td>
-<td>{{ event.action }}<br><span class="small">{{ event.object_type }}:{{ event.object_id }}</span></td>
-<td><details><summary>Inspect values</summary><strong>Original</strong><pre>{{ event.before }}</pre><strong>New</strong><pre>{{ event.after }}</pre></details></td>
-<td>{{ event.reason }}</td>
-<td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|date:'Y-m-d H:i:s T' }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
-</tr>{% empty %}<tr><td colspan="{% if can_review %}6{% else %}5{% endif %}">{% if filtered %}No events match these filters. Clear or adjust the filters to inspect other records.{% else %}No audit events recorded yet.{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>
-{% if can_review %}<div class="card my-3"><div class="card-body"><label class="form-label" for="conclusion">Review conclusion</label><textarea class="form-control" id="conclusion" name="conclusion" rows="3" required aria-describedby="review-scope">{{ conclusion }}</textarea><p id="review-scope" class="form-text">Record what you checked and any follow-up needed. Previous conclusions remain available. You cannot review your own events.</p><button class="btn btn-primary">Record independent review</button></div></div>
-</form>{% endif %}
-<nav aria-label="Audit events pages" class="d-flex gap-3 align-items-center"><span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% if page.has_previous %}<a href="?{{ base_query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}{% if page.has_next %}<a href="?{{ base_query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% if error %}{% notice tone="danger" blocking=True %}{{ error }}{% endnotice %}{% endif %}
+{% panel title="Audit events" heading_id="audit-events-heading" table=True hidden_title=True %}
+  {% if filters.non_field_errors %}{% notice tone="danger" blocking=True %}{% for message in filters.non_field_errors %}{{ message }}{% if not forloop.last %} {% endif %}{% endfor %}{% endnotice %}{% endif %}
+  {% grid_toolbar label="Filter audit events" no_search=True inline=filters invalid=filters.errors active=filtered note="Dates include the entire day in the deployment time zone." extra_name="export" extra_value="csv" extra_label="Export filtered CSV" %}
+  {% if page.paginator.count %}{% panel_section %}<p class="mb-0">{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. {% if can_review %}Review applies only to the checked events on this page; {% endif %}Filters and CSV exports do not record a review.</p>{% endpanel_section %}{% endif %}
+  {% if can_review and page.paginator.count %}<form method="post" aria-label="Record audit review" novalidate>{% csrf_token %}{% endif %}
+  {% list_results items=page grid="core.audit" noun="audit events" filtered=filtered invalid=filters.errors paginate=False clear_url=request.path empty_title="No audit events recorded yet" no_results_title="No events match these filters" no_results_body="Clear or adjust the filters to inspect other records." %}
+  {% grid_table grid="core.audit" columns=columns label="Audit events and previous independent reviews" caption=True class="align-top" %}
+      <tbody>
+        {% for event in page %}<tr>
+          {% if can_review %}<td>{% if event.actor_id == request.user.pk %}{% row_select disabled=True label="Your own event cannot be reviewed" %}<span class="d-block small">Your event</span>{% else %}{% with pk=event.pk|stringformat:'s' %}{% if pk in selected_ids %}{% row_select name="events" value=pk label="Review event "|add:pk checked=True %}{% else %}{% row_select name="events" value=pk label="Review event "|add:pk %}{% endif %}{% endwith %}{% endif %}</td>{% endif %}
+          <td>{{ event.occurred_at|when:"seconds" }}<br>{{ event.actor }}</td>
+          <td>{{ event.action }}<br><span class="small">{{ event.object_type }}:{{ event.object_id }}</span></td>
+          <td><details><summary>Inspect values</summary><strong>Original</strong>{% value_list data=event.before compact=True %}<strong>New</strong>{% value_list data=event.after compact=True %}</details></td>
+          <td class="vr-wrap">{{ event.reason }}</td>
+          <td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|when:"seconds" }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
+        </tr>{% endfor %}
+      </tbody>
+  {% endgrid_table %}
+  {% endlist_results %}
+  {% if can_review and page.paginator.count %}
+  {% panel_section rule=True %}
+    {% field field=review_form.conclusion %}
+    {% form_actions submit_label="Record independent review" %}{% endform_actions %}
+  {% endpanel_section %}
+  </form>{% endif %}
+  {% if page.paginator.count %}{% pagination page_obj=page noun="audit events" filtered=filtered %}{% endif %}
+{% endpanel %}
 {% endblock %}

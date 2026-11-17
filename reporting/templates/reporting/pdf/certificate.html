@@ -7,40 +7,51 @@
 <meta name="description" content="Lot {{ snapshot.lot.number }}">
 <meta name="dcterms.created" content="{{ snapshot.report.issued_at }}">
 <meta name="dcterms.modified" content="{{ snapshot.report.issued_at }}">
+{% comment %}
+Line print style for the issued certificate (reporting/render.py serves the font and the status
+glyphs; nothing else loads). One light palette from the Line print column: black text, muted
+#3d4741, table-head fill #f2f2f0, wells #f2f4f3, row rules #b9c4be. Meaning never rests on colour:
+statuses print text plus a black glyph chosen by the recorded tone. Every printed word comes from
+reporting/_certificate.html and this file's existing lines; layout only.
+{% endcomment %}
 <style>
-  @page {
-    size: A4;
-    margin: 14mm 15mm 18mm;
-    @bottom-left { content: string(docid); font-size: 8pt; color: #444; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 8pt; color: #444; }
-  }
-  html { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; font-size: 9pt; color: #000; background: #fff; line-height: 1.35; }
-  .docid { string-set: docid content(); }
-  .ids { font-size: 8pt; color: #444; margin: 0 0 2mm; }
-  h2 { font-size: 17pt; margin: 1mm 0 3mm; }
-  h3 { font-size: 10.5pt; margin: 4mm 0 1.5mm; border-bottom: 0.75pt solid #000; padding-bottom: 1mm; break-after: avoid; }
-  .brand { font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; color: #444; font-weight: bold; }
-  .notice { border: 0.75pt solid #444; padding: 1.5mm 2.5mm; margin: 2mm 0; font-weight: bold; }
-  dl.vr-facts { margin: 0; }
-  dl.vr-facts > div { display: flex; gap: 3mm; margin-bottom: 1mm; }
-  dl.vr-facts dt { width: 32mm; flex: none; font-weight: bold; font-size: 8pt; color: #333; }
-  dl.vr-facts dd { margin: 0; flex: 1; overflow-wrap: anywhere; }
-  .card-header { margin: 0; padding: 0; }
-  table { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm; }
-  thead { display: table-header-group; }
-  tr { break-inside: avoid; }
-  th, td { text-align: left; vertical-align: top; padding: 1mm 1.5mm; border-bottom: 0.4pt solid #888; font-size: 8pt; overflow-wrap: anywhere; }
-  thead th { background: #e6e6e6; border-top: 0.5pt solid #000; border-bottom: 0.5pt solid #000; }
+{% include "reporting/pdf/_line.css" %}
+  .card, .card-header, .card-body { margin: 0; padding: 0; border: 0; }
+  h2 { margin: 0; font-size: 17pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
+  .cert-id { font-stretch: 100%; font-variant-numeric: tabular-nums slashed-zero; }
+  .card-header { margin-bottom: 3mm; }
+
+  /* Section titles: uppercase panel titles, no rules between things. */
+  h3, details > summary { display: block; margin: 4.5mm 0 1.5mm; font-size: 7.5pt; font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; text-transform: uppercase; color: #000; break-after: avoid; }
+  details > summary::marker { content: none; }
+  details > summary { list-style: none; }
+
+  /* Material and lot: two equal tracks, label over value. */
+  dl.cert-key { display: grid; grid-template-columns: 1fr 1fr; column-gap: 6mm; row-gap: 1.6mm; }
+  dl.cert-key > div { display: block; padding: 0; }
+  dl.cert-key dt { width: auto; margin-bottom: 0.4mm; }
+  dl.cert-key dd { display: block; font-size: 9pt; font-weight: 600; }
+
+  /* The decision and the amendment sit in quiet wells. */
+  .cert-decision, .cert-amendment { margin: 0 0 2mm; padding: 2.2mm 3.5mm; background: #f2f4f3; border-radius: 2.5mm; break-inside: avoid; }
+  .cert-decision { font-size: 9pt; }
+  .cert-amendment p { margin: 0; }
+  .cert-amendment p + p { margin-top: 1mm; }
   .text-end { text-align: right; }
-  .vr-status { font-weight: bold; }
-  .vr-id { font-family: "DejaVu Sans Mono", monospace; font-size: 7pt; overflow-wrap: anywhere; white-space: normal; }
+  td.text-end { white-space: nowrap; font-weight: 700; }
+
+  /* Status: text plus a black glyph from the recorded tone. */
+  .vr-status { font-weight: 700; white-space: nowrap; }
+  .vr-status[data-tone]::before { content: ""; display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.35em; vertical-align: -0.12em; background: center / contain no-repeat; }
+  .vr-status[data-tone="success"]::before { background-image: url("certicon:check-circle-fill"); }
+  .vr-status[data-tone="warning"]::before { background-image: url("certicon:exclamation-triangle-fill"); }
+  .vr-status[data-tone="danger"]::before { background-image: url("certicon:x-circle-fill"); }
+
+  /* Technical identifiers: code voice, wraps anywhere. */
   details { break-inside: avoid; }
-  details > summary { font-weight: bold; margin-bottom: 1mm; }
-  .d-block { display: block; }
-  .vr-muted { color: #444; }
-  .small { font-size: 8pt; }
-  p { margin: 1mm 0 2mm; }
-  .card, .card-body { border: 0; padding: 0; margin: 0; }
+  details dl.vr-facts dt { width: 46mm; }
+  /* Identifiers inside an uppercase label print verbatim. */
+  dt .vr-data { text-transform: none; letter-spacing: 0; }
 </style>
 </head>
 <body>

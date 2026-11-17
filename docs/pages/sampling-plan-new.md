@@ -4,8 +4,23 @@ urls: sampling:plan_new
 views: sampling.views.plan_new
 templates: catalog/form.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, catalog.Material
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create a sampling plan for one material at one stage, with its draft version 1. Another quality user approves the version before lots can be sampled against it.
 ---
+
+## Common tasks
+### Create a sampling plan
+1. Enter the [[Code]] and [[Title]], and choose the [[Material]] and [[Stage]].
+2. Choose the [[Basis]] and, for a fixed or percentage plan, the [[Parameter]].
+3. Enter the [[Minimum total amount]], [[Amount unit]], [[Instructions]], [[Rationale]] and effective period.
+4. Enter a [[Reason for change]] and select [[Create draft]].
+### Have version 1 approved
+1. Another quality user selects [[Review and approve]] on the plan's page and signs.
+## Good to know
+- A second plan for the same material and stage is refused. Create a new version of the existing plan instead.
+- The draft's content is fixed once created. To change it, create a new version.
+- The effective end is exclusive. Approving a later version that overlaps ends this one earlier.
+- Compositing allowed is shown on the plan but is not checked when sampling is recorded.
 
 ## Purpose
 

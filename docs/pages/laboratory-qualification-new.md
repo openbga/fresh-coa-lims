@@ -4,8 +4,23 @@ urls: laboratory:qualification_new
 views: laboratory.views.qualification_new
 templates: ops/form.html
 models: laboratory.Qualification, core.AuditEvent
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Record training or qualification evidence for an analyst and an activity or method. It qualifies nobody until a different quality user approves it.
 ---
+
+## Common tasks
+### Record analyst qualification evidence
+1. Choose the person in [[Qualified person]] and enter the method or activity code in [[Activity]].
+2. Enter [[Evidence reference]], [[Valid from]] and [[Valid until (inclusive)]], with [[Scope note]] or [[Evidence link]] if needed.
+3. Give a [[Reason]] and select [[Record qualification]]. The new record opens, awaiting approval.
+### Leave without recording
+1. Select [[Cancel]] to return to the Qualifications list. Nothing is saved.
+## Good to know
+- You cannot record evidence about yourself, and the person's account must be active.
+- Neither you nor the qualified person can approve it.
+- When the analyst records work, the activity they enter must match this one. Upper and lower case are ignored.
+- Valid until is the last valid day and cannot be before Valid from.
+- Equipment qualification is recorded from the equipment record instead.
 
 ## Purpose
 

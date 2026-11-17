@@ -2,10 +2,26 @@
 title: Testing: QC batches
 urls: analytical:batch_list
 views: analytical.views.batch_list
-templates: analytical/batch_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_qc_status.html
+templates: analytical/batch_list.html, includes/section_tabs.html, includes/pagination.html, analytical/_qc_status.html
 models: analytical.QCBatch
-reviewed: 2026-11-11
+reviewed: 2026-11-17
+summary: QC batches: analytical runs of one method revision with their QC checks. Find a batch and see its QC status, or start a new batch.
 ---
+
+## Common tasks
+### Find a QC batch
+1. Type a batch number or method code in [[Find]].
+2. To narrow the list, choose a state in [[Status]], such as [[QC failed]].
+3. Select [[Apply]], then select a batch number to open it.
+### Start a new QC batch
+1. Select [[New QC batch]]. Only analysts see it.
+2. Enter the batch number and choose the method revision on that page.
+### See every batch again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Tests in a batch can be submitted and reviewed only while the batch is open and shows QC passed.
+- QC status comes from the current QC results: one failing check makes it QC failed, and a check not yet recorded makes it QC incomplete.
+- A rejected batch shows Rejected, whatever its QC results.
 
 ## Purpose
 
@@ -21,8 +37,8 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 
 - **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Testing" and the **New QC batch** button for analysts, with the introduction below.
-- **Filter bar**: **Find**, **Status**, **Apply**, **Clear filters** when filtered.
-- **Table** (caption "QC batches, newest first"): Batch, QC status, Method, Created, Created by. Footer count and pager.
+- **Filter bar**: **Find**, **Status** (default "All batches"), **Apply**, **Clear all** when filtered.
+- **Table**: Batch (with the method code and revision under it), QC status, Created, Created by. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit. Footer: "Showing X–Y of N batches", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No QC batches yet" (with **New QC batch** for analysts) and "No batches match these filters".
 
 ## Actions
@@ -30,7 +46,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New QC batch** | User holds analyst | Analyst | Opens the New QC batch form |
-| **Apply** / **Clear filters** | Always / filtered | Any viewer | Applies or removes filters |
+| **Apply** / **Clear all** | Always / filtered | Any viewer | Applies or removes filters |
 | Batch number link | Each row | Any viewer | Opens the batch |
 
 ## Fields
@@ -38,7 +54,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Find | — | Text | No | Matches batch number or method code (case-insensitive) |
-| Status | `QCBatch.state` | All batches, Open, Rejected | No | Filter by batch state |
+| Status | `QCBatch.state`; QC status from the current QC results | All batches, Open, Rejected, QC failed, QC incomplete | No | Open and Rejected filter by batch state; QC failed and QC incomplete list the open batches whose QC status (as in the QC status column) is failed or incomplete |
 | QC status | `QCBatch.state` plus current QC results | QC passed, QC failed, QC incomplete, Rejected | — | Rejected batches show "Rejected"; otherwise derived from the method's QC checks |
 | Method | `QCBatch.method_code`, `method` | "code rev. N" | — | Method revision frozen into the batch |
 | Created / Created by | `QCBatch.created_at`, `created_by` | Date and time, user | — | Who created the batch and when |
@@ -46,7 +62,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 ## Rules and hidden logic
 
 - **QC status**: Failed if any current check is outside its limits; Incomplete if any check has no current result (and none failed); otherwise Passed.
-- **Order and paging**: newest first; 30 per page.
+- **Order and paging**: newest first; 25 rows per page by default, or 50 or 100 through **Rows per page**.
 - **Unknown status value** is treated as All batches.
 
 ## Related pages

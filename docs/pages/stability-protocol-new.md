@@ -4,8 +4,23 @@ urls: stability:protocol_new
 views: stability.views.protocol_new
 templates: ops/form.html
 models: stability.Protocol, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Draft the next version of a stability protocol code. You add its storage conditions and timepoints afterwards on the protocol record. Analysts and quality users only.
 ---
+
+## Common tasks
+### Draft a protocol
+1. Enter [[Code]], [[Title]], [[Product]], [[Document ref]] and [[Basis]].
+2. To test pulls in the system, choose the specification in [[Acceptance criteria (specification)]]. Leave it empty to link samples or external evidence instead.
+3. Enter a [[Reason]] and select [[Create draft]]. The protocol record opens; add conditions and timepoints there.
+### Draft the next version of an existing code
+1. Enter the existing code in [[Code]]. The draft gets the next version number.
+2. Fill in the rest and select [[Create draft]]. The approved version stays in force until the new one is approved.
+## Good to know
+- The header, including the specification, cannot be changed after you save. Naming another specification needs a new protocol version.
+- You cannot draft a new version while the code still has a draft. Approve or withdraw that draft first.
+- You become the author, so you cannot approve this protocol yourself. A different quality user signs it.
+- The specification is not checked against the protocol's tests now. That happens when the protocol is approved.
 
 ## Purpose
 
@@ -18,7 +33,7 @@ Draft the next version of a stability protocol; conditions and timepoints are ad
 
 ## Layout
 
-- Breadcrumbs (Stability and retention, Protocols, New protocol), title "New protocol", the introduction "Creates the next version of the code. Approved versions are frozen.", the form in one panel, and a **Cancel** / submit row.
+- Breadcrumbs (Stability and retention, Protocols, New protocol), title "New protocol", the introduction "Creates the next version of the code. Approved versions are frozen.", the form and a **Cancel** / submit row. With JavaScript the form opens in the shared form dialog over the page it was opened from; the full page stays the fallback.
 
 ## Actions
 

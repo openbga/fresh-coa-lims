@@ -1,8 +1,7 @@
 {% extends "base.html" %}
-{% load static %}
-{% block title %}Sign {{ meaning }} · OpenBGA QM LIMS{% endblock %}
-{% block page_header %}{% endblock %}
-{% block content %}
-{% if is_review %}{% include "signatures/dialog.html" with signing_title="Sign result review" %}{% else %}{% include "signatures/dialog.html" with signing_title="Sign lot disposition" %}{% endif %}
-{% endblock %}
+{% load static ui %}
+{% comment %}Signed result review or lot disposition: the signing panel, which static/js/signature-dialog.js opens as a modal dialog. Context: page_title, form, lot, record, is_review, meaning, denial, notices.{% endcomment %}
+{% block page_title_class %} visually-hidden{% endblock %}{# the signing card's band carries the same title #}
+{% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% url 'quality:lot_detail' lot.pk as lot_url %}{% breadcrumbs section="Lots" section_url=list_url record=lot.number record_url=lot_url %}{% endblock %}
+{% block content %}{% include "signatures/dialog.html" with signing_title=page_title meaning=meaning lot=lot record=record is_review=is_review form=form notices=notices denial=denial request=request csrf_token=csrf_token only %}{% endblock %}
 {% block extra_js %}{% if not denial %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endif %}{% endblock %}

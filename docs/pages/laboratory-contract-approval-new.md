@@ -4,8 +4,23 @@ urls: laboratory:contract_approval_new
 views: laboratory.contract_views.contract_approval_new
 templates: ops/form.html
 models: laboratory.ContractApproval, laboratory.ContractLaboratory, catalog.Method, core.AuditEvent
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Record the evidence that a contract laboratory may perform one test method between two dates. It approves nothing until a different quality user signs it.
 ---
+
+## Common tasks
+### Record approval evidence
+1. Enter [[Method code]] exactly as in the method catalog, and [[Scope]] if the approval has limits.
+2. Enter [[Evidence reference]], [[Valid from]] and [[Valid until (inclusive)]], with [[Evidence link]] if there is one.
+3. Give a [[Reason]] and select [[Record approval]]. The approval record opens, awaiting approval.
+### Leave without recording
+1. Select [[Cancel]] to return to the laboratory's record. Nothing is saved.
+## Good to know
+- The dates are compared with the date of the laboratory's report, not the day the result is recorded.
+- One approval covers one method code and every version of that method. Another method or later dates need a new approval.
+- Scope is shown with every result that relies on the approval, but the software does not check it.
+- You cannot sign approval evidence you recorded. A different quality user must.
+- Evidence cannot be edited after recording. Record a new approval instead.
 
 ## Purpose
 
@@ -44,7 +59,7 @@ Records the evidence for approving a contract laboratory to perform one test met
 - **One method per approval**: the approval names one method code and covers every version of that method. Another method, or a renewal for later dates, is a new approval. Several approvals of one laboratory and method may exist, with dates that overlap or not.
 - **Method code**: a code the method catalog does not hold is refused beside the field: "The method catalog holds no method with this code. Enter the code as it appears under Specifications, Methods."
 - **Dates**: "Valid until cannot precede valid from." appears on Valid until when the dates are reversed. The dates are compared with the date of the contract laboratory's report, both days inclusive.
-- **Awaiting approval**: the record covers no report until a Quality user other than you signs it. Until then a report dated within it is refused as "still awaiting its signature". Evidence whose Valid until has already passed can be recorded but can no longer be approved.
+- **Awaiting approval**: the record covers no report until a Quality user other than you signs it. Until then a report dated within it is refused as "still awaiting its signature". Evidence whose Valid until has already passed can still be recorded and approved: it then covers only reports dated within its dates.
 - **Immutable**: the evidence cannot be edited or deleted after recording (database guard). To change it, record a new approval; a signed one can be revoked.
 - **Audit**: `contract_approval.recorded` with the evidence and your reason. Spaces around the method code, scope and evidence reference are removed.
 - **Not enforced by this page**: the method only has to exist in the catalog; whether it has an approved version is not checked. The Scope text is not checked when a report is accepted: it is frozen with each result and shown on the test record for a person to read. The evidence document itself is not read or verified.

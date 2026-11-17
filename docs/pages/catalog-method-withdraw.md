@@ -4,8 +4,21 @@ urls: catalog:method_withdraw
 views: catalog.views.method_withdraw
 templates: catalog/form.html
 models: catalog.MethodRevision
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Withdraw a draft method version that will not be approved, with a reason. The draft stays in the history and can no longer be changed or approved.
 ---
+
+## Common tasks
+### Withdraw the draft
+1. Explain why in [[Reason]].
+2. Select [[Withdraw draft]]. The method record opens and the version shows Withdrawn.
+### Keep the draft
+1. Select [[Cancel]] to return without changes.
+## Good to know
+- The author may withdraw their own draft. No second person and no signature are needed.
+- Only drafts can be withdrawn. An approved version stays as signed until a later approved version retires it.
+- A withdrawn draft is never deleted. To continue the work, create a new version.
+- If someone changes the draft after you open this page, withdrawal is refused. Reload and try again.
 
 ## Purpose
 

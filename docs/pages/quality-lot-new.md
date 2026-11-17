@@ -4,8 +4,28 @@ urls: quality:lot_new
 views: quality.views.lot_new
 templates: catalog/form.html
 models: quality.Lot, quality.LotReceipt, suppliers.Supplier, core.RuleSet
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Receive a new material lot into quarantine with its receipt details: where it came from, what arrived and what the examination on receipt found. Analysts only.
 ---
+
+## Common tasks
+### Receive a lot into quarantine
+1. Enter the [[Lot number]] and [[Material]], and choose the [[Rule set]] the lot is received under.
+2. In [[Source]], choose [[Received from a supplier]] and pick the [[Supplier]], or choose [[Made on site]].
+3. Fill in the [[Delivery]] details and the [[Examination on receipt]], then enter a [[Reason]].
+4. Select [[Receive lot]]. The lot record opens with the lot in Quarantine.
+### Receive material made on site
+1. Choose [[Made on site]] in [[Source]] and leave the supplier and manufacturer fields blank.
+2. In [[Delivery or batch document]], enter the batch record or production order.
+### Record a discrepancy found on receipt
+1. Set [[Examination on receipt]] to [[Discrepancy found]].
+2. In [[Examination notes]], describe what was wrong and with which containers.
+## Good to know
+- Only rule sets approved and in force now are offered. A rule set that applies in addition to a lot's own rule set is never chosen here.
+- Choosing a rule set does not assign the lot's requirements. They are assigned on Requirements and sampling after receipt.
+- A discrepancy found on receipt does not hold the lot. Place a hold from Holds if it must not be dispositioned.
+- Receiving the lot makes you an author of its receipt data: you cannot sign its disposition, even with the quality role.
+- The lot and its receipt details are saved together, or not at all.
 
 ## Purpose
 
@@ -78,7 +98,7 @@ Receive a manufacturing material lot into quarantine under an approved rule set,
 
 ## Related pages
 
-- [Material lots](/)
+- [Material lots](/lots/)
 - Lot record (opened after saving).
 - [Suppliers](/suppliers/)
 - [Rule sets](/rules/)

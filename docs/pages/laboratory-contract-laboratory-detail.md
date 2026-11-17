@@ -4,8 +4,25 @@ urls: laboratory:contract_laboratory_detail
 views: laboratory.contract_views.contract_laboratory_detail
 templates: ops/record.html
 models: laboratory.ContractLaboratory, laboratory.ContractApproval, laboratory.ContractUse, core.AuditEvent
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: One contract laboratory: its identity, its approvals by method and the results that relied on it. Record approval evidence for a method here.
 ---
+
+## Common tasks
+### Record an approval for a method
+1. Select [[Record approval]]. It shows only for the quality role.
+2. Enter the method, dates and evidence on that page. A second quality user then signs it.
+### Approve or revoke an approval
+1. In [[Approvals by method]], select the approval number to open it.
+2. Select [[Approve]] or [[Revoke]] on that page and sign with your PIN.
+### See results that relied on the laboratory
+1. See [[Results that relied on this laboratory]]. Select a work entry to open the test.
+## Good to know
+- This record approves nothing. A report is accepted only under a signed, unrevoked approval for the method whose dates include the report date.
+- An Expired approval still covers reports dated within its dates. A Revoked one covers no new report.
+- The results list shows each test as it stands now, newest first, up to the latest 50.
+- The code, name and location cannot be edited.
+- Signatures are kept on each approval, not on the laboratory record.
 
 ## Purpose
 

@@ -4,8 +4,22 @@ urls: catalog:calculation_input_new
 views: catalog.views.calculation_input_new
 templates: catalog/form.html
 models: catalog.MethodCalculationInput, catalog.MethodRevision
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Add a named input, such as a peak area or a sample mass, that analysts enter when the method calculates its result. Only a draft method version can be changed.
 ---
+
+## Common tasks
+### Add an input
+1. In [[Code]], enter the name the formula uses, for example peak_area.
+2. Enter what the analyst records in [[Name]] and choose the [[Unit]].
+3. Give the [[Reason for change]] and select [[Add input]]. The method record opens.
+### Leave without adding
+1. Select [[Cancel]] to return to the method record.
+## Good to know
+- A code starts with a lower-case letter, then lower-case letters, digits or underscores. Each code is used once per version.
+- A calculation has 1 to 12 inputs. Analysts enter them in the order added.
+- Approval is refused for an input the formula does not use, and for a name in the formula with no input.
+- Adding an input makes you an editor of the draft, so you can no longer approve it.
 
 ## Purpose
 

@@ -2,6 +2,32 @@
 (function () {
   "use strict";
 
+  // Shared markup for the other scripts (grid.js, form-dialog.js, controls.js, sidebar.js), so
+  // they build the same icon as {% icon %} (templates/includes/icon.html) and the standard
+  // button roles. Every script builds icons only through window.vrUi.icon.
+  var BUTTON_ROLES = {
+    primary: "btn btn-primary",
+    secondary: "btn btn-outline-secondary",
+    quiet: "btn btn-link",
+    destructive: "btn btn-outline-danger",
+  };
+
+  window.vrUi = {
+    // Decorative sprite icon as markup (for innerHTML and Tom Select render strings).
+    icon: function (name) {
+      var sprite = document.body.getAttribute("data-vr-icons") || "";
+      return '<svg class="vr-icon" aria-hidden="true" focusable="false"><use href="' + sprite + "#i-" + name + '"></use></svg>';
+    },
+    // <button type="button"> in a standard role; small for table cells, panel headers and dialogs.
+    button: function (label, role, small) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = (BUTTON_ROLES[role] || BUTTON_ROLES.secondary) + (small ? " btn-sm" : "");
+      button.textContent = label;
+      return button;
+    },
+  };
+
   // Colour theme: "light" | "dark" | "system" in localStorage "vr-theme" (see theme-init.js).
   var THEME_KEY = "vr-theme";
   var systemDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
@@ -215,6 +241,193 @@
     document.querySelectorAll(".vr-choices").forEach(addChoiceFilter);
   });
 
+  // Column priority on tables without a Columns control (record sub-tables): the cells of a column
+  // whose header carries data-vr-col-priority="low" are marked, and while the table would not fit
+  // its own box with them (a laptop window, the help drawer open) the table is marked cramped and
+  // app.css hides them; the full data stays on the record. Lists (data-vr-grid) use grid.js.
+  function fitLowPriority(table) {
+    var frame = table.closest(".vr-table-wrap") || table.parentElement;
+    var fits = function () { return table.scrollWidth <= frame.clientWidth + 1; };
+    table.classList.remove("vr-table-cramped", "vr-table-cramped-more");
+    if (!fits()) {
+      table.classList.add("vr-table-cramped"); // low-priority columns give way
+      if (!fits()) {
+        table.classList.add("vr-table-cramped-more"); // then medium-priority ones
+      }
+    }
+  }
+
+  function watchLowPriority(table) {
+    fitLowPriority(table);
+    if (!window.ResizeObserver) {
+      return;
+    }
+    var frame = table.closest(".vr-table-wrap") || table.parentElement;
+    var width = frame.clientWidth;
+    new ResizeObserver(function () {
+      if (frame.clientWidth !== width) {
+        width = frame.clientWidth;
+        fitLowPriority(table);
+      }
+    }).observe(frame);
+  }
+
+  function markLowPriorityColumns(scope) {
+    (scope || document).querySelectorAll(".vr-table:not([data-vr-grid])").forEach(function (table) {
+      var head = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      if (!head || table.dataset.vrPriorityReady === "true") {
+        return;
+      }
+      var low = [];
+      var position = 0;
+      var medium = [];
+      Array.from(head.cells).forEach(function (cell) {
+        var priority = cell.getAttribute("data-vr-col-priority");
+        if (priority === "low") {
+          low.push(position);
+          cell.setAttribute("data-vr-low", "");
+        } else if (priority === "medium") {
+          medium.push(position);
+          cell.setAttribute("data-vr-medium", "");
+        }
+        position += cell.colSpan || 1;
+      });
+      if (!low.length && !medium.length) {
+        return;
+      }
+      table.dataset.vrPriorityReady = "true";
+      Array.from(table.tBodies).concat(table.tFoot ? [table.tFoot] : []).forEach(function (section) {
+        Array.from(section.rows).forEach(function (row) {
+          var column = 0;
+          Array.from(row.cells).forEach(function (cell) {
+            if ((cell.colSpan || 1) === 1 && low.indexOf(column) !== -1) {
+              cell.setAttribute("data-vr-low", "");
+            } else if ((cell.colSpan || 1) === 1 && medium.indexOf(column) !== -1) {
+              cell.setAttribute("data-vr-medium", "");
+            }
+            column += cell.colSpan || 1;
+          });
+        });
+      });
+      watchLowPriority(table);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { markLowPriorityColumns(document); });
+  document.addEventListener("htmx:load", function (event) { markLowPriorityColumns(event.detail.elt); });
+
+  // A table wider than its panel scrolls inside it; mark the side(s) with more columns beyond the
+  // visible edge, so app.css fades that edge (nothing disappears silently).
+  function markScrollEdges(wrap) {
+    var more = wrap.scrollWidth > wrap.clientWidth + 1;
+    wrap.classList.toggle("vr-more-start", more && wrap.scrollLeft > 1);
+    wrap.classList.toggle("vr-more-end", more && wrap.scrollLeft + wrap.clientWidth < wrap.scrollWidth - 1);
+  }
+
+  function watchScrollEdges(scope) {
+    (scope || document).querySelectorAll(".vr-table-wrap").forEach(function (wrap) {
+      markScrollEdges(wrap);
+      if (wrap.dataset.vrEdgesReady === "true") {
+        return;
+      }
+      wrap.dataset.vrEdgesReady = "true";
+      wrap.addEventListener("scroll", function () { markScrollEdges(wrap); }, { passive: true });
+      if (window.ResizeObserver) {
+        var observer = new ResizeObserver(function () { markScrollEdges(wrap); });
+        observer.observe(wrap);
+        if (wrap.firstElementChild) {
+          observer.observe(wrap.firstElementChild); // the table (or DataTables' container) changing width
+        }
+      }
+    });
+  }
+
+  window.addEventListener("load", function () { watchScrollEdges(document); });
+  document.addEventListener("htmx:load", function (event) { watchScrollEdges(event.detail.elt); });
+
+  // Shortened text keeps its full text in a tooltip: a one-line sub-line or name in a table cell
+  // that ends in an ellipsis, or a value clamped to two lines, gains a title (controls.js turns
+  // titles into the shared tooltip) while it is shortened. The full text stays in the DOM.
+  var TRUNCATED = ".vr-table .vr-sub, .vr-table .vr-clip-main, .vr-table .vr-clamp, .vr-table .text-truncate, " +
+    ".vr-table .vr-code, " +
+    ".vr-facts .vr-fact-truncate";
+
+  function tipTruncated(scope) {
+    var added = [];
+    (scope || document).querySelectorAll(TRUNCATED).forEach(function (element) {
+      var cut = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+      if (cut && !element.hasAttribute("title") && !element.hasAttribute("data-bs-original-title")) {
+        element.setAttribute("title", element.textContent.replace(/\s+/g, " ").trim());
+        element.setAttribute("data-vr-truncated", "");
+        added.push(element);
+      }
+    });
+    return added;
+  }
+
+  function tipLater() {
+    tipTruncated(document).forEach(function (element) {
+      if (window.vrControls) {
+        window.vrControls.init(element.parentElement || element);
+      }
+    });
+  }
+
+  // Before controls.js turns titles into tooltips on load; again once fonts and column fitting
+  // have settled, and after the window changes size.
+  document.addEventListener("DOMContentLoaded", function () { tipTruncated(document); });
+  window.addEventListener("load", tipLater);
+  var tipTimer = null;
+  window.addEventListener("resize", function () {
+    window.clearTimeout(tipTimer);
+    tipTimer = window.setTimeout(tipLater, 200);
+  });
+  document.addEventListener("htmx:load", function (event) { tipTruncated(event.detail.elt); });
+
+  // Dashboard band: each stage's segment grows with its open work (CSSOM, so the content security
+  // policy's style-src 'self' holds; the markup carries the count as text).
+  function sizeFlowBand(scope) {
+    (scope || document).querySelectorAll(".vr-flow-segment").forEach(function (segment) {
+      var count = parseInt((segment.querySelector(".vr-flow-count") || {}).textContent, 10);
+      segment.style.flexGrow = String(Math.max(isNaN(count) ? 1 : count, 1));
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { sizeFlowBand(document); });
+
+  // Back from a signing page left without signing (signature-dialog.js marks it): focus returns to
+  // the control that opened it — its link on the record, or the More menu holding that link.
+  document.addEventListener("DOMContentLoaded", function () {
+    var path = null;
+    try {
+      path = window.sessionStorage.getItem("vr-return-focus");
+      window.sessionStorage.removeItem("vr-return-focus");
+    } catch (error) {
+      return;
+    }
+    if (!path) {
+      return;
+    }
+    var opener = Array.from(document.querySelectorAll("a[href], button[formaction]")).find(function (control) {
+      var target = control.getAttribute("href") || control.getAttribute("formaction");
+      try {
+        return new URL(target, window.location.href).pathname === path;
+      } catch (error) {
+        return false;
+      }
+    });
+    if (!opener) {
+      return;
+    }
+    var menu = opener.closest(".dropdown-menu");
+    var target = menu && !opener.getClientRects().length
+      ? menu.parentElement.querySelector("[data-bs-toggle='dropdown']")
+      : opener;
+    if (target) {
+      target.focus();
+    }
+  });
+
   // After a failed submission, put keyboard focus on the first field with an error.
   document.addEventListener("DOMContentLoaded", function () {
     var invalid = document.querySelector("form [aria-invalid=true]");
@@ -406,28 +619,39 @@
     document.querySelectorAll("[data-formset-add]").forEach(initFormsetButton);
   });
 
-  // HTMX transport and server errors: keep the page as it is and say what happened.
+  // HTMX transport and server errors: keep the page as it is and say what happened, in a notice
+  // where Django messages appear (no toasts). The notice markup is server-rendered once in
+  // <template id="vr-request-error"> (layouts/document.html).
   function showRequestError(message) {
-    var region = document.getElementById("vr-live");
-    if (!region) {
+    var template = document.getElementById("vr-request-error");
+    var main = document.querySelector(".vr-main");
+    if (!template || !main) {
       return;
     }
-    region.replaceChildren();
-    var alert = document.createElement("div");
-    alert.className = "alert alert-danger alert-dismissible shadow-sm";
-    alert.setAttribute("role", "alert");
-    var text = document.createElement("div");
-    text.textContent = message;
-    var close = document.createElement("button");
-    close.type = "button";
-    close.className = "btn-close";
-    close.setAttribute("data-bs-dismiss", "alert");
-    close.setAttribute("aria-label", "Dismiss");
-    alert.append(text, close);
-    region.append(alert);
+    main.querySelectorAll("[data-vr-request-error]").forEach(function (old) { old.remove(); });
+    var notice = template.content.firstElementChild.cloneNode(true);
+    notice.querySelector("[data-vr-notice-text]").textContent = message;
+    notice.setAttribute("tabindex", "-1");
+    var region = main.querySelector(":scope > .vr-messages");
+    if (!region) {
+      region = document.createElement("div");
+      region.className = "vr-messages";
+      var header = main.querySelector(":scope > .vr-page-header");
+      main.insertBefore(region, header ? header.nextSibling : main.firstChild);
+    }
+    region.prepend(notice);
+    notice.focus();
+  }
+
+  function inFormDialog(event) {
+    // The form dialog keeps its error beside the preserved inputs (form-dialog.js).
+    return Boolean(event.detail.target && event.detail.target.closest("#vr-form-dialog"));
   }
 
   document.addEventListener("htmx:responseError", function (event) {
+    if (inFormDialog(event)) {
+      return;
+    }
     var status = event.detail.xhr ? event.detail.xhr.status : "";
     var message = status === 403
       ? "You do not have permission for that action. Nothing was changed."
@@ -435,7 +659,10 @@
     showRequestError(message);
   });
 
-  document.addEventListener("htmx:sendError", function () {
+  document.addEventListener("htmx:sendError", function (event) {
+    if (inFormDialog(event)) {
+      return;
+    }
     showRequestError("The server could not be reached. Check the connection and try again.");
   });
 })();

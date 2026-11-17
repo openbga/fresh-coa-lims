@@ -1,66 +1,51 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}{% url 'analytical:investigation_list' as list_url %}{% include "includes/breadcrumbs.html" with section="Investigations" section_url=list_url current=inv.label %}{% endblock %}
+{% load ui %}
+{% block breadcrumbs %}{% url 'analytical:investigation_list' as list_url %}{% breadcrumbs section="Investigations" section_url=list_url current=inv.label %}{% endblock %}
 {% block page_heading %}<span class="vr-id">{{ inv.label }}</span> out-of-specification investigation{% endblock %}
-{% block page_meta %}
-<ul class="vr-page-meta">
-  <li>{% include "analytical/_investigation_status.html" with plain=True %}</li>
+{% block page_meta %}{% page_meta %}
+  <li>{% include "analytical/_investigation_status.html" with inv=inv plain=True only %}</li>
   {% if inv.lot_id %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' inv.lot_id %}">{{ inv.lot.number }}</a></li>
   {% else %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' inv.test.pull_id %}">{{ inv.test.pull.label }}</a> · lot <span class="vr-id">{{ inv.test.source_lot.number }}</span></li>{% endif %}
   <li>Opened <time datetime="{{ inv.opened_at|date:'c' }}">{{ inv.opened_at|date:"Y-m-d H:i T" }}</time></li>
   <li>Revision {{ inv.revision }}</li>
-</ul>
-{% endblock %}
+{% endpage_meta %}{% endblock %}
 {% block page_actions %}
-{% if can_enter %}<a class="btn btn-primary" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a>{% endif %}
-{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}
-{% if can_decide %}<a class="btn btn-outline-secondary" href="{% url 'analytical:authorize' inv.pk %}">Authorize retest</a><a class="btn btn-outline-secondary" href="{% url 'analytical:conclude' inv.pk %}">Conclude</a>{% endif %}
+{% if can_decide %}{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}<a class="btn btn-outline-secondary" href="{% url 'analytical:authorize' inv.pk %}">Authorize retest</a>{% more_actions %}{% if can_enter %}<li><a class="dropdown-item" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a></li>{% endif %}{% endmore_actions %}<a class="btn {% if conclude_ready %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'analytical:conclude' inv.pk %}">Conclude</a>
+{% else %}{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}{% if can_enter %}<a class="btn btn-primary" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a>{% endif %}{% endif %}
 {% endblock %}
 {% block content %}
 {% if inv.is_open %}
 {% if inv.lot_id %}
-<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Lot held" tone="hold" plain=True %}<div>{{ inv.trigger }}. Lot {{ inv.lot.number }} cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.</div></div>
+{% notice tone="hold" label="Lot held" %}{{ inv.trigger }}. Lot {{ inv.lot.number }} cannot receive an approving QC disposition until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported.{% endnotice %}
 {% else %}
-<div class="alert alert-warning" role="status">{% include "includes/status.html" with label="Pull held" tone="hold" plain=True %}<div class="text-break">{{ inv.trigger }}. Stability pull {{ inv.test.pull.label }} cannot be accepted until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported. The record of lot {{ inv.test.source_lot.number }} is not changed by this investigation: whether the lot needs a hold or other action is for quality to decide.</div></div>
+{% notice tone="hold" label="Pull held" class="text-break" %}{{ inv.trigger }}. Stability pull {{ inv.test.pull.label }} cannot be accepted until quality signs a conclusion. Retests never replace the original result unless the conclusion documents an assignable cause; averaging or discarding the original is not supported. The record of lot {{ inv.test.source_lot.number }} is not changed by this investigation: whether the lot needs a hold or other action is for quality to decide.{% endnotice %}
 {% endif %}
 {% else %}
-<section class="card mb-3" aria-labelledby="conclusion-heading">
-  <div class="card-header"><h2 class="card-title" id="conclusion-heading">Conclusion</h2></div>
-  <div class="card-body"><dl class="vr-facts">
-    <div><dt>Outcome</dt><dd>{{ inv.get_outcome_display }}</dd></div>
-    {% if inv.assignable_cause %}<div><dt>Assignable cause</dt><dd>{{ inv.assignable_cause|linebreaksbr }}</dd></div>{% endif %}
-    <div><dt>Conclusion</dt><dd>{{ inv.conclusion|linebreaksbr }}</dd></div>
-    <div><dt>Closed</dt><dd><time datetime="{{ inv.closed_at|date:'c' }}">{{ inv.closed_at|date:"Y-m-d H:i T" }}</time></dd></div>
-  </dl></div>
-</section>
+{% panel title="Conclusion" heading_id="conclusion-heading" class="mb-3" %}<dl class="vr-facts">
+    {% fact label="Outcome" %}{{ inv.get_outcome_display }}{% endfact %}
+    {% if inv.assignable_cause %}{% fact label="Assignable cause" %}{{ inv.assignable_cause|linebreaksbr }}{% endfact %}{% endif %}
+    {% fact label="Conclusion" %}{{ inv.conclusion|linebreaksbr }}{% endfact %}
+    {% fact label="Closed" %}<time datetime="{{ inv.closed_at|date:'c' }}">{{ inv.closed_at|date:"Y-m-d H:i T" }}</time>{% endfact %}
+  </dl>{% endpanel %}
 {% endif %}
-<section class="card vr-table-card mb-3" aria-labelledby="lineage-heading">
-  <div class="card-header"><h2 class="card-title" id="lineage-heading">Results and lineage</h2><span class="vr-count">{{ used }} of {{ allowed }} retests used</span></div>
-  <div class="card-body">
+{% panel title="Results and lineage" heading_id="lineage-heading" table=True class="mb-3" %}
+  {% fill count %}{{ used }} of {{ allowed }} retests used{% endfill %}
     <div class="vr-table-wrap">
-      <table class="table vr-table">
+      <table class="table vr-table" aria-labelledby="lineage-heading">
         <thead><tr><th scope="col">Test</th><th scope="col">Kind</th><th scope="col">Sample</th><th scope="col">Replicates</th><th scope="col" class="text-end">Reportable</th><th scope="col">Status</th></tr></thead>
         <tbody>{% for t in tests %}<tr>
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a></th>
           <td>{% if forloop.first %}Original result{% else %}{{ t.get_kind_display }}{% endif %}</td>
           <td class="vr-id">{{ t.sample_text }}</td>
           <td>{{ t.values|default:"—" }}</td>
-          <td class="text-end vr-nowrap">{% if t.reportable_display %}{{ t.reportable_display }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
-          <td>{% include "analytical/_test_status.html" with test=t plain=True %}</td>
+          <td class="text-end vr-nowrap">{% if t.reportable_display %}{% if t.state == "invalidated" %}<del class="vr-prior">{{ t.reportable_display }}</del>{% else %}{{ t.reportable_display }}{% endif %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{% include "analytical/_test_status.html" with test=t plain=True only %}</td>
         </tr>{% endfor %}</tbody>
       </table>
     </div>
-  </div>
-</section>
-<section class="card mb-3" aria-labelledby="entries-heading">
-  <div class="card-header"><h2 class="card-title" id="entries-heading">Investigation record</h2><span class="vr-count">{{ entries|length }}</span></div>
-  <div class="card-body">
-    {% if entries %}
-    <ol class="vr-timeline">{% for e in entries %}{% include "includes/history_item.html" with title=e.get_kind_display at=e.created_at actor=e.author reason=e.text detail=e.external_reference %}{% endfor %}</ol>
-    {% else %}
-    {% include "analytical/_empty.html" with title="No laboratory assessment yet" body="Record the Phase I laboratory assessment before any retest is authorized or a conclusion is signed." %}
-    {% endif %}
-  </div>
-</section>
-{% include "analytical/_history.html" %}
+{% endpanel %}
+{% history_panel events=entries title="Investigation record" heading_id="entries-heading" count=entries|length class="mb-3" empty_title="No laboratory assessment yet" empty_body="Record the Phase I laboratory assessment before any retest is authorized or a conclusion is signed." %}{% for e in entries %}{% history_item title=e.get_kind_display at=e.created_at actor=e.author reason=e.text detail=e.external_reference %}{% endfor %}{% endhistory_panel %}
+{% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length class="mb-3" %}{% signature_list signatures=signatures hash=True empty="No signatures yet. Signed reviews, authorizations and conclusions appear here with signer, meaning, time and revision." %}{% endpanel %}
+{% history_panel events=history empty_title="No history recorded" %}{% endhistory_panel %}
 {% endblock %}
-{% block record_foot %}{% include "includes/record_foot.html" with identifier=inv.label %}{% endblock %}
+{% block record_foot %}{% record_foot identifier=inv.label %}{% endblock %}

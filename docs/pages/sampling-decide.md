@@ -4,8 +4,25 @@ urls: sampling:decide
 views: sampling.views.decide
 templates: sampling/decide.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, catalog.SpecificationRevision, core.RuleSet, core.ElectronicSignature, core.PINCredential, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Where the specifications that apply to a lot state a test differently, quality chooses which requirement applies and signs before testing starts. The lot's requirements are then frozen.
 ---
+
+## Common tasks
+### Decide which requirement applies
+1. Under [[Requirements stated differently]], choose one statement for each test.
+2. Enter [[Reason for the decision]], [[Signing username]] and [[Signature PIN]].
+3. Select [[Sign decision and freeze requirements]].
+### Check a specification before choosing
+1. Select [[Open the specification]] under a statement to read that specification version.
+### Clear other hold reasons first
+1. If [[The requirements cannot be decided now]] shows, resolve the listed reasons in the configuration. This page then offers the decision.
+## Good to know
+- You cannot decide for a lot whose receipt, supplier certificate, sampling or test data you recorded, or for which you proposed a supplier result, whatever roles you hold.
+- Choose the statement under which a passing result also meets the others. The statements not chosen stay in the record with your decision.
+- If a specification, method or rule set in force changes before you sign, signing fails. Review the page again and choose again.
+- Assigning the lot's requirements again later does not carry this decision over. While the specifications still differ, it is decided again.
+- Once testing has started, this choice is made when quality replaces the lot's requirements.
 
 ## Purpose
 
@@ -23,7 +40,7 @@ A lot assigned under several scopes has to meet the specification of each one. W
 
 ## Layout
 
-- **Breadcrumbs**: Sampling, lot number, Decide conflicting requirements. Title "Decide conflicting requirements ·" and the lot number. Under it: lot number, "lot record revision N" and the status Applicability hold.
+- **Breadcrumbs**: Sampling, lot number, Decide conflicting requirements. Title "Decide conflicting requirements ·" and the lot number. Under it: the status Applicability hold, the lot number and "Lot record revision N".
 - **What applies to this lot**: an explanation that every specification of the lot's scopes applies in full, that a test stated alike is one requirement, and that "A lot has to meet every specification that binds it. Choose the statement under which a passing result also meets the others, or give the reason another specification does not bind this lot. The statements not chosen stay in the record with your decision." Facts: Material and stage; Scopes; Specifications in force (a link to each version with its scope in brackets, for example "SPEC-TEST-EU v1 (eu-market)", or "None"); Additional rule sets in force (only when there are any, each as "code vN · requires <tests>"); Sampling plan (the version the decision freezes, with "· kept" when it is the one the held assignment named); Rule set (the lot's version, then "→" and the version in force with ", the version in force" when it differs); Hold recorded (who and when).
 - **The requirements cannot be decided now** (only when something else also holds the lot): a "Refused" alert listing every other reason, "A decision settles only what the specifications state differently. Resolve these in the configuration first; this page then offers the decision." and **Back to <lot>**. No choices and no signing form are shown.
 - **Requirements stated differently** (count of tests): one group per test, headed by its code and name, then "The statements differ in: limits." (the words used are under Rules) and the statements. When the decision can be signed, each statement is an option: "**SPEC-TEST-EU v1** (eu-market) · Assay: 99 – 101 % · rounded to 2 decimals · method M-TEST-001 v2", naming every scope that states the test this way and ending "· information only" for a statement that is not required, with the link **Open the specification** under it. Otherwise the statements are a plain list with the same wording, each starting with a link to the specification version.

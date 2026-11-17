@@ -4,8 +4,30 @@ urls: accounts:user_action
 views: accounts.views.user_action
 templates: accounts/form.html
 models: accounts.User, auth.Group, core.PINCredential, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Authorize one change to an existing account: identity, roles, activation, password, PIN, two-factor sign-in or organization link. Admin role, a reason and your signature PIN are required.
 ---
+
+## Common tasks
+### Update a name or email
+1. Change [[First name]], [[Last name]] or [[Email]], then enter a [[Reason]].
+2. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and update identity]].
+### Change roles
+1. Under [[Roles]], check every role the account should hold. Leave all unchecked to revoke all roles.
+2. Enter a [[Reason]] and your signing username and PIN, then select [[Sign and assign roles]].
+### Force a password reset
+1. Optionally enter a [[Temporary password]] and [[Confirm temporary password]]. Leave both blank to keep the current password for the next sign-in.
+2. Enter a [[Reason]] and your signing username and PIN, then select [[Sign and force password reset]].
+### Deactivate or reactivate the account
+1. Enter a [[Reason]] and your signing username and PIN, then select [[Sign and deactivate account]] or [[Sign and reactivate account]].
+### Leave without a change
+1. Select [[Cancel]], or [[Return without changes]] when the action cannot apply. You return to the account record.
+## Good to know
+- You cannot grant yourself additional roles, and no one can remove the admin role from, or deactivate, the last active admin.
+- You sign with your own PIN, never the account's. Without your own enrolled PIN, the form is hidden.
+- Every change signs out the account's sessions. If you change your own account, you are signed out too.
+- If the account changed after you opened this page, signing is refused. Reload and review before signing again.
+- Clear PIN lockout keeps the PIN. Require PIN re-enrollment removes it, but earlier signatures stay.
 
 ## Purpose
 

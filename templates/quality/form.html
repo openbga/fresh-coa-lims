@@ -1,4 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ title }} · OpenBGA QM LIMS{% endblock %}
-{% block page_header %}{% endblock %}
-{% block content %}<h1>{{ title }}</h1><form method="post" class="card"><div class="card-body">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">{{ submit }}</button> <a class="btn btn-outline-secondary" href="{% url 'quality:lot_list' %}">Cancel</a></div></form>{% endblock %}
+{% load ui %}
+{% comment %}An action page on a lot record: add a sample, record a result. Context: page_title, form, submit, lot, cancel_url (the lot record).{% endcomment %}
+{% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% breadcrumbs section="Lots" section_url=list_url record=lot.number record_url=cancel_url %}{% endblock %}
+{% block content %}
+{% form_page form=form cancel_url=cancel_url submit_label=submit %}{% endform_page %}
+{% endblock %}

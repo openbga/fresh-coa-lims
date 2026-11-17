@@ -1,11 +1,14 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from core.grids import Column
 from core.services import require_role
 
 from . import services
@@ -58,6 +61,14 @@ def tabs(request, current):
     return [{"label": label, "url": url, "current": label == current} for label, url in items]
 
 
+class SpecificationFilterForm(forms.Form):
+    """The specification list's stage filter; the search box is the toolbar's own (q)."""
+
+    stage = forms.ChoiceField(
+        label="Stage", choices=[("", "All stages"), *Stage.choices], required=False
+    )
+
+
 def crumbs_for(*trail):
     return [(SECTION, reverse("catalog:specifications")), *trail]
 
@@ -82,6 +93,16 @@ def form_page(request, form, *, title, crumbs, cancel_url, submit_label, intro="
 # Specifications --------------------------------------------------------------------------------
 
 
+SPECIFICATION_COLUMNS = (
+    Column("specification", "Specification", asc="code", desc="-code", locked=True),
+    Column("material", "Material", asc="material", desc="-material"),
+    Column("stage", "Stage"),
+    Column("scope", "Scope", priority="low"),
+    Column("versions", "Versions", css="text-end", priority="low"),
+    Column("status", "Status"),
+)
+
+
 @login_required
 def specification_list(request):
     read_access(request)
@@ -92,17 +113,18 @@ def specification_list(request):
         latest=Max("revisions__version"),
     )
     query = request.GET.get("q", "").strip()
-    stage = request.GET.get("stage", "")
+    filters = SpecificationFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown stage lists every specification
+        filters = SpecificationFilterForm()
+    stage = filters.cleaned_data["stage"] if filters.is_bound else ""
     if query:
         specs = specs.filter(
             Q(code__icontains=query)
             | Q(title__icontains=query)
             | Q(material__code__icontains=query)
         )
-    if stage in Stage.values:
+    if stage:
         specs = specs.filter(stage=stage)
-    else:
-        stage = ""
     specs, sort = sorted_by(
         request,
         specs,
@@ -120,10 +142,10 @@ def specification_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Specifications"),
+            "columns": SPECIFICATION_COLUMNS,
             "page_obj": page(request, specs),
             "query": query,
-            "stage": stage,
-            "stages": Stage.choices,
+            "filters": filters,
             "sort": sort,
             "filtered": bool(query or stage),
             "can_edit": can(request.user, services.AUTHOR_ROLE),
@@ -171,6 +193,7 @@ def specification_detail(request, pk):
             "page_title": spec.code,
             "spec": spec,
             "revisions": revisions,
+            "in_force": services.effective_revision(SpecificationRevision, spec, timezone.now()),
             "history": history(spec, *revisions),
             "crumbs": crumbs_for((spec.code, None)),
             "can_edit": can(request.user, services.AUTHOR_ROLE),
@@ -379,6 +402,13 @@ def specification_withdraw(request, pk):
 # Methods ---------------------------------------------------------------------------------------
 
 
+METHOD_COLUMNS = (
+    Column("method", "Method", asc="code", desc="-code", locked=True),
+    Column("versions", "Versions", css="text-end", priority="low"),
+    Column("status", "Status"),
+)
+
+
 @login_required
 def method_list(request):
     read_access(request)
@@ -397,6 +427,7 @@ def method_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Methods"),
+            "columns": METHOD_COLUMNS,
             "page_obj": page(request, methods),
             "query": query,
             "sort": sort,
@@ -455,6 +486,7 @@ def method_detail(request, pk):
             "page_title": method.code,
             "method": method,
             "revisions": revisions,
+            "in_force": services.effective_revision(MethodRevision, method, timezone.now()),
             "history": history(method, *revisions),
             "crumbs": crumbs_for(("Methods", reverse("catalog:methods")), (method.code, None)),
             "can_edit": can_edit,
@@ -769,6 +801,14 @@ def calculation_input_remove(request, pk, input_pk):
 # Materials -------------------------------------------------------------------------------------
 
 
+MATERIAL_COLUMNS = (
+    Column("material", "Material", asc="name", desc="-name", locked=True),
+    Column("kind", "Kind"),
+    Column("specifications", "Specifications", css="text-end"),
+    Column("created", "Created", priority="low"),
+)
+
+
 @login_required
 def material_list(request):
     read_access(request)
@@ -788,6 +828,7 @@ def material_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Materials"),
+            "columns": MATERIAL_COLUMNS,
             "page_obj": page(request, materials),
             "query": query,
             "sort": sort,

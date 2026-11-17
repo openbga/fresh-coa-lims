@@ -1,11 +1,11 @@
 {% load static %}{% comment %}
-Brand mark and name. Parameters:
+Brand mark and name, rendered by {% brand %} ({% load ui %}). Parameters:
   href     link target; without it the brand is plain text (the 500 page, which has no request)
-  name     text beside the mark; default "OpenBGA QM LIMS" (the portal passes the lab's name)
+  name     text beside the mark; default "OpenBGA QM LIMS"
   compact  with the default name: on a phone the "OpenBGA" prefix is visually hidden (still read
            by screen readers) so that the product token stays visible in the top bar
   variant  "entrance" for the larger lock-up above entrance and error panels; default is the top bar
-Usage: {% include "includes/brand.html" with href=dashboard_url|default:"/" %}
+Usage: {% brand href=dashboard_url|default:"/" compact=True %}
 {% endcomment %}{% with size=variant|yesno:"32,24" css=variant|yesno:"vr-entrance-brand,vr-brand" %}{% if href %}<a class="{{ css }}" href="{{ href }}">{% else %}<p class="{{ css }}">{% endif %}
   <img src="{% static 'img/mark.svg' %}" alt="" width="{{ size }}" height="{{ size }}">
   {% if compact and not name %}<span><span class="vr-brand-prefix">OpenBGA </span>QM LIMS</span>{% else %}<span>{{ name|default:"OpenBGA QM LIMS" }}</span>{% endif %}

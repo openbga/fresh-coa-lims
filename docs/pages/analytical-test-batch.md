@@ -4,8 +4,20 @@ urls: analytical:test_batch
 views: analytical.views.test_batch
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.QCBatch, quality.Lot
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Add a test whose method runs in a QC batch to an open batch of the same method revision, before any results are recorded.
 ---
+
+## Common tasks
+### Add the test to a QC batch
+1. Choose the batch in [[Open QC batch]] and enter a [[Reason]].
+2. Select [[Add to batch]]. You can then record observations on the test.
+### Create a batch when none is offered
+1. If no batch can take the test, you return to the test record. Create one with [[New QC batch]] under QC batches, then add the test.
+## Good to know
+- Only open batches of the test's exact method revision that have no submitted results are offered.
+- A test with observations, or with a contract laboratory result, cannot join a batch.
+- There is no action that takes a test out of a batch. If a contract laboratory tests it, record that result instead.
 
 ## Purpose
 
@@ -19,7 +31,7 @@ Add a test whose method runs in a QC batch to an open batch of the same method r
 ## Layout
 
 - Heading "Add T-n to a QC batch".
-- Summary card: test facts (including the Specification source and acceptance) and Method ("code revision N").
+- Summary card: test facts (including the Specification as code and version with its hash, and Acceptance) and Method ("code revision N").
 - Form: **Open QC batch**, **Reason**, **Cancel**, **Add to batch**.
 
 ## Actions

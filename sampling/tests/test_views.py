@@ -243,3 +243,17 @@ def test_unexpected_unique_violation_while_sampling_is_raised(client, people, lo
     with pytest.raises(IntegrityError, match="core_auditevent_pkey"):
         client.post(reverse("sampling:sampling_new", args=[lot.pk]), sampling_data())
     assert not Sample.objects.exists() and not SamplingRecord.objects.exists()
+
+
+def test_lot_list_shows_the_lot_status_and_a_deviation_awaiting_assessment(client, people, lot):
+    _ready_for_sampling(people, lot)
+    client.force_login(people["analyst"])
+    url = reverse("sampling:lots")
+    page = client.get(url).content.decode()
+    assert "Quarantine" in page and "Awaiting quality assessment" not in page
+    recorded = client.post(
+        reverse("sampling:sampling_new", args=[lot.pk]),
+        sampling_data(deviation="Two containers damaged (synthetic)."),
+    )
+    assert recorded.status_code == 302
+    assert "Awaiting quality assessment" in client.get(url).content.decode()

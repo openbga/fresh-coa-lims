@@ -1,33 +1,23 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Material lots: the list every quality journey starts from. Context: page_obj (each lot with route and route_summary, quality/route.py), query, filters (LotFilterForm), filtered, can_receive.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Receive, test, independently review and disposition manufacturing lots.</p>{% endblock %}
-{% block page_actions %}{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">{% include "includes/icon.html" with name="plus-lg" %}New material lot</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">{% icon name="plus-lg" %}New material lot</a>{% endif %}{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="lots-heading">
-  <h2 class="visually-hidden" id="lots-heading">Lots</h2>
-  <form method="get" class="vr-grid-toolbar" role="search" aria-label="Filter material lots">
-    <div class="vr-field"><label class="form-label" for="search">Find lot</label><input id="search" class="form-control" type="search" name="q" value="{{ query }}" placeholder="Lot, supplier lot or manufacturer lot"></div>
-    <div class="vr-field"><label class="form-label" for="state">Status</label><select id="state" name="state" class="form-select"><option value="">All lots</option>{% for key, label in states %}<option value="{{ key }}"{% if key == state %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-    <div class="vr-filter-actions"><button class="btn btn-outline-secondary" type="submit">Search</button>{% if filtered %}<a class="btn btn-link" href="{% url 'quality:lot_list' %}">Clear filters</a>{% endif %}</div>
-  </form>
-  {% if page_obj.paginator.count %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="lots-heading">
-      <thead><tr><th scope="col">Lot</th><th scope="col">Status</th><th scope="col">Material</th><th scope="col">Supplier</th><th scope="col">Supplier lot</th><th scope="col">Received</th><th scope="col">Rule set</th></tr></thead>
+{% panel title="Lots" heading_id="lots-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter material lots" q=query search_label="Find lot" search_id="search" placeholder="Lot, supplier lot or manufacturer lot" inline=filters active=filtered %}
+  {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
+  {% list_results items=page_obj grid="quality.lots" noun="material lots" filtered=filtered sizes=True clear_url=request.path empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" no_results_body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." %}
+  {% grid_table grid="quality.lots" columns=columns label="lots-heading" %}
       <tbody>{% for lot in page_obj %}<tr>
         <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
-        <td>{% include "quality/includes/lot_status.html" with plain=True %}</td>
-        <td class="vr-wrap">{{ lot.material }}</td>
-        {% with receipt=lot.current.0 %}{% if receipt %}<td class="vr-wrap">{% if receipt.supplier %}{{ receipt.supplier.name }}{% else %}{{ receipt.get_source_display }}{% endif %}</td><td>{% if receipt.supplier %}{{ receipt.supplier_lot|default:"Not known" }}{% else %}—{% endif %}</td><td class="vr-nowrap"><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></td>{% else %}<td colspan="3">Receipt not recorded</td>{% endif %}{% endwith %}
-        <td>{{ lot.rules }}</td>
+        <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}{% for label, tone in lot.hold_labels %}<br>{% status label=label tone=tone plain=True %}{% endfor %}</td>
+        <td>{% material_tag material=lot.material kind=lot.route_material_kind code=lot.route_material_code size="sm" sub=False %}</td>
+        {% with receipt=lot.current.0 %}{% if receipt %}<td>{% if receipt.supplier %}<span class="vr-ellipsis" title="{{ receipt.supplier.name }}">{{ receipt.supplier.name }}</span><span class="vr-sub">{% if receipt.supplier_lot %}{% code value=receipt.supplier_lot %}{% else %}Supplier lot not known{% endif %}</span>{% else %}{{ receipt.get_source_display }}{% endif %}</td><td class="vr-nowrap"><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></td>{% else %}<td>Receipt not recorded</td><td>—</td>{% endif %}{% endwith %}
+        <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
+        <td>{% code value=lot.rules %}</td>
       </tr>{% endfor %}</tbody>
-    </table>
-  </div>
-  {% include "catalog/includes/pagination.html" with noun="material lots" filtered=filtered %}
-  {% elif filtered %}
-  {% include "catalog/includes/empty.html" with kind="no-results" title="No material lots match these filters" body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." clear_url=request.path %}
-  {% else %}
-  {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
-  {% include "catalog/includes/empty.html" with title="No material lots yet" body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" %}
-  {% endif %}
-</section>
+  {% endgrid_table %}
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

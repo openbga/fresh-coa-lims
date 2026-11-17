@@ -4,8 +4,25 @@ urls: accounts:password_change
 views: accounts.views.password_change
 templates: accounts/form.html
 models: accounts.User, core.AuditEvent
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Replace your own login password, when you choose to or when an administrator requires it. Your signature PIN does not change.
 ---
+
+## Common tasks
+### Change your password
+1. Enter your [[Current password]], then the [[New password]] and [[Confirm new password]].
+2. Enter a [[Reason]] and select [[Change password]].
+### Finish a required password change
+1. When the page asks you to choose a new password before continuing, fill in the same fields and select [[Change password]].
+2. To stop for now, select [[Sign out]] in the top bar. Other pages stay unavailable until the change is made.
+### Leave without changes
+1. Select [[Cancel]] to return to Account access. It shows only when the change is not required.
+## Good to know
+- Your other sessions are signed out. This session stays signed in.
+- Wrong current passwords count toward the same limit as sign-in, and can pause sign-in for the account for a while.
+- The new password must differ from the current one, and cannot be too short, common, all digits or too close to your account details.
+- A shared demonstration account cannot change its password. The page explains why instead of showing the form.
+- Changing your password does not remove an organization sign-in link. A reminder of the link appears after saving.
 
 ## Purpose
 
@@ -23,7 +40,7 @@ If required, an information message says **Choose a new password before continui
 
 | Action | Shown when | Result |
 |---|---|---|
-| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; redirects to Material lots |
+| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; redirects to the Dashboard |
 | Cancel | Password change is not required | Returns to Account access without saving |
 | Return without changes | Shared demonstration account | Returns to Account access without saving |
 | Sign out | Shared top bar | Ends the session, including when a required change is pending |
@@ -54,5 +71,5 @@ No PIN verification or electronic signature is created. The signature PIN, roles
 ## Related pages
 
 - [Account access](/accounts/access/)
-- [Material lots](/)
+- [Dashboard](/)
 - [Signature PIN](/signature-pin/)

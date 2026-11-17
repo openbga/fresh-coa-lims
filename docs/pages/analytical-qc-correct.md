@@ -4,8 +4,21 @@ urls: analytical:qc_correct
 views: analytical.views.qc_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.QCResult, analytical.QCBatch
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Correct a recorded QC result by adding a linked correction with a reason. The original value stays visible on the batch record.
 ---
+
+## Common tasks
+### Correct a QC result
+1. Enter the corrected value in [[Observed value]] and tick the equipment and lots used.
+2. Check [[Original record]], which starts with the earlier location.
+3. Enter the [[Reason for correction]] and select [[Correct QC result]].
+### Correct a value again
+1. On the batch record, select [[Correct]] on the check's row. It corrects the newest value.
+## Good to know
+- The batch QC status is worked out again from the current values, so a correction can change QC failed to QC passed.
+- Any analyst may correct a QC result, also one recorded by someone else. Both count as authors of the batch's QC.
+- Corrections close once a test in the batch is submitted.
 
 ## Purpose
 

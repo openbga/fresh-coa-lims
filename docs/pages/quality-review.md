@@ -4,8 +4,25 @@ urls: quality:review
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: quality.Result, quality.Lot, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: Sign the independent review of one manual result on a lot. Reviewers only, and never the analyst who recorded the result.
 ---
+
+## Common tasks
+### Sign a result review
+1. Check the result and its limits shown in the signing dialog.
+2. Enter a [[Reason]], your [[Signing username]] and your [[Signature PIN]].
+3. Select [[Sign reviewed]]. The result becomes Reviewed and you return to the lot record.
+### Set up your signature PIN first
+1. If you have no PIN yet, select [[Enroll or change your signature PIN]] and enroll one.
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+## Good to know
+- You cannot review a result you recorded, even with the reviewer role.
+- An out-of-specification result cannot be signed as reviewed. It needs an investigation.
+- If the result changed after you opened the page, signing fails. Reload and review it again.
+- Five wrong PINs in a row lock your PIN for 15 minutes. Failed attempts are recorded even though nothing is signed.
+- Native test results are reviewed on their own test pages, not here.
 
 ## Purpose
 
@@ -19,7 +36,7 @@ Independently review one foundation (manual-limit) result and sign it with meani
 
 ## Layout
 
-- A signing dialog (a plain card without JavaScript): meaning, lot number, the result's record revision, the result (test, value, unit, limits), the signer, a link to enrol or change the PIN, the form, **Sign reviewed** and **Cancel**. Focus starts in the PIN field or on the error.
+- Breadcrumbs Lots › the lot number › the title. A signing dialog (a plain card without JavaScript), headed with the title: meaning, lot number, the result's record revision, the result (test, value, unit, limits), the signer, a link to enrol or change the PIN, the form, **Sign reviewed** and **Cancel**. Focus starts in the PIN field or on the error.
 
 ## Actions
 

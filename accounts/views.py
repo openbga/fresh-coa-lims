@@ -12,6 +12,8 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET
 
+from core.grids import Column
+
 from .services import ROLES
 
 
@@ -779,6 +781,16 @@ def permission_denied(request, exception):
     return render(request, "403.html", context, status=403)
 
 
+# The users list's columns (core.grids.Column; keys are saved in users' layouts).
+USER_COLUMNS = (
+    Column("account", "Account", locked=True),
+    Column("roles", "Roles"),
+    Column("status", "Status"),
+    Column("two-factor", "Two-factor sign-in", priority="medium"),
+    Column("last-sign-in", "Last sign-in", priority="low"),
+)
+
+
 @login_required
 @require_GET
 def user_list(request):
@@ -788,9 +800,11 @@ def user_list(request):
     from django.db.models import Exists, OuterRef, Q
     from django_otp.plugins.otp_totp.models import TOTPDevice
 
+    from core.models import PINCredential
     from core.services import require_role
 
-    from .models import SecurityKey
+    from .models import LoginThrottle, SecurityKey
+    from .two_factor import CODE_FAILURE_LIMIT
 
     require_role(request.user, "admin")
 
@@ -820,6 +834,15 @@ def user_list(request):
         .annotate(
             has_app=Exists(TOTPDevice.objects.filter(user=OuterRef("pk"), confirmed=True)),
             has_key=Exists(SecurityKey.objects.filter(user=OuterRef("pk"))),
+            # The states the account page shows: a PIN lock and a stopped second factor.
+            pin_locked=Exists(
+                PINCredential.objects.filter(user=OuterRef("pk"), locked_until__gt=timezone.now())
+            ),
+            factor_stopped=Exists(
+                LoginThrottle.objects.filter(
+                    user_id=OuterRef("pk"), code_failures__gte=CODE_FAILURE_LIMIT
+                )
+            ),
         )
         .order_by("username")
     )
@@ -850,6 +873,7 @@ def user_list(request):
         "accounts/users.html",
         {
             "page_title": "Users and roles",
+            "columns": USER_COLUMNS,
             "filters": filters,
             "page": Paginator(users, 30).get_page(request.GET.get("page")),
             "query": params.urlencode(),
@@ -928,7 +952,7 @@ def _account_form(request, form, title, cancel, target=None, unavailable=""):
             "cancel_url": cancel,
             "signing": True,
             "unavailable": unavailable,
-            "submit_label": f"Sign and {title.lower()}",
+            "submit_label": f"Sign and {title[:1].lower()}{title[1:]}",
         },
         status=422 if request.method == "POST" else 200,
     )
@@ -1106,7 +1130,7 @@ def password_change(request):
                     f"{timezone.localtime(found.created_at):%Y-%m-%d}) for sign-in. "
                     "If you do not recognize it, unlink it on Organization sign-in.",
                 )
-            return redirect("quality:lot_list")
+            return redirect("quality:dashboard")
         except (ValidationError, PermissionDenied) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     return render(

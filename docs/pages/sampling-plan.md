@@ -4,8 +4,23 @@ urls: sampling:plan
 views: sampling.views.plan_detail
 templates: sampling/plan_detail.html
 models: sampling.SamplingPlan, sampling.SamplingPlanRevision, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: One sampling plan with every version, newest first: what to sample, the effective period, signatures and history. Quality users add versions and approve or withdraw drafts here.
 ---
+
+## Common tasks
+### Create a new version
+1. Select [[New version]]. Only quality users see it.
+### Approve a draft version
+1. On the draft's card, select [[Review and approve]]. It shows only to a quality user who did not author or edit that draft.
+2. Sign with your PIN on that page.
+### Withdraw a draft
+1. On the draft's card, select [[Withdraw draft]] and give a reason on that page.
+## Good to know
+- You cannot approve a draft you authored or edited. The card then says another quality approver must sign.
+- Approved versions are never edited. To change a plan, create a new version.
+- Approving a later version that overlaps an approved one retires the earlier one. It keeps its approved content and signature.
+- Lots keep the plan version frozen when their requirements were assigned.
 
 ## Purpose
 

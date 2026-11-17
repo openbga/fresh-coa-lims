@@ -1,20 +1,17 @@
 from django import forms
 
-
-class StyledForm(forms.Form):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            if not field.widget.is_hidden:
-                field.widget.attrs.setdefault("class", "form-control")
+# A signature PIN: numeric keypad, never autofilled, never rendered back into the page.
+PIN_WIDGET_ATTRS = {"autocomplete": "off", "inputmode": "numeric"}
 
 
-class PINForm(StyledForm):
+class PINForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput, label="Current login password")
-    pin = forms.CharField(widget=forms.PasswordInput, label="New signature PIN", min_length=8)
+    pin = forms.CharField(
+        widget=forms.PasswordInput(attrs=PIN_WIDGET_ATTRS), label="New signature PIN", min_length=8
+    )
 
 
-class RuleForm(StyledForm):
+class RuleForm(forms.Form):
     code = forms.SlugField()
     segment = forms.SlugField()
     policy = forms.JSONField(
@@ -34,7 +31,7 @@ class RuleForm(StyledForm):
     reason = forms.CharField(widget=forms.Textarea)
 
 
-class SignatureIdentityForm(StyledForm):
+class SignatureIdentityForm(forms.Form):
     signature_username = forms.CharField(
         label="Signing username",
         max_length=150,
@@ -44,5 +41,5 @@ class SignatureIdentityForm(StyledForm):
 
 class SignForm(SignatureIdentityForm):
     revision = forms.IntegerField(widget=forms.HiddenInput)
-    pin = forms.CharField(widget=forms.PasswordInput, label="Signature PIN")
+    pin = forms.CharField(widget=forms.PasswordInput(attrs=PIN_WIDGET_ATTRS), label="Signature PIN")
     reason = forms.CharField(widget=forms.Textarea)

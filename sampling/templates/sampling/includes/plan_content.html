@@ -1,4 +1,2 @@
-<section class="card mb-3" aria-labelledby="content-heading">
-  <div class="card-header"><h2 class="card-title" id="content-heading">Content being approved</h2></div>
-  <div class="card-body">{% include "sampling/includes/plan_facts.html" %}</div>
-</section>
+{% load ui %}{% comment %}The sampling plan version being approved (catalog/approve.html). Include with revision=... only.{% endcomment %}
+{% panel title="Content being approved" heading_id="content-heading" class="mb-3" %}{% include "sampling/includes/plan_facts.html" with revision=revision only %}{% endpanel %}

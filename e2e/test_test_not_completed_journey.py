@@ -5,6 +5,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 
 from analytical.models import AnalyticalTest, Investigation
@@ -95,10 +96,10 @@ def test_quality_signs_that_a_test_cannot_be_completed_and_repeats_it(
         expect(page.get_by_text("This field is required.").first).to_be_visible()
         expect(field("Signature PIN")).to_have_value("")
 
-        field("Cause").select_option(label="The sample was lost, damaged or used up")
+        pick(field("Cause"), label="The sample was lost, damaged or used up")
         page.get_by_label("On another sample of the lot").check()
-        choice = field("Sample for the repeat").locator("option", has_text="SYN-NC-S002")
-        field("Sample for the repeat").select_option(value=choice.get_attribute("value"))
+        choice = page.locator('select[name="sample"] option', has_text="SYN-NC-S002")
+        pick(field("Sample for the repeat"), value=choice.get_attribute("value"))
         field("Why the test cannot be completed").fill(REASON)
         field("Signing username").fill("nc_approver")
         field("Signature PIN").fill(PIN)
@@ -131,7 +132,7 @@ def test_quality_signs_that_a_test_cannot_be_completed_and_repeats_it(
         page.goto(base + reverse("analytical:lot_testing", args=[lot.pk]))
         expect(page.get_by_text("Not completed").first).to_be_visible()
         page.goto(base + reverse("analytical:test_list"))
-        page.get_by_label("Status", exact=True).select_option(label="Not completed")
+        pick(page.get_by_label("Status", exact=True), label="Not completed")
         page.get_by_role("button", name="Apply").first.click()
         expect(page.get_by_role("link", name=assay.label, exact=True).first).to_be_visible()
         expect(page.get_by_role("row", name=re.compile("Not completed")).first).to_be_visible()
@@ -177,7 +178,7 @@ def test_a_reading_outside_the_limits_gives_no_repeat_and_opens_an_investigation
         fits_the_phone(page)
         page.screenshot(path=f"{SHOTS}/not-completed-outside-phone.png", full_page=True)
 
-        field("Cause").select_option(index=1)
+        pick(field("Cause"), index=1)
         field("Why the test cannot be completed").fill(REASON)
         field("Signing username").fill("nc_approver")
         field("Signature PIN").fill(PIN)

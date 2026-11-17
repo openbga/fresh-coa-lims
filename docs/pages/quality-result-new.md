@@ -4,8 +4,23 @@ urls: quality:result_new
 views: quality.views.result_new
 templates: quality/form.html
 models: quality.Result, quality.Sample, quality.Lot, core.RuleSet
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: A development-only fallback for entering one manual result with its own limits on a sample. Record normal results on Testing and investigations.
 ---
+
+## Common tasks
+### Record a manual result in development
+1. Enter a [[Reason]], the [[Test code]], the [[Value]] and its [[Unit]].
+2. Enter the [[Lower limit]] and [[Upper limit]] in the same unit.
+3. Select [[Record result]]. It saves only in development, for a lot with no requirements assigned.
+### Leave without saving
+1. Select [[Cancel]] to return to the lot record. Nothing is saved.
+## Good to know
+- Outside development, or once the lot has requirements assigned, saving is refused. Record observations through native testing instead.
+- The test code must be a required test of the lot's rule set.
+- A value outside the limits shows as Out of specification and cannot be signed as reviewed.
+- You can never review a result you recorded.
+- Manual results on a lot that later gets native requirements block its release until reconciled.
 
 ## Purpose
 
@@ -18,14 +33,14 @@ Development-only fallback for entering one foundation result with manual limits 
 
 ## Layout
 
-- Title "Record result · <sample reference>", the form, **Record result** and **Cancel**.
+- Breadcrumbs Lots › the lot number, the title "Record result · <sample reference>", the required-fields note, the form, **Cancel** and **Record result**.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record result** | Always | Analyst | DEBUG and unassigned lot only: saves the result as Recorded and returns to the lot record; otherwise refused |
-| **Cancel** | Always | Any | Returns to Material lots without saving |
+| **Cancel** | Always | Any | Returns to the lot record without saving |
 
 ## Fields
 

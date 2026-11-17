@@ -1,13 +1,13 @@
 {% extends "base.html" %}
+{% load ui %}
 {% comment %}Work-queue overview: counts link to filtered lists. Context: page_title, intro, queues.{% endcomment %}
-{% block page_dateline %}{% include "includes/dateline.html" %}{% endblock %}
+{% block page_dateline %}{% dateline %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">{{ intro }}</p>{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="queues-heading">
-  <h2 class="visually-hidden" id="queues-heading">Work queues</h2>
+{% panel title="Work queues" heading_id="queues-heading" table=True hidden_title=True %}
   <div class="vr-table-wrap"><table class="table table-hover vr-table vr-queue-table" aria-labelledby="queues-heading">
     <thead><tr><th scope="col">Queue</th><th scope="col" class="text-end">Records</th><th scope="col">Attention</th></tr></thead>
-    <tbody>{% for queue in queues %}<tr><th scope="row" class="vr-wrap"><a class="vr-row-link" href="{{ queue.href }}">{{ queue.label }}</a></th><td class="text-end">{{ queue.count }}</td><td>{% if queue.count %}{% include "includes/status.html" with label="Needs attention" tone=queue.tone plain=True %}{% else %}{% include "includes/status.html" with label="Clear" tone="neutral" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for queue in queues %}<tr><th scope="row" class="vr-wrap"><a class="vr-row-link" href="{{ queue.href }}">{{ queue.label }}</a></th><td class="text-end">{{ queue.count }}</td><td>{% if queue.count %}{% status label="Needs attention" tone=queue.tone plain=True %}{% else %}{% status label="Clear" tone="neutral" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
   </table></div>
-</section>
+{% endpanel %}
 {% endblock %}

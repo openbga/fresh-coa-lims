@@ -4,8 +4,21 @@ urls: catalog:calculation_clear
 views: catalog.views.calculation_clear
 templates: catalog/form.html
 models: catalog.MethodRevision, catalog.MethodCalculationInput
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Remove the calculation from a draft method version: its formula, result unit, decimals and every input. Results are then entered directly.
 ---
+
+## Common tasks
+### Clear the calculation
+1. Check the formula shown under [[Record]].
+2. Explain why in [[Reason]], then select [[Clear calculation]]. The method record opens.
+### Keep the calculation
+1. Select [[Cancel]].
+## Good to know
+- Every input is removed too. To change only the formula, use [[Change formula]] on the method record instead.
+- The cleared calculation, inputs included, stays in the history with your reason.
+- Clearing makes you an editor of the draft, so you can no longer approve it.
+- If someone changes the draft after you open this page, clearing is refused. Reload and try again.
 
 ## Purpose
 

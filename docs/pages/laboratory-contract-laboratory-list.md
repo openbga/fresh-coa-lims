@@ -4,8 +4,25 @@ urls: laboratory:contract_laboratory_list
 views: laboratory.contract_views.contract_laboratory_list
 templates: ops/list.html
 models: laboratory.ContractLaboratory, laboratory.ContractApproval
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Outside laboratories that test for this laboratory, and the methods each is approved for today. Find a laboratory and its approvals, or add a new one.
 ---
+
+## Common tasks
+### Find a contract laboratory
+1. Type a code, name, location or method code in [[Search]].
+2. To narrow, choose one in [[Status]], for example [[Approval awaiting signature]] or [[No approval in force today]].
+3. Select [[Apply]], then select a code to open the laboratory and its approvals.
+### Add a contract laboratory
+1. Select [[New contract laboratory]]. It shows only for the quality role.
+2. Fill in the form on that page, then record an approval for each method it may perform.
+### See every laboratory again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- Being listed approves nothing. Each method needs its own approval, recorded by one quality user and signed by another.
+- The Approval column shows the state that most needs attention among the laboratory's approvals.
+- Counts and statuses describe today. An approval that has run out still covers reports dated within its dates.
+- Two overlapping approvals of one method count as one method approved today.
 
 ## Purpose
 
@@ -21,8 +38,8 @@ Register of the outside laboratories that test for this laboratory, with the app
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New contract laboratory** button for Quality. The introduction is below the title and action row: "Outside laboratories that test for this laboratory, and the methods each is approved for. The register says who a laboratory is. A result it reports is accepted only under an approval for the method, signed by a second quality person."
-- **Toolbar**: **Search** (code, name, location, or the method code of any of its approvals; case-insensitive "contains") and **Status** (All, Approval awaiting signature, Approval expiring within 30 days, Approved for a method today, No approval in force today). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Code (links to the record), Name, Location, Methods approved today, Approvals awaiting signature. Sort by Code (default) or Name. Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (code, name, location, or the method code of any of its approvals; case-insensitive "contains") and **Status** (All, Approval awaiting signature, Approval expiring within 30 days, Approved for a method today, No approval in force today). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Code (links to the record, with the name under it), Location, Approval (the state of its approval that most needs attention: Expiring soon first, then Approved, "Approved, starts later", Awaiting approval, Expired, Revoked; blank when it has none), Methods approved today, Approvals awaiting signature. Sort by Code (default). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Quality adds a contract laboratory, then records and approves the methods it may perform.", with **New contract laboratory** for Quality); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -32,7 +49,7 @@ Register of the outside laboratories that test for this laboratory, with the app
 |---|---|---|---|
 | **New contract laboratory** | Your role can create it | Quality | Opens the New contract laboratory form |
 | Code link | Always | Any reader | Opens the contract laboratory record, where approvals are recorded and listed |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

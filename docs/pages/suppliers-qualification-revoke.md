@@ -4,8 +4,22 @@ urls: suppliers:qualification_revoke
 views: suppliers.qualification_views.qualification_revoke
 templates: ops/sign.html
 models: suppliers.SupplierQualification, quality.SupplierResultAcceptance, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Withdraw an approved supplier qualification with a signature. No further supplier result is accepted under it; acceptances already signed stay as they are.
 ---
+
+## Common tasks
+### Revoke the qualification
+1. Check the facts, including how many accepted supplier results relied on it.
+2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
+3. Select [[Sign and revoke]].
+### Go back without signing
+1. Select [[Cancel]], or [[Back to record]] when the page says you cannot revoke.
+## Good to know
+- Any quality user may revoke, including the person who recorded the evidence.
+- Acceptances already signed stay as signed. A proposal still awaiting acceptance can no longer be signed.
+- The software records no assessment and holds no lot. Assess the accepted results under your procedure.
+- A revocation is final. To rely on the supplier again, record a new qualification.
 
 ## Purpose
 
@@ -20,7 +34,7 @@ Revoke an approved supplier qualification with meaning **revoked**. No further s
 
 ## Layout
 
-- Breadcrumbs (Suppliers, the supplier's code, SQ-n, Revoke), then a signing dialog (a plain card without JavaScript): SQ-n and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs (Suppliers, the supplier's code, SQ-n, Revoke), then a signing dialog (a plain card without JavaScript): SQ-n and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

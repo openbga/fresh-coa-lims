@@ -4,8 +4,28 @@ urls: accounts:announcement
 views: accounts.views.announcement
 templates: accounts/announcement.html, accounts/includes/announcement.html
 models: accounts.LoginAnnouncement, core.AuditEvent, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: The one notice shown on the sign-in page to anyone who opens it, before they sign in. Write, publish or withdraw it and see every signed change. Admin role only.
 ---
+
+## Common tasks
+### Publish or update the notice
+1. Under Change announcement, enter an optional [[Title]] and the [[Announcement text]].
+2. Check [[Show on the sign-in page]] and enter a [[Reason]].
+3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and save announcement]].
+### Withdraw the notice
+1. Uncheck [[Show on the sign-in page]], then enter a [[Reason]] and your signing username and PIN.
+2. Select [[Sign and save announcement]]. The text is kept here for later.
+### See what changed and who signed
+1. In Announcement history, select [[Inspect recorded values]] on a change to see the status, title and text before and after it.
+### Enroll your PIN first
+1. If the form is hidden, select [[Enroll or change your signature PIN]]. Saving needs your own enrolled PIN.
+## Good to know
+- The text is public: anyone who opens the sign-in page sees it. Never enter personal data, or the password or PIN of a real account.
+- Every change stays in the history and the audit trail, including text you later replace or withdraw.
+- HTML is shown as typed, never interpreted. Lists, tables, bold, italic, code and links are formatted.
+- If someone saved a change after you opened the page, yours is refused. Reload and review before signing again.
+- A refused PIN still counts toward your PIN lockout, and nothing is saved.
 
 ## Purpose
 
@@ -17,11 +37,13 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 ## Layout
 
-**Current announcement** shows the status (**Published** or **Not published**), whether the sign-in page shows the notice, and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
+The page opens with "One notice shown on the sign-in page to anyone who opens it, before they sign in. Changing it requires a reason and your signature PIN."
+
+**Current announcement** shows the status (**Published** or **Not published**), **Sign-in page** ("Shows the notice below" or "Shows no notice"), and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
 
 **Change announcement** names you as signer with the meaning **announcement_authorized** and the revision being reviewed and bound. It warns that the text is public and links to PIN enrollment. With an enrolled PIN the form follows: title, announcement text, **Show on the sign-in page**, reason and your signing credentials, then **Cancel** and **Sign and save announcement**. Without one, the form is hidden and the page says **Enroll your signature PIN before changing the announcement.**
 
-**Announcement history** lists every signed change, newest first, with its reason, actor, signature and **Inspect recorded values**. Its empty text is **No announcement changes recorded.**
+**Announcement history** lists every signed change, newest first, titled "Announcement published", "Announcement withdrawn", "Published announcement changed" or "Unpublished text changed", with its time, reason, actor, signature and **Inspect recorded values**, then the history's pager. Its empty text is **No announcement changes recorded.** After saving, the page says "Announcement saved. It is shown on the sign-in page." or "Announcement saved. The sign-in page shows no notice."
 
 ## Actions
 
@@ -31,7 +53,7 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 | Cancel | With the form | Reloads the page with the saved values; nothing changes |
 | Enroll or change your signature PIN | Always | Opens Signature PIN |
 | Inspect recorded values | Each history entry | Shows the status, title and text before and after that change |
-| Previous / Next | History has an adjacent page | Moves one page of history |
+| First / previous / next / last page | History has more than one page | Moves through the history |
 
 ## Fields
 

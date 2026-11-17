@@ -4,8 +4,25 @@ urls: catalog:calculation_set
 views: catalog.views.calculation_set
 templates: catalog/form.html
 models: catalog.MethodRevision, catalog.MethodCalculationInput
-reviewed: 2026-11-12
+reviewed: 2026-11-17
+summary: Set the formula, result unit and decimals that calculate a method's result from the inputs analysts enter. Only a draft method version can be changed.
 ---
+
+## Common tasks
+### Set or change the formula
+1. Enter the [[Formula]] using the input codes, + - * / and brackets.
+2. Choose the [[Unit of the calculated result]] and enter the [[Decimals of the calculated result]].
+3. Give the [[Reason for change]] and select [[Save calculation]]. The method record opens.
+### Add the inputs the formula uses
+1. On the method record, select [[Add input]] once for each name in the formula.
+### Leave without saving
+1. Select [[Cancel]] to return to the method record.
+## Good to know
+- Only the formula's syntax is checked here. Approval checks that its names and the inputs match exactly.
+- Functions and exponents are not allowed.
+- The result is rounded half up to the decimals you set when it is recorded.
+- A specification test that uses this method must be numeric, in the same unit as the calculated result.
+- Saving makes you an editor of the draft, so you can no longer approve it.
 
 ## Purpose
 

@@ -4,8 +4,24 @@ urls: quality:receipt_correct
 views: quality.views.receipt_correct
 templates: catalog/form.html
 models: quality.LotReceipt, quality.Lot, suppliers.Supplier
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Correct a quarantined lot's receipt details. The correction adds a linked record, and the record it replaces stays in the lot's receipt history. Analysts only.
 ---
+
+## Common tasks
+### Correct the receipt details
+1. Change only the details that were wrong. The form opens with the current details.
+2. Say what was wrong in [[Reason for correction]].
+3. Select [[Correct receipt details]]. You return to the lot record.
+### Change the supplier or the source
+1. Choose another [[Supplier]], or set [[Source]] to [[Made on site]] and clear the supplier and manufacturer fields.
+2. Enter the [[Reason for correction]] and select [[Correct receipt details]].
+## Good to know
+- The earlier record is never changed. The lot record's Receipt history lists both, with each changed detail as old and new value.
+- If someone corrected the details after you opened the page, nothing is saved. Reload and review the current details.
+- A correction that changes nothing is refused.
+- A supplier result relied on in place of a test stops standing when the source, supplier or date received changes, and blocks disposition until withdrawn.
+- Correcting makes you an author of the lot's receipt data: you cannot sign its disposition, even with the quality role.
 
 ## Purpose
 
@@ -76,4 +92,4 @@ Corrects the receipt details of a quarantined lot by adding a linked, newer reco
 - Record receipt details (for a lot without receipt details).
 - [Suppliers](/suppliers/)
 - [Holds](/stability/holds/)
-- [Material lots](/)
+- [Material lots](/lots/)

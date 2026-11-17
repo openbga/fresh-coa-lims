@@ -5,7 +5,24 @@ views: sampling.views.replace
 templates: sampling/replace.html, sampling/includes/conflicts.html
 models: quality.Lot, sampling.LotAssignment, analytical.AnalyticalTest, analytical.Investigation, quality.SupplierResultAcceptance, core.RuleSet, catalog.SpecificationRevision, core.ElectronicSignature, core.PINCredential, core.AuditEvent
 reviewed: 2026-11-17
+summary: Once testing has started, quality replaces a lot's frozen requirements with the versions in force now, with a signature. Tests whose requirement changed are superseded; the rest carry over.
 ---
+
+## Common tasks
+### Review and sign the replacement
+1. Check [[Versions in force now]], [[Requirements]] and [[Effect on the lot's tests]].
+2. Enter [[Reason for the replacement]], [[Signing username]] and [[Signature PIN]].
+3. Select [[Sign and replace requirements]].
+4. If tests were superseded, assign the required tests again to repeat them under the new requirements.
+### Choose between requirements stated differently
+1. Under [[Requirements stated differently]], choose one statement for each test.
+2. Select [[Review the replacement with these requirements]], then review and sign.
+## Good to know
+- A superseded test is kept as recorded. It takes no more work and never counts toward the disposition.
+- The sampling plan is kept, because the lot's samples were taken under it.
+- A supplier result proposed or accepted for the lot stops standing. It blocks the disposition until it is withdrawn on the lot record.
+- You cannot sign if you recorded any of the lot's receipt, supplier certificate, sampling or test data, or proposed a supplier result for it.
+- If the versions in force or the lot's tests change before you sign, nothing is signed and the page shows them as they are now.
 
 ## Purpose
 
@@ -24,7 +41,7 @@ Once testing has started, a quarantined lot keeps the requirements frozen for it
 
 ## Layout
 
-- **Breadcrumbs**: Sampling, lot number, Replace requirements. Title "Replace requirements ·" and the lot number. Under it: lot number, "lot record revision N" and the status Quarantine.
+- **Breadcrumbs**: Sampling, lot number, Replace requirements. Title "Replace requirements ·" and the lot number. Under it: the status Quarantine, the lot number and "Lot record revision N".
 - **Versions in force now**: an explanation that the replacement freezes the versions in force now "for the same material, stage and scopes, with the rule sets in force that name them", and keeps the sampling plan "because the lot's samples were taken under it". Facts: Material, stage and scope (or scopes, all of them listed); Rule set (the lot's version, then "→" and the version in force, or "· unchanged"); for a lot under one specification and its own rule set, Specification (the frozen version, then "→" and a link to the version in force, or "· unchanged"); for a lot under several scopes or with an additional rule set, **Specifications frozen for the lot** ("<code> vN (<scope>)", all of them) and one fact for every specification or additional rule set whose version differs, titled "Specification <code>" or "Rule set <code>": "<frozen> → <in force>", "<in force> · applies now" for one that did not apply before, or "<frozen> · no longer applies", or the single fact "Specifications and additional rule sets: Unchanged"; Sampling plan ("code vN · kept"). These other documents are listed only when the versions in force could be worked out: nothing refuses the replacement and every differing test has a choice.
 - **Requirements stated differently** (count of tests; only when the specifications in force state a test differently): "Nothing is merged and neither statement is picked for you. A lot has to meet every specification that binds it: choose the statement under which a passing result also meets the others, or give in your reason why another specification does not bind this lot." Then either "Choose a requirement for each test, then review what the replacement would change." (a test still waits for a choice) or "The requirement selected for each test is the one the replacement applies; the others stay in the record. Your signature confirms the choice for the versions now in force." One group per test follows, headed by its code and name, with "The statements differ in: limits." and one option per statement: "**SPEC-TEST-EU v1** (eu-market) · Assay: 99 – 101 % · rounded to 2 decimals · method M-TEST-001 v2", naming every scope that states the test this way and ending "· information only" when not required, with the link **Open the specification** under it. For a test that has a choice, the statement chosen is listed first. Then the button **Review the replacement with these requirements**. A user who authored data of the lot sees the statements as a plain list, each starting with a link to the specification version, without choices and without the button.
 - **Not signed** (alert in that section, after a signature was submitted while a test still waited for a choice): "Choose which requirement applies for each test the specifications state differently. Nothing was signed."

@@ -4,8 +4,24 @@ urls: accounts:user_list
 views: accounts.views.user_list
 templates: accounts/users.html
 models: accounts.User, accounts.SecurityKey, auth.Group
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Every named account with its roles, status and two-factor sign-in. Find an account, open its record, or create a new one. Admin role only.
 ---
+
+## Common tasks
+### Find an account
+1. Type part of a username, name or email in [[Find account]].
+2. To narrow the list, choose a [[Role]], [[Status]] or [[Two-factor sign-in]] value.
+3. Select [[Apply]], then select a username to open its record.
+### Create an account
+1. Select [[New account]], then sign the creation on that page.
+### See every account again
+1. Select [[Clear all]] to remove the search and filters.
+## Good to know
+- Inactive accounts and accounts without a role are listed too, sorted by username.
+- Status shows only whether the account can sign in. A locked signature PIN or stopped two-factor sign-in appears below it.
+- Two-factor sign-in is On when the account has a confirmed authenticator app or at least one security key.
+- Viewing or filtering changes no account. Every change is signed on the account's own pages.
 
 ## Purpose
 
@@ -17,17 +33,17 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 ## Layout
 
-The header has **Create account**. A filter card is followed by the matching-account count, a table with Account, Identity, Roles, Status, Two-factor sign-in and Last sign-in, then paging. Empty text distinguishes **No accounts found.** from **No accounts match these filters. Clear or adjust them.**
+The header has **New account**. The accounts card opens with the filter toolbar (Find account, Role, Status, Two-factor sign-in, **Apply**, and **Clear all** when a filter is set), then a table with Account (the username, with the full name or "Not supplied" and the email below), Roles, Status (Active or Inactive, with "Password change required", "Signature PIN locked" (a lock time still ahead) and "Two-factor sign-in stopped" (too many wrong codes, with a second factor set up) below when they apply), Two-factor sign-in and Last sign-in, then the footer "Showing X–Y of N accounts" with **Columns** (choose and order the columns, saved for your account; Two-factor sign-in and Last sign-in give way first on narrow screens) and paging. Empty states: **No accounts found** with **New account**; **No accounts match these filters** with "Clear or adjust the filters." and **Clear filters**; **These filters cannot be applied** for an invalid filter.
 
 ## Actions
 
 | Action | Shown when | Result |
 |---|---|---|
-| Create account | Always | Opens signed account creation |
-| Filter | Always | Applies all entered filters and returns to page 1 |
-| Clear filters | Always | Restores the unfiltered list |
+| New account | Always | Opens signed account creation |
+| Apply | Always | Applies all entered filters and returns to page 1 |
+| Clear all / Clear filters | A filter is set | Restores the unfiltered list |
 | Account username | Each row | Opens the account record |
-| Previous / Next | An adjacent page exists | Moves one page while retaining filters |
+| First / previous / next / last page | More than one page | Moves to that page while retaining filters |
 
 ## Fields
 
@@ -53,5 +69,5 @@ All accounts are listed by username, including inactive accounts and those witho
 ## Related pages
 
 - [Account access](/accounts/access/)
-- [Create account](/accounts/users/new/)
+- [New account](/accounts/users/new/)
 - Account record, opened through a username.

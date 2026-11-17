@@ -106,7 +106,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
         try:
             login(page, live_server, admin.username, ADMIN_PASSWORD)
             page.goto(live_server.url + reverse("accounts:user_list"))
-            page.get_by_role("link", name="Create account", exact=True).click()
+            page.get_by_role("link", name="New account", exact=True).click()
             for label, value in [
                 ("Username", "synthetic_named_member"),
                 ("First name", "Synthetic"),
@@ -124,7 +124,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
             expect(
                 page.get_by_role("heading", name="synthetic_named_member", exact=True)
             ).to_be_visible()
-            expect(page.get_by_text("account.created", exact=True)).to_be_visible()
+            expect(page.get_by_text("Account created", exact=True)).to_be_visible()
             expect(
                 page.get_by_text(
                     "Signed by Synthetic Account Administrator · account_authorized", exact=False
@@ -138,11 +138,13 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
                 sign(page, admin, "Sign and assign roles", "Authorize independent review role")
                 == 302
             )
-            expect(page.get_by_text("analyst, reviewer", exact=True)).to_be_visible()
+            facts = page.locator("dl.vr-facts")
+            expect(facts.get_by_text("analyst, reviewer", exact=True)).to_be_visible()
 
             login(member, live_server, "synthetic_named_member", INITIAL_PASSWORD)
             change_password(member, live_server, INITIAL_PASSWORD, FIRST_PASSWORD)
             # The member has a live workspace session before the administrator forces a reset.
+            page.get_by_role("button", name="More", exact=True).click()  # beyond three actions
             page.get_by_role("link", name="Force password reset", exact=True).click()
             page.get_by_label(re.compile(r"^Temporary password\b")).fill(TEMP_PASSWORD)
             page.get_by_label(re.compile(r"^Confirm temporary password\b")).fill(TEMP_PASSWORD)
@@ -166,12 +168,13 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
             assert db_call(lock_member_pin)
             page.goto(detail_url)
             expect(page.get_by_text("lock until", exact=False)).to_be_visible()
+            page.get_by_role("button", name="More", exact=True).click()  # beyond three actions
             page.get_by_role("link", name="Clear PIN lockout", exact=True).click()
             assert (
                 sign(
                     page,
                     admin,
-                    "Sign and clear pin lockout",
+                    "Sign and clear PIN lockout",
                     "Verified synthetic identity before unlock",
                 )
                 == 302
@@ -179,12 +182,13 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
             assert (
                 db_call(lambda: PINCredential.objects.get(user_id=member_id).locked_until) is None
             )
+            page.get_by_role("button", name="More", exact=True).click()  # beyond three actions
             page.get_by_role("link", name="Require PIN re-enrollment", exact=True).click()
             assert (
                 sign(
                     page,
                     admin,
-                    "Sign and require pin re-enrollment",
+                    "Sign and require PIN re-enrollment",
                     "Synthetic PIN compromise response",
                 )
                 == 302
@@ -204,7 +208,8 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
                 sign(page, admin, "Sign and deactivate account", "Synthetic leave of absence")
                 == 302
             )
-            expect(page.get_by_text("Inactive", exact=True)).to_be_visible()
+            meta = page.locator(".vr-page-meta")
+            expect(meta.get_by_text("Inactive", exact=True)).to_be_visible()
             member.goto(live_server.url + "/")
             expect(member).to_have_url(re.compile(r"/accounts/login/\?next="))
             login(member, live_server, "synthetic_named_member", FINAL_PASSWORD)
@@ -215,7 +220,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
                 sign(page, admin, "Sign and reactivate account", "Synthetic return to laboratory")
                 == 302
             )
-            expect(page.get_by_text("Active", exact=True)).to_be_visible()
+            expect(page.locator(".vr-page-meta").get_by_text("Active", exact=True)).to_be_visible()
             login(member, live_server, "synthetic_named_member", FINAL_PASSWORD)
             expect(member).to_have_url(live_server.url + "/")
             page.screenshot(path=str(artifacts / "admin-management-history.png"), full_page=True)

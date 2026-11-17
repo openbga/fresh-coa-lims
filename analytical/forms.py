@@ -1,7 +1,7 @@
 from django import forms
 from django.utils.html import escape
 
-from core.forms import SignatureIdentityForm, StyledForm
+from core.forms import SignatureIdentityForm
 
 from .models import AnalyticalTest, Investigation, InvestigationEntry
 
@@ -25,7 +25,7 @@ def _raw_reference():
     )
 
 
-class ReasonForm(StyledForm):
+class ReasonForm(forms.Form):
     reason = _reason()
 
 
@@ -72,7 +72,7 @@ def bench_fields(choices, method):
     return fields
 
 
-class BenchForm(StyledForm):
+class BenchForm(forms.Form):
     """A form recording work at the bench: adds the equipment and lot checkboxes before the
     original record. Pass ``choices`` (from the bench) and the frozen ``method``."""
 
@@ -139,6 +139,7 @@ class ReadingForm(BenchForm):
                     label=item.label,
                     help_text=f"Exact value as read, in {escape(item.unit)}; "
                     "at most 8 decimal places.",
+                    widget=forms.NumberInput(attrs={"unit": item.unit}),
                     **VALUE,
                 )
         elif spec.is_qualitative:
@@ -165,6 +166,7 @@ class ReadingForm(BenchForm):
                 )
                 + "Never enter a nondetect as zero: enter the reporting limit and choose "
                 "\u201cReported as less than this value\u201d.",
+                widget=forms.NumberInput(attrs={"unit": spec.unit} if spec.unit else None),
                 **VALUE,
             )
             fields["less_than"] = forms.BooleanField(
@@ -174,8 +176,6 @@ class ReadingForm(BenchForm):
                 help_text="For a result below the reporting or detection limit (shown as &lt;10). "
                 "It is stored as recorded and never converted to zero or to the number.",
             )
-        for field in fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
         reason = self.fields.pop("reason", None)
         self.fields = {**fields, **self.fields}
         if reason is not None:
@@ -196,7 +196,7 @@ class ReadingForm(BenchForm):
         return data
 
 
-class ContractResultForm(StyledForm):
+class ContractResultForm(forms.Form):
     """What a contract laboratory's report states for a test: the laboratory, the report and
     every replicate, shaped by the frozen requirement.
 
@@ -275,8 +275,6 @@ class ContractResultForm(StyledForm):
                     help_text="For a result printed as &lt;10. It is kept as reported and never "
                     "becomes zero or the number.",
                 )
-        for field in fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
         hidden = self.fields.pop("expected_revision")
         self.fields.update(fields)
         if correcting:
@@ -339,7 +337,7 @@ class ReadingCorrectionForm(ReadingForm):
     reason = _reason("Reason for correction", "The original result stays visible in the record.")
 
 
-class BatchForm(StyledForm):
+class BatchForm(forms.Form):
     number = forms.CharField(label="Batch number", max_length=80)
     method_code = forms.ChoiceField(label="Method revision")
     reason = _reason()
@@ -369,7 +367,7 @@ class BatchForm(StyledForm):
         return data
 
 
-class BatchAssignForm(StyledForm):
+class BatchAssignForm(forms.Form):
     batch = forms.ModelChoiceField(label="Open QC batch", queryset=None)
     reason = _reason()
 
@@ -378,7 +376,7 @@ class BatchAssignForm(StyledForm):
         self.fields["batch"].queryset = batches
 
 
-class EntryForm(StyledForm):
+class EntryForm(forms.Form):
     kind = forms.ChoiceField(
         label="Entry type",
         choices=[

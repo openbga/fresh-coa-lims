@@ -1,13 +1,13 @@
-{% comment %}Tests the specifications that apply to a lot state differently, each with its statements and what they differ in. Parameters: conflicts (conflict rows: code, name, differs, candidates); choose (truthy to offer one choice per test, named choice-<test code>; each conflict may carry .chosen, a scope); form_id (optional form the choices belong to).{% endcomment %}
+{% comment %}Include with conflicts=... choose=... only. Tests the specifications that apply to a lot state differently, each with its statements and what they differ in. Parameters: conflicts (conflict rows: code, name, differs, candidates); choose (truthy to offer one choice per test: each conflict carries .options, its statements paired with the radio inputs of the field choice-<test code>, from sampling.views.with_choices).{% endcomment %}
 {% for conflict in conflicts %}
 <fieldset class="mb-3">
   <legend class="h6 mb-1"><span class="vr-id">{{ conflict.code }}</span> {{ conflict.name }}</legend>
   <p class="small mb-2">The statements differ in: {{ conflict.differs|join:", " }}.</p>
   {% if choose %}
-  {% for item in conflict.candidates %}
+  {% for radio, item in conflict.options %}
   <div class="form-check mb-2">
-    <input class="form-check-input" type="radio" name="choice-{{ conflict.code }}" id="choice-{{ conflict.code }}-{{ forloop.counter }}" value="{{ item.scope }}"{% if form_id %} form="{{ form_id }}"{% endif %}{% if conflict.chosen in item.scopes %} checked{% endif %}>
-    <label class="form-check-label text-break" for="choice-{{ conflict.code }}-{{ forloop.counter }}"><strong>{{ item.specification.code }} v{{ item.specification.version }}</strong> ({{ item.scopes|join:", " }}) · {{ item.name }}: {{ item.text }}{% if not item.required %} · information only{% endif %}</label>
+    {{ radio.tag }}
+    <label class="form-check-label text-break" for="{{ radio.id_for_label }}"><strong>{{ item.specification.code }} v{{ item.specification.version }}</strong> ({{ item.scopes|join:", " }}) · {{ item.name }}: {{ item.text }}{% if not item.required %} · information only{% endif %}</label>
     <div class="small"><a href="{% url 'catalog:specification_revision' item.specification.revision_id %}">Open the specification<span class="visually-hidden"> {{ item.specification.code }} v{{ item.specification.version }}</span></a></div>
   </div>
   {% endfor %}

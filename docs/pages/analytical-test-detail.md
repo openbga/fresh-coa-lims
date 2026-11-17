@@ -2,10 +2,35 @@
 title: Test record
 urls: analytical:test_detail
 views: analytical.views.test_detail
-templates: analytical/test_detail.html, analytical/_resources.html, analytical/_raw_files.html, analytical/_history.html, analytical/_test_status.html, analytical/_qc_status.html
+templates: analytical/test_detail.html, analytical/_resources.html, analytical/_raw_files.html, includes/signature_list.html, includes/history_panel.html, analytical/_test_status.html, analytical/_qc_status.html
 models: analytical.AnalyticalTest, analytical.Observation, analytical.RawDataFile, analytical.QCBatch, analytical.Investigation, laboratory.ContractApproval, quality.SupplierResultAcceptance, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: One analytical test: its frozen specification, replicate observations, raw data, reportable result and review. Record, submit, return or review the test here.
 ---
+
+## Common tasks
+### Record the replicates
+1. If the method runs in a QC batch, select [[Add to QC batch]] first.
+2. Select [[Record observation]] for each replicate, with where its original record is kept.
+3. Select [[Attach raw data]] to add an instrument export or notebook page for the reviewer.
+4. To change a replicate while the test is open, select [[Correct]] on its row. The earlier value stays, struck through.
+### Submit the results for review
+1. When every replicate is recorded, enter a [[Reason]] and select [[Submit for review]].
+2. An out-of-specification result opens an investigation and holds the lot, or the stability pull.
+### Review or return the test
+1. As a reviewer, select [[Sign review]] and sign with your PIN on that page.
+2. To send a conforming result back to the analyst instead, select [[Return test]].
+### Record a contract laboratory result
+1. Select [[Record contract laboratory result]] when an outside laboratory tested it. It shows only before any observation or QC batch.
+### Record that the test cannot be completed
+1. As quality, select [[Record not completed]] when the sample was lost or the test cannot be finished, and sign on that page.
+2. The test is kept and repeated, or an investigation decides what follows.
+## Good to know
+- You cannot review or return a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded, even with the reviewer role.
+- An out-of-specification result cannot be corrected or returned. The investigation decides whether it is invalid.
+- Results cannot be submitted or reviewed until the test's QC batch is open and its QC passes.
+- A test is tested here or reported by a contract laboratory, never both.
+- Observations and raw data files are never overwritten or deleted. A correction adds a linked row and the earlier value stays.
 
 ## Purpose
 
@@ -22,7 +47,7 @@ One analytical test: its frozen specification, replicate observations (made here
 
 ## Layout
 
-- **Header**: "T-n" and test name; status, kind, Revision and either lot and sample or, for a stability test, "Stability pull <pull> · lot <number>" (the pull links to the pull record). Breadcrumbs lead back to the lot's testing page or to the pull. Buttons: **Sign review**, **Return test**, **Add to QC batch**, **Record observation**, **Record contract laboratory result** or **Correct contract laboratory result**, and **Record not completed**.
+- **Header**: "T-n" and test name, followed by the kind as a tag when the test is not an original (Retest, Resample, Rerun after QC failure, Repeat under replaced requirements, Repeat of a test not completed); status, then, when the result opened an investigation, that investigation's phase (for example "Phase I open · lot held", linking to it); the test code; Revision and either lot and sample or, for a stability test, "Stability pull <pull> · lot <number>" (the pull links to the pull record). Breadcrumbs lead back to the lot's testing page or to the pull. Buttons: **Return test**, **Record contract laboratory result** and **Record not completed** (outlined red) as secondary buttons, **Correct contract laboratory result** under **More**, and one primary button, the first that applies of **Sign review**, **Add to QC batch** and **Record observation**.
 - **Stability test** notice (info, only for a test of a stability pull): the test is judged against the acceptance criterion of the study's protocol as frozen below, is recorded, reviewed and signed like any other test, and is not part of the record of the lot; when the pull no longer takes testing the reason is appended (for example "Study STB-TEST-001 is closed; its pulls take no more testing." or "This pull is accepted; its tests take no more work.").
 - **Superseded** notice, on a test superseded when the lot's requirements were replaced: "The lot's requirements were replaced and this test's requirement is no longer one of them. The test and everything recorded on it are kept as they were. It takes no more work and does not count toward the lot's disposition. See the lot's requirements for the signed replacement", adding "; the test that repeats it under the current requirement is listed under Linked tests" once a repeat exists. "lot's requirements" links to Lot requirements and sampling.
 - **Not completed** notice (two paragraphs), on a test recorded as not completed: "NAME signed that this test cannot be completed. Cause: CAUSE. Reason: TEXT" ("Quality signed" when the signature cannot be found), then "Everything recorded on it is kept as it was (recorded: VALUES). It takes no more work and counts toward no disposition of the lot." (for a stability test "no acceptance of the pull"). It ends with what follows: a link to the repeat ("It is repeated by T-n on sample REF."); or "Its readings outside the limits (VALUES) opened INV-n, which decides what follows."; or "It belonged to INV-n, which decides what follows."
@@ -31,9 +56,9 @@ One analytical test: its frozen specification, replicate observations (made here
 - **Contract laboratory** banner, when the result was reported by a contract laboratory: "This result was reported by NAME (code, location) in report NUMBER dated DATE. It was not tested in this laboratory. The reviewer checks it against the report." Below it an **Approval revoked** warning when the approval the result relied on was revoked since: "The approval this result relied on (CLA-n) was revoked on DATE TIME. The result stands as recorded. The approval's record lists every result that relied on it, for quality to assess under the laboratory's procedure."
 - **Observations** ("N of M"): Replicate, Value (unit in the heading) and Within limits for numeric and count tests, or Result and As expected for qualitative tests, then Original record, Recorded, and **Correct**. For a calculated method the value heading reads "Calculated value" ("Value" when a contract laboratory reported the result). Under each observation a line shows, for a calculated method, **How it was calculated** (each input with its value and unit, the formula, the method revision and the rounding), and **Equipment and lots** (the instruments and lots recorded with it, or "Not recorded"). A replicate reported by a contract laboratory shows instead **Reported by** (laboratory code and name, report number and date) and **Approval relied on** (CLA-n, method, validity dates, evidence reference and, when the approval has one, "scope: TEXT"), and has no **Correct** link. A qualitative result shows what was observed under it. Superseded values are struck through and marked "superseded"; corrections are marked "correction". Empty state "No observations yet": "This method runs in a QC batch. Add the test to an open batch before recording results, or record the result a contract laboratory reported." when the method needs a batch and none is assigned, otherwise "Record each replicate with the location of its original record."
 - **Submit form** (analysts, when all replicates are present and QC is ready): Reason and **Submit for review**. Otherwise a note explains why submission or review is blocked.
-- **Specification and result** panel: Test code, Specification revision with snapshot hash, Acceptance, Method (with a note when each result must record equipment or lots; for a reported result "Performed by the contract laboratory; its instruments and lots are in its report."), Calculation (calculated methods: formula, inputs with units, result unit and rounding; for a reported result "Not applied here: the value was entered as the contract laboratory reported it."), Replicates, Tested by (reported results only), QC batch, Mean (not shown for qualitative tests), Reportable, Submitted by, Replaces, Linked tests.
-- **Raw data files** (count): File, Size, SHA-256 (shortened), Description, Attached (who and when) and **Download**; **Attach raw data** below the list. Empty state "No raw data attached".
-- **Electronic signatures** (a not-completed record reads "Signed: not completed") and **History** (a long structured value in a change is shortened to "structured record with N entries, kept in full in the audit trail").
+- **Specification and result** panel: Test code, Specification revision (specification code and version, with the full requirement source as its tooltip and the start of the snapshot hash under it), Acceptance, Method (with a note when each result must record equipment or lots; for a reported result "Performed by the contract laboratory; its instruments and lots are in its report."), Calculation (calculated methods: formula, inputs with units, result unit and rounding; for a reported result "Not applied here: the value was entered as the contract laboratory reported it."), Replicates, Tested by (reported results only), QC batch, Mean (not shown for qualitative tests), Reportable, Submitted by, Replaces, Linked tests.
+- **Raw data files** (count): File, Size, SHA-256 (shortened), Description, Attached (who and when) and **Download**; **Attach raw data** at the right of the card header. Empty state "No raw data attached".
+- **Electronic signatures** (count): one line per signature with signer, meaning, server time, the record revision it binds and the start of the content hash (a not-completed record reads "not completed"); "No signatures yet. …" when there are none. **History** (a long structured value in a change is shortened to "structured record with N entries, kept in full in the audit trail").
 
 ## Actions
 
@@ -41,7 +66,7 @@ One analytical test: its frozen specification, replicate observations (made here
 |---|---|---|---|
 | **Record observation** | Test Open, test open for work (see Rules), fewer current values than replicates, and a batch assigned if the method needs one | Analyst | Opens the Record observation form |
 | **Record contract laboratory result** | Test Open, test open for work, no QC batch assigned, no observations | Analyst | Opens the Record contract laboratory result form. When no laboratory is approved for the method you are returned here with "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." |
-| **Correct contract laboratory result** | Test Open, test open for work, every current replicate was reported by a contract laboratory | Analyst | Opens the same page to correct the whole result |
+| **Correct contract laboratory result** (under **More**) | Test Open, test open for work, every current replicate was reported by a contract laboratory | Analyst | Opens the same page to correct the whole result |
 | **Correct** (row) | Test Open, test open for work, row is current and was not reported by a contract laboratory | Analyst | Opens the Correct observation form |
 | **Add to QC batch** | Open, test open for work, method needs a batch, none assigned, no observations | Analyst | Opens the Add to QC batch form |
 | **Attach raw data** | Test Open and test open for work | Analyst | Opens the Attach raw data form |
@@ -69,7 +94,7 @@ Submitting an out-of-specification result opens an investigation, redirects to i
 | Tested by | `Observation.eligibility` (contract) | Text | — | Reported results only: the contract laboratory's name, then "Contract laboratory code · report NUMBER dated DATE" |
 | QC batch | `AnalyticalTest.batch` | Text | — | Batch number and QC status, "Not yet assigned" or "Not required by method". For a reported result: "Run by the contract laboratory; see its report" |
 | Mean | `AnalyticalTest.mean_value` | Decimal | — | Exact mean; "Not calculated" before submission; "None: a replicate is reported as less than a value" when a submitted result has a less-than replicate; not shown for qualitative tests |
-| Reportable | `AnalyticalTest.reportable_text` (`reportable_value` for tests submitted before the text was stored) | Text with unit | — | Frozen at submission. Numeric and count: mean rounded half-up to the approved decimals; when the specification sets no reporting precision, the exact mean (submission is refused if it is not exact within 8 decimals). With any less-than replicate: the common reading ("<10") or the readings joined with "; " in replicate order, and no numeric value. Qualitative: the expected outcome when every replicate shows it, otherwise the deviating outcome |
+| Reportable | `AnalyticalTest.reportable_text` (`reportable_value` for tests submitted before the text was stored) | Text with unit | — | Frozen at submission. An out-of-specification result (not invalidated or superseded) shows the red label **Out of specification** with the value under it. Numeric and count: mean rounded half-up to the approved decimals; when the specification sets no reporting precision, the exact mean (submission is refused if it is not exact within 8 decimals). With any less-than replicate: the common reading ("<10") or the readings joined with "; " in replicate order, and no numeric value. Qualitative: the expected outcome when every replicate shows it, otherwise the deviating outcome |
 | Acceptance | `AnalyticalTest.requirement` | Text | — | Each limit is inclusive ("at least", "at most", "L to U") or exclusive ("more than", "less than"); qualitative: criterion and expected outcome, with "Every replicate must read …". Numeric notes: "Each replicate and the reportable value must conform." when replicate limits apply, and the less-than rule |
 | Raw data file | `RawDataFile.filename`, `size`, `sha256`, `description`, `uploaded_by`, `uploaded_at` | Text, bytes, 64-hex checksum | — | File kept unchanged in the database; the list is oldest first |
 | Reason (submit) | `AuditEvent.reason` | Text, max 2000 | Yes | Initial text "Results complete" |

@@ -4,8 +4,22 @@ urls: sampling:plan_version_new
 views: sampling.views.plan_version_new
 templates: catalog/form.html
 models: sampling.SamplingPlanRevision
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Create the next draft version of a sampling plan. Another quality user approves it before lots can be sampled against it.
 ---
+
+## Common tasks
+### Create a draft version
+1. Choose the [[Basis]] and, for a fixed or percentage plan, the [[Parameter]].
+2. Enter the [[Minimum total amount]], [[Amount unit]], [[Instructions]] and [[Rationale]].
+3. Set the effective period, enter a [[Reason for change]] and select [[Create draft version]].
+### Have the version approved
+1. Another quality user selects [[Review and approve]] on the plan's page and signs.
+## Good to know
+- The form starts empty. It does not copy the previous version.
+- Approving this version retires an earlier approved version whose period it overlaps, never retroactively.
+- Lots keep the plan version frozen when their requirements were assigned.
+- You cannot approve a version you created.
 
 ## Purpose
 

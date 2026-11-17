@@ -4,8 +4,25 @@ urls: reporting:issue_preview
 views: reporting.views.issue_preview
 templates: reporting/preview.html, reporting/_certificate.html
 models: quality.Lot, reporting.Report, core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: The certificate that would be issued for a lot, built from its current signed evidence, and anything that stops it. Nothing is issued here.
 ---
+
+## Common tasks
+### Review and sign a certificate
+1. Read the preview, from [[Material and lot]] to [[Electronic signatures]].
+2. Select [[Continue to signing]]. It shows only to the quality role when nothing blocks the certificate and you authored no records on the lot.
+3. Sign with your PIN on that page using [[Sign and issue certificate]].
+### Find out why a certificate cannot be issued
+1. Read the reasons listed under [[Cannot issue]]. Resolve them on the lot, then open this page again.
+### Open a certificate already opened for this lot
+1. Under [[Certificates already opened for this lot]], select a certificate number.
+## Good to know
+- You cannot issue a certificate for a lot where you recorded the lot, a sample or a result, even with the quality role. Another quality user must sign.
+- An open hold blocks the certificate until the hold is closed, resolved, cleared or released.
+- A lot released through native testing is reported from the evidence frozen at its QC disposition, never from today's requirements.
+- If the evidence changes after you review it, signing is refused and you review it again.
+- The certificate reports the laboratory QC disposition. It is not the manufacturer's batch release.
 
 ## Purpose
 
@@ -63,4 +80,4 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 ## Related pages
 
 - [New certificate of analysis](/reports/new/)
-- Sign and issue certificate (follows from this page), the certificate record, [Material lots](/).
+- Sign and issue certificate (follows from this page), the certificate record, [Material lots](/lots/).

@@ -4,8 +4,25 @@ urls: laboratory:reagent_list
 views: laboratory.views.reagent_list
 templates: ops/list.html
 models: laboratory.ReagentLot
-reviewed: 2026-11-14
+reviewed: 2026-11-17
+summary: Reagent, reference standard and prepared solution lots with their release state and expiry. Find a lot, open its record or record a new lot.
 ---
+
+## Common tasks
+### Find a lot
+1. Type an identifier, name or supplier lot in [[Search]].
+2. To narrow by state, choose one in [[Status]], for example [[Awaiting release]] or [[Expiring within 30 days]].
+3. Select [[Apply]], then select an identifier to open the lot.
+### Record a new lot
+1. Select [[New reagent lot]]. It shows for the analyst and quality roles.
+2. Fill in the form on that page. The lot cannot be used until a different reviewer releases it.
+### See every lot again
+1. Select [[Clear all]] to remove the search and the status.
+## Good to know
+- The state shown looks at this lot only. A solution prepared from a rejected or expired source can still show Released here, but it is refused when used.
+- Expiry is the last day of use, inclusive.
+- Released for use leaves out lots past expiry. Find those under Released but expired.
+- Search does not cover the supplier name.
 
 ## Purpose
 
@@ -21,8 +38,8 @@ Reagent, reference-standard and prepared-solution lots with provenance, independ
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New reagent lot** button for Analyst, Quality. The introduction is below the title and action row.
-- **Toolbar**: **Search** (identifier, name or supplier lot; case-insensitive "contains") and **Status** (All, Awaiting release, Released for use, Expiring within 30 days, Released but expired, Rejected). **Apply** runs the filter; **Clear filters** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Identifier (links to the record), Name, Kind, Supplier lot, Expiry (last day of use), State. Sort by Identifier (default), Name or Expiry. Sortable headers toggle ascending/descending.
+- **Toolbar**: **Search** (identifier, name or supplier lot; case-insensitive "contains") and **Status** (All, Awaiting release, Released for use, Expiring within 30 days, Released but expired, Rejected). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Identifier (links to the record, with the name under it), Kind, Supplier lot, Expiry (last day of use), State. Sort by Identifier (default) or Expiry. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record a received reagent or standard lot, or a prepared solution.", with **New reagent lot** for roles that can record); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -31,7 +48,7 @@ Reagent, reference-standard and prepared-solution lots with provenance, independ
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **New reagent lot** | Your role can create it | Analyst, Quality | Opens the New reagent lot form |
-| **Apply** / **Clear filters** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
+| **Apply** / **Clear all** | Always / when a filter is set | Any reader | Reloads the list with or without the filter |
 | Column headers, pager, **Show** | Always | Any reader | Sorts, pages or changes rows per page over the whole list |
 
 ## Fields

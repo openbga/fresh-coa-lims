@@ -4,8 +4,21 @@ urls: stability:hold_detail
 views: stability.views.hold_detail
 templates: ops/record.html
 models: stability.Hold, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-17
+summary: One hold on a lot, or on one reserve sample of it: why it was placed, by whom, and whether it is still active. A quality user releases it here.
 ---
+
+## Common tasks
+### Release the hold
+1. Select [[Release hold]]. It shows to quality users who did not place the hold, while it is active.
+2. Sign with your PIN on that page.
+### Check what the hold covers
+1. Read [[Lot]] and [[Reserve sample]] in [[Details]]. With no reserve sample, the hold covers the whole lot.
+## Good to know
+- [[On hold]] means QC disposition and disposal of this lot are blocked.
+- Even a hold tied to one reserve sample blocks QC disposition of the whole lot.
+- Releasing ends this hold only. Other holds and retention obligations on the lot still apply.
+- Whoever placed the hold cannot release it, even with the quality role.
 
 ## Purpose
 
@@ -20,7 +33,7 @@ One hold on a lot (optionally one reserve sample) with its reason, who placed it
 ## Layout
 
 - **Header**: breadcrumbs, title "<Kind> hold · <lot number>", identifier (HOLD-n) and state label (Active or Released), action buttons.
-- **Notice**: while active, a warning "On hold: QC disposition and disposal of this lot are blocked." For an already released lot the hold does not alter the released record or issued certificate; it blocks future issue or amendment and disposal.
+- **Status fact** (first in Details): while active, the label **On hold** in the hold tone with "QC disposition and disposal of this lot are blocked." under it; once released, the Released label. For an already released lot the hold does not alter the released record or issued certificate; it blocks future issue or amendment and disposal.
 - **Details**: Lot (links to the lot record), Reserve sample (links to its record, blank if none), Kind, Reference, Reason, Placed by, Placed, Released, Revision.
 
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
@@ -43,7 +56,7 @@ One hold on a lot (optionally one reserve sample) with its reason, who placed it
 
 ## Rules and hidden logic
 
-- An active hold shows the warning notice. Any active hold on the lot, including one limited to a reserve sample, refuses QC disposition of that lot.
+- An active hold shows the **On hold** status fact. Any active hold on the lot, including one limited to a reserve sample, refuses QC disposition of that lot.
 - A released hold is immutable. Signatures show the release signature; History shows `hold.placed` and `signed.approved` events.
 
 ## Related pages

@@ -400,7 +400,7 @@ def test_forced_password_change_blocks_lab_and_retains_only_current_session(user
     assert current.post(url, payload).status_code == 422
     assert fresh(target).management_revision == before
     response = current.post(url, {**payload, "current_password": REPLACEMENT})
-    assert response.status_code == 302 and response.url == reverse("quality:lot_list")
+    assert response.status_code == 302 and response.url == reverse("quality:dashboard")
     target = fresh(target)
     assert not target.password_change_required and target.check_password(new_password)
     assert current.get(reverse("quality:lot_list")).status_code == 200

@@ -4,8 +4,30 @@ urls: accounts:two_factor
 views: accounts.views.two_factor_page
 templates: accounts/two_factor.html, accounts/two_factor_codes.html
 models: accounts.User, accounts.SecurityKey, accounts.RecoveryCode, core.AuditEvent
-reviewed: 2026-11-16
+reviewed: 2026-11-17
+summary: Manage your own second sign-in factor: security keys and passkeys, an authenticator app and one-time recovery codes. Add or remove factors, make new codes, or turn it off.
 ---
+
+## Common tasks
+### Turn on two-factor sign-in
+1. Under Set up, enter your [[Current password]].
+2. Select [[Set up with a security key or passkey]] or [[Set up with an authenticator app]], then finish on the next page.
+### Add another key or app
+1. Enter your [[Current password]] and a code from your app or a recovery code, or leave the code empty to confirm with your key.
+2. Select [[Add a security key or passkey]] or [[Add an authenticator app]]. [[Set up a new authenticator app]] replaces yours.
+### Make new recovery codes
+1. Confirm with your password and a code or key, then select [[Make new recovery codes]].
+2. Save the codes shown once, then select [[I have saved the codes]].
+### Remove a key or the app
+1. Confirm with your password and a code or key, then select [[Remove]] beside the key, or [[Remove the authenticator app]].
+### Turn off two-factor sign-in
+1. Confirm with your password and a code or key, then select [[Turn off two-factor sign-in]]. It shows only when your account does not require it.
+## Good to know
+- Recovery codes are shown only once. Each works once, and making new codes stops all earlier ones.
+- Wrong passwords, wrong codes and refused keys count toward the sign-in failure limit, and can pause sign-in for a while.
+- After 100 wrong codes or refused keys in a row, nothing is accepted until an administrator resets two-factor sign-in.
+- Removing your only key when you have no app turns two-factor sign-in off, and your recovery codes stop working.
+- A key works only at the address where it was added. Keys are not offered when the site is opened by an IP address.
 
 ## Purpose
 

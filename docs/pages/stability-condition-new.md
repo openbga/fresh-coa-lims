@@ -4,8 +4,22 @@ urls: stability:condition_new
 views: stability.views.condition_new
 templates: ops/form.html
 models: stability.ProtocolCondition, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
+summary: Add one approved storage condition, such as long-term or accelerated, to a draft protocol. Only the protocol's author can add it.
 ---
+
+## Common tasks
+### Add a storage condition
+1. Enter the [[Label]], for example long-term, and the [[Setpoint]] as approved.
+2. If needed, enter [[Temperature (°C)]] and [[Relative humidity (%)]].
+3. Enter a [[Reason]] and select [[Add condition]]. You return to the protocol record.
+### Add another condition
+1. Back on the protocol record, select [[Add condition]] again. Each condition needs its own label.
+## Good to know
+- Each label can be used once per protocol.
+- Only a draft accepts conditions. An approved protocol is frozen; draft a new version instead.
+- Only the protocol's author can save a condition. Other users are refused.
+- Saving changes the protocol revision. An approval page opened earlier must be reloaded before it can be signed.
 
 ## Purpose
 

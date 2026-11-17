@@ -9,6 +9,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
+from helpers import pick
 from playwright.sync_api import expect, sync_playwright
 from test_requirement_replacement_journey import WIDER_THAN_THE_PAGE
 
@@ -118,8 +119,8 @@ def test_stability_pull_is_tested_in_the_system_and_the_lot_record_is_left_alone
         login("analyst")
         page.goto(base + reverse("stability:study_new"))
         field("Identifier").fill("STB-E2E-1")
-        field("Approved protocol").select_option(str(protocol.pk))
-        field("Lot").select_option(str(lot.pk))
+        pick(field("Approved protocol"), str(protocol.pk))
+        pick(field("Lot"), label=lot.number)  # a remote select: chosen by its text
         field("Container and closure").fill("Synthetic marketed container")
         field("Time zero").fill(start.isoformat())
         field("Reason").fill("Synthetic study start")

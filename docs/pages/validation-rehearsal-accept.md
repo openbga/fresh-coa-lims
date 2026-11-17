@@ -5,7 +5,23 @@ views: validation.views.rehearsal_accept
 templates: ops/sign.html
 models: validation.Rehearsal, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
+summary: Sign a rehearsal record as a true account of the rehearsal, with the outcome it states and the evidence attached. Only a quality person who did not record it can sign.
 ---
+
+## Common tasks
+### Accept the rehearsal
+1. Review the facts and the [[Evidence files]].
+2. Enter your [[Signing username]], a [[Reason for signing]] and your [[Signature PIN]].
+3. Select [[Sign and accept]].
+### Leave without signing
+1. Select [[Cancel]]. Nothing is signed.
+### Set up your signature PIN
+1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
+## Good to know
+- Accepting does not make the criteria met. A rehearsal that did not meet them shows Accepted: criteria not met.
+- A rehearsal without evidence, or one you recorded, cannot be accepted. The page says why and shows no PIN entry.
+- If a file was attached after you opened the page, signing is refused. Reload and review again.
+- The signature freezes the list of evidence files with their SHA-256.
 
 ## Purpose
 
@@ -19,7 +35,7 @@ Accept a rehearsal record with meaning **accepted**: you confirm it as a true ac
 
 ## Layout
 
-- Breadcrumbs (Validation, Rehearsals, RH-n, Accept) and a signing dialog (a plain card without JavaScript): RH-n and revision, the meaning, the facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and **Sign and accept**. Opening the page never signs.
+- Breadcrumbs (Validation, Rehearsals, RH-n, Accept) and a signing dialog (a plain card without JavaScript): RH-n and revision, the meaning, the facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and **Sign and accept**. Opening the page never signs.
 - Facts: Rehearsal of, Title, Performed, Release before (upgrade), Release, Environment, Procedure, Acceptance criteria, Outcome, Observations, Issues and actions, Recorded by, Evidence files (name, description and SHA-256 of each).
 
 ## Actions

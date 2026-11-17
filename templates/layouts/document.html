@@ -1,6 +1,31 @@
-{% load static pagedocs %}<!doctype html>
+{% load static pagedocs preferences ui %}<!doctype html>
+{% comment %}
+Application document and staff shell. Block contract (docs/ui-standards.md):
+  title          <title>; defaults to "{{ page_title }} · OpenBGA QM LIMS"
+  extra_css      extra <link> tags in <head> (local static only)
+  body_class     classes on <body>
+  body           everything inside <body>; the sign-in pages replace it
+  topbar, sidenav  top bar and navigation rail (sections and current item: core/navigation.py)
+  section_navigation  sibling list links above the header ({% section_tabs %}) when the view passes tabs
+  page_header    whole page header, shown when the view passes page_title; override only for
+                 unusual pages (error pages)
+  page_dateline  overview pages: {% dateline %} (under the title)
+  breadcrumbs    record, form, action and document pages: {% breadcrumbs %}
+  page_heading   <h1> text; defaults to {{ page_title }}
+  page_title_class  " vr-data" when the title is a record identifier (not widened)
+  page_meta      record pages: {% page_meta %} key facts under the title
+  page_actions   page buttons, right of the title: at most one .btn-primary, placed last; further
+                 actions in {% more_actions %}
+  page_intro     optional <p class="vr-page-intro">: at most one or two sentences under the title
+  content        page body
+  record_foot    record pages: {% record_foot identifier=... %}
+  extra_js       extra <script> tags at the end of <body>
+A form page listed in core/form_surfaces.py marks <main> data-vr-form-page; fetched by the form
+dialog it renders through layouts/form_fragment.html instead (templates/base.html).
+Every page ends with {% app_footer %} outside <main>.
+{% endcomment %}
 
-<html lang="en" data-bs-theme="light">
+{% if user.is_authenticated %}{% preference "pagedocs.open" as docs_open %}{% preference "pagedocs.width" as docs_width %}{% endif %}<html lang="en" data-bs-theme="light"{% if docs_open %} class="pagedocs-open"{% endif %}{% if docs_width %} data-pagedocs-width="{{ docs_width }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +38,11 @@
   <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.8/css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
   <link rel="stylesheet" href="{% static 'vendor/datatables/colReorder.bootstrap5.min.css' %}">
+  {# Shared form controls (static/js/controls.js): Tom Select for selects, Vanilla Calendar Pro for dates and times. #}
+  <link rel="stylesheet" href="{% static 'vendor/tom-select/tom-select.bootstrap5.css' %}">
+  <link rel="stylesheet" href="{% static 'vendor/vanilla-calendar-pro-3.4.0/layout.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/controls.css' %}">
   {% if user.is_authenticated %}{% pagedocs_head %}{% endif %}
   {% block extra_css %}{% endblock %}
   <script src="{% static 'vendor/htmx-2.0.11/htmx.min.js' %}" defer></script>
@@ -22,24 +51,31 @@
   <script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}" defer></script>
   <script src="{% static 'vendor/datatables/dataTables.colReorder.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'vendor/tom-select/tom-select.complete.min.js' %}" defer></script>
+  <script src="{% static 'vendor/vanilla-calendar-pro-3.4.0/index.js' %}" defer></script>
+  <script src="{% static 'js/controls.js' %}" defer></script>
+  <script src="{% static 'js/preferences.js' %}" defer></script>
+  <script src="{% static 'js/sidebar.js' %}" defer></script>
   <script src="{% static 'js/grid.js' %}" defer></script>
+  <script src="{% static 'js/form-dialog.js' %}" defer></script>
 </head>
 <body class="{% block body_class %}vr-app{% endblock %}" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'{% if user.is_authenticated %} data-vr-user="{{ user.pk }}"{% endif %} data-vr-icons="{% static 'img/icons.svg' %}">
   <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
   {% block body %}
-  {% url 'dashboard' as dashboard_url %}
+  {% url 'quality:dashboard' as home_url %}
   {% block topbar %}
   <header class="vr-topbar">
-    <button class="btn btn-sm vr-topbar-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#vr-nav" aria-controls="vr-nav" aria-label="Menu">{% include "includes/icon.html" with name="list" %}<span class="d-none d-sm-inline">Menu</span></button>
-    {% include "includes/brand.html" with href=dashboard_url|default:"/" compact=True %}
+    <button class="btn btn-sm vr-topbar-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#vr-nav" aria-controls="vr-nav" aria-label="Menu">{% icon name="list" %}<span class="d-none d-sm-inline">Menu</span></button>
+    {% brand href=home_url|default:"/" compact=True %}
     {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
     <div class="vr-topbar-end">
-      {% include "includes/theme_menu.html" %}
-      {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
+      {% theme_menu %}
+      {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user|person }}</span><form method="post" action="{% url 'logout' %}" novalidate>{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
     </div>
   </header>
   {% endblock topbar %}
-  <div class="vr-shell">
+  {% preference "nav.collapsed" as nav_collapsed %}
+  <div class="vr-shell{% if nav_collapsed %} vr-nav-collapsed{% endif %}">
     {% block sidenav %}
     <nav class="vr-sidenav offcanvas-lg offcanvas-start" id="vr-nav" tabindex="-1" aria-label="Primary">
       <div class="offcanvas-header d-lg-none">
@@ -47,57 +83,20 @@
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#vr-nav" aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body">
-        {% if can_view_workspace %}
-        <div class="vr-nav-section">
-          <p class="vr-nav-heading" id="vr-nav-work">Work</p>
-          <ul class="vr-nav-list" aria-labelledby="vr-nav-work">
-            <li><a class="vr-navlink" href="/"{% if request.resolver_match.namespace == 'quality' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-check" %}<span data-label="Lots">Lots</span></a></li>
-            <li><a class="vr-navlink" href="/sampling/"{% if request.resolver_match.namespace == 'sampling' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="droplet" %}<span data-label="Sampling">Sampling</span></a></li>
-            <li><a class="vr-navlink" href="/testing/"{% if request.resolver_match.namespace == 'analytical' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clipboard-data" %}<span data-label="Testing">Testing</span></a></li>
-            <li><a class="vr-navlink" href="/stability/"{% if request.resolver_match.namespace == 'stability' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="archive" %}<span data-label="Stability">Stability</span></a></li>
-            <li><a class="vr-navlink" href="/laboratory/"{% if request.resolver_match.namespace == 'laboratory' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="tools" %}<span data-label="Laboratory">Laboratory</span></a></li>
-          </ul>
-        </div>
-        <div class="vr-nav-section">
-          <p class="vr-nav-heading" id="vr-nav-configuration">Configuration</p>
-          <ul class="vr-nav-list" aria-labelledby="vr-nav-configuration">
-            <li><a class="vr-navlink" href="/catalog/"{% if request.resolver_match.namespace == 'catalog' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="file-earmark-text" %}<span data-label="Specifications">Specifications</span></a></li>
-            <li><a class="vr-navlink" href="/suppliers/"{% if request.resolver_match.namespace == 'suppliers' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="truck" %}<span data-label="Suppliers">Suppliers</span></a></li>
-            <li><a class="vr-navlink" href="/rules/"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="list-check" %}<span data-label="Rule sets">Rule sets</span></a></li>
-          </ul>
-        </div>
-        <div class="vr-nav-section">
-          <p class="vr-nav-heading" id="vr-nav-records">Records</p>
-          <ul class="vr-nav-list" aria-labelledby="vr-nav-records">
-            <li><a class="vr-navlink" href="/reports/"{% if request.resolver_match.namespace == 'reporting' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="patch-check" %}<span data-label="Certificates">Certificates</span></a></li>
-            <li><a class="vr-navlink" href="/validation/"{% if request.resolver_match.namespace == 'validation' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="journal-text" %}<span data-label="Validation">Validation</span></a></li>
-            {% if can_view_audit %}<li><a class="vr-navlink" href="/audit/"{% if '/audit/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="clock-history" %}<span data-label="Audit trail">Audit trail</span></a></li>{% endif %}
-          </ul>
-        </div>
-        {% endif %}
-        {% if user.is_authenticated %}
-        <div class="vr-nav-section">
-          <p class="vr-nav-heading" id="vr-nav-account">Account</p>
-          <ul class="vr-nav-list" aria-labelledby="vr-nav-account">
-            <li><a class="vr-navlink" href="/signature-pin/"{% if request.path == '/signature-pin/' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="key" %}<span data-label="Signature PIN">Signature PIN</span></a></li>
-            <li><a class="vr-navlink" href="{% url 'accounts:access' %}"{% if request.resolver_match.view_name == 'accounts:access' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="person-circle" %}<span data-label="Account access">Account access</span></a></li>
-            {% if can_manage_accounts %}<li><a class="vr-navlink" href="{% url 'accounts:user_list' %}"{% if '/accounts/users/' in request.path %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="people" %}<span data-label="Users and roles">Users and roles</span></a></li>
-            <li><a class="vr-navlink" href="{% url 'accounts:announcement' %}"{% if request.resolver_match.view_name == 'accounts:announcement' %} aria-current="page"{% endif %}>{% include "includes/icon.html" with name="info-circle" %}<span data-label="Sign-in announcement">Sign-in announcement</span></a></li>{% endif %}
-          </ul>
-        </div>
-        {% endif %}
+        <button type="button" class="vr-nav-toggle" data-vr-nav-toggle aria-controls="vr-nav" aria-expanded="{% if nav_collapsed %}false{% else %}true{% endif %}" aria-label="{% if nav_collapsed %}Expand menu{% else %}Collapse menu{% endif %}">{% icon name="chevron-double-left" %}<span class="vr-nav-toggle-label">Collapse menu</span></button>
+        {% nav %}
       </div>
     </nav>
     {% endblock sidenav %}
-    <main class="vr-main" id="main" tabindex="-1">
-      {% block section_navigation %}{% if tabs %}{% include "includes/section_tabs.html" %}{% endif %}{% endblock %}
+    <main class="vr-main" id="main" tabindex="-1"{% if form_surface %} data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size }}"{% endif %}>
+      {% block section_navigation %}{% if tabs %}{% section_tabs tabs=tabs %}{% endif %}{% endblock %}
       {% block page_header %}
       {% if page_title %}<div class="vr-page-header">
-        {% block page_dateline %}{% endblock %}
         {% block breadcrumbs %}{% endblock %}
         <div class="vr-page-header-row">
           <div>
-            <h1 class="vr-page-title">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            <h1 class="vr-page-title{% block page_title_class %}{% endblock %}">{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            {% block page_dateline %}{% endblock %}
             {% block page_meta %}{% endblock %}
           </div>
           <div class="vr-page-actions">{% block page_actions %}{% endblock %}</div>
@@ -105,16 +104,19 @@
         {% block page_intro %}{% endblock %}
       </div>
       {% endif %}{% endblock page_header %}
-      {% include "includes/messages.html" %}
+      {% messages %}
       {% block content %}{% endblock %}
       {% block record_foot %}{% endblock %}
     </main>
-    {% include "includes/app_footer.html" %}
+    {% app_footer %}
   </div>
   {% endblock body %}
   {% if user.is_authenticated %}{% pagedocs_panel %}{% endif %}
-  <div class="vr-live" id="vr-live"></div>
-  {% include "includes/grid_columns_dialog.html" %}
+  {# A failed HTMX request: static/js/app.js clones this notice and writes the message into data-vr-notice-text. #}
+  <template id="vr-request-error">{% notice tone="danger" blocking=True dismissible=True hook="vr-request-error" %}<span data-vr-notice-text></span>{% endnotice %}</template>
+  {% include "includes/grid_columns_dialog.html" only %}
+  {% client_preferences %}
+  {% if user.is_authenticated %}{% if form_route_patterns %}{{ form_route_patterns|json_script:"vr-form-routes" }}{% endif %}{% form_dialog %}{% endif %}
   {% block extra_js %}{% endblock %}
 </body>
 </html>

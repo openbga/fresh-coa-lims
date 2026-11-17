@@ -29,7 +29,7 @@ Run the commands in [Checks](README.md#checks) in the README against the Compose
 - `uv run python manage.py collectstatic --noinput` (needed before template tests)
 - `uv run pytest -n auto` (parallel workers; plain `uv run pytest` runs the same tests in one process)
 
-Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them.
+Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them. Every browser action there waits until the page's deferred scripts have run (`e2e/conftest.py`); a test that must act earlier says so with `@pytest.mark.before_page_scripts`. `E2E_CPU_THROTTLE=4` runs the pages on a slowed CPU, as on a busy CI runner.
 
 ## Engineering rules
 
@@ -46,9 +46,27 @@ Reviewers enforce these. Read [AGENTS.md](AGENTS.md), [docs/architecture.md](doc
 | PINs are secrets | Store PINs and passwords only as hashes made with the standard hasher, rate-limit and lock failures, and require re-entry for every signing. Never store a submitted PIN or password in clear text, and never log or display PINs, passwords or their hashes. Failed credential attempts must be recorded even when the action is refused. |
 | Test the refusals | Add tests for refused, stale and locked paths and for role boundaries, not only the successful path. |
 | Traceability | A new test module, or a test that gives evidence for another product requirement, is traced in [docs/traceability.toml](docs/traceability.toml) under each requirement it gives evidence for (or under `[project]`). A new requirement in [docs/product.md](docs/product.md#requirements-and-traceability) needs at least one traced test. A test that skips in CI leaves the pack incomplete unless `[skips]` in the map gives the reason. `tests/test_validation_pack.py` refuses an incomplete map; the [validation pack](docs/operations.md#validation-pack-of-a-release) of each release is built from it. |
-| Page documentation | Any change to a staff page or named URL (actions, tabs, fields, permissions, filters, defaults, validations, transitions, signatures, audit effects) updates its file in [docs/pages/](docs/pages/) in the same change. The reference checks in `pagedocs/tests` must pass. |
+| Page documentation | Any change to a staff page or named URL (actions, tabs, fields, permissions, filters, defaults, validations, transitions, signatures, audit effects) updates its file in [docs/pages/](docs/pages/) in the same change, written with the [`document-page`](.agents/skills/document-page/SKILL.md) skill. The reference checks in `pagedocs/tests` must pass. |
 | Wording | Do not name, compare or allude to other laboratory-software products or vendors. Do not claim regulatory compliance, validation or certification. Regulatory statements need a primary source recorded in [docs/regulations.md](docs/regulations.md) with its URL, access date, jurisdiction and caveats. |
 | Secrets | Keep credentials, real data, dumps and runtime output out of Git. Treat uploaded files and external documents as untrusted input. |
+
+## Working with coding agents
+
+[AGENTS.md](AGENTS.md) holds the working rules for coding agents in this repository. They are the engineering rules above, in more detail. If you use an agent, you remain responsible for the change you submit: check its work against the source and run the checks yourself.
+
+### Agent tooling
+
+Shared agent instructions live in `.agents/`. `.claude/skills` and `.claude/rules` are symlinks to `.agents/skills` and `.agents/rules`, so agents that read either directory load the same files. `.claude/` itself stays a real directory for personal, untracked settings.
+
+| Kind | File | Use |
+|---|---|---|
+| Skill | [`build-page`](.agents/skills/build-page/SKILL.md) | Building or changing any page, form, dialog or template: page types, `{% load ui %}` components, controls, lists, tokens, icons |
+| Skill | [`document-page`](.agents/skills/document-page/SKILL.md) | Writing or updating the in-app page documentation in `docs/pages/` |
+| Skill | [`project-code-review`](.agents/skills/project-code-review/SKILL.md) | The pre-PR gate: diff review against `AGENTS.md` and the UI rules, fixes, the CI checks, browser journeys, before/after screenshots |
+| Rule | [`backend.md`](.agents/rules/backend.md) | The helpers behind the backend rules: role checks, signed transitions, PIN handling, audit, revisions, exact decimals, migrations, tests and traceability |
+| Rule | [`frontend.md`](.agents/rules/frontend.md) | Short frontend rules: components, tokens, icons, controls, signing dialog, page documentation |
+
+Before/after screenshots for pull requests come from `scripts/ui_compare/capture.py` (see the `project-code-review` skill).
 
 ## Pull requests
 

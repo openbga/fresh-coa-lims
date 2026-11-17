@@ -405,3 +405,36 @@ def test_authorize_and_conclude_preflight(client, people, assigned):
     _refused(client, authorize_url, "This investigation is closed.")
     assert not ElectronicSignature.objects.filter(signer=people["quality2"]).exists()
     _no_credential_effects()
+
+
+def test_new_batch_without_a_batch_method_says_batches_are_held(client, people, monkeypatch):
+    """No approved batch method: the page opens with a blocking notice, not a server error."""
+    monkeypatch.setattr("analytical.views.batch_methods", dict)
+    monkeypatch.setattr("analytical.views.services.earlier_batch_methods", list)
+    login(client, people["analyst"])
+    response = client.get(reverse("analytical:batch_new"))
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "No approved batch method is available; batches are held." in body
+    assert 'role="alert"' in body
+
+
+def test_batch_list_filters_by_qc_failed_and_incomplete(client, people, batch):
+    login(client, people["auditor"])
+    url = reverse("analytical:batch_list")
+    assert "SYN-B1" in client.get(url, {"state": "incomplete"}).content.decode()
+    assert "SYN-B1" not in client.get(url, {"state": "failed"}).content.decode()
+    pass_qc(people, batch, control="200.0")  # the control is out of its limits
+    assert "SYN-B1" in client.get(url, {"state": "failed"}).content.decode()
+    assert "SYN-B1" not in client.get(url, {"state": "incomplete"}).content.decode()
+
+
+def test_test_record_header_shows_the_open_investigation(client, people, assigned):
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.30")
+    _, investigation = submit(people, test)
+    login(client, people["auditor"])
+    page = client.get(reverse("analytical:test_detail", args=[test.pk])).content.decode()
+    meta = page[page.index('class="vr-page-meta"') :].split("</ul>", 1)[0]
+    assert reverse("analytical:investigation_detail", args=[investigation.pk]) in meta
+    assert "Phase I open" in meta
