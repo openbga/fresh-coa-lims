@@ -2,10 +2,10 @@
 {% load ui %}
 {% comment %}One analytical test: observations, raw data, specification and result, signatures and history. Context from analytical.views.test_detail.{% endcomment %}
 {% block breadcrumbs %}{% url 'analytical:test_list' as list_url %}{% if test.pull_id %}{% url 'stability:pull_detail' test.pull_id as pull_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.pull.label record_url=pull_url current=test.label %}{% else %}{% url 'analytical:lot_testing' test.lot_id as lot_url %}{% breadcrumbs section="Testing" section_url=list_url record=test.lot.number record_url=lot_url current=test.label %}{% endif %}{% endblock %}
-{% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% endblock %}
+{% block page_heading %}<span class="vr-id">{{ test.label }}</span> {{ spec.name }}{% if test.kind != "original" %} {% kind_tag label=test.get_kind_display %}{% endif %}{% endblock %}
 {% block page_meta %}{% page_meta %}
   <li>{% include "analytical/_test_status.html" with test=test plain=True only %}</li>
-  <li>{{ test.get_kind_display }}</li>
+  {% if triggered %}<li><a href="{% url 'analytical:investigation_detail' triggered.pk %}">{% include "analytical/_investigation_status.html" with inv=triggered plain=True only %}</a></li>{% endif %}
   {% if test.pull_id %}<li>Stability pull <a class="vr-id" href="{% url 'stability:pull_detail' test.pull_id %}">{{ test.pull.label }}</a> · lot <span class="vr-id">{{ test.source_lot.number }}</span></li>
   {% else %}<li>Lot <a class="vr-id" href="{% url 'analytical:lot_testing' test.lot_id %}">{{ test.lot.number }}</a> · sample <span class="vr-id">{{ test.sample.reference }}</span></li>{% endif %}
   <li>Revision {{ test.revision }}</li>

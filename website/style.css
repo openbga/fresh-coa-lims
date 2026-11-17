@@ -83,7 +83,6 @@ h1, h2, h3 { color: var(--vr-text-strong); text-wrap: balance; letter-spacing: -
 .site-note { margin-top: var(--vr-space-3); }
 .site-support { margin-top: var(--vr-space-6); }
 .site-actions.is-tight { margin-top: var(--vr-space-6); }
-.site-scene-wrap { margin-top: var(--vr-space-12); }
 
 /* Sections */
 .site-section { padding-block: clamp(var(--vr-space-12), 7vw, var(--vr-space-20)); }
@@ -98,9 +97,9 @@ h1, h2, h3 { color: var(--vr-text-strong); text-wrap: balance; letter-spacing: -
 .site-facts dt { color: var(--vr-text-strong); font-weight: var(--vr-font-weight-bold); }
 .site-facts dd { margin: var(--vr-space-1) 0 0; color: var(--vr-text-muted); }
 
-/* The QC building: the sign-in art as a band under the hero */
-.site-scene { position: relative; height: clamp(16rem, 34vw, 27rem); border-radius: var(--vr-radius-main); overflow: hidden; background: var(--vr-topbar-bg); }
-.site-scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 92%; }
+/* The QC building: the sign-in art beside the workflow */
+.site-scene { position: relative; aspect-ratio: 1000 / 1160; margin-top: var(--vr-space-8); border-radius: var(--vr-radius-main); overflow: hidden; background: var(--vr-topbar-bg); }
+.site-scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
 .site-scene-dark { display: none; }
 [data-bs-theme="dark"] .site-scene-light { display: none; }
 [data-bs-theme="dark"] .site-scene-dark { display: block; }

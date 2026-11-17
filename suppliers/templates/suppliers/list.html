@@ -10,13 +10,14 @@
   {% list_results items=page_obj noun="suppliers" filtered=filtered sizes=True clear_url=request.path empty_title="No suppliers yet" empty_body="A lot received from a supplier names one from this register. A quality user adds the first supplier." action_url=create_url action_label="New supplier" no_results_body="Search covers codes, names and locations. Change or clear the filters." %}
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="list-heading">
-      <thead><tr>{% sort_header label="Supplier" asc="code" desc="-code" sort=sort %}{% sort_header label="Name" asc="name" desc="-name" sort=sort %}<th scope="col">Location</th><th scope="col" class="text-end">Lots received</th><th scope="col">Created</th></tr></thead>
+      <thead><tr>{% sort_header label="Supplier" asc="code" desc="-code" sort=sort %}{% sort_header label="Name" asc="name" desc="-name" sort=sort %}<th scope="col">Location</th><th scope="col">Qualification</th><th scope="col" class="text-end">Lots received</th><th scope="col">Created</th></tr></thead>
       <tbody>
         {% for supplier in page_obj %}
         <tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'suppliers:detail' supplier.pk %}">{{ supplier.code }}</a></th>
           <td class="vr-wrap">{{ supplier.name }}</td>
           <td class="vr-wrap">{{ supplier.location }}</td>
+          <td>{% if supplier.qualification %}{% status label=supplier.qualification.0 tone=supplier.qualification.1 plain=True %}{% else %}<span class="vr-muted" aria-label="none">—</span>{% endif %}</td>
           <td class="text-end">{{ supplier.lot_count }}</td>
           <td class="vr-nowrap"><time datetime="{{ supplier.created_at|date:'c' }}">{{ supplier.created_at|date:"Y-m-d" }}</time></td>
         </tr>

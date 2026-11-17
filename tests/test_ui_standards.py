@@ -126,7 +126,7 @@ RULES = {
     ),
     "history-panel": (
         "History only through {% history_panel %} / {% history_item %}",
-        re.compile(r"\bvr-timeline\b|\bvr-history-item\b"),
+        re.compile(r"\bvr-timeline(?![\w-])|\bvr-history-item(?![\w-])"),
         COMPONENT_DIRS,
     ),
     "fact-row": (
@@ -172,7 +172,8 @@ RULES = {
     "raw-input": (
         "Inputs through form fields or the shared components (row_select, select_all, grid_search)",
         re.compile(r"""<input\b(?![^>]*\btype=["']hidden["'])"""),
-        COMPONENT_DIRS,
+        # The help drawer's reference filter: a search box over the open document, not a form.
+        (*COMPONENT_DIRS, "pagedocs/templates/pagedocs/content.html"),
     ),
     "raw-select": (
         "Selects through form fields (the shared select widget), never a hand <select>",
@@ -208,7 +209,8 @@ RULES = {
         "Do not empty {% block page_header %}: the shell's header carries title, breadcrumbs "
         "and actions",
         suppressed_header,
-        STANDALONE,
+        # The documentation's full-page fallback shows the document's own title.
+        (*STANDALONE, "pagedocs/templates/pagedocs/page.html"),
     ),
     "header-primaries": (
         "At most one btn-primary in page_actions; further actions in {% more_actions %}",
@@ -217,28 +219,9 @@ RULES = {
     ),
 }
 
-# Rules not yet enforced: pages move onto the components area by area (Phase 1). The lead removes
-# a rule from here when its migration is done.
-PENDING = {
-    "colour-utility",
-    "card-markup",
-    "alert-markup",
-    "list-state",
-    "history-panel",
-    "fact-row",
-    "page-meta-list",
-    "hand-pagination",
-    "toolbar",
-    "form-actions",
-    "required-note",
-    "raw-input",
-    "raw-select",
-    "form-novalidate",
-    "component-include",
-    "page-own-h1",
-    "suppressed-header",
-    "header-primaries",
-}
+# Rules not yet enforced: none. A new rule may start here while templates move onto a component;
+# each entry names its remaining offenders, and the rule switches on when they are gone.
+PENDING: set[str] = set()
 
 
 def templates():

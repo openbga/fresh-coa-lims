@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
@@ -121,9 +121,18 @@ def with_choices(conflicts, form_id=""):
 def lot_list(request):
     read_access(request)
     latest = LotAssignment.objects.filter(lot=OuterRef("pk")).order_by("-assigned_at", "-id")
+    # A current sampling record (not corrected since) with a deviation still awaiting the
+    # independent quality assessment: the same condition sampling.services.lot_blockers reports.
+    awaiting = (
+        SamplingRecord.objects.filter(lot=OuterRef("pk"))
+        .exclude(deviation="")
+        .exclude(Exists(SamplingRecord.objects.filter(corrects=OuterRef("pk"))))
+        .filter(Q(deviation_review__isnull=True) | Q(deviation_review__status="pending"))
+    )
     lots = Lot.objects.annotate(
         requirement_status=Subquery(latest.values("status")[:1]),
         sampled=Count("sampling_records", filter=Q(sampling_records__corrects__isnull=True)),
+        deviation_pending=Exists(awaiting),
     )
     query = request.GET.get("q", "").strip()
     filters = LotFilterForm(request.GET)

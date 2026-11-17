@@ -43,7 +43,7 @@ def test_login_themes_layout_and_keyboard_submission(live_server, django_user_mo
                 scene = page.locator(".vr-login-scene")
                 if width >= 992:
                     expect(scene).to_be_visible()
-                    image_name = "night.webp" if theme == "Dark" else "day.webp"
+                    image_name = "signin-dark.svg" if theme == "Dark" else "signin-light.svg"
                     assert image_name in scene.evaluate("e => getComputedStyle(e).backgroundImage")
                 else:
                     expect(scene).to_be_hidden()

@@ -70,7 +70,7 @@ Every page ends with {% app_footer %} outside <main>.
     {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
     <div class="vr-topbar-end">
       {% theme_menu %}
-      {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
+      {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user.get_full_name|default:user.username }}</span><form method="post" action="{% url 'logout' %}" novalidate>{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
     </div>
   </header>
   {% endblock topbar %}

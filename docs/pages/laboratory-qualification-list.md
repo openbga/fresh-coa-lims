@@ -41,7 +41,7 @@ Approved training and qualification evidence by activity or method, for analysts
 | Status | — | Choice | No | Awaiting approval and Revoked match the stored state. Approved, starts later: approved with Valid from after today. Approved and effective: approved with Valid from today or earlier and Valid until today or later. Expiring: effective, with Valid until from today to 30 days ahead. Expired: approved but past Valid until |
 | Activity / Subject / Type | `Qualification.activity`, `.user`, `.equipment` | Text | — | Subject is the username or the asset ID; Type is Analyst or Equipment |
 | Valid from / Valid until (inclusive) | `Qualification.valid_from`, `.valid_until` | Dates | — | Validity window |
-| State | `Qualification.state` | Label | — | Awaiting approval, Approved, "Approved, starts <date>" (approved but Valid from is still in the future, so it does not qualify anyone yet), Expired (approved records past their last day) or Revoked |
+| State | `Qualification.state` | Label | — | Awaiting approval, Approved, "Approved, starts <date>" (approved but Valid from is still in the future, so it does not qualify anyone yet), Expiring soon (amber: effective, last valid day within 30 days, the records the "Expiring within 30 days" filter finds), Expired (approved records past their last day) or Revoked |
 
 ## Rules and hidden logic
 

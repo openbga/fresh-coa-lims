@@ -168,7 +168,27 @@ def annotate_route(lots):
         route_investigation=Exists(
             Investigation.objects.filter(lot=OuterRef("pk")).exclude(phase="closed")
         ),
+        route_investigation_phase=Subquery(
+            Investigation.objects.filter(lot=OuterRef("pk"))
+            .exclude(phase="closed")
+            .order_by("-opened_at", "-pk")
+            .values("phase")[:1]
+        ),
     )
+
+
+def hold_labels(lot):
+    """The second Status pills of an annotated lot: (label, tone) for an applicability hold and
+    the newest open investigation's phase, with the app's own labels."""
+    from analytical.models import Investigation
+    from sampling.models import AssignmentStatus
+
+    labels = []
+    if lot.route_assignment == AssignmentStatus.HOLD:
+        labels.append((AssignmentStatus.HOLD.label, "warning"))
+    if lot.route_investigation_phase:
+        labels.append((Investigation.Phase(lot.route_investigation_phase).label, "danger"))
+    return labels
 
 
 def list_route(lot):

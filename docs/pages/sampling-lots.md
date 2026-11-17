@@ -24,7 +24,8 @@ Lists received lots with their requirement status and sample count, so analysts 
 - **Intro**: "Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold."
 - **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear all** when filtered.
 - **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples.
-- **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned".
+- **Lot status cell**: the lot's status label (Quarantine, Released, Rejected, Cancelled), as on the material lot list.
+- **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned", and below it "Awaiting quality assessment" (amber) while a current sampling record of the lot has a deviation not yet assessed by quality.
 - **Footer**: "Showing X–Y of N lots", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No lots received yet" ("Receive a material lot first; it then appears here for requirement assignment and sampling.") with a **Go to lots** button; "No lots match these filters" with **Clear filters**.
 
@@ -44,7 +45,8 @@ Lists received lots with their requirement status and sample count, so analysts 
 | Status | `LotAssignment.status` | Requirements assigned, Applicability hold, Not assigned | No | Filters on the latest assignment of each lot; "Not assigned" means none yet. |
 | Lot | `Lot.number` | Text | — | Lot identifier. |
 | Material as received | `Lot.material` | Text | — | Free text recorded when the lot was received. |
-| Lot status | `Lot.state` | Quarantine, Released | — | Disposition state. |
+| Lot status | `Lot.state` | Quarantine, Released, Rejected, Cancelled | — | Disposition state. |
+| Awaiting quality assessment | `SamplingRecord.deviation`, `DeviationReview.status` | Label | — | A current (not corrected) sampling record has a deviation with no assessment or one still awaiting quality; the same condition blocks QC disposition. |
 | Samples | `SamplingRecord` | Count | — | Sampling records that are not corrections, that is, one per sample. |
 
 ## Rules and hidden logic

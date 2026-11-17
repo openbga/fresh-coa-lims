@@ -4,7 +4,7 @@ urls: laboratory:qualification_detail
 views: laboratory.views.qualification_detail
 templates: ops/record.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-10
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Evidence that a person or instrument is qualified for an activity within stated 
 
 ## Layout
 
-- **Header**: breadcrumbs, title (the activity), the identifier QUAL-n and the state label (Awaiting approval, Approved, "Approved, starts <date>" before its valid-from date, Expired or Revoked), action buttons.
+- **Header**: breadcrumbs, title (the activity), the identifier QUAL-n and the state label (Awaiting approval, Approved, "Approved, starts <date>" before its valid-from date, Expiring soon (amber, effective and its last valid day within 30 days), Expired or Revoked), action buttons.
 - **Details**: the facts below.
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."

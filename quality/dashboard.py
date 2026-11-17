@@ -314,6 +314,7 @@ def dashboard(request):
     for lot in recent:
         lot.route = route.list_route(lot)
         lot.route_summary = route.summary(lot.route)
+        lot.hold_labels = route.hold_labels(lot)
     return render(
         request,
         "quality/dashboard.html",

@@ -1,9 +1,11 @@
-/* The approved manufacturing cutaway joins the shared field-notebook entrance. */
+/* Sign-in (layouts/entrance.html): the QC building beside one centred column of brand, the Sign
+   in card, the demo notice, help and footer. Tokens only; the art is two static files, one per
+   theme (static/img/signin-light.svg, signin-dark.svg), with no text in them. */
 .vr-login {
   display: grid;
   min-height: 100vh;
   min-height: 100svh;
-  background: var(--vr-topbar-bg);
+  background: var(--vr-paper);
 }
 
 .vr-login-scene {
@@ -15,27 +17,131 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--vr-space-20) var(--vr-space-8) var(--vr-space-12); /* room for the theme menu */
 }
 
 .vr-login-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--vr-space-4);
   width: 100%;
-  max-width: 28rem;
+  max-width: 32.857rem;
+  margin: 0 auto;
+  padding: var(--vr-space-10) var(--vr-space-4) var(--vr-space-6);
+}
+
+.vr-login .vr-entrance-theme {
+  top: var(--vr-space-4);
+  right: var(--vr-space-4);
 }
 
 .vr-login-main .vr-entrance-brand {
   justify-content: center;
+  margin-bottom: var(--vr-space-2);
+  font-size: var(--vr-font-size-6);
 }
 
+.vr-login-main .vr-entrance-brand img {
+  width: 32px;
+  height: 32px;
+}
+
+/* The Sign in card. */
+.vr-login .vr-entrance-panel {
+  max-width: none;
+  padding: var(--vr-space-6);
+  border-radius: var(--vr-radius-xl);
+  box-shadow: var(--vr-shadow-panel);
+}
+
+.vr-login .vr-entrance-panel h1 {
+  margin-bottom: var(--vr-space-1) !important; /* over the page's mb utility */
+  font-size: var(--vr-font-size-9);
+  font-weight: var(--vr-font-weight-heavy);
+  font-stretch: var(--vr-font-stretch-title);
+  line-height: var(--vr-line-height-tight);
+}
+
+.vr-login .vr-entrance-lead {
+  margin-bottom: var(--vr-space-5);
+  color: var(--vr-text-muted);
+}
+
+/* Sign in is the primary; passkey and single sign-on take the tonal secondary look (app.css
+   themes btn-outline-primary that way). */
 .vr-login-submit {
   width: 100%;
-  margin-top: var(--vr-space-4);
+  justify-content: center;
+  margin-top: var(--vr-space-2);
+}
+
+/* The demo notice on this page is a quiet card under the Sign in card. */
+.vr-login .vr-announcement {
+  margin: 0;
+  padding: var(--vr-space-5);
+  border-radius: var(--vr-radius-xl);
+  background: var(--vr-surface);
+  box-shadow: none;
+  font-size: var(--vr-font-size-4);
+}
+
+.vr-login .vr-announcement-title {
+  margin-bottom: var(--vr-space-2);
+  color: var(--vr-text-strong);
+  font-size: var(--vr-label-size);
+  font-weight: var(--vr-font-weight-heavy);
+  font-stretch: var(--vr-font-stretch-title);
+  letter-spacing: 0.06em;
+  text-transform: var(--vr-label-case);
+}
+
+.vr-login .vr-announcement-body .table {
+  margin: var(--vr-space-3) 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.vr-login .vr-announcement-body .table > :not(caption) > * > * {
+  padding: var(--vr-space-1-5) var(--vr-space-2);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  vertical-align: top;
+}
+
+.vr-login .vr-announcement-body .table > thead > tr > th {
+  background: var(--vr-th-bg);
+  font-size: var(--vr-label-size);
+  font-weight: var(--vr-font-weight-bold);
+  letter-spacing: var(--vr-label-tracking);
+  text-transform: var(--vr-label-case);
+}
+
+.vr-login .vr-announcement-body .table > thead > tr > th:first-child {
+  border-top-left-radius: var(--vr-radius-lg);
+  border-bottom-left-radius: var(--vr-radius-lg);
+}
+
+.vr-login .vr-announcement-body .table > thead > tr > th:last-child {
+  border-top-right-radius: var(--vr-radius-lg);
+  border-bottom-right-radius: var(--vr-radius-lg);
+}
+
+.vr-login .vr-announcement-body :is(code, pre) {
+  color: var(--vr-text-strong);
+  font-family: var(--vr-font-data);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.vr-login .vr-announcement-body pre {
+  padding: var(--vr-space-1-5) var(--vr-space-2-5);
+  border-radius: var(--vr-radius-lg);
+  background: var(--vr-surface-2);
 }
 
 .vr-login-help {
-  margin: var(--vr-space-5) 0 0;
+  max-width: 52ch;
+  margin: 0 auto;
   color: var(--vr-text-muted);
   font-size: var(--vr-font-size-3);
   line-height: var(--vr-line-height-base);
@@ -44,15 +150,15 @@
 }
 
 .vr-login-workspace > .vr-app-footer {
-  margin-top: var(--vr-space-6);
-  padding: 0;
-  border: 0;
+  justify-content: center;
+  padding: var(--vr-space-4) var(--vr-space-4) var(--vr-space-6);
+  background: transparent;
   text-align: center;
 }
 
 @media (max-width: 575.98px) {
-  .vr-login-workspace {
-    padding: var(--vr-space-16) var(--vr-space-4) var(--vr-space-8);
+  .vr-login-main {
+    padding-top: var(--vr-space-16); /* room for the theme menu */
   }
 
   .vr-login-main .alert:has(> .vr-status) {
@@ -60,41 +166,48 @@
   }
 }
 
+/* From 992px the art takes the left side: sticky, the full viewport high, its building at the
+   bottom centre (cover only trims the outdoor edges), the caption in its plain top band. */
 @media (min-width: 992px) {
   .vr-login {
-    grid-template-columns: minmax(0, 1.15fr) minmax(30rem, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(32.75rem, 46%);
+    align-items: start;
   }
 
   .vr-login-scene {
-    position: relative;
+    position: sticky;
+    top: 0;
     display: block;
-    min-height: 100%;
-    background-color: var(--vr-topbar-bg);
-    background-image: url("../img/login-manufacturing-day.webp");
-    background-position: center bottom;
-    background-size: cover;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+    border-radius: 0 var(--vr-radius-main) var(--vr-radius-main) 0;
+    background: var(--vr-topbar-bg) url("../img/signin-light.svg") 50% 100% / cover no-repeat;
   }
 
   [data-bs-theme="dark"] .vr-login-scene {
-    background-image: url("../img/login-manufacturing-night.webp");
+    background-image: url("../img/signin-dark.svg");
   }
 
   .vr-login-caption {
-    position: relative;
+    max-width: 30ch;
     margin: var(--vr-space-10);
-    color: var(--vr-text);
   }
 
   .vr-login-title {
     margin: 0;
+    color: var(--vr-text-strong);
     font-size: var(--vr-font-size-8);
-    font-weight: var(--vr-font-weight-bold);
+    font-weight: var(--vr-font-weight-heavy);
+    font-stretch: var(--vr-font-stretch-title);
     line-height: var(--vr-line-height-tight);
     text-wrap: balance;
   }
 
   .vr-login-description {
-    margin: var(--vr-space-1-5) 0 0;
+    margin: var(--vr-space-2) 0 0;
+    color: var(--vr-text-muted);
+    font-size: var(--vr-font-size-6);
     line-height: var(--vr-line-height-base);
   }
 }

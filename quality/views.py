@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -81,6 +82,7 @@ def lot_list(request):
     for lot in page_obj:
         lot.route = route.list_route(lot)
         lot.route_summary = route.summary(lot.route)
+        lot.hold_labels = route.hold_labels(lot)
     return render(
         request,
         "quality/lot_list.html",
@@ -109,6 +111,18 @@ def lot_detail(request, pk):
     from analytical import gates
 
     blockers, _, tests, investigations = gates.lot_status(lot)
+    from stability.gates import active_holds
+    from stability.gates import lot_blockers as hold_blockers
+
+    holds = list(active_holds(lot)) if lot.state == "quarantine" else []
+    if lot.state == "quarantine":
+        # The checks dispose_lot enforces, from the same functions and in the same order: active
+        # stability holds, then (native evidence or production) sampling and analytical evidence.
+        from sampling.services import lot_blockers as sampling_blockers
+
+        native = assignment is not None or bool(tests)
+        evidence = sampling_blockers(lot) + blockers if native or not settings.DEBUG else []
+        blockers = hold_blockers(lot) + evidence
     tests_by_pk = {test.pk: test for test in tests}
     open_investigations = []
     for investigation in sorted(investigations.values(), key=lambda i: i.pk):
@@ -116,6 +130,7 @@ def lot_detail(request, pk):
             investigation.held_test = tests_by_pk.get(investigation.test_id)
             open_investigations.append(investigation)
     reports = list(lot.reports.all())
+    samples = list(lot.samples.prefetch_related("results__analyst"))
     acceptances = reliance.lot_acceptances(lot)
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
@@ -144,6 +159,15 @@ def lot_detail(request, pk):
             "reports": reports,
             "issued": any(report.state == "issued" for report in reports),
             "blockers": blockers,
+            "holds": holds,
+            "awaiting_review": sum(
+                1
+                for sample in samples
+                for result in sample.results.all()
+                if result.state == "recorded" and result.analyst_id != request.user.pk
+            )
+            if request.user.groups.filter(name="reviewer").exists()
+            else 0,
             "open_investigations": open_investigations,
             "route": route.route(
                 lot,
@@ -153,7 +177,7 @@ def lot_detail(request, pk):
                 reports=reports,
             ),
             "assignment": assignment,
-            "samples": lot.samples.prefetch_related("results__analyst"),
+            "samples": samples,
             "signatures": lot_signatures,
             # A lot is also signed when its requirements are replaced during testing.
             "disposition_signed": any(s.meaning in DECISION_MEANINGS for s in lot_signatures),
@@ -183,6 +207,7 @@ def decision_display(lot, signatures):
     return {
         "evidence": evidence,
         "signature": signature,
+        "signatures": [signature] if signature else [],
         "reason": signature.audit_event.reason if signature else "",
         "grounds": RejectionGrounds(grounds).label if grounds in RejectionGrounds.values else "",
         "tests": len(evidence.get("tests", [])),
@@ -218,6 +243,7 @@ def receipt_history(receipts):
         {
             "receipt": receipt,
             "title": "Receipt details corrected" if receipt.corrects_id else "Receipt recorded",
+            "icon": "pencil-square" if receipt.corrects_id else "",
             "changes": [
                 (label, shown[receipt.corrects_id][key], shown[receipt.pk][key])
                 for key, label in RECEIPT_LABELS

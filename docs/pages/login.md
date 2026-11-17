@@ -4,7 +4,7 @@ urls: login
 views: accounts.views.SignIn
 templates: registration/login.html, accounts/includes/announcement.html
 models: accounts.User, accounts.LoginAnnouncement
-reviewed: 2026-11-16
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ Anyone can open the entrance page. Signing in requires an active account and its
 
 On wide screens, an illustrative manufacturing cutaway appears beside the sign-in panel. It depicts production equipment, a packaging line and a quality-control laboratory. The illustration changes from morning to dusk with the theme. On narrower screens it is hidden so the form remains the focus.
 
-The page shows the certificate-and-leaf mark and **OpenBGA QM LIMS** name, **Sign in**, account guidance, the **Sign in with a passkey** button when it is available, the **Sign in with PROVIDER** button when single sign-on is configured (PROVIDER is the deployment's provider name, default "your organization"), and the licence and **Source code** footer. When an administrator has published a sign-in announcement, it appears as a notice between the name and the sign-in panel, with its optional title and formatted text. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
+The page shows the certificate-and-leaf mark and **OpenBGA QM LIMS** name, **Sign in**, account guidance, the **Sign in with a passkey** button when it is available, the **Sign in with PROVIDER** button when single sign-on is configured (PROVIDER is the deployment's provider name, default "your organization"), and the licence and **Source code** footer. When an administrator has published a sign-in announcement, it appears as a notice below the sign-in panel and above the account guidance, with its optional title and formatted text. The **Theme** menu is at the upper right. Validation and session messages appear with the form. This entrance page is outside the signed-in workspace and does not show the page-documentation panel.
 
 ## Actions
 

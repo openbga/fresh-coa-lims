@@ -163,6 +163,7 @@
     "e2e/test_native_journey.py",
     "e2e/test_supplier_reliance_journey.py",
     "reporting/tests/test_admin_access.py",
+    "reporting/tests/test_certificate_pdf.py",
     "reporting/tests/test_evidence.py",
     "reporting/tests/test_native.py",
     "reporting/tests/test_services.py",
@@ -263,4 +264,4 @@
 # incomplete.
 "reporting/tests/test_services.py::test_write_review_pdfs" = "Writes certificates to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."
 "tests/test_backup_restore_checks.py::test_backup_restore_and_verify_round_trip" = "Needs pg_dump and pg_restore of the server's major version or newer, which CI's application job lacks; CI's container-smoke job runs the same backup, restore and check cycle with the application image."
-"tests/test_ui_standards.py::test_templates_do_not_use_retired_patterns" = "Retired-pattern rules still pending while pages move onto the shared components; each runs as an expected failure until its migration is done."
+"reporting/tests/test_certificate_pdf.py::test_write_certificate_review_pdfs" = "Writes certificates to OQ_PDF_OUT for a person to look at; it checks nothing when that is not set."

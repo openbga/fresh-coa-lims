@@ -15,8 +15,8 @@
         <tr>
           <th scope="row"><a href="{% url 'sampling:lot' lot.pk %}">{{ lot.number }}</a></th>
           <td>{{ lot.material }}</td>
-          <td>{{ lot.state|capfirst }}</td>
-          <td>{% if lot.requirement_status == "ready" %}{% status label="Assigned" tone="success" plain=True %}{% elif lot.requirement_status == "hold" %}{% status label="Applicability hold" tone="hold" plain=True %}{% else %}{% status label="Not assigned" tone="warning" plain=True %}{% endif %}</td>
+          <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}</td>
+          <td>{% if lot.requirement_status == "ready" %}{% status label="Assigned" tone="success" plain=True %}{% elif lot.requirement_status == "hold" %}{% status label="Applicability hold" tone="hold" plain=True %}{% else %}{% status label="Not assigned" tone="warning" plain=True %}{% endif %}{% if lot.deviation_pending %}<br>{% status label="Awaiting quality assessment" tone="warning" plain=True %}{% endif %}</td>
           <td class="text-end">{{ lot.sampled }}</td>
         </tr>
         {% endfor %}

@@ -20,6 +20,7 @@ from .eligibility import (
     equipment_filter,
     equipment_queryset,
     equipment_status,
+    reagent_eligibility,
     reagent_status,
 )
 from .forms import (
@@ -441,6 +442,8 @@ def equipment_detail(request, pk):
         crumbs=crumbs(("Equipment", reverse("laboratory:equipment_list")), (item.asset_id, None)),
         state=status(label, tone),
         facts=[
+            # The due date of the latest counted calibration, in the fitness pill's tone.
+            ("Calibration due", status(day(item.last_due), tone) if item.last_due else ""),
             ("Category", item.category),
             ("Location", item.location),
             ("Qualification required", "Yes" if item.requires_qualification else "No"),
@@ -470,6 +473,9 @@ def qualification_status(q, today):
             return f"Approved, starts {q.valid_from.isoformat()}", "info", "scheduled"
         if q.valid_until < today:
             return "Expired", "danger", "expired"
+        # The list's "Expiring within 30 days" filter; the label reagents and suppliers use.
+        if (q.valid_until - today).days <= DUE_SOON_DAYS:
+            return "Expiring soon", "warning", "expiring"
         return "Approved", "success", "approved"
     tone = {"recorded": "progress", "revoked": "danger"}[q.state]
     return q.get_state_display(), tone, q.state
@@ -1070,11 +1076,17 @@ def reagent_detail(request, pk):
         ),
         state=status(label, tone),
         facts=[
+            # Expiry first, in the status tone while the lot is expired or expiring soon.
+            (
+                "Expiry (last day of use)",
+                status(day(lot.expiry_date), tone)
+                if label in ("Expired", "Expiring soon")
+                else day(lot.expiry_date),
+            ),
             ("Kind", lot.get_kind_display()),
             ("Supplier", lot.supplier),
             ("Supplier lot", lot.lot_number),
             ("Received or prepared", day(lot.received_on)),
-            ("Expiry (last day of use)", day(lot.expiry_date)),
             ("Assigned purity", purity),
             (
                 "Source lot",
@@ -1122,14 +1134,26 @@ def reagent_detail(request, pk):
             ),
         ],
         related=[lot],
-        notice={
+        notice=_reagent_notice(lot, label),
+    )
+
+
+def _reagent_notice(lot, label):
+    """Why the lot cannot be used now, under the header: rejected, expired (danger) or awaiting
+    release (info), with the reasons reagent_eligibility gives when the lot is used."""
+    if lot.state == "rejected":
+        return {
             "tone": "danger",
             "label": "Rejected",
             "text": "This lot cannot be used; prepared solutions from it are also blocked.",
         }
-        if lot.state == "rejected"
-        else None,
-    )
+    if label not in ("Expired", "Awaiting release"):
+        return None
+    return {
+        "tone": "danger" if label == "Expired" else "info",
+        "label": label,
+        "text": " ".join(reagent_eligibility(lot).reasons),
+    }
 
 
 @login_required

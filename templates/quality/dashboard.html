@@ -29,7 +29,7 @@
       <thead><tr><th scope="col">Lot</th><th scope="col">Status</th><th scope="col">Material</th><th scope="col">Where it is</th></tr></thead>
       <tbody>{% for lot in recent %}<tr>
         <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
-        <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}</td>
+        <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}{% for label, tone in lot.hold_labels %}<br>{% status label=label tone=tone plain=True %}{% endfor %}</td>
         <td class="vr-wrap">{{ lot.material }}</td>
         <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
       </tr>{% endfor %}</tbody>

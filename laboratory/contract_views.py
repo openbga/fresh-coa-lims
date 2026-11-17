@@ -124,6 +124,26 @@ LABORATORY_STATUS = [
 ]
 
 
+# A laboratory's approvals ranked for its list row: in force first (the soonest to expire, so
+# an expiring approval shows), then starting later, awaiting signature, expired, revoked.
+APPROVAL_RANK = [
+    "Expiring soon",
+    "Approved",
+    "Approved, starts later",
+    "Awaiting approval",
+    "Expired",
+    "Revoked",
+]
+
+
+def _approval_state(approvals, today):
+    """The state pill of the laboratory's first approval by APPROVAL_RANK (approvals ordered by
+    valid until, so the soonest-expiring wins a tie); blank when it has none."""
+    states = [contract.approval_status(approval, today) for approval in approvals]
+    best = min(states, key=lambda state: APPROVAL_RANK.index(state[0]), default=None)
+    return status(*best) if best else ""
+
+
 @login_required
 def contract_laboratory_list(request):
     access(request.user)
@@ -171,11 +191,16 @@ def contract_laboratory_list(request):
     page, sort, descending = paginate(
         request, queryset, {"code": ["code"], "name": ["name", "code"]}, "code"
     )
+    approvals = ContractApproval.objects.filter(laboratory__in=list(page)).order_by("valid_until")
+    by_laboratory = {}
+    for approval in approvals:
+        by_laboratory.setdefault(approval.laboratory_id, []).append(approval)
     rows = [
         [
             cell(item.code, _laboratory_url(item)),
             item.name,
             item.location,
+            _approval_state(by_laboratory.get(item.pk, []), today),
             cell(str(item.current_count), numeric=True),
             cell(str(item.waiting_count), numeric=True),
         ]
@@ -191,6 +216,7 @@ def contract_laboratory_list(request):
             ("Code", "code", False),
             ("Name", "name", False),
             ("Location", None, False),
+            ("Approval", None, False),
             ("Methods approved today", None, True),
             ("Approvals awaiting signature", None, True),
         ],

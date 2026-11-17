@@ -92,3 +92,37 @@ def test_lot_list_route_costs_no_query_per_row(client, django_user_model):
     many, body = listing(12)
     assert many == few  # the route counts come from the list's own query
     assert body.count('class="vr-microroute"') == 12 and "Not assigned" in body
+
+
+def test_lot_record_lists_what_signing_enforces_and_shows_holds(client, django_user_model):
+    """The QC disposition aside takes its blockers from the functions dispose_lot calls (stability
+    holds, then sampling and analytical evidence); active holds are header pills."""
+    from stability.gates import lot_blockers as hold_blockers
+    from stability.services import place_hold
+
+    quality = django_user_model.objects.create_user("route-quality")
+    quality.groups.add(Group.objects.get_or_create(name="quality")[0])
+    rules = RuleSet.objects.create(
+        code="route-hold-rules",
+        segment="synthetic",
+        status="approved",
+        effective_from=timezone.now(),
+        author=quality,
+    )
+    lot = Lot.objects.create(
+        number="SYN-ROUTE-HOLD", material="Synthetic", rules=rules, created_by=quality
+    )
+    hold = place_hold(actor=quality, lot=lot, kind="quality", reason="Synthetic hold reason")
+    client.force_login(quality)
+    body = client.get(reverse("quality:lot_detail", args=[lot.pk])).content.decode()
+    aside = body[body.index('id="disposition-heading"') : body.index('id="receipt-heading"')]
+    for message in hold_blockers(lot):
+        assert message in aside
+    assert "no specification or sampling requirements are assigned." in aside
+    meta = body[
+        body.index('class="vr-page-meta"') : body.index("</ul>", body.index("vr-page-meta"))
+    ]
+    assert hold.identifier in meta and ">Active<" in meta
+    # A quality reviewer's next step is the disposition, whatever other roles they hold.
+    disposition = reverse("quality:disposition", args=[lot.pk])
+    assert f'class="btn btn-primary" href="{disposition}"' in body

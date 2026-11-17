@@ -79,11 +79,16 @@ def can(user, *roles):
     return bool(roles_of(user) & set(roles))
 
 
+# The pull list's filter labels (PULL_STATUS), so a pill reads like the filter that finds it.
+PULL_LABELS = {"due": "Due now", "pulled": "Awaiting acceptance"}
+
+
 def _pull_tone(pull, today):
     timing, label = pull.timing(today)
     tone = {"overdue": "danger", "due": "warning", "upcoming": "neutral"}.get(timing)
     if tone is None:
         tone = {"pulled": "progress", "accepted": "success", "missed": "danger"}[pull.state]
+    label = PULL_LABELS.get(timing, PULL_LABELS.get(pull.state, label))
     if pull.outcome == FAILS:
         # Accepted means the pull and its results were reviewed, not that the results conform.
         return "Accepted · acceptance criteria not met", "danger"
@@ -771,6 +776,17 @@ def _schedule(pulls, today):
     }
 
 
+def _next_pull(pulls, today):
+    """The earliest scheduled pull as a clock fact: its time point and due date in the pull's
+    status tone (Overdue, Due now, Upcoming); blank when none is scheduled."""
+    scheduled = [p for p in pulls if p.state == Pull.State.SCHEDULED]
+    if not scheduled:
+        return ""
+    pull = min(scheduled, key=lambda p: (p.due_date, p.pk))
+    label, tone = _pull_tone(pull, today)
+    return status(f"{pull.timepoint} · due {day(pull.due_date)} · {label}", tone)
+
+
 def timing_closed(pull, today):
     return today > pull.window[1]
 
@@ -807,6 +823,7 @@ def study_detail(request, pk):
         crumbs=crumbs(("Studies", reverse("stability:study_list")), (s.identifier, None)),
         state=_study_state(s),
         facts=[
+            ("Next pull", _next_pull(pulls, today)),
             ("Lot", cell(s.lot.number, reverse("quality:lot_detail", args=[s.lot_id]))),
             (
                 "Protocol",
@@ -1097,7 +1114,9 @@ def pull_detail(request, pk):
             action("Link evidence", reverse("stability:pull_evidence", args=[p.pk]))
         )
     # A pull tested here is offered for acceptance once its testing is complete; the Tests
-    # section says what is still open.
+    # section says what is still open. The header's primary is the first primary action: the
+    # analyst's Record pull or Assign tests (untested), else Accept pull, so an analyst who is
+    # also a reviewer is offered acceptance first once the tests are done.
     if (
         p.state == "pulled"
         and can(user, "reviewer")
@@ -1164,12 +1183,12 @@ def pull_detail(request, pk):
         ),
         state=status(label, tone),
         facts=[
+            ("Due", status(day(p.due_date), tone) if p.state == "scheduled" else day(p.due_date)),
+            ("Window", f"{day(p.window[0])} to {day(p.window[1])}"),
             (
                 "Study",
                 cell(p.study.identifier, reverse("stability:study_detail", args=[p.study_id])),
             ),
-            ("Due", day(p.due_date)),
-            ("Window", f"{day(p.window[0])} to {day(p.window[1])}"),
             ("Required tests", ", ".join(p.timepoint.test_codes)),
             ("Pulled on", day(p.pulled_on)),
             ("Pulled by", str(p.pulled_by or "")),

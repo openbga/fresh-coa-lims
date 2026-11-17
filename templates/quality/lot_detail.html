@@ -3,12 +3,12 @@
 {% comment %}The central lot record: key facts, receipt, supplier certificates and results, samples and results, certificates of analysis and every electronic signature on the lot and its results.{% endcomment %}
 {% block page_title_class %} vr-data{% endblock %}
 {% block breadcrumbs %}{% url 'quality:lot_list' as list_url %}{% breadcrumbs section="Lots" section_url=list_url current=lot.number %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot only %}</li>{% for inv in open_investigations %}<li>{% status label=inv.get_phase_display tone="danger" %}</li>{% endfor %}<li>{{ lot.material }}</li><li>Record revision <span class="vr-id">{{ lot.revision }}</span></li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot only %}</li>{% for inv in open_investigations %}<li>{% status label=inv.get_phase_display tone="danger" %}</li>{% endfor %}{% if assignment.status == "hold" %}<li>{% status label=assignment.get_status_display tone="warning" %}</li>{% endif %}{% for hold in holds %}<li>{% status label="Active" tone="hold" %} <a class="vr-id" href="{% url 'stability:hold_detail' hold.pk %}">{{ hold.identifier }}</a></li>{% endfor %}<li>{{ lot.material }}</li><li>Record revision <span class="vr-id">{{ lot.revision }}</span></li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if lot.state == 'quarantine' %}
-{% if can_record and can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
+{% if can_record and can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% if can_dispose %}{% more_actions %}<li><a class="dropdown-item vr-menu-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a></li><li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
-{% if can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% elif can_dispose %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
+{% if can_dispose %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% elif lot.state == 'released' and can_issue_coa %}<a class="btn btn-primary" href="{% url 'reporting:issue_preview' lot.pk %}">Issue certificate of analysis</a>{% endif %}
 {% endblock %}
 {% block content %}
@@ -23,7 +23,7 @@
     {% fact label="Record in the quality system" value=decision.evidence.reference|default:"Not stated" %}
     {% if lot.state == 'rejected' %}{% fact label="Tests at the rejection" wide=True %}{{ decision.tests }}{% if decision.unfinished %} · {{ decision.unfinished|length }} not finished: {% for row in decision.unfinished %}{{ row.label }} {{ row.test_code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% endfact %}{% endif %}
   </dl>
-  {% if decision.signature %}<ol class="vr-timeline mt-3"><li class="vr-history-item vr-signature" data-signature-meaning="{{ decision.signature.meaning }}" data-signature-revision="{{ decision.signature.revision }}"><span class="vr-timeline-icon vr-sign-icon">{% icon name="vector-pen" %}</span><div class="vr-timeline-main"><div class="vr-timeline-head"><span class="vr-timeline-title">Signed by {{ decision.signature.signer_name }}</span></div><p class="vr-timeline-meta">lot revision {{ decision.signature.revision }}</p></div><time class="vr-timeline-time vr-timeline-meta" datetime="{{ decision.signature.signed_at|date:'c' }}">{{ decision.signature.signed_at|date:"Y-m-d H:i" }} UTC</time></li></ol>{% endif %}
+  {% if decision.signature %}{% signature_list signatures=decision.signatures subject="Lot" %}{% endif %}
   {% if lot.state == 'rejected' %}{% if decision.evidence.outstanding %}<h3 class="h6 mt-3">What stood in the way of release</h3><ul class="mb-0 ps-3 text-break">{% for item in decision.evidence.outstanding %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">The release gates found nothing missing or failing when the lot was rejected.</p>{% endif %}{% endif %}
   <p class="mt-3 mb-0">The lot takes no more receipt, sampling, certificate or test records and keeps every record as it was signed. {% if lot.state == 'rejected' %}What happens to the material is decided and recorded in the quality system.{% else %}Its number is not used again.{% endif %}</p>
 {% endpanel %}
@@ -72,14 +72,13 @@
     {% fact label="Examination on receipt" %}{% if receipt.has_discrepancy %}{% status label=receipt.get_condition_display tone="warning" %}{% else %}{% status label=receipt.get_condition_display tone="success" %}{% endif %}{% if receipt.condition_notes %}<br>{{ receipt.condition_notes|linebreaksbr }}{% endif %}{% endfact %}
   </dl>
   {% if receipt.has_discrepancy %}<p>A discrepancy does not hold the lot by itself. Place a hold from <a href="{% url 'stability:hold_list' %}">Holds</a> if the lot must not be dispositioned until it is resolved.</p>{% endif %}
-  <h3 class="h6 mt-3">Receipt history</h3>
-  <ol class="vr-timeline mb-0">
-    {% for entry in receipt_history %}{% history_item title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by by="Recorded by" reason=entry.receipt.reason changes=entry.changes %}{% endfor %}
-  </ol>
   {% else %}
   <p class="mb-0">Receipt details are not recorded: this lot was received before they were kept.{% if lot.state == 'quarantine' %} An analyst can record them while the lot is in quarantine.{% endif %}</p>
   {% endif %}
 {% endpanel %}
+{% if receipt %}{% history_panel events=receipt_history title="Receipt history" heading_id="receipt-history-heading" %}
+  {% for entry in receipt_history %}{% history_item title=entry.title at=entry.receipt.recorded_at actor=entry.receipt.recorded_by by="Recorded by" reason=entry.receipt.reason changes=entry.changes icon=entry.icon %}{% endfor %}
+{% endhistory_panel %}{% endif %}
 {% panel title="Supplier certificates" heading_id="certificates-heading" %}
   {% fill actions %}{% if can_record and supplied and lot.state == 'quarantine' and not certificate_blocker %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'quality:certificate_new' lot.pk %}">Record supplier certificate</a>{% endif %}{% endfill %}
   {% if certificates %}
@@ -134,7 +133,8 @@
   </div>
 {% endpanel %}
 {% endif %}
-{% panel title="Samples and results" heading_id="samples-heading" count=samples|length flush=True%}
+{% panel title="Samples and results" heading_id="samples-heading" flush=True %}
+  {% fill count %}{% if awaiting_review %}{{ awaiting_review }} awaiting review{% else %}{{ samples|length }}{% endif %}{% endfill %}
   {% for sample in samples %}
   {% panel_section rule=forloop.counter0 %}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">

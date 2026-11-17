@@ -40,7 +40,7 @@ Pulls across active and closed studies, oldest due first; the work queue for ove
 | Pull | `Pull.study`, `Pull.timepoint` | Link | — | Study ID, condition and timepoint label |
 | Due | `Pull.due_date` | Date | — | Time zero plus the timepoint interval |
 | Window | `ProtocolTimepoint.window_days` | Dates | — | Due date minus and plus window days |
-| Status | `Pull.state`, `Pull.outcome` | Label | — | Upcoming, Due, Overdue (scheduled pulls, by today's window); otherwise Pulled, Accepted or Missed. An accepted pull tested in the system reads "Accepted · meets acceptance criteria" (success) or "Accepted · acceptance criteria not met" (danger) |
+| Status | `Pull.state`, `Pull.outcome` | Label | — | Upcoming, Due now, Overdue (scheduled pulls, by today's window); otherwise Awaiting acceptance (pulled), Accepted or Missed: the same labels as the Status filter. An accepted pull tested in the system reads "Accepted · meets acceptance criteria" (success) or "Accepted · acceptance criteria not met" (danger) |
 | Tests | `ProtocolTimepoint.test_codes` | Codes | — | Tests required for the pull |
 | Search | — | Text | No | Matches study ID or lot number |
 | Status filter | — | Choice | No | See Layout |

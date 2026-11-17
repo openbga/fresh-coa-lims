@@ -4,7 +4,7 @@ urls: laboratory:reagent_detail
 views: laboratory.views.reagent_detail
 templates: ops/record.html
 models: laboratory.ReagentLot, laboratory.ResourceUse, core.ElectronicSignature
-reviewed: 2026-11-12
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -20,6 +20,8 @@ Provenance, release state, preparations and recorded uses of one lot.
 ## Layout
 
 - **Header**: breadcrumbs, title (the name), identifier and state label (Rejected, Awaiting release, Expired, Expiring soon or Released), action buttons. A rejected lot also shows a red notice: "This lot cannot be used; prepared solutions from it are also blocked."
+- **Notice under the header** for a lot that cannot be used: **Expired** (red) or **Awaiting release** (blue), with the reasons the system gives when the lot is chosen for work (for example "Lot has not been independently released for use." or "Lot expired after YYYY-MM-DD.").
+- **Details** start with **Expiry (last day of use)**, shown in the status tone while the lot is expired or expiring soon.
 - **Details**: the facts below.
 - **Preparations from this lot**: identifier (link), name, state for every solution that names this lot as its source. Empty: "No prepared solutions record this lot as their source."
 - **Uses**: the latest 25 (used, work, activity, by; the Work label is the sample reference for sample work; for an analytical test its label, lot number and sample reference, linking to the test; for a QC batch "QC batch <number>", linking to the batch; otherwise the raw context as recorded). Empty: "No use recorded."

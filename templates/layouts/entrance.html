@@ -2,8 +2,8 @@
 {% load static ui %}
 {% comment %}
 Sign-in pages: the manufacturing scene beside one centered panel, without the staff shell.
-Blocks: title; announcement (above the panel); panel (inside .vr-entrance-panel: the h1, lead,
-messages and form); after_panel (help under the panel); extra_js.
+Blocks: title; panel (inside .vr-entrance-panel: the h1, lead, messages and form); announcement
+(below the panel); after_panel (help after both); extra_js.
 {% endcomment %}
 {% block body_class %}vr-app vr-entrance-page{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
@@ -19,8 +19,8 @@ messages and form); after_panel (help under the panel); extra_js.
     <div class="vr-entrance-theme">{% theme_menu %}</div>
     <main id="main" class="vr-login-main" tabindex="-1">
       {% brand variant="entrance" %}
-      {% block announcement %}{% endblock %}
       <div class="vr-entrance-panel">{% block panel %}{% endblock %}</div>
+      {% block announcement %}{% endblock %}
       {% block after_panel %}{% endblock %}
     </main>
     {% app_footer centered=True %}
