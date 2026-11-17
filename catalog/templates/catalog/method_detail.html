@@ -12,8 +12,8 @@
     {% if revision.can_approve %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% else %}<span class="small">Another quality approver must sign this draft.</span>{% endif %}{% endif %}{% endfill %}
   <dl class="vr-facts">
     {% fact label="Technique" value=revision.technique %}
-    {% fact label="Controlled procedure" value=revision.document_ref %}
-    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {{ revision.suitability_ref }}{% endfact %}
+    {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}
+    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {% code value=revision.suitability_ref %}{% endfact %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
     {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}

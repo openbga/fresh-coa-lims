@@ -12,6 +12,8 @@ from django.utils import timezone
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 from django.views.decorators.http import require_GET
 
+from core.grids import Column
+
 from .services import ROLES
 
 
@@ -779,6 +781,16 @@ def permission_denied(request, exception):
     return render(request, "403.html", context, status=403)
 
 
+# The users list's columns (core.grids.Column; keys are saved in users' layouts).
+USER_COLUMNS = (
+    Column("account", "Account", locked=True),
+    Column("roles", "Roles"),
+    Column("status", "Status"),
+    Column("two-factor", "Two-factor sign-in", priority="medium"),
+    Column("last-sign-in", "Last sign-in", priority="low"),
+)
+
+
 @login_required
 @require_GET
 def user_list(request):
@@ -861,6 +873,7 @@ def user_list(request):
         "accounts/users.html",
         {
             "page_title": "Users and roles",
+            "columns": USER_COLUMNS,
             "filters": filters,
             "page": Paginator(users, 30).get_page(request.GET.get("page")),
             "query": params.urlencode(),

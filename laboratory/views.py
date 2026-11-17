@@ -46,6 +46,7 @@ from .ui import (
     access,
     action,
     cell,
+    critical,
     day,
     external_link,
     form_page,
@@ -310,7 +311,7 @@ def _equipment_crumbs(item, current):
 def equipment_detail(request, pk):
     access(request.user)
     item = get_object_or_404(equipment_queryset().select_related("status_changed_by"), pk=pk)
-    label, tone, _ = equipment_status(item)
+    label, tone, fitness = equipment_status(item)
     user = request.user
     calibrations = list(item.calibrations.select_related("recorded_by"))
     qualifications = list(item.qualifications.select_related("recorded_by"))
@@ -445,7 +446,12 @@ def equipment_detail(request, pk):
         state=status(label, tone),
         facts=[
             # The due date of the latest counted calibration, in the fitness pill's tone.
-            ("Calibration due", status(day(item.last_due), tone) if item.last_due else ""),
+            (
+                "Calibration due",
+                critical(label, tone, day(item.last_due))
+                if fitness in ("overdue", "due_soon")
+                else day(item.last_due),
+            ),
             ("Category", item.category),
             ("Location", item.location),
             ("Qualification required", "Yes" if item.requires_qualification else "No"),
@@ -1084,7 +1090,7 @@ def reagent_detail(request, pk):
             # Expiry first, in the status tone while the lot is expired or expiring soon.
             (
                 "Expiry (last day of use)",
-                status(day(lot.expiry_date), tone)
+                critical(label, tone, day(lot.expiry_date))
                 if label in ("Expired", "Expiring soon")
                 else day(lot.expiry_date),
             ),

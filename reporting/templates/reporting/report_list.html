@@ -7,17 +7,8 @@
 {% panel title="Certificates of analysis" heading_id="coa-table-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter certificates" q=query placeholder="Number, lot, material or recipient" inline=filters sort=sort active=filtered %}
   {% if can_issue %}{% url 'reporting:new' as create_url %}{% endif %}
-  {% list_results items=page_obj noun="certificates" filtered=filtered sizes=True clear_url=request.path empty_title="No certificates of analysis yet" empty_body="A certificate can be issued once a lot has a signed QC disposition." action_url=create_url action_label="Start a certificate" no_results_title="No certificates match these filters" no_results_body="Change the search or clear the filters." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="coa-table-heading">
-      <thead>
-        <tr>
-          {% sort_header label="Certificate" asc="number" desc="-number" sort=sort %}
-          {% sort_header label="Lot" asc="lot" desc="-lot" sort=sort %}
-          <th scope="col">Issued to</th>
-          {% sort_header label="Status" asc="status" desc="-status" sort=sort %}
-        </tr>
-      </thead>
+  {% list_results items=page_obj grid="reporting.certificates" noun="certificates" filtered=filtered sizes=True clear_url=request.path empty_title="No certificates of analysis yet" empty_body="A certificate can be issued once a lot has a signed QC disposition." action_url=create_url action_label="Start a certificate" no_results_title="No certificates match these filters" no_results_body="Change the search or clear the filters." %}
+  {% grid_table grid="reporting.certificates" columns=columns sort=sort label="coa-table-heading" %}
       <tbody>
         {% for report in page_obj %}
         <tr>
@@ -28,8 +19,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

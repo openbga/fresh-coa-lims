@@ -2,7 +2,7 @@
 {% load ui %}
 {% comment %}A lot's requirements and sampling. Context from sampling.views.lot_detail.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>Lot status {{ lot.state|capfirst }}</li><li>Record revision {{ lot.revision }}</li><li><a href="{% url 'quality:lot_detail' lot.pk %}">Open lot record</a></li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% include "quality/includes/lot_status.html" with lot=lot only %}</li><li>{% if current.material %}{% material_tag material=current.material size="lg" %}{% else %}{% material_tag material=lot.material size="lg" sub=False %}{% endif %}</li><li>Record revision <strong>{{ lot.revision }}</strong></li><li><a href="{% url 'quality:lot_detail' lot.pk %}">Open lot record</a></li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_assign %}<a class="btn btn-outline-secondary" href="{% url 'sampling:assign' lot.pk %}">{% if current %}Change requirements{% else %}Assign requirements{% endif %}</a>{% endif %}
 {% if can_replace %}<a class="btn btn-outline-secondary" href="{% url 'sampling:replace' lot.pk %}">Replace requirements</a>{% endif %}
@@ -40,13 +40,13 @@
       {% fact label="Material" %}{{ payload.material.code }} · {{ payload.material.name }}{% endfact %}
       {% if payload.specifications %}
       {% fact label="Stage and scopes" %}{{ current.get_stage_display }} · {{ payload.scopes|join:", " }}{% endfact %}
-      {% fact label="Specifications" %}{% for spec in payload.specifications %}<a href="{% url 'catalog:specification_revision' spec.revision_id %}">{{ spec.code }} v{{ spec.version }}</a> ({{ spec.scope }}){% if not forloop.last %}, {% endif %}{% endfor %}{% endfact %}
+      {% fact label="Specifications" %}{% for spec in payload.specifications %}{% url 'catalog:specification_revision' spec.revision_id as spec_url %}{% with v=spec.version|stringformat:"s" %}{% with spec_code=spec.code|add:" v"|add:v %}{% code value=spec_code href=spec_url %}{% endwith %}{% endwith %} ({{ spec.scope }}){% if not forloop.last %} {% endif %}{% endfor %}{% endfact %}
       {% else %}
       {% fact label="Stage and scope" %}{{ current.get_stage_display }} · {{ payload.scope }}{% endfact %}
-      {% fact label="Specification" %}<a href="{% url 'catalog:specification_revision' payload.specification.revision_id %}">{{ payload.specification.code }} v{{ payload.specification.version }}</a>{% endfact %}
+      {% fact label="Specification" %}{% url 'catalog:specification_revision' payload.specification.revision_id as spec_url %}{% with v=payload.specification.version|stringformat:"s" %}{% with spec_code=payload.specification.code|add:" v"|add:v %}{% code value=spec_code href=spec_url %}{% endwith %}{% endwith %}{% endfact %}
       {% endif %}
-      {% fact label="Sampling plan" %}<a href="{% url 'sampling:plan' current.plan_revision.plan_id %}">{{ payload.sampling_plan.code }} v{{ payload.sampling_plan.version }}</a> · {{ current.plan_revision.get_basis_display }} · at least {{ payload.sampling_plan.minimum_quantity }} {{ payload.sampling_plan.quantity_unit }}{% endfact %}
-      {% if payload.rules %}{% fact label="Rule set" %}{{ payload.rules.code }} v{{ payload.rules.version }} · requires {{ payload.rules.required_tests|join:", " }}{% endfact %}{% endif %}
+      {% fact label="Sampling plan" %}{% url 'sampling:plan' current.plan_revision.plan_id as plan_url %}{% with v=payload.sampling_plan.version|stringformat:"s" %}{% with plan_code=payload.sampling_plan.code|add:" v"|add:v %}{% code value=plan_code href=plan_url %}{% endwith %}{% endwith %} · {{ current.plan_revision.get_basis_display }} · at least {{ payload.sampling_plan.minimum_quantity }} {{ payload.sampling_plan.quantity_unit }}{% endfact %}
+      {% if payload.rules %}{% fact label="Rule set" %}{% with v=payload.rules.version|stringformat:"s" %}{% with rule_code=payload.rules.code|add:" v"|add:v %}{% code value=rule_code %}{% endwith %}{% endwith %} · requires {{ payload.rules.required_tests|join:", " }}{% endfact %}{% endif %}
       {% if payload.additional_rules %}{% fact label="Additional rule sets" %}{% for rule in payload.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% endfact %}{% endif %}
       {% fact label="Frozen" %}{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time> · <span class="vr-id" title="SHA-256 of the frozen requirements">{{ current.payload_hash|truncatechars:13 }}</span>{% endfact %}
     </dl>
@@ -80,7 +80,7 @@
       <tbody>
         {% for record in records %}
         <tr>
-          <th scope="row">{{ record.sample.reference }}{% if record.purpose == "resample" %}<br><span class="small">Resample of {{ record.resample_of.reference }}</span>{% endif %}{% if record.corrects_id %}<br><span class="small">Corrects record {{ record.corrects_id }}</span>{% endif %}</th>
+          <th scope="row"><span class="vr-id">{{ record.sample.reference }}</span><span class="vr-sub">sampled {{ record.sampled_at|when }}</span>{% if record.purpose == "resample" %}<br><span class="small">Resample of {{ record.resample_of.reference }}</span>{% endif %}{% if record.corrects_id %}<br><span class="small">Corrects record {{ record.corrects_id }}</span>{% endif %}</th>
           <td><time datetime="{{ record.sampled_at|date:'c' }}">{{ record.sampled_at|date:"Y-m-d H:i T" }}</time><br>{{ record.sampled_by.get_full_name|default:record.sampled_by.username }} · {{ record.location }}{% if record.recorded_by_id != record.sampled_by_id %}<br><span class="small">Recorded by {{ record.recorded_by.get_full_name|default:record.recorded_by.username }}</span>{% endif %}</td>
           <td class="text-end">{{ record.containers_sampled }} / {{ record.containers_required }} / {{ record.containers_total }}<br><span class="small">{{ record.container_ids }}</span></td>
           <td>{{ record.quantity.normalize }} {{ record.quantity_unit }}</td>

@@ -5,12 +5,10 @@
 {% block page_actions %}{% if can_receive %}<a class="btn btn-primary" href="{% url 'quality:lot_new' %}">{% icon name="plus-lg" %}New material lot</a>{% endif %}{% endblock %}
 {% block content %}
 {% panel title="Lots" heading_id="lots-heading" table=True hidden_title=True %}
-  {% grid_toolbar label="Filter material lots" q=query search_label="Find lot" search_id="search" placeholder="Lot, supplier lot or manufacturer lot" inline=filters active=filtered grid="quality.lots" %}
+  {% grid_toolbar label="Filter material lots" q=query search_label="Find lot" search_id="search" placeholder="Lot, supplier lot or manufacturer lot" inline=filters active=filtered %}
   {% if can_receive %}{% url 'quality:lot_new' as create_url %}{% endif %}
-  {% list_results items=page_obj noun="material lots" filtered=filtered sizes=True clear_url=request.path empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" no_results_body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="lots-heading" data-vr-grid="quality.lots">
-      <thead><tr><th scope="col" data-vr-col="lot" data-vr-col-locked data-vr-col-label="Lot">Lot</th><th scope="col" data-vr-col="status" data-vr-col-label="Status">Status</th><th scope="col" data-vr-col="material" data-vr-col-label="Material">Material</th><th scope="col" data-vr-col="supplier" data-vr-col-label="Supplier">Supplier</th><th scope="col" data-vr-col="received" data-vr-col-label="Received">Received</th><th scope="col" data-vr-col="route" data-vr-col-label="Where it is">Where it is</th><th scope="col" data-vr-col="rules" data-vr-col-label="Rule set" data-vr-col-priority="low">Rule set</th></tr></thead>
+  {% list_results items=page_obj grid="quality.lots" noun="material lots" filtered=filtered sizes=True clear_url=request.path empty_title="No material lots yet" empty_body="Receive a lot to start the quality journey." action_url=create_url action_label="New material lot" no_results_body="Search covers lot numbers and the supplier and manufacturer lot numbers of the current receipt details. Change the search or the status, or clear the filters." %}
+  {% grid_table grid="quality.lots" columns=columns label="lots-heading" %}
       <tbody>{% for lot in page_obj %}<tr>
         <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
         <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}{% for label, tone in lot.hold_labels %}<br>{% status label=label tone=tone plain=True %}{% endfor %}</td>
@@ -19,8 +17,7 @@
         <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
         <td>{% code value=lot.rules %}</td>
       </tr>{% endfor %}</tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from core.grids import Column
 from core.services import require_role
 
 from . import services
@@ -92,6 +93,16 @@ def form_page(request, form, *, title, crumbs, cancel_url, submit_label, intro="
 # Specifications --------------------------------------------------------------------------------
 
 
+SPECIFICATION_COLUMNS = (
+    Column("specification", "Specification", asc="code", desc="-code", locked=True),
+    Column("material", "Material", asc="material", desc="-material"),
+    Column("stage", "Stage"),
+    Column("scope", "Scope", priority="low"),
+    Column("versions", "Versions", css="text-end", priority="low"),
+    Column("status", "Status"),
+)
+
+
 @login_required
 def specification_list(request):
     read_access(request)
@@ -131,6 +142,7 @@ def specification_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Specifications"),
+            "columns": SPECIFICATION_COLUMNS,
             "page_obj": page(request, specs),
             "query": query,
             "filters": filters,
@@ -390,6 +402,13 @@ def specification_withdraw(request, pk):
 # Methods ---------------------------------------------------------------------------------------
 
 
+METHOD_COLUMNS = (
+    Column("method", "Method", asc="code", desc="-code", locked=True),
+    Column("versions", "Versions", css="text-end", priority="low"),
+    Column("status", "Status"),
+)
+
+
 @login_required
 def method_list(request):
     read_access(request)
@@ -408,6 +427,7 @@ def method_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Methods"),
+            "columns": METHOD_COLUMNS,
             "page_obj": page(request, methods),
             "query": query,
             "sort": sort,
@@ -781,6 +801,14 @@ def calculation_input_remove(request, pk, input_pk):
 # Materials -------------------------------------------------------------------------------------
 
 
+MATERIAL_COLUMNS = (
+    Column("material", "Material", asc="name", desc="-name", locked=True),
+    Column("kind", "Kind"),
+    Column("specifications", "Specifications", css="text-end"),
+    Column("created", "Created", priority="low"),
+)
+
+
 @login_required
 def material_list(request):
     read_access(request)
@@ -800,6 +828,7 @@ def material_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs(request, "Materials"),
+            "columns": MATERIAL_COLUMNS,
             "page_obj": page(request, materials),
             "query": query,
             "sort": sort,

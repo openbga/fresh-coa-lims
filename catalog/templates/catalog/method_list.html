@@ -7,22 +7,18 @@
 {% panel title="Methods" heading_id="list-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter methods" q=query placeholder="Code or title" sort=sort active=filtered %}
   {% if can_edit %}{% url 'catalog:method_new' as create_url %}{% endif %}
-  {% list_results items=page_obj noun="methods" filtered=filtered sizes=True clear_url=request.path empty_title="No methods yet" empty_body="Add the first method and link its controlled procedure and suitability evidence." action_url=create_url action_label="New method" no_results_body="Change or clear the filters." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="list-heading">
-      <thead><tr>{% sort_header label="Method" asc="code" desc="-code" sort=sort %}<th scope="col">Title</th><th scope="col" class="text-end">Versions</th><th scope="col">Status</th></tr></thead>
+  {% list_results items=page_obj grid="catalog.methods" noun="methods" filtered=filtered sizes=True clear_url=request.path empty_title="No methods yet" empty_body="Add the first method and link its controlled procedure and suitability evidence." action_url=create_url action_label="New method" no_results_body="Change or clear the filters." %}
+  {% grid_table grid="catalog.methods" columns=columns sort=sort label="list-heading" %}
       <tbody>
         {% for method in page_obj %}
         <tr>
-          <th scope="row"><a href="{% url 'catalog:method' method.pk %}">{{ method.code }}</a></th>
-          <td>{{ method.title }}</td>
-          <td class="text-end">{{ method.versions }}</td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'catalog:method' method.pk %}">{{ method.code }}</a><span class="vr-sub">{{ method.title }}</span></th>
+          <td class="text-end vr-data">{{ method.versions }}</td>
           <td>{% if method.approved %}{% status label="Has approved version" tone="success" plain=True %}{% else %}{% status label="No approved version" tone="warning" plain=True %}{% endif %}{% if method.drafts %}<br>{% status label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

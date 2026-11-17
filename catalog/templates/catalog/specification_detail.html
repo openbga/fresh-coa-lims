@@ -2,12 +2,13 @@
 {% load ui %}
 {% comment %}A specification: where it applies, its versions and history. Context: page_title, spec, revisions, in_force (the approved version in force now), history, crumbs, can_edit.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li><li>{% material_tag material=spec.material size="lg" %}</li>{% if in_force %}<li>Version <strong>{{ in_force.version }}</strong> in force</li>{% endif %}<li class="vr-muted">{{ spec.get_stage_display }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:specification_version_new' spec.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
 {% block content %}
 {% panel title="Applicability" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts mb-0">
-    {% fact label="Material" value=spec.material %}
+    {% fact label="Title" value=spec.title wide=True %}
+    {% fact label="Material" %}{% material_tag material=spec.material %}{% endfact %}
     {% fact label="Stage" value=spec.get_stage_display %}
     {% fact label="Scope" %}{{ spec.scope }}{% if spec.scope != "general" %} (overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them){% endif %}{% endfact %}
   </dl>

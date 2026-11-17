@@ -9,11 +9,8 @@
   {% grid_toolbar label="Filter audit events" no_search=True inline=filters invalid=filters.errors active=filtered note="Dates include the entire day in the deployment time zone." extra_name="export" extra_value="csv" extra_label="Export filtered CSV" %}
   {% if page.paginator.count %}{% panel_section %}<p class="mb-0">{{ page.paginator.count }} matching event{{ page.paginator.count|pluralize }}. {% if can_review %}Review applies only to the checked events on this page; {% endif %}Filters and CSV exports do not record a review.</p>{% endpanel_section %}{% endif %}
   {% if can_review and page.paginator.count %}<form method="post" aria-label="Record audit review" novalidate>{% csrf_token %}{% endif %}
-  {% list_results items=page noun="audit events" filtered=filtered invalid=filters.errors paginate=False clear_url=request.path empty_title="No audit events recorded yet" no_results_title="No events match these filters" no_results_body="Clear or adjust the filters to inspect other records." %}
-  <div class="vr-table-wrap">
-    <table class="table vr-table align-top">
-      <caption class="visually-hidden">Audit events and previous independent reviews</caption>
-      <thead><tr>{% if can_review %}<th scope="col">Select</th>{% endif %}<th scope="col">Time / actor</th><th scope="col">Action / record</th><th scope="col">Original / new values</th><th scope="col">Reason</th><th scope="col">Review status</th></tr></thead>
+  {% list_results items=page grid="core.audit" noun="audit events" filtered=filtered invalid=filters.errors paginate=False clear_url=request.path empty_title="No audit events recorded yet" no_results_title="No events match these filters" no_results_body="Clear or adjust the filters to inspect other records." %}
+  {% grid_table grid="core.audit" columns=columns label="Audit events and previous independent reviews" caption=True class="align-top" %}
       <tbody>
         {% for event in page %}<tr>
           {% if can_review %}<td>{% if event.actor_id == request.user.pk %}{% row_select disabled=True label="Your own event cannot be reviewed" %}<span class="d-block small">Your event</span>{% else %}{% with pk=event.pk|stringformat:'s' %}{% if pk in selected_ids %}{% row_select name="events" value=pk label="Review event "|add:pk checked=True %}{% else %}{% row_select name="events" value=pk label="Review event "|add:pk %}{% endif %}{% endwith %}{% endif %}</td>{% endif %}
@@ -24,8 +21,7 @@
           <td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|when:"seconds" }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
         </tr>{% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
   {% if can_review and page.paginator.count %}
   {% panel_section rule=True %}

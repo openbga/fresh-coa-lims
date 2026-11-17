@@ -17,6 +17,7 @@ from laboratory.ui import (
     access,
     action,
     cell,
+    critical,
     day,
     external_link,
     form_page,
@@ -789,8 +790,11 @@ def _next_pull(pulls, today):
         return ""
     pull = min(scheduled, key=lambda p: (p.due_date, p.pk))
     due = day(pull.due_date)
-    text = format_html('{} · due <time datetime="{}">{}</time>', pull.timepoint, due, due)
-    return cell(text, pill=_pull_tone(pull, today))
+    detail = format_html('{} · due <time datetime="{}">{}</time>', pull.timepoint, due, due)
+    label, tone = _pull_tone(pull, today)
+    if tone in ("danger", "warning"):  # overdue or due now: the fact that must not hide
+        return critical(label, tone, detail)
+    return cell(detail, pill=(label, tone))
 
 
 def timing_closed(pull, today):
@@ -1192,7 +1196,12 @@ def pull_detail(request, pk):
         ),
         state=status(label, tone),
         facts=[
-            ("Due", status(day(p.due_date), tone) if p.state == "scheduled" else day(p.due_date)),
+            (
+                "Due",
+                critical(label, tone, day(p.due_date))
+                if p.state == "scheduled" and tone in ("danger", "warning")
+                else day(p.due_date),
+            ),
             ("Window", f"{day(p.window[0])} to {day(p.window[1])}"),
             (
                 "Study",
@@ -1941,6 +1950,12 @@ def hold_detail(request, pk):
         crumbs=crumbs(("Holds", reverse("stability:hold_list")), (h.identifier, None)),
         state=_hold_state(h),
         facts=[
+            (
+                "Status",
+                critical("On hold", "hold", "QC disposition and disposal of this lot are blocked.")
+                if h.state == "active"
+                else _hold_state(h),
+            ),
             ("Lot", cell(h.lot.number, reverse("quality:lot_detail", args=[h.lot_id]))),
             (
                 "Reserve sample",
@@ -1949,7 +1964,7 @@ def hold_detail(request, pk):
                 else "",
             ),
             ("Kind", h.get_kind_display()),
-            ("Reference", h.reference),
+            ("Reference", cell(h.reference, code=True) if h.reference else ""),
             ("Reason", h.reason),
             ("Placed by", str(h.placed_by)),
             ("Placed", when(h.placed_at)),
@@ -1962,13 +1977,6 @@ def hold_detail(request, pk):
             else None
         ],
         related=[h],
-        notice={
-            "tone": "warning",
-            "label": "On hold",
-            "text": "QC disposition and disposal of this lot are blocked.",
-        }
-        if h.state == "active"
-        else None,
     )
 
 

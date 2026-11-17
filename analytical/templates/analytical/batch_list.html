@@ -7,11 +7,8 @@
 {% panel title="QC batches" heading_id="batches-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter QC batches" q=query search_label="Find" placeholder="Batch number or method" inline=filters active=filtered %}
   {% if can_create %}{% url 'analytical:batch_new' as create_url %}{% endif %}
-  {% list_results items=page_obj noun="batches" filtered=filtered sizes=True clear_url=request.path empty_title="No QC batches yet" empty_body="Create a batch for an approved batch method, record its QC checks and add tests to it." action_url=create_url action_label="New QC batch" no_results_body="Search covers batch numbers and method codes." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="batches-heading">
-      <caption class="visually-hidden">QC batches, newest first</caption>
-      <thead><tr><th scope="col">Batch</th><th scope="col">QC status</th><th scope="col">Created</th><th scope="col">Created by</th></tr></thead>
+  {% list_results items=page_obj grid="analytical.batches" noun="batches" filtered=filtered sizes=True clear_url=request.path empty_title="No QC batches yet" empty_body="Create a batch for an approved batch method, record its QC checks and add tests to it." action_url=create_url action_label="New QC batch" no_results_body="Search covers batch numbers and method codes." %}
+  {% grid_table grid="analytical.batches" columns=columns sort=sort label="batches-heading" %}
       <tbody>
         {% for b in page_obj %}
         <tr>
@@ -22,8 +19,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

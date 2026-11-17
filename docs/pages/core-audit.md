@@ -41,7 +41,7 @@ Inspect recorded changes, export them, and record an independent review of selec
 - Count line (when events match): "N matching events" and the review scope note.
 - **Events table**: Select (reviewers only), Time / actor, Action / record, Original / new values (expand "Inspect values": each recorded field and its value, exactly as recorded, laid out as labelled lines rather than raw data), Reason, Review status (Reviewed with each reviewer, time and conclusion, or "Not reviewed").
 - **Review conclusion** box and **Record independent review** for quality/auditor users, under the table.
-- **Footer** for all viewers: "Showing X–Y of N audit events" and, with more than one page, first, previous, "Page N of M", next and last page buttons.
+- **Footer** for all viewers: **Columns** (choose and order the columns, saved for your account), "Showing X–Y of N audit events" and, with more than one page, first, previous, "Page N of M", next and last page buttons.
 - Empty: "No events match these filters" with "Clear or adjust the filters to inspect other records." and **Clear filters** when filtered; "These filters cannot be applied" when a filter is invalid; else "No audit events recorded yet".
 
 ## Actions

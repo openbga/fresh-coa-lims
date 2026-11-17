@@ -7,7 +7,7 @@
 {% block content %}
 {% if notice %}{% if notice.tone == "danger" or notice.tone == "warning" %}{% notice tone=notice.tone label=notice.label blocking=True %}{{ notice.text }}{% endnotice %}{% else %}{% notice tone=notice.tone label=notice.label %}{{ notice.text }}{% endnotice %}{% endif %}{% endif %}
 {% panel title="Details" heading_id="facts-heading" class="mb-3" %}
-  <dl class="vr-facts">{% for label, value in facts %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endfor %}</dl>
+  <dl class="vr-facts">{% for label, value in facts %}{% if value.critical %}{% fact label=label critical=value.tone %}{% status label=value.text tone=value.tone %}{% if value.sub %}<small>{{ value.sub }}</small>{% endif %}{% endfact %}{% else %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endif %}{% endfor %}</dl>
 {% endpanel %}
 {% if schedule %}
 {% panel title="Pull schedule" heading_id="schedule-heading" table=True class="mb-3" %}

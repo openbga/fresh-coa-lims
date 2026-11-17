@@ -104,7 +104,7 @@ Scrollbars are thin and inset, so a thumb never touches the neighbouring panel; 
 
 ## Lists, dialogs and notices
 
-Lists fit 1280 and 1440 pixel windows without sideways scrolling. Columns marked low priority are hidden by default below 1366 pixels; the user can show them again under Columns, and the choice is saved for their account. Rows stay within two lines; a shortened value ends in an ellipsis and keeps its full text in a tooltip and for assistive technology.
+Lists fit 1280 and 1440 pixel windows without sideways scrolling, also beside the open help drawer. When a table would not fit its own panel, columns marked low priority give way first, then those marked medium; the table's width decides, not the window's. The user can show them again under Columns, and that choice is saved for their account. Rows stay within two lines; a shortened value ends in an ellipsis and keeps its full text in a tooltip and for assistive technology.
 
 The shared form dialog shows a dedicated form page in place, with the same view, permissions and validation as the full page. Its action row is the dialog's last element; the page header's actions move into the dialog header; history never shows inside the dialog; closing with unsaved changes asks in a confirmation pop-up; Escape inside an open list or picker closes that control, not the dialog. Signing never happens in the form dialog: signatures keep their own signature dialog.
 

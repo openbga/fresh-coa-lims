@@ -6,11 +6,8 @@
 {% panel title="Tests" heading_id="tests-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter tests" q=query search_label="Find" placeholder="Lot, sample, study or test code" inline=filters active=filtered %}
   {% url 'quality:lot_list' as lots_url %}
-  {% list_results items=page_obj noun="tests" filtered=filtered sizes=True clear_url=request.path empty_title="No tests assigned yet" empty_body="Open a quarantined lot's testing page and assign its required tests to a sample, or assign the tests of a stability pull from the pull." action_url=lots_url action_label="Material lots" no_results_body="Search covers lot numbers, sample references, stability study identifiers and test codes." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="tests-heading">
-      <caption class="visually-hidden">Analytical tests, newest first</caption>
-      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Lot</th><th scope="col">Code</th><th scope="col" class="text-end">Reportable</th><th scope="col">Batch</th><th scope="col">Assigned</th></tr></thead>
+  {% list_results items=page_obj grid="analytical.tests" noun="tests" filtered=filtered sizes=True clear_url=request.path empty_title="No tests assigned yet" empty_body="Open a quarantined lot's testing page and assign its required tests to a sample, or assign the tests of a stability pull from the pull." action_url=lots_url action_label="Material lots" no_results_body="Search covers lot numbers, sample references, stability study identifiers and test codes." %}
+  {% grid_table grid="analytical.tests" columns=columns sort=sort label="tests-heading" %}
       <tbody>
         {% for t in page_obj %}
         <tr>
@@ -28,8 +25,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

@@ -67,6 +67,8 @@ def test_lists_fit_beside_the_open_help_drawer(live_server, integrated):
         for name, with_lot in PAGES:
             path = reverse(name, args=[lot.pk] if with_lot else [])
             page.goto(live_server.url + path)
+            if not page.locator("[data-pagedocs-panel]").is_visible():  # open state still saving
+                page.locator(".vr-topbar [data-pagedocs-toggle]").click()
             page.locator("[data-pagedocs-panel]").wait_for()
             page.wait_for_timeout(100)  # the width observers settle
             problems += [f"{path}: {problem}" for problem in page.evaluate(SIDEWAYS)]

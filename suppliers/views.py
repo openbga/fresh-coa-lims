@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from catalog.web import can, form_status, history, page, run, sorted_by
+from core.grids import Column
 from core.services import require_role
 
 from . import services
@@ -21,6 +22,15 @@ CURRENT = Q(receipts__corrected_by__isnull=True)
 
 def read_access(request):
     require_role(request.user, *services.READ_ROLES)
+
+
+SUPPLIER_COLUMNS = (
+    Column("supplier", "Supplier", asc="code", desc="-code", locked=True),
+    Column("location", "Location", priority="medium"),
+    Column("qualification", "Qualification"),
+    Column("lots", "Lots received", css="text-end"),
+    Column("created", "Created", priority="low"),
+)
 
 
 # A supplier's qualifications ranked for its list row: the one that lets results be relied on
@@ -70,6 +80,7 @@ def supplier_list(request):
         "suppliers/list.html",
         {
             "page_title": SECTION,
+            "columns": SUPPLIER_COLUMNS,
             "page_obj": page_obj,
             "query": query,
             "sort": sort,

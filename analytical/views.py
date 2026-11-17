@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from core.grids import paginate
+from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 from quality.models import Lot, Sample
@@ -264,6 +264,17 @@ def mark_supplier_results(tests):
     return tests
 
 
+TEST_COLUMNS = (
+    Column("test", "Test", locked=True),
+    Column("status", "Status"),
+    Column("lot", "Lot"),
+    Column("code", "Code", priority="low"),
+    Column("reportable", "Reportable", css="text-end"),
+    Column("batch", "Batch", priority="low"),
+    Column("assigned", "Assigned", priority="medium"),
+)
+
+
 @login_required
 def test_list(request):
     access(request.user)
@@ -293,11 +304,20 @@ def test_list(request):
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:test_list"),
             "page_obj": page_obj,
+            "columns": TEST_COLUMNS,
             "query": query,
             "filters": filters,
             "filtered": bool(query or state),
         },
     )
+
+
+BATCH_COLUMNS = (
+    Column("batch", "Batch", locked=True),
+    Column("status", "QC status"),
+    Column("created", "Created", priority="medium"),
+    Column("created_by", "Created by", priority="low"),
+)
 
 
 @login_required
@@ -327,12 +347,22 @@ def batch_list(request):
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:batch_list"),
             "page_obj": page,
+            "columns": BATCH_COLUMNS,
             "query": query,
             "filters": filters,
             "filtered": bool(query or state),
             "can_create": "analyst" in roles(request.user),
         },
     )
+
+
+INVESTIGATION_COLUMNS = (
+    Column("investigation", "Investigation", locked=True),
+    Column("status", "Status"),
+    Column("lot", "Lot"),
+    Column("trigger", "Trigger", priority="low"),
+    Column("opened", "Opened", priority="medium"),
+)
 
 
 @login_required
@@ -364,6 +394,7 @@ def investigation_list(request):
         {
             "page_title": "Testing",
             "tabs": tabs(request, "analytical:investigation_list"),
+            "columns": INVESTIGATION_COLUMNS,
             "page_obj": paginate(request, investigations),
             "query": query,
             "filters": filters,

@@ -95,6 +95,8 @@ CASES = {
     "form_dialog": "{% load ui %}{% form_dialog %}",
     "form_page": '{% load ui %}{% form_page form=real_form submit_label="Save" %}'
     "{% endform_page %}",
+    "grid_table": '{% load ui %}{% grid_table grid="quality.lots" columns=no_chips %}'
+    "<tbody></tbody>{% endgrid_table %}",
     "grid_columns_button": '{% load ui %}{% grid_columns_button grid="quality.lots" %}',
     "grid_search": '{% load ui %}{% grid_search value="" %}',
     "grid_toolbar": '{% load ui %}{% grid_toolbar label="Filter lots" inline=real_form %}',

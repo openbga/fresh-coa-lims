@@ -7,10 +7,8 @@
 {% panel title="Accounts" heading_id="accounts-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter accounts" no_search=True inline=filters invalid=filters.errors active=filtered %}
   {% url 'accounts:user_create' as create_url %}
-  {% list_results items=page noun="accounts" filtered=filtered invalid=filters.errors clear_url=request.path empty_title="No accounts found" action_url=create_url action_label="New account" no_results_body="Clear or adjust the filters." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="accounts-heading">
-      <thead><tr><th scope="col">Account</th><th scope="col">Roles</th><th scope="col">Status</th><th scope="col">Two-factor sign-in</th><th scope="col">Last sign-in</th></tr></thead>
+  {% list_results items=page grid="accounts.users" noun="accounts" filtered=filtered invalid=filters.errors clear_url=request.path empty_title="No accounts found" action_url=create_url action_label="New account" no_results_body="Clear or adjust the filters." %}
+  {% grid_table grid="accounts.users" columns=columns label="accounts-heading" %}
       <tbody>
         {% for target in page %}<tr>
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'accounts:user_detail' target.pk %}">{{ target.username }}</a><span class="vr-sub">{{ target.get_full_name|default:"Not supplied" }}{% if target.email %} · {{ target.email }}{% endif %}</span></th>
@@ -20,8 +18,7 @@
           <td>{% if target.last_login %}{{ target.last_login|when }}{% else %}Never signed in{% endif %}</td>
         </tr>{% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

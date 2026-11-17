@@ -344,7 +344,7 @@ COMPONENTS = {
     "panel_section": Component(I + "panel_section.html", ("rule", "class"), body="block"),
     "list_results": Component(
         I + "list_results.html",
-        ("items", "noun", "filtered", "invalid", "clear_url", "paginate", "sizes",
+        ("items", "noun", "filtered", "invalid", "clear_url", "paginate", "sizes", "grid",
          "empty_title", "empty_body", "action_url", "action_label", "no_results_title",
          "no_results_body", "error_body"),
         body="block",
@@ -426,13 +426,18 @@ COMPONENTS = {
          "more", "more_open", "active", "clear_url", "grid", "hidden", "invalid", "chips",
          "sort", "submit_label", "note", "extra_name", "extra_value", "extra_label"),
     ),
+    "grid_table": Component(
+        I + "grid_table.html",
+        ("grid", "version", "columns", "sort", "label", "caption", "class"),
+        body="block",
+    ),
     "grid_columns_button": Component(I + "grid_columns_button.html", ("grid",)),
     "sort_header": Component(
         I + "sort_header.html",
         ("label", "asc", "desc", "first", "sort", "class", "col", "locked", "hidden", "priority"),
     ),
     "pagination": Component(
-        I + "pagination.html", ("page_obj", "noun", "filtered", "sizes"),
+        I + "pagination.html", ("page_obj", "noun", "filtered", "sizes", "grid"),
     ),
     "select_all": Component(I + "select_all.html", ("name", "label", "ready_label")),
     "row_select": Component(

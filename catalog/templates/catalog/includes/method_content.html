@@ -1,10 +1,10 @@
 {% load ui %}{% comment %}The method version being approved (catalog/approve.html). Include with revision=... only.{% endcomment %}
 {% panel title="Content being approved" heading_id="content-heading" class="mb-3" %}
   <dl class="vr-facts mb-0">
-    {% fact label="Method" value=revision.method %}
+    {% fact label="Method" %}{% code value=revision.method.code %}<small>{{ revision.method.title }}</small>{% endfact %}
     {% fact label="Technique" value=revision.technique %}
-    {% fact label="Controlled procedure" value=revision.document_ref %}
-    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {{ revision.suitability_ref }}{% endfact %}
+    {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}
+    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {% code value=revision.suitability_ref %}{% endfact %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
     {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}

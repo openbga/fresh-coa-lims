@@ -508,7 +508,8 @@ def test_pull_labels_match_the_filter_and_the_study_shows_its_next_pull(client, 
     first = min(study.pulls.all(), key=lambda pull: pull.due_date)
     assert "Next pull" in record
     due = first.due_date.isoformat()
-    assert f'due <time datetime="{due}">{due}</time> <span' in record
+    # Overdue: the critical fact, the filled pill with the pull and its due date under it.
+    assert f'due <time datetime="{due}">{due}</time></small>' in record
     assert "</svg>Overdue</span>" in record
     pull = study.pulls.get(timepoint__interval_days=100)
     detail = client.get(reverse("stability:pull_detail", args=[pull.pk])).content.decode()

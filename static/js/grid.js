@@ -69,6 +69,7 @@
         locked: th.hasAttribute("data-vr-col-locked"),
         hiddenByDefault: th.hasAttribute("data-vr-col-hidden"),
         lowPriority: th.getAttribute("data-vr-col-priority") === "low",
+        mediumPriority: th.getAttribute("data-vr-col-priority") === "medium",
       });
     }
     // Locked columns keep their place: leading ones before every movable column, the rest trailing.
@@ -90,7 +91,7 @@
       colReorder: { columns: ":not(.vr-col-locked)" },
     });
 
-    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table), cramped: false };
+    var grid = { table: table, dt: dt, columns: columns, key: storageKey(table), cramped: 0 };
     grids[table.getAttribute("data-vr-grid")] = grid;
     applyLayout(grid, readLayout(grid.key));
     watchWidth(grid);
@@ -144,8 +145,9 @@
     grid.dt.columns.adjust();
   }
 
+  // cramped: 0 the table fits, 1 low-priority columns give way, 2 medium-priority ones too.
   function hiddenByDefault(col, cramped) {
-    return col.hiddenByDefault || (col.lowPriority && Boolean(cramped));
+    return col.hiddenByDefault || (col.lowPriority && cramped >= 1) || (col.mediumPriority && cramped >= 2);
   }
 
   // The scrolling box the table sits in: its width is the room the table has.
@@ -154,18 +156,22 @@
   }
 
   // Without a saved layout, low-priority columns show only while the table fits its frame with
-  // them. Measured with them shown, so the answer never depends on the previous one.
+  // them, and medium-priority ones only while it fits without the low ones. Measured from all
+  // shown, so the answer never depends on the previous one.
   function fit(grid) {
-    if (readLayout(grid.key) || !grid.columns.some(function (col) { return col.lowPriority && !col.hiddenByDefault; })) {
+    if (readLayout(grid.key) || !grid.columns.some(function (col) {
+      return (col.lowPriority || col.mediumPriority) && !col.hiddenByDefault;
+    })) {
       return;
     }
-    grid.cramped = false;
-    applyLayout(grid, null);
     var frame = frameOf(grid);
-    grid.cramped = grid.table.scrollWidth > frame.clientWidth + 1;
-    if (grid.cramped) {
+    for (grid.cramped = 0; grid.cramped <= 2; grid.cramped += 1) {
       applyLayout(grid, null);
+      if (grid.table.scrollWidth <= frame.clientWidth + 1) {
+        return;
+      }
     }
+    grid.cramped = 2; // still too wide: the panel scrolls sideways rather than hide more
   }
 
   // Refit when the frame's width changes (window, help drawer, sidebar), not when its height does.

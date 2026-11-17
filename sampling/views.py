@@ -22,6 +22,7 @@ from catalog.web import (
     sorted_by,
     withdraw_page,
 )
+from core.grids import Column
 from core.models import ElectronicSignature
 from core.services import require_role
 from quality.models import Lot
@@ -117,6 +118,15 @@ def with_choices(conflicts, form_id=""):
     return conflicts
 
 
+LOT_COLUMNS = (
+    Column("lot", "Lot", asc="number", desc="-number", locked=True),
+    Column("material", "Material as received"),
+    Column("lot_status", "Lot status"),
+    Column("requirements", "Requirements"),
+    Column("samples", "Samples", css="text-end", priority="low"),
+)
+
+
 @login_required
 def lot_list(request):
     read_access(request)
@@ -157,6 +167,7 @@ def lot_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs("Lots"),
+            "columns": LOT_COLUMNS,
             "page_obj": page(request, lots),
             "query": query,
             "filters": filters,
@@ -673,6 +684,15 @@ def deviation_assess(request, pk):
 # Plans -----------------------------------------------------------------------------------------
 
 
+PLAN_COLUMNS = (
+    Column("plan", "Plan", asc="code", desc="-code", locked=True),
+    Column("material", "Material"),
+    Column("stage", "Stage"),
+    Column("versions", "Versions", css="text-end", priority="low"),
+    Column("status", "Status"),
+)
+
+
 @login_required
 def plan_list(request):
     read_access(request)
@@ -695,6 +715,7 @@ def plan_list(request):
         {
             "page_title": SECTION,
             "tabs": tabs("Sampling plans"),
+            "columns": PLAN_COLUMNS,
             "page_obj": page(request, plans),
             "query": query,
             "sort": sort,

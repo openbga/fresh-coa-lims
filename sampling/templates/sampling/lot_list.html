@@ -6,23 +6,20 @@
 {% panel title="Lots" heading_id="list-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter lots" q=query placeholder="Lot number or material" inline=filters sort=sort active=filtered %}
   {% url 'quality:lot_list' as lots_url %}
-  {% list_results items=page_obj noun="lots" filtered=filtered sizes=True clear_url=request.path empty_title="No lots received yet" empty_body="Receive a material lot first; it then appears here for requirement assignment and sampling." action_url=lots_url action_label="Go to lots" no_results_body="Change or clear the filters." %}
-  <div class="vr-table-wrap">
-    <table class="table table-hover vr-table" aria-labelledby="list-heading">
-      <thead><tr>{% sort_header label="Lot" asc="number" desc="-number" sort=sort %}<th scope="col">Material as received</th><th scope="col">Lot status</th><th scope="col">Requirements</th><th scope="col" class="text-end">Samples</th></tr></thead>
+  {% list_results items=page_obj grid="sampling.lots" noun="lots" filtered=filtered sizes=True clear_url=request.path empty_title="No lots received yet" empty_body="Receive a material lot first; it then appears here for requirement assignment and sampling." action_url=lots_url action_label="Go to lots" no_results_body="Change or clear the filters." %}
+  {% grid_table grid="sampling.lots" columns=columns sort=sort label="list-heading" %}
       <tbody>
         {% for lot in page_obj %}
         <tr>
-          <th scope="row"><a href="{% url 'sampling:lot' lot.pk %}">{{ lot.number }}</a></th>
-          <td>{{ lot.material }}</td>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'sampling:lot' lot.pk %}">{{ lot.number }}</a></th>
+          <td>{% material_tag material=lot.material size="sm" sub=False %}</td>
           <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}</td>
           <td>{% if lot.requirement_status == "ready" %}{% status label="Assigned" tone="success" plain=True %}{% elif lot.requirement_status == "hold" %}{% status label="Applicability hold" tone="hold" plain=True %}{% else %}{% status label="Not assigned" tone="warning" plain=True %}{% endif %}{% if lot.deviation_pending %}<br>{% status label="Awaiting quality assessment" tone="warning" plain=True %}{% endif %}</td>
-          <td class="text-end">{{ lot.sampled }}</td>
+          <td class="text-end vr-data">{{ lot.sampled }}</td>
         </tr>
         {% endfor %}
       </tbody>
-    </table>
-  </div>
+  {% endgrid_table %}
   {% endlist_results %}
 {% endpanel %}
 {% endblock %}

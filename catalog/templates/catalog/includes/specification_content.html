@@ -1,7 +1,7 @@
 {% load ui %}{% comment %}The specification version being approved (catalog/approve.html). Include with revision=... only.{% endcomment %}
 {% panel title="Content being approved" heading_id="content-heading" class="mb-3" %}
   <dl class="vr-facts">
-    {% fact label="Material" value=revision.specification.material %}
+    {% fact label="Material" %}{% material_tag material=revision.specification.material size="lg" %}{% endfact %}
     {% fact label="Stage and scope" %}{{ revision.specification.get_stage_display }} · {{ revision.specification.scope }}{% endfact %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% fact label="Basis" %}{{ revision.basis|linebreaksbr }}{% endfact %}

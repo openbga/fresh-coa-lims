@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.text import slugify
 
 from core import grids
 from core.models import AuditEvent, ElectronicSignature
@@ -92,12 +93,22 @@ def make_filter(request, choices=None):
 
 
 def cell(
-    text="", href=None, tone=None, numeric=False, link_rel=None, pill=None, sub="", code=False
+    text="",
+    href=None,
+    tone=None,
+    numeric=False,
+    link_rel=None,
+    pill=None,
+    sub="",
+    code=False,
+    critical=False,
 ):
     """One table/fact value. `tone` renders `text` as a status label (text plus glyph; filled for
     the states that must not hide: danger, hold, warning); `pill` (label, tone) adds a status
     label after plain `text` (a clock fact: date, then its state); `code` renders `text` as a code
-    chip; `sub` is a muted second line (an attribute of the value, e.g. a name under a code)."""
+    chip; `sub` is a muted second line (an attribute of the value, e.g. a name under a code).
+    `critical` (a record fact only): the fact that must not hide in its region, shown as a filled
+    status label in its tone with `sub` as the detail line; at most one per region."""
     return {
         "text": text,
         "href": href,
@@ -107,6 +118,7 @@ def cell(
         "pill": pill,
         "sub": sub,
         "code": code,
+        "critical": critical,
     }
 
 
@@ -203,6 +215,11 @@ def status(label, tone="neutral"):
     return cell(label, tone=tone)
 
 
+def critical(label, tone, detail=""):
+    """A critical fact's value: the filled status label, with the identifier or detail under it."""
+    return cell(label, tone=tone, sub=detail, critical=True)
+
+
 def external_link(url, label=None):
     """Untrusted external link: validated http(s) at input; never trusted for navigation."""
     if not url:
@@ -234,6 +251,24 @@ def paginate(request, queryset, sorts, default):
     return page, base, descending
 
 
+def grid_columns(columns):
+    """core.grids.Column for each (label, sort key or None, numeric[, priority]): keys are the
+    labels as slugs (saved in users' column layouts, so a label change bumps the grid version);
+    the first column is the row identifier and stays shown."""
+    return [
+        grids.Column(
+            slugify(label),
+            label,
+            asc=key or "",
+            desc=f"-{key}" if key else "",
+            locked=index == 0,
+            css="text-end" if numeric else "",
+            priority=rest[0] if rest else "",
+        )
+        for index, (label, key, numeric, *rest) in enumerate(columns)
+    ]
+
+
 def list_page(
     request,
     *,
@@ -257,10 +292,8 @@ def list_page(
         "page_title": title,
         "intro": intro,
         "noun": noun,
-        "columns": [
-            {"label": label, "sort": key, "desc": f"-{key}" if key else "", "numeric": numeric}
-            for label, key, numeric in columns
-        ],
+        "columns": grid_columns(columns),
+        "grid": f"{request.resolver_match.namespace}.{request.resolver_match.url_name}",
         "rows": [[wrap(c) for c in row] for row in rows],
         "page_obj": page,
         "sort": f"-{sort}" if descending else sort,

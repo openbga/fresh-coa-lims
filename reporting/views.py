@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
-from core.grids import paginate
+from core.grids import Column, paginate
 from core.models import AuditEvent
 from quality.models import Lot
 
@@ -83,6 +83,14 @@ def failure(exc):
     return "; ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
 
 
+CERTIFICATE_COLUMNS = (
+    Column("certificate", "Certificate", asc="number", desc="-number", locked=True),
+    Column("lot", "Lot", asc="lot", desc="-lot"),
+    Column("issued_to", "Issued to", priority="medium"),
+    Column("status", "Status", asc="status", desc="-status"),
+)
+
+
 @login_required
 @require_GET
 def report_list(request):
@@ -113,6 +121,7 @@ def report_list(request):
         "reporting/report_list.html",
         {
             "page_title": "Certificates of analysis",
+            "columns": CERTIFICATE_COLUMNS,
             "page_obj": paginate(request, reports),
             "query": query,
             "filters": filters,

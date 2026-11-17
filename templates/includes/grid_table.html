@@ -1,0 +1,23 @@
+{% load ui %}{% comment %}
+A list's table with its column header declared once (core.grids.Column, built in the view): the
+header row with sort links ({% sort_header %}) and the data-vr-grid / data-vr-col hooks that
+static/js/grid.js uses to hide, show and reorder columns, saved per user on the server. Give the
+same grid key to {% list_results grid=... %}, which adds the Columns button. Rendered by the
+{% grid_table %} block tag ({% load ui %}); the body is the <tbody> (rows' cells in column order).
+Parameters:
+  grid      the list's key, "<app>.<list>" (preference "grid:<grid>:v<version>")
+  version   bump when the columns change incompatibly (default 1)
+  columns   core.grids.Column list
+  sort      the current sort value
+  label     id of the heading that names the table (aria-labelledby), or caption text with caption=True
+  caption   truthy: label is a visually hidden caption instead of an id
+  class     extra table classes (default "table-hover")
+Usage:
+  {% grid_table grid="quality.lots" columns=columns sort=sort label="lots-heading" %}<tbody>…</tbody>{% endgrid_table %}
+{% endcomment %}<div class="vr-table-wrap">
+  <table class="table {{ class|default:'table-hover' }} vr-table" data-vr-grid="{{ grid }}" data-vr-grid-version="{{ version|default:'1' }}"{% if label and not caption %} aria-labelledby="{{ label }}"{% endif %}>
+    {% if label and caption %}<caption class="visually-hidden">{{ label }}</caption>{% endif %}
+    <thead><tr>{% for col in columns %}{% if col.asc %}{% sort_header label=col.label asc=col.asc desc=col.desc first=col.first sort=sort col=col.key priority=col.priority locked=col.locked class=col.css %}{% else %}<th scope="col" data-vr-col="{{ col.key }}" data-vr-col-label="{{ col.label }}"{% if col.locked %} data-vr-col-locked{% endif %}{% if col.priority %} data-vr-col-priority="{{ col.priority }}"{% endif %}{% if col.css %} class="{{ col.css }}"{% endif %}>{% if col.label_hidden %}<span class="visually-hidden">{{ col.label }}</span>{% else %}{{ col.label }}{% endif %}</th>{% endif %}{% endfor %}</tr></thead>
+    {{ body }}
+  </table>
+</div>

@@ -6,6 +6,7 @@ Parameters:
   page_obj  the Django Page
   noun      plural, e.g. "material lots" (default "records")
   filtered  truthy when filters apply
+  grid      the table's grid key: the Columns button
   sizes     truthy when the view honours ?per_page= (core.grids.paginate): the rows-per-page form,
             core.grids.PageSizeForm's field ({% page_size_field %})
 Usage: {% pagination page_obj=page_obj noun="audit events" filtered=filtered %}
@@ -17,6 +18,7 @@ Usage: {% pagination page_obj=page_obj noun="audit events" filtered=filtered %}
     of <strong>{{ paginator.count }}</strong> {{ noun|default:"records" }}{% if filtered %} matching filters{% endif %}
   </p>
   <div class="d-flex flex-wrap align-items-center gap-3">
+    {% if grid %}{% grid_columns_button grid=grid %}{% endif %}
     {% if sizes %}
     <form class="d-flex align-items-center gap-2" method="get" action="{{ request.path }}">
       {% for key, values in request.GET.lists %}{% if key != "page" and key != "per_page" %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endif %}{% endfor %}

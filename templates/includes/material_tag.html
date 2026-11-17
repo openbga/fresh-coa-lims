@@ -11,4 +11,4 @@ Parameters:
   sub       the sub text; default the material code; False to leave it out
 Usage: {% material_tag material=assignment.material size="lg" %}
        {% material_tag material=lot.material kind=lot.route_material_kind code=lot.route_material_code size="sm" %}
-{% endcomment %}<span class="vr-mtag{% if size == 'lg' %} is-lg{% elif size == 'sm' %} is-sm{% endif %}"{% if data_kind %} data-kind="{{ data_kind }}"{% endif %}><span class="vr-mtag-icon" aria-hidden="true">{% icon name=glyph %}</span><span class="vr-mtag-name">{{ name }}</span>{% if sub %}<span class="vr-mtag-sub">{{ sub }}</span>{% endif %}</span>
+{% endcomment %}<span class="vr-mtag{% if size == 'lg' %} is-lg{% elif size == 'sm' %} is-sm{% endif %}"{% if data_kind %} data-kind="{{ data_kind }}"{% endif %}><span class="vr-mtag-icon" aria-hidden="true">{% icon name=glyph %}</span><span class="vr-mtag-name" title="{{ name }}">{{ name }}</span>{% if sub %}<span class="vr-mtag-sub">{{ sub }}</span>{% endif %}</span>

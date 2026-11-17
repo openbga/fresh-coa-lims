@@ -2220,7 +2220,8 @@ a.vr-navlink[aria-current="page"]:hover {
    table would not fit its own box with them (app.js marks it cramped), so the table fits at 1280
    or beside the help drawer; the record still holds the full data. Lists (data-vr-grid) hide them
    through grid.js, where the user can show them again. */
-.vr-table.vr-table-cramped:not([data-vr-grid]) [data-vr-low] {
+.vr-table.vr-table-cramped:not([data-vr-grid]) [data-vr-low],
+.vr-table.vr-table-cramped-more:not([data-vr-grid]) [data-vr-medium] {
   display: none;
 }
 
@@ -3556,7 +3557,13 @@ dialog > [data-signature-dialog].card {
   height: 18px;
 }
 
-/* In a table the name keeps one line and ends in an ellipsis (the shared tooltip shows it). */
+/* In a table the tag sets a 12rem column: the name keeps one line and ends in an ellipsis; the
+   shared tooltip shows it. */
+.vr-table td > .vr-mtag {
+  display: flex;
+  width: 12rem;
+}
+
 .vr-table .vr-mtag-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3707,6 +3714,13 @@ dialog > [data-signature-dialog].card {
 /* Text hierarchy: in a table only the row's identifier is bold; every other link is regular. */
 .vr-table > tbody > tr > * a:not(.vr-id, .btn, .vr-code a) {
   font-weight: var(--vr-font-weight-regular);
+}
+
+/* A cell with a sub-line (supplier over its lot) may wrap its main text to a second line, so the
+   table fits before anything is cut; the sub-line keeps one line. */
+.vr-table > tbody > tr > td:has(> .vr-sub) {
+  min-width: 8rem;
+  white-space: normal;
 }
 
 .vr-table .vr-sub {

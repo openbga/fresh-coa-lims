@@ -247,9 +247,13 @@
   // app.css hides them; the full data stays on the record. Lists (data-vr-grid) use grid.js.
   function fitLowPriority(table) {
     var frame = table.closest(".vr-table-wrap") || table.parentElement;
-    table.classList.remove("vr-table-cramped");
-    if (table.scrollWidth > frame.clientWidth + 1) {
-      table.classList.add("vr-table-cramped");
+    var fits = function () { return table.scrollWidth <= frame.clientWidth + 1; };
+    table.classList.remove("vr-table-cramped", "vr-table-cramped-more");
+    if (!fits()) {
+      table.classList.add("vr-table-cramped"); // low-priority columns give way
+      if (!fits()) {
+        table.classList.add("vr-table-cramped-more"); // then medium-priority ones
+      }
     }
   }
 
@@ -276,14 +280,19 @@
       }
       var low = [];
       var position = 0;
+      var medium = [];
       Array.from(head.cells).forEach(function (cell) {
-        if (cell.getAttribute("data-vr-col-priority") === "low") {
+        var priority = cell.getAttribute("data-vr-col-priority");
+        if (priority === "low") {
           low.push(position);
           cell.setAttribute("data-vr-low", "");
+        } else if (priority === "medium") {
+          medium.push(position);
+          cell.setAttribute("data-vr-medium", "");
         }
         position += cell.colSpan || 1;
       });
-      if (!low.length) {
+      if (!low.length && !medium.length) {
         return;
       }
       table.dataset.vrPriorityReady = "true";
@@ -293,6 +302,8 @@
           Array.from(row.cells).forEach(function (cell) {
             if ((cell.colSpan || 1) === 1 && low.indexOf(column) !== -1) {
               cell.setAttribute("data-vr-low", "");
+            } else if ((cell.colSpan || 1) === 1 && medium.indexOf(column) !== -1) {
+              cell.setAttribute("data-vr-medium", "");
             }
             column += cell.colSpan || 1;
           });

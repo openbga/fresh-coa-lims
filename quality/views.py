@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.services import ROLES
 from catalog.web import form_status, run
-from core.grids import paginate
+from core.grids import Column, paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, require_role
 
@@ -39,6 +39,18 @@ RECEIPT_LABELS = (
 
 def access(user):
     require_role(user, "analyst", "reviewer", "quality", "admin", "auditor")
+
+
+# The material lot list's columns (core.grids.Column; keys are saved in users' layouts).
+LOT_COLUMNS = (
+    Column("lot", "Lot", locked=True),
+    Column("status", "Status"),
+    Column("material", "Material"),
+    Column("supplier", "Supplier", priority="medium"),
+    Column("received", "Received", priority="medium"),
+    Column("route", "Where it is"),
+    Column("rules", "Rule set", priority="low"),
+)
 
 
 class LotFilterForm(forms.Form):
@@ -88,6 +100,7 @@ def lot_list(request):
         {
             "page_title": "Material lots",
             "page_obj": page_obj,
+            "columns": LOT_COLUMNS,
             "query": query,
             "filters": filters,
             "filtered": bool(query or state),

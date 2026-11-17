@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import PINForm, RuleForm, SignForm
+from .grids import Column
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
     AUDIT_READ_ROLES,
@@ -152,6 +153,17 @@ def rule_approve(request, pk):
             "retires": retires,
         },
     )
+
+
+# The audit trail's columns (core.grids.Column; keys are saved in users' layouts).
+AUDIT_COLUMNS = (
+    Column("select", "Select", locked=True),
+    Column("time", "Time / actor", locked=True),
+    Column("action", "Action / record"),
+    Column("values", "Original / new values"),
+    Column("reason", "Reason"),
+    Column("review", "Review status"),
+)
 
 
 @login_required
@@ -306,6 +318,11 @@ def audit(request):
             "filters": filters,
             "error": error,
             "page_title": "Audit trail",
+            "columns": tuple(
+                column
+                for column in AUDIT_COLUMNS
+                if can_review or column.key != "select"  # only reviewers select events
+            ),
             "review_form": AuditReviewForm(initial={"conclusion": conclusion}),
             "selected_ids": selected_ids,
             "base_query": base_query,

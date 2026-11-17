@@ -10,6 +10,7 @@ Parameters:
   invalid        truthy when the filter form is invalid: the error state, even when items has rows
   clear_url      URL without filters, for Clear filters (default: no button)
   paginate       False to leave out the footer for a Page
+  grid           the table's grid key ({% grid_table grid=... %}): the Columns button in the foot
   sizes          truthy when the view honours ?per_page= (core.grids.paginate): rows per page
   empty_title, empty_body          the empty state (nothing exists yet)
   action_url, action_label         its create action; give action_url only to users who may create
@@ -22,6 +23,6 @@ Usage:
 {% endcomment %}
 {% load ui %}{% if invalid %}{% firstof error_body "Correct the highlighted filter above. No results are shown until every filter is valid." as error_text %}{% empty_state kind="error" title="These filters cannot be applied" body=error_text clear_url=clear_url %}
 {% elif has_rows %}{{ body }}
-{% if paginated %}{% pagination page_obj=items noun=noun filtered=filtered sizes=sizes %}{% endif %}
+{% if paginated %}{% pagination page_obj=items noun=noun filtered=filtered sizes=sizes grid=grid %}{% elif grid %}<div class="vr-table-footer">{% grid_columns_button grid=grid %}</div>{% endif %}
 {% elif filtered %}{% firstof noun "records" as plural %}{% firstof no_results_title "No "|add:plural|add:" match these filters" as nr_title %}{% firstof no_results_body "Check the spelling or clear the filters." as nr_body %}{% empty_state kind="no-results" title=nr_title body=nr_body clear_url=clear_url %}
 {% else %}{% empty_state kind="empty" title=empty_title body=empty_body action_url=action_url action_label=action_label %}{% endif %}
