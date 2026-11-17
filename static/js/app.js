@@ -349,6 +349,7 @@
   // that ends in an ellipsis, or a value clamped to two lines, gains a title (controls.js turns
   // titles into the shared tooltip) while it is shortened. The full text stays in the DOM.
   var TRUNCATED = ".vr-table .vr-sub, .vr-table .vr-clip-main, .vr-table .vr-clamp, .vr-table .text-truncate, " +
+    ".vr-table .vr-code, " +
     ".vr-facts .vr-fact-truncate";
 
   function tipTruncated(scope) {

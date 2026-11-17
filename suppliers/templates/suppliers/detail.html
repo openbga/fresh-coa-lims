@@ -18,7 +18,7 @@
   {% if qualifications %}
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="qualifications-heading">
-      <thead><tr><th scope="col">Qualification</th><th scope="col">Material</th><th scope="col">Tests covered</th><th scope="col">Valid from</th><th scope="col">Valid until (inclusive)</th><th scope="col">Evidence</th><th scope="col">State</th></tr></thead>
+      <thead><tr><th scope="col">Qualification</th><th scope="col">Material</th><th scope="col" data-vr-col-priority="medium">Tests covered</th><th scope="col" data-vr-col-priority="low">Valid from</th><th scope="col">Valid until (inclusive)</th><th scope="col" data-vr-col-priority="low">Evidence</th><th scope="col">State</th></tr></thead>
       <tbody>
         {% for row in qualifications %}
         <tr>

@@ -872,10 +872,10 @@ def study_detail(request, pk):
                 [
                     ("Timepoint", False),
                     ("Due", False),
-                    ("Window", False),
+                    ("Window", False, "low"),
                     ("Status", False),
-                    ("Tests", False),
-                    ("Pulled by", False),
+                    ("Tests", False, "low"),
+                    ("Pulled by", False, "medium"),
                     ("Next", False),
                 ],
                 [_pull_row(p, user, today) for p in pulls],
@@ -1178,7 +1178,7 @@ def pull_detail(request, pk):
             section(
                 "Tests",
                 [("Status", False)],
-                [[status(unassigned, "warning")]],
+                [[cell(unassigned, wrap=True)]],
                 "",
                 note="This pull is not tested in the system.",
             )
@@ -1199,7 +1199,7 @@ def pull_detail(request, pk):
             section(
                 "Testing evidence",
                 [("Status", False)],
-                [[status(b, "warning")] for b in blockers]
+                [[cell(b, wrap=True)] for b in blockers]
                 or [[status("Required tests reviewed and conforming", "success")]],
                 "",
                 note="Acceptance requires every required test reviewed, conforming and free of "
@@ -1331,8 +1331,8 @@ def _tests_section(pull, rows, blockers, outcome):
         [
             ("Test", False),
             ("Result and status", False),
-            ("Acceptance criterion", False),
-            ("Kind", False),
+            ("Acceptance criterion", False, "medium"),
+            ("Kind", False, "low"),
         ],
         table,
         "",
@@ -1794,7 +1794,7 @@ def reserve_detail(request, pk):
             section(
                 "Disposal readiness",
                 [("Blocking reason", False)],
-                [[status(b, "warning")] for b in blockers],
+                [[cell(b, wrap=True)] for b in blockers],
                 "Nothing currently blocks disposal. No disposal action exists in this system yet.",
             ),
         ],

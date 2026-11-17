@@ -124,6 +124,18 @@
     }
   }
 
+  // From 1280px a table fits its panel: low- and medium-priority columns give way first, long text
+  // wraps or truncates with a tooltip. Only an entry grid (a table of inputs) may scroll sideways.
+  if (window.innerWidth >= 1280) {
+    for (const wrap of document.querySelectorAll('.vr-main .vr-table-wrap')) {
+      if (!visible(wrap) || wrap.querySelector('input:not([type=hidden]), select, textarea')) continue;
+      if (wrap.scrollWidth > wrap.clientWidth + tolerance) {
+        const heads = [...wrap.querySelectorAll('thead th')].map(th => `${th.textContent.trim()} ${Math.round(th.getBoundingClientRect().width)}`);
+        problems.push(`table scrolls sideways at ${window.innerWidth}px (${wrap.scrollWidth}px in ${wrap.clientWidth}px): ${heads.join(', ').slice(0, 160)}`);
+      }
+    }
+  }
+
   // Collapsible panels, closed: the head's title sits with the same inset above and below.
   for (const details of document.querySelectorAll('details.card')) {
     if (!visible(details)) continue;

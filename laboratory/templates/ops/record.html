@@ -22,8 +22,8 @@
   {% if section.note %}<p class="vr-muted mb-2">{{ section.note }}</p>{% endif %}
   {% list_results items=section.rows empty_title=section.empty %}
   <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="{{ heading_id }}">
-    <thead><tr>{% for column in section.columns %}<th scope="col"{% if column.1 %} class="text-end"{% endif %}>{{ column.0 }}</th>{% endfor %}</tr></thead>
-    <tbody>{% for row in section.rows %}<tr>{% for cell in row %}{% if forloop.first %}<th scope="row">{% include "ops/_cell.html" with cell=cell only %}</th>{% else %}<td{% if cell.numeric %} class="text-end"{% endif %}>{% include "ops/_cell.html" with cell=cell only %}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+    <thead><tr>{% for column in section.columns %}<th scope="col"{% if column.1 %} class="text-end"{% endif %}{% if column.2 %} data-vr-col-priority="{{ column.2 }}"{% endif %}>{{ column.0 }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in section.rows %}<tr>{% for cell in row %}{% if forloop.first %}<th scope="row"{% if cell.wrap %} class="vr-wrap"{% endif %}>{% include "ops/_cell.html" with cell=cell only %}</th>{% else %}<td{% if cell.numeric %} class="text-end"{% elif cell.wrap %} class="vr-wrap"{% endif %}>{% include "ops/_cell.html" with cell=cell only %}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
   </table></div>
   {% endlist_results %}
 {% endpanel %}

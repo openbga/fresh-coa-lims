@@ -104,6 +104,7 @@ def cell(
     code=False,
     critical=False,
     muted=False,
+    wrap=False,
 ):
     """One table/fact value. `tone` renders `text` as a status label (text plus glyph; filled for
     the states that must not hide: danger, hold, warning); `pill` (label, tone) adds a status
@@ -122,6 +123,7 @@ def cell(
         "code": code,
         "critical": critical,
         "muted": muted,
+        "wrap": wrap,
     }
 
 
@@ -458,7 +460,9 @@ def record_page(
 
 
 def section(title, columns, rows, empty, note=""):
-    """`columns`: list of (label, numeric)."""
+    """`columns`: list of (label, numeric) or (label, numeric, priority): "low", then "medium",
+    give way first when the table does not fit its panel (static/js/app.js), so the record's
+    status column stays in view."""
     return {
         "title": title,
         "columns": columns,

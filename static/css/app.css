@@ -3562,8 +3562,9 @@ dialog > [data-signature-dialog].card {
 /* Material tag: a kind-coloured icon tile, the name and an optional sub-line. */
 .vr-mtag {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--vr-space-2);
+  gap: var(--vr-space-1) var(--vr-space-2);
   min-width: 0;
   max-width: 100%;
   vertical-align: middle;
@@ -3615,6 +3616,9 @@ dialog > [data-signature-dialog].card {
 .vr-mtag-sub {
   color: var(--vr-text-muted);
   font-size: var(--vr-font-size-3);
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap; /* a code never breaks: when short of room it moves under the name */
 }
 
 .vr-mtag.is-lg .vr-mtag-icon {
@@ -3678,6 +3682,15 @@ dialog > [data-signature-dialog].card {
 .vr-code a:hover {
   color: var(--vr-pen-hover);
   text-decoration: underline;
+}
+
+/* In a table a long code (a hash, a reference) keeps one line and ends in an ellipsis at 16
+   characters; app.js gives a shortened one its full text as a tooltip. */
+.vr-table .vr-code {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
 }
 
 :is(.vr-sub, .vr-facts dd small) .vr-code {
