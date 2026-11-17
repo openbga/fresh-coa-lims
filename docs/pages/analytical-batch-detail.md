@@ -4,7 +4,7 @@ urls: analytical:batch_detail
 views: analytical.views.batch_detail
 templates: analytical/batch_detail.html, analytical/_resources.html, analytical/_history.html, analytical/_qc_status.html, analytical/_test_status.html
 models: analytical.QCBatch, analytical.QCResult, analytical.AnalyticalTest, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -36,7 +36,7 @@ One QC batch: its method's QC checks and results, the tests run in it, and rejec
 | **Reject batch** | Batch Open and QC failed | Reviewer | Opens the signing page |
 | Test links | Rows present | Any viewer | Open the test |
 
-Frozen means the batch is not Open or a test in it has been submitted: any test that has left Open, except one superseded before it was ever submitted. A test superseded after submission (Awaiting review or Reviewed when the lot's requirements were replaced) keeps the QC frozen, because its result relied on the QC as it stood.
+Frozen means the batch is not Open or a test in it has been submitted: any test that has left Open, except one superseded before it was ever submitted or recorded as not completed (it was never submitted). A test superseded after submission (Awaiting review or Reviewed when the lot's requirements were replaced) keeps the QC frozen, because its result relied on the QC as it stood.
 
 ## Fields
 
@@ -53,8 +53,8 @@ Frozen means the batch is not Open or a test in it has been submitted: any test 
 - **Batch QC status**: Failed if any current check fails; Incomplete if any check is unrecorded; else Passed. Only Passed lets tests be submitted or reviewed.
 - **Bench checks**: recording and correcting QC check the analyst's qualification for the batch method and the selected equipment and lots (see Record QC result).
 - **Corrections** never overwrite; the original stays in the corrections list.
-- **Rejection** invalidates the batch's tests with linked reruns, except Superseded tests, which stay as they are; see Reject QC batch.
-- **Superseded tests** stay listed with the status "Superseded · requirements replaced".
+- **Rejection** invalidates the batch's tests with linked reruns, except Superseded and Not completed tests, which stay as they are; see Reject QC batch.
+- **Superseded tests** stay listed with the status "Superseded · requirements replaced"; so do tests recorded as not completed ("Not completed"). Such a test does not fix the batch's QC and does not block adding tests to it.
 - Method and QC limits come from the approved method revision frozen at creation. Not enforced by this page: whether the limits are scientifically right.
 
 ## Related pages

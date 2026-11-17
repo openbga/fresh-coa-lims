@@ -25,6 +25,7 @@ TEST_STATES = {
     "reviewed": "Reviewed",
     "invalidated": "Invalidated",
     "superseded": "Superseded",
+    "not_completed": "Not completed",
 }
 
 MODES = {

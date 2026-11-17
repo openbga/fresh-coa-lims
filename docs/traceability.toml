@@ -125,17 +125,20 @@
 ]
 "OQ-008" = [
     "analytical/tests/test_contract_results.py",
+    "analytical/tests/test_not_completed.py",
     "analytical/tests/test_replacement.py",
     "analytical/tests/test_result_types.py",
     "analytical/tests/test_services.py",
     "analytical/tests/test_views.py",
     "e2e/test_stability_testing_journey.py",
+    "e2e/test_test_not_completed_journey.py",
     "stability/tests/test_testing.py",
     "tests/test_integrated_journey.py",
     "tests/test_journey.py",
     "tests/test_result_types_journey.py",
     "tests/test_revised_versions_in_progress.py",
     "tests/test_stability_testing.py",
+    "tests/test_test_not_completed.py",
 ]
 "OQ-009" = [
     "analytical/tests/test_replacement.py",
@@ -144,6 +147,7 @@
     "e2e/test_lot_rejection_journey.py",
     "e2e/test_requirement_applicability_journey.py",
     "e2e/test_requirement_replacement_journey.py",
+    "e2e/test_test_not_completed_journey.py",
     "e2e/test_workflow_guards.py",
     "reporting/tests/test_evidence.py",
     "sampling/tests/test_gate.py",
@@ -154,6 +158,7 @@
     "tests/test_requirement_applicability.py",
     "tests/test_requirement_applicability_views.py",
     "tests/test_requirement_replacement.py",
+    "tests/test_test_not_completed.py",
 ]
 "OQ-010" = [
     "e2e/test_contract_laboratory_journey.py",

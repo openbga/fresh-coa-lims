@@ -30,7 +30,7 @@ from .contracts import content_hash, parse_requirement
 from .models import AnalyticalTest, Investigation, Observation, RawDataFile
 
 STATE = AnalyticalTest.State
-CLOSED = (STATE.INVALIDATED, STATE.SUPERSEDED)
+CLOSED = (STATE.INVALIDATED, STATE.SUPERSEDED, STATE.NOT_COMPLETED)
 CARRIED, SUPERSEDED = "carried", "superseded"
 CHANGED, DROPPED = "changed", "not_required"
 STALE = "The lot's tests changed after the replacement was prepared. Reload and review it again."
@@ -56,7 +56,8 @@ def effects(lot, requirements, tests=None):
     """One row per test of the lot that is still open, awaiting review or reviewed: whether it
     carries over or is superseded under ``requirements`` ({code: payload}), and why.
 
-    Tests already invalidated or superseded are closed and are not listed.
+    Tests already invalidated, superseded or recorded as not completed are closed and are not
+    listed.
     """
     current = {code: content_hash(payload) for code, payload in requirements.items()}
     if tests is None:
@@ -109,8 +110,9 @@ def refusals(lot, rows):
     ]
     reasons.extend(
         f"{row['label']} {row['test_code']} holds results or raw-data files that were not "
-        "submitted, and its requirement would change. Complete and submit it first, so that "
-        "what was recorded is evaluated against the requirement it was tested under."
+        "submitted, and its requirement would change. Complete and submit it first, or have "
+        "quality record that it cannot be completed, so that what was recorded is evaluated "
+        "against the requirement it was tested under."
         for row in rows
         if row["effect"] == SUPERSEDED and row["state"] == STATE.OPEN and row["has_results"]
     )

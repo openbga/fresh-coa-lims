@@ -97,21 +97,20 @@ def _tests(lot):
     tests = list(
         AnalyticalTest.objects.filter(lot_id=lot.pk).select_related("sample").order_by("pk")
     )
-    # Results recorded on an open test were never evaluated. Each one is compared on its own
-    # with the test's frozen requirement, as batch rejection does, so that one outside its
-    # limits is never set aside unseen.
-    by_pk = {test.pk: test for test in tests}
-    unsubmitted = {test.pk: ([], []) for test in tests if test.state == "open"}
-    specs = {}
-    for observation in current.filter(test_id__in=unsubmitted).order_by("test_id", "pk"):
-        test = by_pk[observation.test_id]
-        if test.pk not in specs:
-            specs[test.pk] = test.spec
-        spec = specs[test.pk]
-        recorded, outside = unsubmitted[test.pk]
-        recorded.append(observation.value_text)
-        if not spec.conforms(observation.reading):
-            outside.append(observation.value_text)
+    # Results recorded on an open test were never evaluated. They are judged as batch rejection
+    # and the record that a test cannot be completed judge them (``outside_limits``), so that
+    # one outside its limits is never set aside unseen. A test recorded as not completed shows
+    # the readings its record froze.
+    from analytical.services import outside_limits
+
+    unsubmitted = {}
+    for test in tests:
+        if test.state == "open" and test.pk in worked:
+            recorded = [o.value_text for o in test.current_observations()]
+            unsubmitted[test.pk] = (recorded, outside_limits(test))
+        elif test.state == "not_completed":
+            record = test.not_completed_record
+            unsubmitted[test.pk] = (record["recorded"], record["outside_limits"])
     # A raw-data file is not a result: it is kept with the test and evaluated by nobody, so the
     # signer sees that it is there.
     files = set(RawDataFile.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True))
@@ -236,10 +235,11 @@ def rejection_preview(lot):
     ]
     reasons += [
         f"{row['label']} {row['test_code']} holds a result outside its limits that was not "
-        f"submitted ({', '.join(row['outside_limits'])}). Submit it first, so that it is "
-        "evaluated and investigated."
+        f"submitted ({', '.join(row['outside_limits'])}). Submit it first or, if the test "
+        "cannot be completed, record that on the test, which opens an investigation, so that "
+        "the result is evaluated and investigated."
         for row in tests
-        if row["outside_limits"]
+        if row["state"] == "open" and row["outside_limits"]
     ]
     evidence = {
         "requirements": _requirements(lot),

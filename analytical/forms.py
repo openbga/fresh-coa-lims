@@ -443,6 +443,79 @@ class RetestForm(SigningForm):
             self.fields["sample"].queryset = samples
 
 
+class NotCompletedForm(SigningForm):
+    """Signed record that an open test cannot be completed. ``repeat`` and ``sample`` are
+    offered only when the test is repeated (``repeated``): a test of an investigation, or one
+    holding readings outside its limits, is left to the investigation."""
+
+    cause = forms.ChoiceField(
+        label="Cause",
+        choices=[("", "Choose the cause")] + AnalyticalTest.NotCompletedCause.choices,
+    )
+    repeat = forms.ChoiceField(
+        label="Repeat the test",
+        choices=[
+            ("same", "On the same sample"),
+            ("sample", "On another sample of the lot"),
+        ],
+        widget=forms.RadioSelect,
+    )
+    sample = forms.ModelChoiceField(
+        label="Sample for the repeat",
+        queryset=None,
+        required=False,
+        help_text="Only for a repeat on another sample: a sample of this lot recorded after this "
+        "test was assigned, holding no tests of its own and standing in for no other sample. It "
+        "then stands in for this test's sample, and the lot no longer requires tests of its own "
+        "on it: choose the replacement sample, not another routine one.",
+    )
+    reason = _reason(
+        "Why the test cannot be completed",
+        "What happened and where it is recorded, for example a deviation number.",
+    )
+
+    field_order = [
+        "cause",
+        "repeat",
+        "sample",
+        "reason",
+        "signature_username",
+        "pin",
+        "expected_revision",
+    ]
+
+    def __init__(self, *args, repeated, samples, **kwargs):
+        """``samples`` are the samples a repeat may use, or ``None`` for a stability pull's
+        test, which is repeated on the material pulled."""
+        super().__init__(*args, **kwargs)
+        if not repeated:
+            del self.fields["repeat"]
+            del self.fields["sample"]
+        elif samples is None:
+            del self.fields["sample"]
+            self.fields["repeat"].choices = [("same", "On the material that was pulled")]
+            self.fields["repeat"].initial = "same"
+        else:
+            self.fields["sample"].queryset = samples
+            if not samples.exists():
+                self.fields["repeat"].choices = [("same", "On the same sample")]
+                self.fields["repeat"].initial = "same"
+                self.fields[
+                    "repeat"
+                ].help_text = (
+                    "To repeat it on another sample, record a new sample of the lot first."
+                )
+                del self.fields["sample"]
+
+    def clean(self):
+        data = super().clean()
+        if data.get("repeat") == "sample" and not data.get("sample"):
+            self.add_error("sample", "Choose the sample the test is repeated on.")
+        if data.get("repeat") != "sample":
+            data["sample"] = None
+        return data
+
+
 class ConcludeForm(SigningForm):
     outcome = forms.ChoiceField(
         label="Outcome", choices=Investigation.Outcome.choices, widget=forms.RadioSelect

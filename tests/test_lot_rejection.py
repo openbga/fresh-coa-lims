@@ -257,7 +257,8 @@ def test_a_result_outside_its_limits_is_submitted_before_the_lot_is_rejected(wor
     preview = rejection.rejection_preview(fresh(world))
     assert preview.reasons == [
         f"{assay.label} assay holds a result outside its limits that was not submitted "
-        "(96.00). Submit it first, so that it is evaluated and investigated."
+        "(96.00). Submit it first or, if the test cannot be completed, record that on the test, "
+        "which opens an investigation, so that the result is evaluated and investigated."
     ]
     with pytest.raises(ValidationError, match="outside its limits that was not submitted"):
         reject(world)
