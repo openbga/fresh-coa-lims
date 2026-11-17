@@ -9,10 +9,12 @@ import zipfile
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.db import connection
+from django.db import DatabaseError, connection
 
 from analytical import services as analytical
 from quality.models import Lot
@@ -151,6 +153,8 @@ def test_every_journey_passes_and_its_evidence_checks_out(tmp_path, captured_sec
             texts.append(path.read_bytes().decode("latin-1"))
     for secret in captured_secrets:
         assert not any(secret in text for text in texts)
+    # Nor any stored hash of them.
+    assert not any("pbkdf2_sha256$" in text for text in texts)
     assert "Acceptance journeys passed" in stdout
 
 
@@ -172,6 +176,29 @@ def test_a_broken_control_fails_its_step_and_the_run(tmp_path, monkeypatch):
     assert passing[-1]["outcome"] == "failed"  # The journey stopped at the failed step.
     sums_check(tmp_path / "run")
     assert 'class="failed"' in (tmp_path / "run" / "report.html").read_text()
+
+
+def test_a_failed_configuration_runs_no_journey(tmp_path, monkeypatch):
+    def refused(**kwargs):
+        raise ValidationError("synthetic configuration failure")
+
+    monkeypatch.setattr(acceptance.catalog, "create_material", refused)
+    with pytest.raises(CommandError, match="Acceptance journeys failed"):
+        run(tmp_path)
+    report = json.loads((tmp_path / "run" / "report.json").read_text())
+    assert report["configuration"]["outcome"] == "failed"
+    assert report["configuration"]["steps"][-1]["observed"] == (
+        "ValidationError: synthetic configuration failure"
+    )
+    assert {j["outcome"] for j in report["journeys"]} == {"not run"}
+    assert not Lot.objects.exists()
+    sums_check(tmp_path / "run")
+
+
+def test_error_text_never_carries_a_stored_hash():
+    stored = make_password("synthetic-secret-x9")
+    text = acceptance.message_of(DatabaseError(f"Failing row contains (7, {stored}, 0)."))
+    assert stored not in text and "Failing row contains" in text
 
 
 def test_refuses_a_database_that_holds_any_account(tmp_path):

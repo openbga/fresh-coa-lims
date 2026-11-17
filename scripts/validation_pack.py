@@ -746,8 +746,9 @@ def _html(summary, evidence, untraced, descriptions):
         )
         database = journeys["environment"].get("database") or {}
         acceptance = (
-            f"<p>Run with the application image of this commit on a new database "
-            f"(PostgreSQL {e(str(database.get('server_version', '')))}): "
+            f"<p>Run on this commit in a new database "
+            f"(PostgreSQL {e(str(database.get('server_version', '')))}; CI runs it with the "
+            "application image): "
             f"<strong class='{e(str(journeys['outcome']))}'>{e(str(journeys['outcome']))}"
             f"</strong>, {e(str(steps.get('steps_passed')))} of {e(str(steps.get('steps')))} "
             "steps passed. The steps, what each expected and observed, the lot records and "

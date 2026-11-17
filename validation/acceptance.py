@@ -296,6 +296,7 @@ class AcceptanceRun:
 
     def run(self):
         """Run everything; return True when every step passed."""
+        self.where = self.environment()  # Where the run ran, read before anything can fail.
         self.current = self.setup
         self.counter = 0
         self.log("Synthetic configuration")
@@ -317,8 +318,9 @@ class AcceptanceRun:
         except JourneyStopped:
             journey.outcome = "failed"
         except Exception as error:
-            self.log(mask_password_hashes(traceback.format_exc()))
             index = self.journeys.index(journey) + 1 if journey in self.journeys else 0
+            self.log(f"  FAILED {index}.{self.counter + 1} outside a step: {message_of(error)}")
+            self.log(mask_password_hashes(traceback.format_exc()))
             journey.steps.append(
                 Step(
                     f"{index}.{self.counter + 1}",
@@ -817,7 +819,7 @@ class AcceptanceRun:
             "Record the assay without a value",
             expected="Refused: a numeric result needs a value",
             requirements=("OQ-007",),
-            match=r"value|number|required|enter",
+            match=r"enter the observed value",
             call=unread,
         )
         with self.step(
@@ -834,7 +836,7 @@ class AcceptanceRun:
             "The analyst reviews their own result",
             expected="Refused: no one reviews their own data",
             requirements=("OQ-004", "OQ-007"),
-            match=r"own",
+            match=r"cannot review your own",
             call=lambda: analytical.review_test(
                 actor=self.people["analyst"],
                 pin=self.pin("analyst"),
@@ -890,7 +892,7 @@ class AcceptanceRun:
             "The receiver, who also holds the quality role, signs the QC disposition",
             expected="Refused: whoever made the lot's records cannot dispose of it",
             requirements=("OQ-004", "OQ-009"),
-            match=r"own receipt",
+            match=r"cannot disposition a lot containing your own receipt",
             call=lambda: self.dispose(lot, who="receiver"),
         )
         with self.step(
@@ -978,7 +980,7 @@ class AcceptanceRun:
             "Quality rejects the lot while the investigation is open",
             expected="Refused: the failure is investigated and concluded first",
             requirements=("OQ-008", "OQ-009"),
-            match=r"investigation",
+            match=r"INV-\d+ is open\. Conclude it before the lot is rejected",
             call=lambda: self.reject(lot, grounds="results"),
         )
         with self.step(
@@ -1087,7 +1089,7 @@ class AcceptanceRun:
             "Assign requirements to the rejected lot to sample it again",
             expected="Refused: a rejected lot takes no more records",
             requirements=("OQ-009", "OQ-006"),
-            match=r"quarantine|rejected|closed",
+            match=r"only quarantined lots",
             call=lambda: self.sample(Lot.objects.get(pk=lot.pk)),
         )
         self.export(journey, lot)
@@ -1214,7 +1216,7 @@ class AcceptanceRun:
             "The receiver, who also holds the quality role, rejects the lot",
             expected="Refused: whoever made the lot's records cannot reject it",
             requirements=("OQ-004", "OQ-009"),
-            match=r"own|records",
+            match=r"cannot reject a lot containing your own receipt",
             call=lambda: self.reject(lot, grounds="receipt", who="receiver"),
         )
         with self.step(
@@ -1235,21 +1237,21 @@ class AcceptanceRun:
             "Assign requirements to the rejected lot",
             expected="Refused: a rejected lot takes no more records",
             requirements=("OQ-009",),
-            match=r"quarantine|rejected|closed",
+            match=r"only quarantined lots",
             call=lambda: self.sample(Lot.objects.get(pk=lot.pk)),
         )
         self.refused(
             "Sign a QC disposition of the rejected lot",
             expected="Refused: the lot already has its decision",
             requirements=("OQ-009",),
-            match=r"disposition|quarantine",
+            match=r"already been dispositioned",
             call=lambda: self.dispose(lot),
         )
         self.refused(
             "Issue a certificate for the rejected lot",
             expected="Refused: only a released lot is certified",
             requirements=("OQ-010",),
-            match=r"releas|cannot be issued",
+            match=r"no signed QC disposition",
             call=lambda: self.issue(lot, check=False),
         )
         self.export(journey, lot)
@@ -1279,7 +1281,7 @@ class AcceptanceRun:
             "Amend the certificate from a stale view (version 0)",
             expected="Refused: the certificate changed since it was reviewed",
             requirements=("OQ-010", "OQ-003"),
-            match=r"changed",
+            match=r"certificate changed since you reviewed it",
             call=lambda: self.amend(report, expected_version=0),
         )
         with self.step(
@@ -1382,6 +1384,20 @@ class AcceptanceRun:
             "platform": platform.platform(),
         }
 
+    def _environment_or_unknown(self):
+        try:
+            return self.environment()
+        except Exception as error:  # The database may be what failed.
+            unknown = f"unavailable ({type(error).__name__})"
+            return {
+                "application": lot_record.application(),
+                "release": running_release() or unknown,
+                "database": {"engine": "PostgreSQL", "server_version": unknown, "name": unknown},
+                "python": sys.version.split()[0],
+                "django": django.get_version(),
+                "platform": platform.platform(),
+            }
+
     def report(self, finished):
         everything = [self.setup, *self.journeys]
         steps = [step for journey in everything for step in journey.steps]
@@ -1394,7 +1410,7 @@ class AcceptanceRun:
                 "finished_at": finished.astimezone(UTC).isoformat(timespec="seconds"),
                 "stamp": self.stamp,
             },
-            "environment": self.environment(),
+            "environment": getattr(self, "where", None) or self._environment_or_unknown(),
             "outcome": "passed" if self.passed else "failed",
             "summary": {
                 "journeys": len(self.journeys),
