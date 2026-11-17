@@ -4,7 +4,7 @@ urls: stability:hold_new
 views: stability.views.hold_new
 templates: ops/form.html
 models: stability.Hold, quality.Lot, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -32,14 +32,15 @@ Place a hold on a lot (optionally tied to one reserve sample). Placing is protec
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Lot | `Hold.lot` | Any lot, ordered by number | Yes | Preselected when opened from a reserve sample |
+| Lot | `Hold.lot` | Any lot except a cancelled one, ordered by number | Yes | Preselected when opened from a reserve sample |
 | Kind | `Hold.kind` | Choice | Yes | Investigation, Regulatory, Legal or Quality |
 | Reference | `Hold.reference` | Text, max 200 | No | Investigation, CAPA or matter ID |
 | Reason for hold | `Hold.reason` | Text, max 2000 | Yes | Also recorded in the audit event |
 
 ## Rules and hidden logic
 
-- While the lot is in quarantine the lot revision rises, so a disposition dialog opened earlier goes stale. A released lot's row is never touched.
+- While the lot is in quarantine the lot revision rises, so a disposition dialog opened earlier goes stale. A released, rejected or cancelled lot's row is never touched.
+- A lot cancelled as received in error is not offered and is refused: "Lot <number> was cancelled as received in error; it has no material." Rejected lots are offered; their revision is not raised.
 - A reserve sample from a different lot is refused. Event `hold.placed`.
 - An active hold makes QC disposition of the lot refuse with the hold identifier, kind and reason; this applies to reserve-specific holds too.
 - Hold state starts Active; the reason is stored trimmed.

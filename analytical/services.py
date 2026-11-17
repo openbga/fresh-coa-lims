@@ -90,6 +90,10 @@ def _raise(refusal):
         raise ValidationError(refusal)
 
 
+# A lot rejected or cancelled while in quarantine keeps its tests wherever they stood.
+DECIDED_WITHOUT_RELEASE = frozenset({"rejected", "cancelled"})
+
+
 def quarantine_refusal(lot):
     """Reason analytical evidence cannot change on this lot, or None."""
     if lot.state != "quarantine":
@@ -97,9 +101,9 @@ def quarantine_refusal(lot):
     return None
 
 
-def _lock_lots(*lot_ids):
+def _lock_lots(*lot_ids, refuse=True):
     lots = list(Lot.objects.select_for_update().filter(pk__in=set(lot_ids)).order_by("pk"))
-    for lot in lots:
+    for lot in lots if refuse else ():
         _raise(quarantine_refusal(lot))
     return lots
 
@@ -1387,13 +1391,22 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
         # though whoever worked on it is still an author of the batch. So is an open test of a
         # stability pull that takes no more testing (missed, or its study closed): it held
         # nothing but its place in the batch, which must not keep the batch from rejection.
+        # A test of a rejected lot stays with the lot's record as it was signed, for the same
+        # reason: the rejection ended the lot's testing wherever its tests stood.
         tests = [t for t in members if t.state != AnalyticalTest.State.SUPERSEDED]
-        lots = _lock_lots(*(t.lot_id for t in tests if t.lot_id is not None))
+        lots = _lock_lots(*(t.lot_id for t in tests if t.lot_id is not None), refuse=False)
+        ended = {lot.pk for lot in lots if lot.state in DECIDED_WITHOUT_RELEASE}
+        for lot in lots:
+            if lot.pk not in ended:
+                _raise(quarantine_refusal(lot))
         pull_ids = {t.pull_id for t in tests if t.pull_id is not None}
         pulls = stability_pulls().lock(pull_ids, refuse=False) if pull_ids else []
         closed = {pull.pk for pull in pulls if pull.closed}
-        tests = [t for t in tests if t.pull_id not in closed]
-        subjects = [*lots, *(pull for pull in pulls if pull.pk not in closed)]
+        tests = [t for t in tests if t.pull_id not in closed and t.lot_id not in ended]
+        subjects = [
+            *(lot for lot in lots if lot.pk not in ended),
+            *(pull for pull in pulls if pull.pk not in closed),
+        ]
         for test in tests:
             if test.state not in OPEN_STATES:
                 raise ValidationError(

@@ -25,7 +25,7 @@ from core.services import require_role, sign_transition
 from laboratory.eligibility import equipment_eligibility
 from laboratory.models import Qualification, ResourceUse
 from laboratory.services import lock_account
-from quality.models import Lot, Sample
+from quality.models import Lot, LotState, Sample
 
 from . import testing
 from .evidence import (
@@ -78,6 +78,14 @@ def _touch_lot(lot_id):
 def _need_reason(reason):
     if not reason or not reason.strip():
         raise ValidationError("A reason is required.")
+
+
+def _refuse_cancelled(lot):
+    """A lot cancelled as received in error has no material: nothing is kept, studied or held."""
+    if lot.state == LotState.CANCELLED:
+        raise ValidationError(
+            f"Lot {lot.number} was cancelled as received in error; it has no material."
+        )
 
 
 # --- Protocols -------------------------------------------------------------------------------
@@ -283,6 +291,11 @@ def start_study(*, actor, identifier, protocol, lot, container_closure, start_da
     if protocol.state != Protocol.State.APPROVED:
         raise ValidationError("Studies start only on the current approved protocol revision.")
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
+    _refuse_cancelled(lot)
+    if lot.state == LotState.REJECTED:
+        raise ValidationError(
+            f"Lot {lot.number} was rejected. A study starts on a lot in quarantine or released."
+        )
     if problem := testing.material_problem(protocol, lot):
         raise ValidationError(problem)
     rules = lot.rules
@@ -661,6 +674,7 @@ def record_reserve(*, actor, lot, reason, **values):
     _need_reason(reason)
     lock_account(actor)
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
+    _refuse_cancelled(lot)
     reserve = ReserveSample(lot=lot, recorded_by=actor, **values)
     reserve.full_clean()
     reserve.save()
@@ -680,6 +694,7 @@ def add_obligation(*, actor, lot, reason, reserve=None, **values):
     _need_reason(reason)
     lock_account(actor)
     lot = Lot.objects.select_for_update().get(pk=lot.pk)
+    _refuse_cancelled(lot)
     if reserve is not None and reserve.lot_id != lot.pk:
         raise ValidationError("The reserve sample belongs to a different lot.")
     obligation = RetentionObligation(lot=lot, reserve=reserve, recorded_by=actor, **values)
@@ -732,6 +747,7 @@ def place_hold(*, actor, lot, kind, reason, reference="", reserve=None):
     _need_reason(reason)
     lock_account(actor)
     lot = _touch_lot(lot.pk)
+    _refuse_cancelled(lot)
     if reserve is not None and reserve.lot_id != lot.pk:
         raise ValidationError("The reserve sample belongs to a different lot.")
     hold = Hold(

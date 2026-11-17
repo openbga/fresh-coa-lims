@@ -14,7 +14,8 @@ from core.services import AUDIT_READ_ROLES, require_role
 
 from . import certificates, reliance, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
-from .models import Lot, LotReceipt, ReceiptSource, Result, Sample
+from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
+from .rejection import RejectionGrounds
 
 LOTS = "Material lots"
 # Labels of the receipt details, in the order the lot record and its history show them.
@@ -51,6 +52,11 @@ def lot_list(request):
     lots = Lot.objects.select_related("rules").prefetch_related(
         Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
     )
+    state = request.GET.get("state", "")
+    if state not in LotState.values:
+        state = ""
+    if state:
+        lots = lots.filter(state=state)
     query = request.GET.get("q", "").strip()
     if query:
         lots = lots.filter(
@@ -68,6 +74,9 @@ def lot_list(request):
             "page_title": "Material lots",
             "page_obj": Paginator(lots, 30).get_page(request.GET.get("page")),
             "query": query,
+            "state": state,
+            "states": LotState.choices,
+            "filtered": bool(query or state),
             "can_receive": request.user.groups.filter(name="analyst").exists(),
         },
     )
@@ -85,9 +94,9 @@ def lot_detail(request, pk):
     receipt = next((r for r in receipts if r.pk not in corrected), None)
     can_record = request.user.groups.filter(name="analyst").exists()
     lot_signatures = list(
-        ElectronicSignature.objects.filter(
-            object_type="quality.lot", object_id=str(lot.pk)
-        ).order_by("signed_at")
+        ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
+        .select_related("audit_event")
+        .order_by("signed_at")
     )
     return render(
         request,
@@ -111,7 +120,8 @@ def lot_detail(request, pk):
             "samples": lot.samples.prefetch_related("results__analyst"),
             "signatures": lot_signatures,
             # A lot is also signed when its requirements are replaced during testing.
-            "disposition_signed": any(s.meaning == "approved" for s in lot_signatures),
+            "disposition_signed": any(s.meaning in DECISION_MEANINGS for s in lot_signatures),
+            "decision": decision_display(lot, lot_signatures),
             "result_signatures": ElectronicSignature.objects.filter(
                 object_type="quality.result",
                 object_id__in=[
@@ -121,6 +131,29 @@ def lot_detail(request, pk):
             ).order_by("signed_at"),
         },
     )
+
+
+# Signatures that decide a lot: its release, its rejection or its cancellation.
+DECISION_MEANINGS = ("approved", "rejected", "cancelled")
+
+
+def decision_display(lot, signatures):
+    """The signed rejection or cancellation of the lot as the lot record shows it, or None."""
+    evidence = lot.decision
+    if evidence is None:
+        return None
+    signature = next((s for s in signatures if s.meaning == lot.state), None)
+    grounds = evidence.get("grounds")
+    return {
+        "evidence": evidence,
+        "signature": signature,
+        "reason": signature.audit_event.reason if signature else "",
+        "grounds": RejectionGrounds(grounds).label if grounds in RejectionGrounds.values else "",
+        "tests": len(evidence.get("tests", [])),
+        "unfinished": [
+            row for row in evidence.get("tests", []) if row["state"] in ("open", "submitted")
+        ],
+    }
 
 
 def receipt_display(receipt):

@@ -4,7 +4,7 @@ urls: quality:lot_detail
 views: quality.views.lot_detail
 templates: quality/lot_detail.html
 models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Sample, quality.Result, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
-reviewed: 2026-11-16
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -19,7 +19,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Record supplier certificate**: analysts only, while the lot is Quarantine, was received from a supplier and has approved requirements. Other roles do not see it and receive 403 if they open that page directly. Every viewer can open a supplier certificate record from its number.
 - **Supplier results in place of tests**: every viewer can open a record from its number. Nothing is proposed, accepted or withdrawn on this page: analysts propose from the supplier certificate record, and reviewers accept on the acceptance record.
 - **Review result**: reviewers only, and never the analyst who recorded that result.
-- **Review disposition** and **Issue certificate of analysis**: quality role only.
+- **Review disposition**, **Reject lot**, **Cancel lot received in error** and **Issue certificate of analysis**: quality role only. Reject and cancel are shown to every quality user on a Quarantine lot; the server refuses anyone who authored the lot's records (and, for cancellation, whoever received the lot).
 - **Export record**: **admin**, **quality** and **auditor**, the roles that read the audit trail. Analysts and reviewers do not see it and receive 403 if they open that page directly.
 - Scientific action links require their corresponding role as well as the state condition. Admin-only viewers see records and navigation links, without laboratory mutation controls. The server independently checks roles, independence and state.
 
@@ -27,7 +27,8 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 
 - **Back link**: "Material lots".
 - **Facts**: Material, Status, Rule set, Record revision. When the lot's current requirements apply additional rule sets, the Rule set fact adds a second line: "Applied in addition by the lot's requirements: RS-EU v1" (each as "code vN", separated by commas).
-- **Actions row** (Quarantine lots only): **Add sample**, **Review disposition**.
+- **Actions row** (Quarantine lots only): **Add sample**, **Review disposition**, **Reject lot**, **Cancel lot received in error**.
+- **Decision card** (Rejected or Cancelled lots only, titled "Rejection" or "Cancelled as received in error"): Grounds (rejection only), Reason, Record in the quality system ("Not stated" when blank), Signed by (name, time in UTC and lot revision), and for a rejection Tests at the rejection (the count, and "N not finished:" with the open or awaiting-review tests) followed by "What stood in the way of release" or "The release gates found nothing missing or failing when the lot was rejected." Closing line: "The lot takes no more records and keeps every record as it was signed." with, for a rejection, "What happens to the material is decided and recorded in the quality system." or, for a cancellation, "Its number is not used again."
 - **Requirements line**: **Requirements and sampling** with the assignment status ("Requirements assigned", "Applicability hold" or "Not assigned"), **Testing and investigations**, and for admin, quality and auditor **Export record**.
 - **Receipt** card, header: for analysts on a Quarantine lot, **Correct receipt details** when the lot has receipt details, otherwise **Record receipt details**.
 - **Receipt** card, details: Source; for a lot received from a supplier also Supplier (code, name and location), Supplier lot number ("Not known" when blank), Manufacturer (name and location, or "Not stated") and Manufacturer lot number (only when recorded); then Delivery or batch document, Date received, Quantity received, Containers (number, then description) and Examination on receipt (the label "No discrepancy found" or "Discrepancy found", with the examination notes below it).
@@ -50,6 +51,8 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 |---|---|---|---|
 | **Add sample** | Analyst role and lot is Quarantine | Analyst | Opens Add sample for this lot |
 | **Review disposition** | Quality role and lot is Quarantine | Quality, independent of the lot's data | Opens Sign lot disposition |
+| **Reject lot** | Quality role and lot is Quarantine | Quality, independent of the lot's data | Opens Reject lot |
+| **Cancel lot received in error** | Quality role and lot is Quarantine | Quality, not the lot's receiver or author | Opens Cancel lot received in error |
 | **Record receipt details** | Analyst role, lot is Quarantine and has no receipt details | Analyst | Opens Record receipt details for this lot |
 | **Correct receipt details** | Analyst role, lot is Quarantine and has receipt details | Analyst | Opens Correct receipt details, prefilled with the current details |
 | Supplier code link | Receipt details name a supplier | Any viewer | Opens the supplier record |
@@ -72,7 +75,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 |---|---|---|---|---|
 | Lot number (heading) | `Lot.number` | Text | — | Lot identifier |
 | Material | `Lot.material` | Text | — | Material received |
-| Status | `Lot.state` | Quarantine, Released | — | Released only by signed disposition |
+| Status | `Lot.state` | Quarantine, Released, Rejected, Cancelled | — | Released only by signed disposition; Rejected and Cancelled only by their signed decisions. Cancelled shows the tooltip "Received in error" |
 | Rule set | `Lot.rules` | "code vN" | — | Rule revision chosen at receipt. A signed replacement of the lot's requirements during testing moves it to the version of the same rule set in force then |
 | Applied in addition by the lot's requirements | `LotAssignment.payload` (additional rules, latest assignment) | "code vN" list | — | Additional rule set versions frozen with the lot's current requirements: rule sets whose policy states `applies_to` and that named the lot's material, stage or scopes. Not shown when there are none, or while the lot is Not assigned or on Applicability hold |
 | Record revision | `Lot.revision` | Integer | — | Rises with each change to the lot, its samples, tests or holds, when receipt details are recorded later or corrected, when a supplier certificate is recorded, corrected or withdrawn, when a supplier result is proposed, accepted or withdrawn in place of a test, and when its requirements are assigned or replaced; disposition and replacement signatures bind to it |
@@ -126,8 +129,8 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Record result link vs. permission**: the link stays visible to analysts on Quarantine samples, but saving is refused with "Record observations through approved native testing requirements." unless the server runs in DEBUG and the lot has no requirement assignment. Record native results through Testing and investigations.
 - **Release paths**: with assigned requirements or native tests (and always outside DEBUG), release depends on the assignment, sampling records, native analytical evidence and holds. The manual foundation path (required rule-set tests, reviewed and conforming results) applies only in DEBUG on lots with neither. See Sign lot disposition for every condition and message.
 - **Revision and stale pages**: signing pages bind to the revision shown when opened (the result's for review, the lot's for disposition); if it changed, signing fails with "Record changed. Reload and review before signing." Recording receipt details on an earlier lot, or correcting them, raises the lot revision by 1. So does recording, correcting or withdrawing a supplier certificate, and proposing, accepting or withdrawing a supplier result in place of a test.
-- **Independence**: no user dispositions a lot containing their own receipt, supplier certificate, sampling or test data, even when holding the quality role. Receipt data covers everyone who recorded or corrected the lot's receipt details, including the recorder of a record that was later corrected. Supplier certificate data covers everyone who recorded, corrected or withdrew a supplier certificate of the lot, including the recorder of a record that was later corrected or withdrawn. Everyone who proposed a supplier result in place of a test is an author too, also after the proposal was withdrawn; the reviewer who accepted it is not. **Review disposition** still shows for an author; the disposition page explains the refusal before any PIN is requested.
-- **No reject path**: this version only releases; a lot that cannot be released stays in Quarantine.
+- **Independence**: no user dispositions or rejects a lot containing their own receipt, supplier certificate, sampling or test data, even when holding the quality role. Receipt data covers everyone who recorded or corrected the lot's receipt details, including the recorder of a record that was later corrected. Supplier certificate data covers everyone who recorded, corrected or withdrew a supplier certificate of the lot, including the recorder of a record that was later corrected or withdrawn. Everyone who proposed a supplier result in place of a test is an author too, also after the proposal was withdrawn; the reviewer who accepted it is not. **Review disposition** and **Reject lot** still show for an author, and **Cancel lot received in error** also for whoever received the lot; those pages explain the refusal before any PIN is requested.
+- **Rejection and cancellation**: quality signs either from Quarantine on its own page. The lot then keeps every record as signed, with the decision frozen on it, and takes no more records (the Quarantine-only rules above apply to it as they do to a Released lot); it cannot be released. Rejection is for a lot that failed its requirements or cannot be used; cancellation only for a lot received in error before samples, tests, reserve samples, studies or a standing supplier result exist. Signatures of the lot, including the decision (meaning rejected or cancelled), are listed under Electronic signatures, and "No lot disposition signature yet." is not shown once the lot is Released, Rejected or Cancelled.
 - **Review link after release**: a Recorded foundation result still shows **Review result** to independent reviewers on a released lot, but signing is refused ("This result is not awaiting review.").
 - **Certificates of analysis**: the section appears only after release; issuing is a separate signed step on the certificate pages. It is unrelated to the Supplier certificates card.
 

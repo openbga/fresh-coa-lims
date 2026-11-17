@@ -3,8 +3,24 @@
 {% block page_header %}{% endblock %}
 {% block content %}
 <p><a href="{% url 'quality:lot_list' %}">Material lots</a></p><h1>{{ lot.number }}</h1>
-<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ lot.state|capfirst }}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<br>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% endfor %}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
-{% if lot.state == 'quarantine' %}<div class="d-flex gap-2 mb-4">{% if can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">Add sample</a>{% endif %}{% if can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}</div>{% endif %}
+<dl class="row"><dt class="col-sm-3">Material</dt><dd class="col-sm-9">{{ lot.material }}</dd><dt class="col-sm-3">Status</dt><dd class="col-sm-9">{% include "quality/includes/lot_status.html" %}</dd><dt class="col-sm-3">Rule set</dt><dd class="col-sm-9">{{ lot.rules }}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<br>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% endfor %}</dd><dt class="col-sm-3">Record revision</dt><dd class="col-sm-9">{{ lot.revision }}</dd></dl>
+{% if lot.state == 'quarantine' %}<div class="d-flex flex-wrap gap-2 mb-4">{% if can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">Add sample</a>{% endif %}{% if can_dispose %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a><a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">Reject lot</a><a class="btn btn-outline-secondary" href="{% url 'quality:lot_cancel' lot.pk %}">Cancel lot received in error</a>{% endif %}</div>{% endif %}
+{% if decision %}
+<section class="card mb-4" aria-labelledby="decision-heading">
+  <div class="card-header"><h2 class="card-title mb-0" id="decision-heading">{% if lot.state == 'rejected' %}Rejection{% else %}Cancelled as received in error{% endif %}</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts">
+      {% if decision.grounds %}<div><dt>Grounds</dt><dd>{{ decision.grounds }}</dd></div>{% endif %}
+      <div><dt>Reason</dt><dd>{{ decision.reason|linebreaksbr }}</dd></div>
+      <div><dt>Record in the quality system</dt><dd>{{ decision.evidence.reference|default:"Not stated" }}</dd></div>
+      {% if decision.signature %}<div><dt>Signed by</dt><dd>{{ decision.signature.signer_name }} · <time datetime="{{ decision.signature.signed_at|date:'c' }}">{{ decision.signature.signed_at|date:"Y-m-d H:i" }} UTC</time> · lot revision {{ decision.signature.revision }}</dd></div>{% endif %}
+      {% if lot.state == 'rejected' %}<div><dt>Tests at the rejection</dt><dd>{{ decision.tests }}{% if decision.unfinished %} · {{ decision.unfinished|length }} not finished: {% for row in decision.unfinished %}{{ row.label }} {{ row.test_code }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</dd></div>{% endif %}
+    </dl>
+    {% if lot.state == 'rejected' %}{% if decision.evidence.outstanding %}<h3 class="h6 mt-3">What stood in the way of release</h3><ul class="mb-0 ps-3 text-break">{% for item in decision.evidence.outstanding %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">The release gates found nothing missing or failing when the lot was rejected.</p>{% endif %}{% endif %}
+    <p class="mt-3 mb-0">The lot takes no more receipt, sampling, certificate or test records and keeps every record as it was signed. {% if lot.state == 'rejected' %}What happens to the material is decided and recorded in the quality system.{% else %}Its number is not used again.{% endif %}</p>
+  </div>
+</section>
+{% endif %}
 <p><a href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling</a> · {% if assignment %}{{ assignment.get_status_display }}{% else %}Not assigned{% endif %} · <a href="{% url 'analytical:lot_testing' lot.pk %}">Testing and investigations</a>{% if can_export %} · <a href="{% url 'quality:lot_record' lot.pk %}">Export record</a>{% endif %}</p>
 <section class="card mb-4" aria-labelledby="receipt-heading">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">

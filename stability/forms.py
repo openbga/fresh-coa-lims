@@ -11,7 +11,7 @@ from laboratory.forms import (
     reason_field,
 )
 from laboratory.models import Equipment
-from quality.models import Lot
+from quality.models import Lot, LotState
 
 from .models import (
     Hold,
@@ -22,6 +22,9 @@ from .models import (
     RetentionObligation,
     Study,
 )
+
+# A lot cancelled as received in error has no material to keep, study or hold.
+WITH_MATERIAL = Lot.objects.exclude(state=LotState.CANCELLED)
 
 __all__ = ["ReasonForm", "SigningForm"]
 
@@ -111,7 +114,9 @@ class StudyForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["protocol"].queryset = Protocol.objects.filter(state="approved")
-        self.fields["lot"].queryset = Lot.objects.order_by("number")
+        self.fields["lot"].queryset = Lot.objects.exclude(
+            state__in=[LotState.REJECTED, LotState.CANCELLED]
+        ).order_by("number")
 
     def clean_identifier(self):
         identifier = self.cleaned_data["identifier"]
@@ -224,7 +229,7 @@ class ReserveForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["lot"].queryset = Lot.objects.order_by("number")
+        self.fields["lot"].queryset = WITH_MATERIAL.order_by("number")
 
 
 class ObligationForm(forms.ModelForm):
@@ -239,7 +244,7 @@ class ObligationForm(forms.ModelForm):
     def __init__(self, *args, with_lot=False, **kwargs):
         super().__init__(*args, **kwargs)
         if with_lot:
-            self.fields["lot"] = forms.ModelChoiceField(queryset=Lot.objects.order_by("number"))
+            self.fields["lot"] = forms.ModelChoiceField(queryset=WITH_MATERIAL.order_by("number"))
             self.order_fields(["lot", *self.Meta.fields, "reason"])
 
 
@@ -258,4 +263,4 @@ class HoldForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["lot"].queryset = Lot.objects.order_by("number")
+        self.fields["lot"].queryset = WITH_MATERIAL.order_by("number")

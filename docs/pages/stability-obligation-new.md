@@ -4,7 +4,7 @@ urls: stability:obligation_new
 views: stability.views.obligation_new
 templates: ops/form.html
 models: stability.RetentionObligation, core.AuditEvent
-reviewed: 2026-11-11
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -32,7 +32,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Lot | `RetentionObligation.lot` | Any lot, ordered by number | Yes, but only shown when not opened from a reserve | Reserve-scoped obligations use the reserve's lot |
+| Lot | `RetentionObligation.lot` | Any lot except a cancelled one, ordered by number | Yes, but only shown when not opened from a reserve | Reserve-scoped obligations use the reserve's lot |
 | Anchor kind | `RetentionObligation.anchor_kind` | Expiry or shelf-life date / Last associated batch distribution / Preparation or record date / Discontinued use | Yes | What starts the clock |
 | Anchor date | `RetentionObligation.anchor_date` | Date | No | Leave blank if unknown; set later once on the anchor page |
 | Months retained after the anchor | `RetentionObligation.offset_months` | Whole number ≥ 0, months | Yes | Retention period |
@@ -41,6 +41,7 @@ Record one applicable retention basis for a lot or reserve sample, with its own 
 
 ## Rules and hidden logic
 
+- A lot cancelled as received in error is not offered and is refused: "Lot <number> was cancelled as received in error; it has no material."
 - Obligations are append-only. An unknown anchor keeps the item retained (the disposal gate reports it as a blocker; no disposal path exists yet) and is counted in the overview queue "Retention anchors not yet known".
 - Retain-until is the anchor plus the months in calendar months; a day past the end of the target month is clamped to its last day.
 - Retention is considered cleared only after the retain-until date has passed.
