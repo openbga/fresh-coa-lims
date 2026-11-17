@@ -142,9 +142,11 @@ uv run --group e2e python scripts/ui_compare/capture.py --pages <id>,/path/,demo
   worktree of `origin/develop` served on 127.0.0.1:8013 (`--before-port`), removed at the end; it
   reads the same database and refuses non-additive migrations (`--before-database-url` for a
   copy).
-- `--pages` takes ids from `--list`, `/path/` (signed in as `demo_admin`) or
-  `demo_<role>:/path/`. `--after-only` reuses earlier "before" shots. Pick every page the diff
-  changes.
+- `--pages` takes ids from `--list` (in pairs: `lot-released` at 1440×900, `lot-released-390` at
+  390×844; record pages resolve by state from the database, `scripts/ui_compare/targets.py`),
+  `/path/` (signed in as `demo_admin`) or `demo_<role>:/path/` for any demo account. Pick every
+  page the diff changes, desktop and phone. `--after-only` reuses earlier "before" shots;
+  `--keep-before` reuses the develop worktree; `--before-tree PATH` serves an existing checkout.
 - Output: `.local/ui-compare/index.html`, `shots/` (light and dark), `manifest.json`; optional
   notes in `.local/ui-compare/notes.json`, rebuilt with `python3 scripts/ui_compare/build.py`. The
   run exits non-zero if a page could not be captured. Details: `scripts/ui_compare/README.md`.

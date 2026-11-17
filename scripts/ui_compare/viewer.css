@@ -23,7 +23,7 @@ h3 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(-
 .notes { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:14px; }
 .notes:has(.regress) { grid-template-columns:3fr 2fr; }
 .notes ul, .intro ul { margin:0; padding-left:18px; }
-.regress { border-left:3px solid var(--bad); padding-left:12px; }
+.regress { background:#fbeeed; border-radius:8px; padding:8px 12px; }
 .regress h3, .flag, .errors, .over { color:var(--bad); }
 .flag { font-size:11px; font-weight:600; border:1px solid var(--bad); border-radius:10px; padding:0 6px; vertical-align:middle; }
 .labels { display:flex; justify-content:space-between; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }

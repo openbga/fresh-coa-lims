@@ -320,6 +320,9 @@ NATIVE_PHRASES = (
     "Certificate version 2",
     # Technical identifiers
     "TECHNICAL IDENTIFIERS",
+    "SPECIFICATION SPEC v1 HASH",
+    "SPECIFICATION SPEC2 v4 HASH",
+    "METHOD M1 v2 HASH",
     "ASSIGNMENT HASH",
     "REQUIREMENT SOURCE",
     "EVIDENCE SHA-256",

@@ -565,3 +565,14 @@ def test_add_count_and_qualitative_tests_via_web(client, people):
     page = page.decode()
     assert "Absent: Not detected in 25 g" in page
     assert "&lt; 10 CFU/g" in page and "Count (whole number)" in page
+
+
+def test_method_record_names_the_version_in_force(client, people):
+    revision = method_revision(people["author"])
+    client = login(client, people["approver"])
+    url = reverse("catalog:method", args=[revision.method_id])
+    assert "No approved version" in client.get(url).content.decode()
+    approve(revision, people["approver"])
+    page = client.get(url).content.decode()
+    meta = page[page.index('class="vr-page-meta"') :].split("</ul>", 1)[0]
+    assert "Approved" in meta and "Version 1 in force" in meta

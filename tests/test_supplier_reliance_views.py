@@ -523,3 +523,14 @@ def test_testing_pages_after_release_and_the_raw_data_page(client, world):
     listed = text(client.get(reverse("analytical:test_list"), {"q": lot.number}))
     assert listed.count("Not tested · supplier result") == 4
     assert AnalyticalTest.objects.filter(lot=lot, state="open").count() == 4
+
+
+def test_supplier_list_shows_each_suppliers_best_qualification_state(client, world):
+    sign_in(client, world, "auditor")
+    url = reverse("suppliers:list")
+    assert "Awaiting approval" not in text(client.get(url))
+    qualify(world, sign=False)
+    assert "Awaiting approval" in text(client.get(url))
+    qualify(world, valid_until=today() + timedelta(days=10))
+    page = text(client.get(url))
+    assert "Expiring soon" in page and "Awaiting approval" not in page

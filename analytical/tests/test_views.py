@@ -417,3 +417,24 @@ def test_new_batch_without_a_batch_method_says_batches_are_held(client, people, 
     body = response.content.decode()
     assert "No approved batch method is available; batches are held." in body
     assert 'role="alert"' in body
+
+
+def test_batch_list_filters_by_qc_failed_and_incomplete(client, people, batch):
+    login(client, people["auditor"])
+    url = reverse("analytical:batch_list")
+    assert "SYN-B1" in client.get(url, {"state": "incomplete"}).content.decode()
+    assert "SYN-B1" not in client.get(url, {"state": "failed"}).content.decode()
+    pass_qc(people, batch, control="200.0")  # the control is out of its limits
+    assert "SYN-B1" in client.get(url, {"state": "failed"}).content.decode()
+    assert "SYN-B1" not in client.get(url, {"state": "incomplete"}).content.decode()
+
+
+def test_test_record_header_shows_the_open_investigation(client, people, assigned):
+    _, _, tests = assigned
+    test = record(people, tests["identity"], "1.30")
+    _, investigation = submit(people, test)
+    login(client, people["auditor"])
+    page = client.get(reverse("analytical:test_detail", args=[test.pk])).content.decode()
+    meta = page[page.index('class="vr-page-meta"') :].split("</ul>", 1)[0]
+    assert reverse("analytical:investigation_detail", args=[investigation.pk]) in meta
+    assert "Phase I open" in meta

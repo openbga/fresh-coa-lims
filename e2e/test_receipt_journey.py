@@ -96,7 +96,7 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
 
         expect(page.get_by_text("Lot received in quarantine.")).to_be_visible()
         lot_url = page.url
-        receipt = page.locator("section", has=page.get_by_role("heading", name="Receipt"))
+        receipt = page.get_by_role("region", name="Receipt", exact=True)
         expect(receipt).to_contain_text("Received from a supplier")
         expect(receipt).to_contain_text("SUP-LOT-SYN-001")
         expect(receipt).to_contain_text("125.5 kg")
@@ -131,9 +131,9 @@ def test_supplier_then_receipt_then_correction(live_server, django_user_model, a
 
         expect(page).to_have_url(lot_url)
         expect(page.get_by_text("Receipt details corrected; the original is kept.")).to_be_visible()
-        receipt = page.locator("section", has=page.get_by_role("heading", name="Receipt"))
-        expect(receipt.locator(".vr-history-item")).to_have_count(2)
-        corrected = receipt.locator(".vr-history-item").nth(1)
+        history = page.get_by_role("region", name="Receipt history", exact=True)
+        expect(history.locator(".vr-history-item")).to_have_count(2)
+        corrected = history.locator(".vr-history-item").nth(1)
         expect(corrected).to_contain_text("Receipt details corrected")
         expect(corrected.locator("del")).to_have_text("SUP-LOT-SYN-001")
         expect(corrected).to_contain_text("SUP-LOT-SYN-002")

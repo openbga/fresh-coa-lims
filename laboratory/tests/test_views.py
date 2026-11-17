@@ -329,8 +329,20 @@ def test_record_pages_put_the_clock_facts_and_unusable_states_first(client, peop
     page = client.get(reverse("laboratory:reagent_detail", args=[waiting.pk])).content.decode()
     assert "Lot has not been independently released for use." in page
     expired = make_reagent(people, "RG-OLD", expiry_days=10)
-    real_now = timezone.now
-    monkeypatch.setattr("django.utils.timezone.now", lambda: real_now() + timedelta(days=20))
+
+    class Later:  # the laboratory pages' clock, 20 days on (sessions keep the real clock)
+        @staticmethod
+        def now():
+            return timezone.now() + timedelta(days=20)
+
+        @staticmethod
+        def localdate(value=None):
+            return timezone.localdate(value or Later.now())
+
+        localtime = staticmethod(timezone.localtime)
+
+    monkeypatch.setattr("laboratory.views.timezone", Later)
+    monkeypatch.setattr("laboratory.eligibility.timezone", Later)
     page = client.get(reverse("laboratory:reagent_detail", args=[expired.pk])).content.decode()
     monkeypatch.undo()
     assert "Lot expired after" in page and page.index("Expiry (last day of use)") < page.index(

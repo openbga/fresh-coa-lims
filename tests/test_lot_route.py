@@ -95,8 +95,13 @@ def test_lot_list_route_costs_no_query_per_row(client, django_user_model):
 
 
 def test_lot_record_lists_what_signing_enforces_and_shows_holds(client, django_user_model):
-    """The QC disposition aside takes its blockers from the functions dispose_lot calls (stability
-    holds, then sampling and analytical evidence); active holds are header pills."""
+    """The QC disposition aside lists exactly quality.services.disposition_blockers, the list
+    dispose_lot checks (stability holds, then sampling and analytical evidence); active holds are
+    header pills."""
+    import html
+    import re
+
+    from quality.services import disposition_blockers
     from stability.gates import lot_blockers as hold_blockers
     from stability.services import place_hold
 
@@ -116,9 +121,14 @@ def test_lot_record_lists_what_signing_enforces_and_shows_holds(client, django_u
     client.force_login(quality)
     body = client.get(reverse("quality:lot_detail", args=[lot.pk])).content.decode()
     aside = body[body.index('id="disposition-heading"') : body.index('id="receipt-heading"')]
-    for message in hold_blockers(lot):
-        assert message in aside
-    assert "no specification or sampling requirements are assigned." in aside
+    checklist = aside[aside.index('class="vr-checklist"') : aside.index("</ul>")]
+    listed = [
+        html.unescape(re.sub(r"<[^>]+>", "", item)).strip()
+        for item in re.findall(r"<li>(.*?)</li>", checklist, re.S)
+    ]
+    assert listed == disposition_blockers(lot)
+    assert listed[: len(hold_blockers(lot))] == hold_blockers(lot)  # holds first
+    assert any("no specification or sampling requirements are assigned." in m for m in listed)
     meta = body[
         body.index('class="vr-page-meta"') : body.index("</ul>", body.index("vr-page-meta"))
     ]

@@ -101,6 +101,17 @@ def test_receipt_form_by_mouse_and_keyboard(live_server, django_user_model):
         with page.expect_response(lambda r: "/lookups/suppliers/" in r.url) as answer:
             supplier.click()
         assert answer.value.status == 200
+        page.keyboard.press("Escape")
+        expect(page.locator(".ts-dropdown:visible")).to_have_count(0)
+        # Keyboard: Enter opens a remote list too; Escape before its page arrives keeps it shut.
+        native.evaluate("select => select.tomselect.focus_node.focus()")
+        page.keyboard.press("Enter")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(600)  # longer than the lookup takes on the live server
+        expect(page.locator(".ts-dropdown:visible")).to_have_count(0)
+        expect(page).to_have_url(re.compile(r"/lots/new/$"))
+        page.keyboard.press("S")  # typing opens the list and starts the search
+        expect(page.locator(".ts-dropdown:visible input.dropdown-input")).to_have_value("S")
         page.locator(".ts-dropdown:visible input.dropdown-input").fill("Ingredients")
         page.locator(".ts-dropdown:visible").get_by_role(
             "option", name="sup-syn-001 · Synthetic Ingredients Supply"

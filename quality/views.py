@@ -1,5 +1,4 @@
 from django import forms
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -110,19 +109,13 @@ def lot_detail(request, pk):
     can_record = request.user.groups.filter(name="analyst").exists()
     from analytical import gates
 
-    blockers, _, tests, investigations = gates.lot_status(lot)
+    _, _, tests, investigations = gates.lot_status(lot)
     from stability.gates import active_holds
-    from stability.gates import lot_blockers as hold_blockers
 
-    holds = list(active_holds(lot)) if lot.state == "quarantine" else []
-    if lot.state == "quarantine":
-        # The checks dispose_lot enforces, from the same functions and in the same order: active
-        # stability holds, then (native evidence or production) sampling and analytical evidence.
-        from sampling.services import lot_blockers as sampling_blockers
-
-        native = assignment is not None or bool(tests)
-        evidence = sampling_blockers(lot) + blockers if native or not settings.DEBUG else []
-        blockers = hold_blockers(lot) + evidence
+    quarantine = lot.state == "quarantine"
+    holds = list(active_holds(lot)) if quarantine else []
+    # Exactly what signing the disposition checks (services.dispose_lot).
+    blockers = services.disposition_blockers(lot) if quarantine else []
     tests_by_pk = {test.pk: test for test in tests}
     open_investigations = []
     for investigation in sorted(investigations.values(), key=lambda i: i.pk):

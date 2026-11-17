@@ -80,7 +80,7 @@ TIER1 = {
     "dashboard-analyst": ("Dashboard (analyst)", "demo_analyst", "/", None),
     "lots": ("Lots list", "demo_quality", "/lots/", None),
     "lot-quarantine": ("Lot record, quarantine (analyst)", "demo_analyst", "@lot-quarantine", None),
-    "lot-ready": ("Lot record, ready for disposition (quality)", "demo_quality", "@lot-ready", None),
+    "lot-ready": ("Lot record, ready for disposition", "demo_quality", "@lot-ready", None),
     "lot-applicability": (
         "Lot record, applicability hold",
         "demo_quality",
@@ -269,7 +269,7 @@ def start_before(database_url: str, reuse: bool) -> subprocess.Popen:
         subprocess.run(cmd, cwd=tree, env=env, check=True, capture_output=True)
     log = open(OUT / "before-server.log", "w")  # noqa: SIM115 (lives as long as the server)
     proc = subprocess.Popen(
-        ["uv", "run", "python", "manage.py", "runserver", CONFIG["before"].split("//")[1], "--noreload"],
+        ["uv", "run", "python", "manage.py", "runserver", CONFIG["before"][7:], "--noreload"],
         cwd=tree,
         env=env,
         stdout=log,
