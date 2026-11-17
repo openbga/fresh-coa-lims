@@ -54,7 +54,7 @@ Lists every specification: the tests and limits a material must meet at a stage 
 | **New specification** | Viewer has the quality role | Quality | Opens the New specification form |
 | Specification code link | Row exists | Any viewer | Opens that specification |
 | **Specifications / Methods / Materials** tabs | Always | Any viewer | Switch list |
-| Column headers | Always | Any viewer | Sort by the column; activating it again reverses the order |
+| **Specification** and **Material** headers | Always | Any viewer | Sort by that column; activating it again reverses the order. The other columns do not sort |
 
 ## Fields
 

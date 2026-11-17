@@ -38,8 +38,8 @@ Shows one specification: what it applies to, all of its versions with status, ef
 - **Breadcrumbs**: Specifications and methods, the specification code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the specification title.
 - **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them)".
 - **Versions** table, newest version first: Version (link), Status, Effective, Tests, Author, Approval.
-- **Approval column**: each signature as "Signed", signer name, meaning, time, "record revision N" and a shortened content hash; "Not signed." when none.
-- **History**: audit events of the specification and of all its versions (version creation, tests added or removed, approvals, withdrawals), oldest first, or "No recorded history."
+- **Approval column**: each signature as one line: "Signed", the signer, the meaning, the time, "Record revision N" and the start of the content hash; "Not signed." when none.
+- **History**: audit events of the specification and of all its versions (version creation, tests added or removed, approvals, withdrawals), oldest first, or the empty state "No recorded history".
 - **Foot line**: identifier and when the page was viewed and by whom.
 
 ## Actions

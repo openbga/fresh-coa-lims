@@ -1,7 +1,8 @@
 {% comment %}
 A record's history (docs/ui-standards.md): the final panel, "History", with its events newest last
 as {% history_item %} entries, or an empty state. Rendered by the {% history_panel %} block tag
-({% load ui %}). With an empty body each event is an AuditEvent (title event.action, occurred_at,
+({% load ui %}). With an empty body each event is an AuditEvent (title event.action|action_label,
+occurred_at,
 actor, reason); a body replaces that with the caller's own {% history_item %} loop.
 Parameters:
   events        the events, oldest first; required even with a body (it decides the empty state)
@@ -23,7 +24,7 @@ Usage:
 {% if not form_dialog %}{% load ui %}{% with items=body %}{% panel title=title heading_id=heading_id class=class|add:" vr-page-only" count=slots.count|default:count %}
 {% if events %}
 <ol class="vr-timeline">
-  {% if items %}{{ items }}{% else %}{% for event in events %}{% history_item title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}{% endif %}
+  {% if items %}{{ items }}{% else %}{% for event in events %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}{% endif %}
 </ol>
 {% else %}{% firstof empty_title "No recorded changes yet" as none_title %}{% empty_state kind="empty" title=none_title body=empty_body %}{% endif %}
 {% if slots.footer %}{{ slots.footer }}{% endif %}

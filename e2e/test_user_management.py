@@ -124,7 +124,7 @@ def test_signed_account_lifecycle(live_server, account_admin, django_user_model,
             expect(
                 page.get_by_role("heading", name="synthetic_named_member", exact=True)
             ).to_be_visible()
-            expect(page.get_by_text("account.created", exact=True)).to_be_visible()
+            expect(page.get_by_text("Account created", exact=True)).to_be_visible()
             expect(
                 page.get_by_text(
                     "Signed by Synthetic Account Administrator · account_authorized", exact=False

@@ -35,7 +35,7 @@ Accept a rehearsal record with meaning **accepted**: you confirm it as a true ac
 
 ## Layout
 
-- Breadcrumbs (Validation, Rehearsals, RH-n, Accept) and a signing dialog (a plain card without JavaScript): RH-n and revision, the meaning, the facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and **Sign and accept**. Opening the page never signs.
+- Breadcrumbs (Validation, Rehearsals, RH-n, Accept) and a signing dialog (a plain card without JavaScript): RH-n and revision, the meaning, the facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and **Sign and accept**. Opening the page never signs.
 - Facts: Rehearsal of, Title, Performed, Release before (upgrade), Release, Environment, Procedure, Acceptance criteria, Outcome, Observations, Issues and actions, Recorded by, Evidence files (name, description and SHA-256 of each).
 
 ## Actions

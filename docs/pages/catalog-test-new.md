@@ -57,7 +57,7 @@ Adds one test line (method, acceptance criterion, replication) to a draft specif
 |---|---|---|---|---|
 | Code | `SpecificationTest.code` | Slug, max 80 | Yes | Help: "Stable test code, e.g. assay or identity." Unique within the version. |
 | Name | `SpecificationTest.name` | Text, max 160 | Yes | Test name. |
-| Method | `SpecificationTest.method` | Choice of all methods | Yes | Method used for the test. |
+| Method | `SpecificationTest.method` | Type-to-search choice of the methods (searches code and title) | Yes | Method used for the test. |
 | Position | `SpecificationTest.position` | Integer 1 to 999 | Yes | Display order; defaults to the current test count plus one. |
 | Required for QC disposition | `SpecificationTest.required` | Checkbox, default on | No | Required tests must be complete before QC disposition; unticked means information only. |
 | Replicates | `SpecificationTest.replicates` | Integer 1 to 10, default 1 | Yes | Help: "Determinations averaged into the reportable value." |

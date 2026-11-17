@@ -35,7 +35,7 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 
 ## Layout
 
-- Breadcrumbs and a card "Sign review · T-n": the sentence "Your signature records reviewed for T-n at record revision N", a summary (test, lot and sample, Specification with its acceptance, Record revision, Replicates as recorded separated by "; " with the unit, or for qualitative tests each outcome followed by what was observed in brackets, Reported by contract laboratory ("code · name · report NUMBER dated DATE") when a contract laboratory reported the result, followed by Approval revoked when the approval it relied on was revoked since, Mean when there is one, Reportable with unit and " · conforms" or " · OUT OF SPECIFICATION"), signer, a link to enrol or change the PIN, the form, **Cancel** and **Sign and review**.
+- Breadcrumbs and a card "Sign review · T-n": the sentence "Your signature records reviewed for T-n at record revision N", a summary (test, lot and sample, Specification with its acceptance, Record revision, Replicates as recorded separated by "; " with the unit, or for qualitative tests each outcome followed by what was observed in brackets, Reported by contract laboratory ("code · name · report NUMBER dated DATE") when a contract laboratory reported the result, followed by Approval revoked when the approval it relied on was revoked since, Mean when there is one, Reportable with unit and " · conforms" or " · OUT OF SPECIFICATION"), signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and **Sign and review**.
 
 ## Actions
 

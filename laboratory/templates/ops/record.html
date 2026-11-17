@@ -36,6 +36,6 @@
   </table></div>
   {% endlist_results %}
 {% endpanel %}
-{% history_panel events=history empty_title="No history recorded" %}{% for event in history %}{% history_item title=event.action at=event.occurred_at actor=event.actor reason=event.reason changes=event.changes %}{% endfor %}{% endhistory_panel %}
+{% history_panel events=history empty_title="No history recorded" %}{% for event in history %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason changes=event.changes %}{% endfor %}{% endhistory_panel %}
 {% endblock %}
 {% block record_foot %}{% record_foot identifier=identifier %}{% endblock %}

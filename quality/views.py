@@ -124,6 +124,17 @@ def lot_detail(request, pk):
             open_investigations.append(investigation)
     reports = list(lot.reports.all())
     samples = list(lot.samples.prefetch_related("results__analyst"))
+    # Native evidence: each sample's analytical tests, from the tests lot_status already loaded
+    # (no query per sample); an open test answered by an accepted supplier result says so.
+    from analytical.contracts import supplier_results
+
+    standing = supplier_results(lot)["standing"] if tests else {}
+    native_by_sample = {}
+    for test in tests:
+        test.supplier_result = standing.get(test.test_code) if test.state == "open" else None
+        native_by_sample.setdefault(test.sample_id, []).append(test)
+    for sample in samples:
+        sample.native_tests = native_by_sample.get(sample.pk, [])
     acceptances = reliance.lot_acceptances(lot)
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))

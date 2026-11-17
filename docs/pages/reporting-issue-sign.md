@@ -35,7 +35,7 @@ Signs and issues version 1 of a certificate of analysis for a released lot, with
 
 ## Layout
 
-- **Dialog** (a full page without JavaScript): heading "Sign and issue certificate", a statement of what your signature records, your name as signer, a link to enrol or change your signature PIN, any error summary, the form, and **Sign and issue certificate** / **Cancel**.
+- **Dialog** (a full page without JavaScript): heading "Sign and issue certificate", a statement of what your signature records, your name as signer, the link **Enroll or change your signature PIN**, any error summary, the form, and **Sign and issue certificate** / **Cancel**.
 - Opening the page never signs. With JavaScript it opens as a modal, focus goes to the PIN (or the error), Escape or **Cancel** leaves without signing.
 
 ## Actions

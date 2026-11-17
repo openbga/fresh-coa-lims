@@ -52,7 +52,7 @@ Creates a specification (one material, one stage, one scope) together with its d
 |---|---|---|---|---|
 | Code | `Specification.code` | Slug (letters, numbers, hyphen, underscore), max 60, unique | Yes | Stable identifier. |
 | Title | `Specification.title` | Text, max 200 | Yes | Descriptive title. |
-| Material | `Specification.material` | Choice of all materials | Yes | Material the specification covers. |
+| Material | `Specification.material` | Type-to-search choice of the materials (searches code and name) | Yes | Material the specification covers. |
 | Stage | `Specification.stage` | Incoming material, In-process, Finished product, Stability | Yes | Stage of the material. |
 | Scope | `Specification.scope` | Slug, max 60, default "general" | Yes | Help: "general, or a named market or customer overlay such as eu-market. A lot is assigned under every scope it falls under and each specification applies in full; where two state a test differently the lot is held for a quality decision." |
 | Basis | `SpecificationRevision.basis` | Text | Yes | Help: "Scientific, compendial or contractual basis for these limits." |

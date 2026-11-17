@@ -386,3 +386,13 @@ def page_size_field(per_page, noun):
         }
     )
     return form["per_page"]
+
+
+@register.filter
+def action_label(code):
+    """An audit action code in words for a history entry ("test.assigned" → "Test assigned").
+
+    Display only: the audit trail, its CSV export and recorded evidence keep the raw code.
+    """
+    text = str(code or "").replace(".", " ").replace("_", " ").strip()
+    return text[:1].upper() + text[1:]

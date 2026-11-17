@@ -35,7 +35,7 @@ Independently review a pull, its evidence (its own tests, a linked sample or ext
 
 ## Layout
 
-- Title "Accept pull · <timepoint>". A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Title "Accept pull · <timepoint>". A signing dialog (a plain card without JavaScript): record identifier and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

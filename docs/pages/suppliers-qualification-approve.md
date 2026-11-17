@@ -34,7 +34,7 @@ Approve recorded supplier qualification evidence with meaning **approved**. From
 
 ## Layout
 
-- Breadcrumbs (Suppliers, the supplier's code, SQ-n, Approve), then a signing dialog (a plain card without JavaScript): SQ-n and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs (Suppliers, the supplier's code, SQ-n, Approve), then a signing dialog (a plain card without JavaScript): SQ-n and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

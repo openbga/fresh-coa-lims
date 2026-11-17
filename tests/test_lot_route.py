@@ -9,6 +9,7 @@ from django.utils import timezone
 from core.models import RuleSet
 from quality.models import Lot
 from quality.route import stages, summary
+from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
@@ -136,3 +137,75 @@ def test_lot_record_lists_what_signing_enforces_and_shows_holds(client, django_u
     # A quality reviewer's next step is the disposition, whatever other roles they hold.
     disposition = reverse("quality:disposition", args=[lot.pk])
     assert f'class="btn btn-primary" href="{disposition}"' in body
+
+
+def test_lot_record_shows_native_tests_per_sample(client, integrated):
+    """A native lot's Samples and results panel lists each sample's analytical tests (status,
+    reportable result, link to the test) from the tests the record already loaded."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from tests.test_integrated_journey import assign_and_sample, observed_test
+
+    data = integrated
+    sample = assign_and_sample(data)
+    test = observed_test(data, sample, "99.5")
+    client.force_login(data["people"]["approver"])
+    url = reverse("quality:lot_detail", args=[data["lot"].pk])
+    client.get(url)  # warm the session's preferences
+    with CaptureQueriesContext(connection) as one:
+        body = client.get(url).content.decode()
+    panel = body[body.index('id="samples-heading"') : body.index('id="signatures-heading"')]
+    assert reverse("analytical:test_detail", args=[test.pk]) in panel
+    assert test.test_code in panel and ">Awaiting review<" in panel
+    assert test.reportable_display in panel
+    assert "No results recorded." not in panel  # the legacy table is not shown for native tests
+    # A second sample adds no query: the tests come from the record's own lot query.
+    second = sampling_second_sample(data)
+    observed_test(data, second, "99.6")
+    with CaptureQueriesContext(connection) as two:
+        client.get(url)
+    assert len(two) - len(one) <= 2  # its sample row and its sampling record, not per test
+
+
+def sampling_second_sample(data):
+    from decimal import Decimal
+
+    from sampling import services as sampling
+
+    record = sampling.record_sampling(
+        actor=data["people"]["analyst"],
+        lot=data["lot"],
+        reference="SYN-INTEGRATED-S002",
+        sampled_at=timezone.now(),
+        containers_total=1,
+        containers_sampled=1,
+        container_ids="SYN-C002",
+        quantity=Decimal("10"),
+        quantity_unit="g",
+        location="Synthetic sampling booth",
+        reason="Second synthetic sample",
+    )
+    return record.sample
+
+
+def test_lot_record_keeps_legacy_results(client, django_user_model):
+    """A lot with only foundation results keeps the legacy results table."""
+    analyst = django_user_model.objects.create_user("route-legacy")
+    analyst.groups.add(Group.objects.get_or_create(name="analyst")[0])
+    rules = RuleSet.objects.create(
+        code="route-legacy-rules",
+        segment="synthetic",
+        status="approved",
+        effective_from=timezone.now(),
+        author=analyst,
+    )
+    lot = Lot.objects.create(
+        number="SYN-ROUTE-LEGACY", material="Synthetic", rules=rules, created_by=analyst
+    )
+    lot.samples.create(reference="SYN-LEGACY-S1", collected_at=timezone.now(), created_by=analyst)
+    client.force_login(analyst)
+    body = client.get(reverse("quality:lot_detail", args=[lot.pk])).content.decode()
+    panel = body[body.index('id="samples-heading"') : body.index('id="signatures-heading"')]
+    assert "SYN-LEGACY-S1" in panel and "No results recorded." in panel
+    assert "Tests of sample" not in panel

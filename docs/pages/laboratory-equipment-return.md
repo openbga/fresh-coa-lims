@@ -35,7 +35,7 @@ Approve returning equipment to service after assessing the impact of its failure
 
 ## Layout
 
-- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts (including one line for each use to assess, up to 50, oldest first, as on the equipment record: the work with its link, test code, state and reportable result, or the number of tests in a QC batch; "More uses" gives the count not listed), signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): the asset and revision, the meaning, key facts (including one line for each use to assess, up to 50, oldest first, as on the equipment record: the work with its link, test code, state and reportable result, or the number of tests in a QC batch; "More uses" gives the count not listed), signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

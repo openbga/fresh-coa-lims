@@ -1999,6 +1999,23 @@ a.vr-navlink[aria-current="page"]:hover {
   --vr-tone-bg: var(--vr-hold-bg);
 }
 
+/* A result's kind beside its identifier ({% kind_tag %}: Retest, Resample, Original): a squarer
+   tag in the progress tone, so it never reads as a status pill. */
+.vr-kind-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--vr-space-1);
+  padding: 0 var(--vr-space-1-5);
+  border-radius: var(--vr-radius-tag);
+  background: var(--vr-progress-bg);
+  color: var(--vr-progress-text);
+  font-size: var(--vr-font-size-3);
+  font-weight: var(--vr-font-weight-bold);
+  line-height: var(--vr-line-height-snug);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 /* Plain variant for dense table cells and notices: icon and text in the tone colour, no fill. */
 .vr-status.vr-status-plain {
   padding: 0;

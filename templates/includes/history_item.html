@@ -17,7 +17,7 @@ Parameters:
             retest, pencil-square for a correction)
 Usage:
   <ol class="vr-timeline">
-    {% for event in history %}{% history_item title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
+    {% for event in history %}{% history_item title=event.action|action_label at=event.occurred_at actor=event.actor reason=event.reason %}{% endfor %}
   </ol>
 {% endcomment %}
 <li class="vr-history-item">

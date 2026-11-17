@@ -34,7 +34,7 @@ Approve recorded contract laboratory evidence with meaning **approved**. From th
 
 ## Layout
 
-- Breadcrumbs, then a signing dialog (a plain card without JavaScript): CLA-n and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs, then a signing dialog (a plain card without JavaScript): CLA-n and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 

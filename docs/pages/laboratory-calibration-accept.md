@@ -35,7 +35,7 @@ Independently review calibration evidence and accept its outcome with meaning **
 
 ## Layout
 
-- Breadcrumbs (Laboratory, Equipment, the asset, Accept calibration), then a signing dialog (a plain card without JavaScript): the record ("ASSET calibration N") and revision, the meaning, key facts, signer, a link to enrol or change the signature PIN, the form, **Cancel** and the sign button. Opening the page never signs.
+- Breadcrumbs (Laboratory, Equipment, the asset, Accept calibration), then a signing dialog (a plain card without JavaScript): the record ("ASSET calibration N") and revision, the meaning, key facts, signer, the link **Enroll or change your signature PIN**, the form, **Cancel** and the sign button. Opening the page never signs.
 
 ## Actions
 
