@@ -68,6 +68,16 @@ def test_page_documentation_panel(live_server, django_user_model, artifacts):
             expect(
                 panel.locator("[data-pagedocs-tasks] .pagedocs-label", has_text="New material lot")
             ).to_be_visible()
+            # The drawer runs the full height of the window under the top bar.
+            box = panel.bounding_box()
+            assert box["y"] + box["height"] == 1000
+            # Jump links scroll the drawer to a part without changing the page or its address.
+            address = page.url
+            panel.get_by_role("link", name="All fields and actions", exact=True).click()
+            expect(
+                panel.get_by_role("heading", name="All fields and actions", exact=True)
+            ).to_be_focused()
+            assert page.url == address
             sections = panel.locator("[data-pagedocs-section]")
             expect(sections).to_have_count(7)
             actions = sections.filter(has=page.locator("summary", has_text="Actions"))

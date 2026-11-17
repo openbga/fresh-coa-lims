@@ -228,7 +228,6 @@ def fact_values(values, body, slots, has_body):
         )
     return {
         "value": None if blank else value,
-        "critical_glyph": STATUS_GLYPHS.get(critical, "") if critical else "",
     }
 
 
@@ -292,6 +291,27 @@ def value_items(data, exclude=()):
         else:
             rows.append((label, "text", value))
     return rows
+
+
+def flat_rows(data, prefix=""):
+    """(label, kind, value) rows of a mapping flattened for one facts grid: a nested key takes
+    its parent as prefix ("applies_to.materials" → "Applies to materials")."""
+    rows = []
+    for label, kind, value in value_items(data):
+        label = f"{prefix} {label[:1].lower()}{label[1:]}" if prefix else label
+        if kind == "dict":
+            rows.extend(flat_rows(value, label))
+        else:
+            rows.append((label, kind, value))
+    return rows
+
+
+def policy_facts_values(values, body, slots, has_body):
+    exclude = tuple(k.strip() for k in str(values["exclude"] or "").split(",") if k.strip())
+    data = values["data"]
+    if not isinstance(data, dict):
+        return {"rows": []}
+    return {"rows": flat_rows({k: v for k, v in data.items() if k not in exclude})}
 
 
 def value_list_values(values, body, slots, has_body):
@@ -437,6 +457,9 @@ COMPONENTS = {
         derive=material_tag_values,
     ),
     "code": Component(I + "code.html", ("value", "href", "title", "hash"), derive=code_values),
+    "policy_facts": Component(
+        I + "policy_facts.html", ("data", "exclude"), derive=policy_facts_values
+    ),
     "value_list": Component(
         I + "value_list.html", ("data", "compact", "nested", "exclude"), derive=value_list_values
     ),

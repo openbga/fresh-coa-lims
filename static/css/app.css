@@ -480,6 +480,7 @@
   --bs-form-valid-border-color: var(--vr-success-border);
   --bs-highlight-bg: var(--vr-selection);
   --bs-highlight-color: var(--vr-text-strong);
+  --bs-code-color: var(--vr-text-strong); /* Bootstrap's pink fails AA on every surface */
   --bs-backdrop-bg: var(--vr-backdrop);
   --bs-backdrop-opacity: 1;
   /* Bootstrap's semantic colours take the status tones (secondary is the neutral tone), so its

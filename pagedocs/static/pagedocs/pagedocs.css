@@ -519,10 +519,20 @@ mark.pagedocs-hit {
   top: 0;
 }
 
-/* Wide screens: the page makes room; the top bar keeps its full width. */
+/* Wide screens: the page makes room; the top bar keeps its full width. A dialog with the drawer
+   docked in it makes room too, so no field or action hides behind the drawer (Bootstrap writes
+   the modal's padding inline, hence the override). */
 @media (min-width: 992px) {
   .pagedocs-open .vr-shell {
     margin-right: var(--pagedocs-width);
+  }
+
+  .pagedocs-open .modal:has(> .pagedocs-panel) {
+    padding-right: var(--pagedocs-width) !important;
+  }
+
+  .pagedocs-open .modal:has(> .pagedocs-panel) .modal-fullscreen {
+    width: 100%;
   }
 }
 

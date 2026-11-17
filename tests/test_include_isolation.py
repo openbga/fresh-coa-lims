@@ -120,6 +120,7 @@ CASES = {
     "required_note": "{% load ui %}{% required_note %}",
     "route": "{% load ui %}{% route stages=no_events %}",
     "value_list": "{% load ui %}{% value_list data=no_chips %}",
+    "policy_facts": "{% load ui %}<dl>{% policy_facts data=no_chips %}</dl>",
     "material_tag": '{% load ui %}{% material_tag material="Lactose" kind="raw_material" %}',
     "code": '{% load ui %}{% code value="assay" %}',
     "row_select": '{% load ui %}{% row_select name="events" value=1 %}',

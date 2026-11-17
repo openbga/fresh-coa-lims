@@ -10,8 +10,9 @@ Parameters:
   wide    truthy for a long phrase (a name pair, an address, a note): the row spans two columns of
           the facts grid, or the whole row when only one fits
   critical  a tone (danger | warning | hold | info | success | progress | neutral) for the one
-          fact of a region that must not hide: a tinted well with the tone icon (at most one per
-          region; a second as a filled pill in the same well)
+          fact of a region that must not hide: an ordinary fact whose label takes the tone; give
+          a filled {% status %} pill as the value and the detail on the <small> sub-line (at most
+          one per region; a second is an ordinary fact with a pill)
   truncate  truthy for a long code-like value (a revision reference, a hash): one line ending in
           an ellipsis, the full text in a tooltip (controls.js upgrades the title) and in the DOM
 Parts (block form only): label, for a dt that needs markup or values, e.g.
@@ -22,4 +23,4 @@ Usage:
     {% fact label="Email" %}{% if client.email %}<a href="mailto:{{ client.email }}">{{ client.email }}</a>{% endif %}{% endfact %}
   </dl>
 {% endcomment %}
-{% load ui %}<div{% if wide or critical %} class="{% if wide %}vr-fact-wide{% endif %}{% if wide and critical %} {% endif %}{% if critical %}vr-fact-critical{% endif %}"{% endif %}{% if critical %} data-tone="{{ critical }}"{% endif %}><dt>{% if slots.label %}{{ slots.label }}{% else %}{{ label }}{% endif %}</dt><dd{% if class or truncate and value is not None %} class="{% if truncate and value is not None %}vr-fact-truncate{% if class %} {% endif %}{% endif %}{{ class }}"{% endif %}{% if truncate and value is not None %} title="{{ value|striptags }}"{% endif %}>{% if value is None %}{% if empty %}<span class="vr-muted">{{ empty }}</span>{% else %}—{% endif %}{% else %}{% if critical_glyph %}{% icon name=critical_glyph class="vr-status-glyph" %}{% endif %}{{ value }}{% endif %}</dd></div>
+{% load ui %}<div{% if wide or critical %} class="{% if wide %}vr-fact-wide{% endif %}{% if wide and critical %} {% endif %}{% if critical %}vr-fact-critical{% endif %}"{% endif %}{% if critical %} data-tone="{{ critical }}"{% endif %}><dt>{% if slots.label %}{{ slots.label }}{% else %}{{ label }}{% endif %}</dt><dd{% if class or truncate and value is not None %} class="{% if truncate and value is not None %}vr-fact-truncate{% if class %} {% endif %}{% endif %}{{ class }}"{% endif %}{% if truncate and value is not None %} title="{{ value|striptags }}"{% endif %}>{% if value is None %}{% if empty %}<span class="vr-muted">{{ empty }}</span>{% else %}—{% endif %}{% else %}{{ value }}{% endif %}</dd></div>
