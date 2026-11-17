@@ -49,6 +49,7 @@ MUTATION_PAGES = {
     "test_batch",
     "test_return",
     "test_review",
+    "test_not_completed",
     "batch_new",
     "qc_record",
     "qc_correct",
@@ -173,6 +174,15 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "test_review": (
             reverse("analytical:test_review", args=[identity.pk]),
             {**review_post, "expected_revision": fresh(identity).revision},
+        ),
+        "test_not_completed": (
+            reverse("analytical:test_not_completed", args=[tests2["identity"].pk]),
+            {
+                **review_post,
+                "cause": "sample",
+                "repeat": "same",
+                "expected_revision": tests2["identity"].revision,
+            },
         ),
         "raw_file_new": (
             reverse("analytical:raw_file_new", args=[tests2["assay"].pk]),

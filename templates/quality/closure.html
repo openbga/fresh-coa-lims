@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% comment %}Signed rejection of a lot, or cancellation of a lot received in error. Context: lot, decision ("rejected" or "cancelled"), closure (reasons, basis, possible), evidence (what the signature freezes), tests (each with kind_label and state_label), form, denied, button, cancel_url, crumbs.{% endcomment %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% block page_meta %}<p class="vr-page-meta"><span class="vr-id">{{ lot.number }}</span> · {{ lot.material }} · lot record revision {{ lot.revision }} · {% include "includes/status.html" with label="Quarantine" tone="hold" %}</p>{% endblock %}
+{% block page_intro %}{% if decision == "rejected" %}<p class="vr-page-intro">Rejection ends the lot's quarantine: it is not released, takes no more receipt, sampling, certificate or test records and keeps every record as it is now. Physical segregation and what happens to the material are decided and recorded in the quality system.</p>{% else %}<p class="vr-page-intro">Cancel a lot that was recorded in error, such as a delivery recorded twice, before anything was done with its material. The lot and its records are kept, marked cancelled, and its number is not used again.</p>{% endif %}{% endblock %}
+{% block content %}
+<section class="card mb-3" aria-labelledby="lot-heading">
+  <div class="card-header"><h2 class="card-title" id="lot-heading">The lot now</h2></div>
+  <div class="card-body">
+    <dl class="vr-facts mb-0">
+      <div><dt>Rule set</dt><dd>{{ lot.rules }}</dd></div>
+      <div><dt>Requirements</dt><dd>{% if evidence.requirements %}{% if evidence.requirements.status == "ready" %}Assigned{% else %}On an applicability hold{% endif %}{% else %}Not assigned{% endif %}</dd></div>
+      {% with receipt=evidence.receipt %}
+      <div><dt>Receipt</dt><dd>{% if receipt %}{% if receipt.supplier %}{{ receipt.supplier }} · {% if receipt.supplier_lot %}supplier lot {{ receipt.supplier_lot }} · {% endif %}{% else %}Made on site · {% endif %}{{ receipt.shipment_ref }} · <time datetime="{{ receipt.received_on }}">{{ receipt.received_on }}</time> · {{ receipt.quantity }} {{ receipt.quantity_unit }} in {{ receipt.containers }} container{{ receipt.containers|pluralize }} ({{ receipt.container_description }}){% if receipt.manufacturer %}<br>Manufacturer {{ receipt.manufacturer }}{% if receipt.manufacturer_location %}, {{ receipt.manufacturer_location }}{% endif %}{% if receipt.manufacturer_lot %} · manufacturer lot {{ receipt.manufacturer_lot }}{% endif %}{% endif %}{% else %}Receipt details not recorded{% endif %}</dd></div>
+      {% if receipt %}<div><dt>Examination on receipt</dt><dd>{% if receipt.condition == "discrepancy" %}{% include "includes/status.html" with label="Discrepancy found" tone="warning" %}<br>{{ receipt.condition_notes|linebreaksbr }}{% else %}{% include "includes/status.html" with label="No discrepancy found" tone="success" %}{% endif %}</dd></div>{% endif %}
+      {% endwith %}
+      <div><dt>Supplier certificates</dt><dd>{% for item in evidence.supplier_certificates %}{{ item.number }}{% if item.withdrawn %} · {% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% if item.failing %} · stated not meeting the specification: {{ item.failing|join:", " }}{% endif %}{% elif item.failing %} · {% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %} {{ item.failing|join:", " }}{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Supplier results in place of tests</dt><dd>{% for item in evidence.supplier_results %}<span class="vr-id">{{ item.label }}</span> · {{ item.test_code }} · {% if item.state == "accepted" %}Accepted{% elif item.state == "proposed" %}Awaiting acceptance{% else %}Withdrawn{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Active holds</dt><dd>{% for hold in evidence.holds %}<span class="vr-id">{{ hold.hold }}</span> · {{ hold.kind_label }} · {{ hold.reason }}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
+    </dl>
+  </div>
+</section>
+{% if decision == "rejected" %}
+<section class="card mb-3" aria-labelledby="outstanding-heading">
+  <div class="card-header"><h2 class="card-title" id="outstanding-heading">What stands in the way of release</h2><span class="vr-count">{{ evidence.outstanding|length }}</span></div>
+  <div class="card-body">
+    {% if evidence.outstanding %}<ul class="mb-0 ps-3 text-break">{% for item in evidence.outstanding %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="mb-0">Nothing: the release gates find nothing missing or failing. A lot that meets its requirements can still be rejected; state why in the reason.</p>{% endif %}
+  </div>
+</section>
+<section class="card vr-table-card mb-3" aria-labelledby="tests-heading">
+  <div class="card-header"><h2 class="card-title" id="tests-heading">Tests</h2><span class="vr-count">{{ tests|length }}</span></div>
+  {% if tests %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="tests-heading">
+      <thead><tr><th scope="col">Test</th><th scope="col">Status</th><th scope="col">Outcome</th><th scope="col">Sample</th></tr></thead>
+      <tbody>
+        {% for row in tests %}
+        <tr>
+          <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a><br>{{ row.test_code }}{% if row.kind != "original" %}<br><span class="small">{{ row.kind_label }}</span>{% endif %}</th>
+          <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted: {{ row.unsubmitted|join:", " }}{% if row.outside_limits %} ({{ row.outside_limits|join:", " }} outside the limits){% endif %}{% elif row.state == "open" and row.raw_data %} · raw data attached, no result{% elif row.state == "not_completed" and row.unsubmitted %} · recorded: {{ row.unsubmitted|join:", " }}{% if row.outside_limits %} ({{ row.outside_limits|join:", " }} outside the limits){% endif %}{% endif %}</td>
+          <td>{% if row.conforms is True %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% elif row.conforms is False %}{% include "includes/status.html" with label="Out of specification" tone="danger" plain=True %}{% else %}—{% endif %}</td>
+          <td>{{ row.sample|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-body"><p class="mb-0">Tests stay as they are. An open test takes no more work once the lot is rejected and is kept in the record unfinished.</p></div>
+  {% else %}
+  <div class="card-body"><p class="mb-0">No tests were assigned to this lot.</p></div>
+  {% endif %}
+</section>
+{% if evidence.investigations %}
+<section class="card vr-table-card mb-3" aria-labelledby="investigations-heading">
+  <div class="card-header"><h2 class="card-title" id="investigations-heading">Investigations</h2><span class="vr-count">{{ evidence.investigations|length }}</span></div>
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="investigations-heading">
+      <thead><tr><th scope="col">Investigation</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for item in evidence.investigations %}
+        <tr>
+          <th scope="row"><a class="vr-id" href="{% url 'analytical:investigation_detail' item.investigation %}">{{ item.label }}</a></th>
+          <td>{% if item.phase != "closed" %}{% include "includes/status.html" with label="Open" tone="warning" plain=True %}{% elif item.outcome == "confirmed" %}{% include "includes/status.html" with label="Out-of-specification result confirmed" tone="danger" plain=True %}{% else %}{% include "includes/status.html" with label="Original result invalidated" tone="neutral" plain=True %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endif %}
+{% if closure.reasons %}
+<section class="card mb-3" aria-labelledby="refused-heading">
+  <div class="card-header"><h2 class="card-title" id="refused-heading">{% if decision == "rejected" %}The lot cannot be rejected yet{% else %}The lot cannot be cancelled{% endif %}</h2></div>
+  <div class="card-body">
+    <div class="alert alert-warning mb-3" role="alert">{% include "includes/status.html" with label="Refused" tone="warning" plain=True %}<div class="text-break"><ul class="mb-0 ps-3">{% for reason in closure.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></div></div>
+    <p class="mb-0">Nothing was changed. The lot stays in quarantine. <a class="btn btn-outline-secondary ms-2" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
+  </div>
+</section>
+{% endif %}
+{% if closure.possible or denied %}
+<section class="card" aria-labelledby="sign-title">
+  <div class="card-body">
+    <h2 id="sign-title" class="card-title">{% if decision == "rejected" %}Sign rejection{% else %}Sign cancellation{% endif %}</h2>
+    {% if denied %}
+    <div class="alert alert-warning" role="alert">{% include "includes/status.html" with label="Not permitted" tone="warning" plain=True %}<div class="text-break">{{ denied }} Independence cannot be bypassed by any role, including administrators.</div></div>
+    <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
+    {% else %}
+    <p>Your signature records the meaning <strong>{{ decision }}</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>, with what this page shows. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If the lot's record changes before you sign, signing fails and you review it again.</p>
+    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <form method="post" autocomplete="off" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_errors.html" with form=form %}
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+      <div class="vr-form-actions">
+        <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
+        <button class="btn btn-danger" type="submit">{{ button }}</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block record_foot %}{% include "includes/record_foot.html" with identifier=lot.number %}{% endblock %}

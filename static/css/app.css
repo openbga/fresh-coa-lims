@@ -760,6 +760,18 @@ s,
   align-items: flex-start;
 }
 
+.alert:has(> .vr-status) > :not(.vr-status) {
+  min-width: 0;
+}
+
+/* On a phone a long label would leave the text a narrow column: the label goes above it. */
+@media (max-width: 575.98px) {
+  .alert:has(> .vr-status) {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+}
+
 .alert > :last-child {
   margin-bottom: 0;
 }

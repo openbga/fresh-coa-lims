@@ -4,7 +4,7 @@ urls: analytical:test_list
 views: analytical.views.test_list
 templates: analytical/test_list.html, includes/section_tabs.html, analytical/_pager.html, analytical/_test_status.html
 models: analytical.AnalyticalTest, quality.SupplierResultAcceptance
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -40,10 +40,10 @@ List every analytical test, of a lot's testing or of a stability pull, from assi
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Find | — | Text | No | Case-insensitive match on lot number, sample reference, stability study identifier, the lot number of a stability study, or test code. A stability test is not found by its own lot number through the lot field, only through its study's lot |
-| Status | `AnalyticalTest.state`, `conforms` | Choice | No | All tests, Open, Awaiting review, Out of specification, Reviewed, Invalidated, Superseded |
+| Status | `AnalyticalTest.state`, `conforms` | Choice | No | All tests, Open, Awaiting review, Out of specification, Reviewed, Invalidated, Superseded, Not completed |
 | Test | — | "T-" and the record number | — | Link to the test |
-| Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result", Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated, "Superseded · requirements replaced" |
-| Kind | `AnalyticalTest.kind` | Original, Retest, Resample, Rerun after QC failure, Repeat under replaced requirements | — | How the test arose |
+| Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result", Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated, "Superseded · requirements replaced", Not completed |
+| Kind | `AnalyticalTest.kind` | Original, Retest, Resample, Rerun after QC failure, Repeat under replaced requirements, Repeat of a test not completed | — | How the test arose |
 | Reportable | `AnalyticalTest.reportable_text` | Text with unit (no unit for qualitative tests) | — | Frozen on submission: a number at the approved reporting precision, a less-than reading such as "<10", or a qualitative outcome; "—" before |
 | Batch | `AnalyticalTest.batch` | Batch number | — | QC batch, or "—" |
 | Assigned | `AnalyticalTest.created_at` | Date and time | — | When the test was created |
@@ -54,6 +54,7 @@ List every analytical test, of a lot's testing or of a stability pull, from assi
 - **Not tested · supplier result**: shown instead of Open for an Open test when a supplier result is proposed or accepted in place of that test of the lot and not withdrawn, also after the lot is released. Such a test is not work waiting to be done: it takes no observation, contract laboratory result, raw-data file or QC batch until that record is withdrawn. The **Open** filter still lists it; there is no separate filter.
 - **Out of specification filter**: tests that did not conform and are neither Invalidated nor Superseded.
 - **Superseded**: a test whose requirement changed, or is no longer required, when quality replaced the lot's requirements during testing. It keeps everything recorded on it, takes no more work and never counts. Its repeat under the current requirement has the kind "Repeat under replaced requirements".
+- **Not completed**: a test that quality signed as not completed. It keeps everything recorded on it, takes no more work and never counts. Its repeat, when it has one, has the kind "Repeat of a test not completed".
 - **Unknown status value** in the address is treated as All tests.
 
 ## Related pages

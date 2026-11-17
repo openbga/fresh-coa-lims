@@ -6,12 +6,14 @@ from django.utils.html import escape
 
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
+from core.forms import SignatureIdentityForm
 from core.models import RuleSet
 from core.services import APPLIES_TO, applies_at
 from suppliers.models import Supplier
 
 from . import certificates
 from .models import Lot, ReceiptCondition, ReceiptSource, Sample
+from .rejection import REFERENCE_MAX, RejectionGrounds
 from .services import RECEIPT_FIELDS
 
 
@@ -419,3 +421,58 @@ class SigningForm(StyledForm):
         widget=forms.PasswordInput(attrs={"autocomplete": "off", "inputmode": "numeric"}),
     )
     expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+
+
+class ClosureForm(SignatureIdentityForm):
+    """Signature on a lot's rejection or cancellation, as previewed (``basis``). The PIN is
+    never shown again; the revision and the basis are those of the page the signer reviewed."""
+
+    reference = forms.CharField(
+        label="Record in the quality system",
+        max_length=REFERENCE_MAX,
+        required=False,
+        help_text="Optional. The deviation or nonconformance record that covers this decision "
+        "and what happens to the material, for example NCR-2026-014.",
+    )
+    pin = forms.CharField(
+        label="Signature PIN",
+        widget=forms.PasswordInput(
+            attrs={"autocomplete": "off", "inputmode": "numeric"}, render_value=False
+        ),
+        help_text="Re-enter your PIN for every signature.",
+    )
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    basis = forms.CharField(max_length=64, widget=forms.HiddenInput)
+
+
+class RejectionForm(ClosureForm):
+    grounds = forms.ChoiceField(
+        label="Grounds for the rejection",
+        choices=UNSTATED + RejectionGrounds.choices,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    reason = forms.CharField(
+        label="Reason for the rejection",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="What does not meet the requirements, or why the lot cannot be used.",
+    )
+    field_order = [
+        "grounds",
+        "reason",
+        "reference",
+        "signature_username",
+        "pin",
+        "expected_revision",
+        "basis",
+    ]
+
+
+class CancellationForm(ClosureForm):
+    reason = forms.CharField(
+        label="What was recorded in error",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="For example: the delivery was recorded twice, and the lot that holds it.",
+    )
+    field_order = ["reason", "reference", "signature_username", "pin", "expected_revision", "basis"]

@@ -15,6 +15,12 @@
   <link rel="stylesheet" href="assets/bootstrap.min.css">
   <link rel="stylesheet" href="assets/app.css">
   <link rel="stylesheet" href="style.css">
+  <!-- Privacy-friendly analytics by Plausible -->
+  <script async src="https://plausible.io/js/pa-As5SrVpCQgama4d7wsW_9.js"></script>
+  <script>
+    window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+    plausible.init()
+  </script>
 </head>
 <body>
   <a class="visually-hidden-focusable vr-skip" href="#main">Skip to main content</a>
@@ -47,7 +53,7 @@
               <li><a href="#later">Later</a></li>
               <li><a href="#outside">Outside the current plan</a></li>
             </ul>
-            <p class="qual-demo-note">Last updated <time datetime="2026-11-16">16 November 2026</time>. To propose a change, <a href="https://github.com/openbga/qm-lims/issues">open an issue on GitHub</a>.</p>
+            <p class="qual-demo-note">Last updated <time datetime="2026-11-17">17 November 2026</time>. To propose a change, <a href="https://github.com/openbga/qm-lims/issues">open an issue on GitHub</a>.</p>
           </div>
           <div class="col-lg-5">
             <aside class="qual-record" aria-labelledby="reading-heading">
@@ -79,7 +85,9 @@
             <li id="receipt-sampling"><h3>Lot receipt and sampling</h3><p>Lots are received into quarantine with their receipt details: the supplier, from a register kept by quality, or that the material was made on site; the supplier's and the manufacturer's lot numbers; the delivery document, date, quantity and containers; and what the examination on receipt found. A correction adds a record and keeps the original. The register records who a supplier is and does not qualify it. Lots are then assigned their specifications and sampling plan. The results on a supplier's certificate are recorded against the lot's specification, with the method and limits the certificate states, and compared with the approved limits. They stay the supplier's results, apart from the laboratory's own tests, and recording them does not replace a test. Sampling records show which containers were sampled, where, when and by whom, with deviations assessed.</p></li>
             <li id="testing"><h3>Testing</h3><p>Numeric results and counts with units, replicates, declared rounding and batch QC checks. Qualitative results (conforms or does not conform, present or absent) are recorded with what was observed. A result reported as less than a value is kept as recorded and never becomes zero. Limits can include or exclude their boundary. A result can be calculated from raw measurements, such as weights, volumes and factors, with a formula approved with the method version; the record keeps the inputs and the formula used. Raw-data files are attached to a test and stored with a checksum. A correction adds an entry and keeps the original.</p></li>
             <li id="investigations"><h3>Out-of-specification investigations</h3><p>A failing result opens a hold and an investigation. Retests and resamples need authorization and stay linked to the original result. An independent signed conclusion closes the investigation.</p></li>
+            <li id="tests-not-completed"><h3>Tests that cannot be completed</h3><p>When a sample is lost or used up, or an instrument fails, a quality person who recorded none of the test's data signs that the test cannot be completed, with the cause and a reason. Everything recorded on it is kept. The test is then repeated on the same sample or on a new sample of the lot. Readings outside the limits on it open an investigation instead, and a retest that cannot be run is left to its investigation, which can be concluded. A retest that gave no reading does not use up the retests the specification allows.</p></li>
             <li id="review-disposition"><h3>Review and QC disposition</h3><p>A reviewer who did not record the results signs the review. Quality signs the disposition, which is blocked while tests are missing or failing or while investigations or holds are open.</p></li>
+            <li id="lot-rejection"><h3>Lot rejection and receipts made in error</h3><p>A lot in quarantine that fails its requirements or cannot be used is rejected by a quality person who recorded none of its data, with the grounds, a reason, a reference to the quality system's record and a signature. The lot need not be fully tested: the signature keeps what stood in the way of release and the tests as they stood, and the lot then takes no more test or receipt records. An open investigation is concluded first, so a failure is always investigated. A lot recorded by mistake, before anything was done with its material, is cancelled with a reason and a signature and stays in the record. What happens to rejected material is decided in the quality system.</p></li>
             <li id="issued-certificates"><h3>Certificates of analysis</h3><p>A signed, versioned PDF built from the reviewed evidence. The issued file is stored with its checksum and returned unchanged on every download. An amendment states its reason and links to the original.</p></li>
             <li id="contract-laboratories"><h3>Contract laboratories</h3><p>A register of outside laboratories and, for each method a laboratory may perform, an approval with its evidence and dates, signed by a second quality person. A result the laboratory reports is recorded on the test with its report and is refused unless an approval covers the date of the report. It is then reviewed, investigated when it fails and printed on the certificate like any other result, with the laboratory named. The laboratory's record lists the results that relied on each approval.</p></li>
             <li id="supplier-reliance"><h3>Reliance on supplier results</h3><p>Where the laboratory's approved rule set allows it, a result stated on a supplier's certificate can stand in for a test. Quality qualifies a supplier for one material and named tests, with the evidence and dates, and a second quality person signs. An analyst proposes the stated result on the lot and a reviewer who recorded none of it signs the acceptance. The rule set lists the tests the laboratory always performs itself, such as identity. Testing and acceptance exclude each other, and the certificate of analysis lists accepted supplier results apart from the laboratory's own.</p></li>
@@ -92,6 +100,7 @@
             <li id="two-factor-sign-in"><h3>Two-factor sign-in</h3><p>Each person can add security keys or passkeys, an authenticator app on their phone, or both: after the password, sign-in asks the key, or for the code the app shows, and one-time recovery codes cover a lost key or phone. A passkey or key that checks its holder's PIN, fingerprint or face also signs in on its own, without the password, unless the laboratory turns that off. A key's answer works only at the site's own address, so a look-alike site cannot use it. Each code and each answer works once, and wrong ones count toward the same pause as wrong passwords. The laboratory chooses which roles must use it. An administrator resets it for someone else with a reason and a signature. The PIN is still re-entered for every signature.</p></li>
             <li id="single-sign-on"><h3>Single sign-on</h3><p>A laboratory can let its staff sign in through the organization's identity provider over OpenID Connect. Each person links their own account once, after confirming their password, and the provider then signs them in without it. No account or role comes from the provider, and one organization account belongs to one laboratory account. The provider is asked to check the person at every sign-in, so a session someone left open on a shared workstation is not used. A second factor set up in the system is still asked, the PIN is still re-entered for every signature, and every link, unlink and removal is in the audit trail.</p></li>
             <li id="validation-pack"><h3>Validation pack of each release</h3><p>Every product requirement is traced to the automated tests that give evidence for it, and a test that is not traced fails the checks. For each commit, the automated checks build a pack: the requirements, the tests traced to each one and how they ended, the environment the tests ran in, the release notes and a checksum of every file. A laboratory can build the same pack in its own environment. The pack is evidence for the laboratory's own validation; it does not test the laboratory's configuration or intended use.</p></li>
+            <li id="validation-records"><h3>The laboratory's validation records</h3><p>The laboratory records the use it validated the system for: what it is used for and what is not, the supported assays, the process owner and the system owner, and its validation report with the issues found. A second quality person accepts it with a signature, which freezes the approved configuration and the release in force. The record then shows every approved version, assay or release that changed since, for the laboratory's change control; nothing is held because of it. Rehearsals of recovery from backup, of downtime with reconciliation of the records made meanwhile, and of upgrades are recorded with their criteria, outcome and evidence files, and accepted by a quality person who did not record them.</p></li>
             <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
           </ul>
         </div>
@@ -111,18 +120,15 @@
             <ol class="qual-workflow">
               <li id="validation-support">
                 <h3>Support for validation and inspection</h3>
-                <p>Each laboratory validates the system for its own use. The validation pack of each release and the export of a lot's record already supply evidence for that work. What remains:</p>
+                <p>Each laboratory validates the system for its own use. The validation pack of each release, the export of a lot's record and the laboratory's own acceptance and rehearsal records already supply evidence for that work. What remains:</p>
                 <ul>
-                  <li>Guidance and an acceptance record for a laboratory's defined use: supported assays, approved configuration and the people responsible for it.</li>
                   <li>Acceptance journeys for passing, failing, corrected, rejected and amended records, with the evidence the laboratory keeps.</li>
-                  <li>Recorded rehearsals of recovery, downtime reconciliation and upgrades, with acceptance by the laboratory. A release's validation pack does not replace this work.</li>
                 </ul>
                 <p class="qual-ref">Requirement OQ-016</p>
               </li>
               <li id="lot-lifecycle">
-                <h3>Lot rejection and reassessment</h3>
+                <h3>Expiry, retest and reassessment of material</h3>
                 <ul>
-                  <li>A signed rejection decision with its reason and evidence, and controlled cancellation of a receipt made in error.</li>
                   <li>Expiry and retest dates where they apply, with a linked reassessment of material after release that preserves its original results and disposition.</li>
                   <li>Keep scheduled material retesting separate from an investigation's retest or resample. Reprocessing and manufacturer batch release stay in the manufacturer's quality system.</li>
                 </ul>

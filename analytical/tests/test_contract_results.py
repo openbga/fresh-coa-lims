@@ -346,7 +346,11 @@ def test_only_an_open_test_of_a_quarantined_lot_takes_a_report(people, assigned)
     with pytest.raises(ValidationError) as refusal:
         report(people, tests["identity"], "1.01", reason="Late change")
     assert refusal.value.messages == [services.NOT_ACCEPTING]
-    Lot.objects.filter(pk=lot.pk).update(state="rejected")
+    Lot.objects.filter(pk=lot.pk).update(
+        state="rejected",
+        # The lot guard requires a rejected lot to carry the evidence of its decision.
+        disposition_evidence={"schema": "oq.lot-rejection/1", "decision": "rejected"},
+    )
     with pytest.raises(ValidationError, match="no longer in quarantine"):
         report(people, tests["assay"], "99.8", "100.2")
     assert Observation.objects.filter(test=tests["assay"]).count() == 0

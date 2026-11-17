@@ -37,6 +37,7 @@ def test_menu_after_sign_in(live_server, django_user_model, artifacts, roles):
             "Suppliers",
             "Rule sets",
             "Certificates",
+            "Validation",
             *(["Audit trail"] if set(roles) & {"admin", "quality", "auditor"} else []),
             *expected,
         ]

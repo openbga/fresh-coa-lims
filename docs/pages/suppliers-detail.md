@@ -4,7 +4,7 @@ urls: suppliers:detail
 views: suppliers.views.supplier_detail
 templates: suppliers/detail.html
 models: suppliers.Supplier, suppliers.SupplierQualification, catalog.Material, quality.LotReceipt, quality.Lot, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -51,7 +51,7 @@ Shows one supplier's identity, its qualifications, the lots whose current receip
 | Evidence | `SupplierQualification.evidence_ref` | Text | — | Reference of the qualification report, audit report or comparison record. |
 | State | `SupplierQualification.state`, `valid_from`, `valid_until` | Label | — | Awaiting approval, Approved, "Approved, starts later", Expiring soon (within 30 days of Valid until), Expired or Revoked. For an approved record the label follows today's date. |
 | Lot | `LotReceipt.lot` → `Lot.number` | Link | — | Lot received from this supplier. |
-| Status | `Lot.state` | Quarantine, Released | — | Current lot status. |
+| Status | `Lot.state` | Quarantine, Released, Rejected, Cancelled | — | Current lot status. |
 | Material | `Lot.material` | Text | — | Material name as received. |
 | Supplier lot | `LotReceipt.supplier_lot` | Text | — | "Not known" when blank. |
 | Manufacturer lot | `LotReceipt.manufacturer_lot` | Text | — | "—" when blank. |

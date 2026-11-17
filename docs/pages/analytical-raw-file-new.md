@@ -4,7 +4,7 @@ urls: analytical:raw_file_new, analytical:raw_file_download
 views: analytical.rawdata.raw_file_new, analytical.rawdata.raw_file_download
 templates: analytical/raw_file_form.html, analytical/_summary.html, analytical/_raw_files.html, 413.html
 models: analytical.RawDataFile, analytical.AnalyticalTest, quality.Lot, core.AuditEvent
-reviewed: 2026-11-15
+reviewed: 2026-11-17
 ---
 
 ## Purpose
@@ -48,7 +48,7 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 
 - **Never opened**: the system does not read, display or run the file content. It is only stored, checksummed and returned.
 - **File name**: only the base name is kept (folders in `/` or `\` form are dropped) and control characters are removed. A name that is empty afterwards, or longer than 200 characters, is refused.
-- **Refusals** (form error with status 422, nothing stored): "The file is empty."; "The file is larger than the limit of ..."; "A test holds at most 20 raw-data files."; "This file content is already attached to this test." (same checksum on the same test); "This deployment has reached its storage limit for raw-data files. The file was not stored." (only where the deployment sets a ceiling for all files together); "Describe what the file is."; "This test is not accepting raw data."; "Lot ... is no longer in quarantine."
+- **Refusals** (form error with status 422, nothing stored): "The file is empty."; "The file is larger than the limit of ..."; "A test holds at most 20 raw-data files."; "This file content is already attached to this test." (same checksum on the same test); "This deployment has reached its storage limit for files. The file was not stored." (only where the deployment sets a ceiling for all files together); "Describe what the file is."; "This test is not accepting raw data."; "Lot ... is no longer in quarantine."
 - **Wrong state** (opening or submitting): you are redirected to the test record with "This test is not accepting raw data." (test not Open, lot not in quarantine, or for a stability test its pull not open for testing) or "A supplier's result is proposed or accepted in place of this test (SRA-1). Withdraw it on the lot record before testing the requirement in the laboratory."
 - **Supplier result in place of the test**: raw data is laboratory work. While a supplier result is proposed or accepted for this requirement of the lot and not withdrawn, no file is attached; the server refuses the same when saving. Withdraw that record from its acceptance record (reached from the lot record) first.
 - **A file marks the requirement as tested here**: a test that holds a raw-data file counts as started, so a supplier's result can no longer be proposed or accepted for its requirement: "T-12 assay already holds laboratory work (a result, a raw-data file, a QC batch or a decision). A supplier's result cannot stand in for a requirement the laboratory has started testing." Files are never deleted, so this stays true for the lot.

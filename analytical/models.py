@@ -100,6 +100,9 @@ class AnalyticalTest(models.Model):
         RESAMPLE = "resample", "Resample"
         RERUN = "rerun", "Rerun after QC failure"
         REVISED = "revised", "Repeat under replaced requirements"
+        # Follows a test that a signed record says cannot be completed, on the same sample or
+        # on a new sample of the lot (``record_not_completed``); needs no investigation.
+        REPEAT = "repeat", "Repeat of a test not completed"
 
     class State(models.TextChoices):
         OPEN = "open", "Open"
@@ -110,6 +113,16 @@ class AnalyticalTest(models.Model):
         # them. The test and everything recorded on it are kept; it takes no more work and
         # never answers a requirement.
         SUPERSEDED = "superseded", "Superseded"
+        # A quality person signed that the test cannot be completed (its sample was lost, an
+        # instrument failed...). Everything recorded on it is kept, with what the signature
+        # froze in ``not_completed_record``; it takes no more work and answers nothing.
+        NOT_COMPLETED = "not_completed", "Not completed"
+
+    class NotCompletedCause(models.TextChoices):
+        SAMPLE = "sample", "The sample was lost, damaged or used up"
+        HANDLING = "handling", "An error in preparing or running the test"
+        EQUIPMENT = "equipment", "Equipment, reagent or standard failure"
+        OTHER = "other", "Another cause, stated in the reason"
 
     # A test belongs to the testing of a lot (``lot`` and ``sample``) or to a stability pull
     # (``pull``), never both. A stability test names no lot: nothing that reads a lot's tests
@@ -150,6 +163,12 @@ class AnalyticalTest(models.Model):
     submitted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    not_completed_record = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="What the signed record that the test cannot be completed froze; empty "
+        "for every other test",
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     revision = models.PositiveIntegerField(default=1)
@@ -168,7 +187,7 @@ class AnalyticalTest(models.Model):
                 name="analytical_test_lineage",
             ),
             models.CheckConstraint(
-                condition=Q(kind__in=["original", "rerun", "revised"])
+                condition=Q(kind__in=["original", "rerun", "revised", "repeat"])
                 | Q(investigation__isnull=False),
                 name="analytical_retest_has_investigation",
             ),
@@ -185,8 +204,15 @@ class AnalyticalTest(models.Model):
             # A pull is retested on the material that was pulled: it has no other sample, and
             # its requirements are not replaced.
             models.CheckConstraint(
-                condition=Q(pull__isnull=True) | Q(kind__in=["original", "retest", "rerun"]),
+                condition=Q(pull__isnull=True)
+                | Q(kind__in=["original", "retest", "rerun", "repeat"]),
                 name="analytical_pull_test_kind",
+            ),
+            # The record exists exactly when the test was recorded as not completed.
+            models.CheckConstraint(
+                condition=(Q(state="not_completed") & ~Q(not_completed_record={}))
+                | (~Q(state="not_completed") & Q(not_completed_record={})),
+                name="analytical_test_not_completed_record",
             ),
         ]
 
