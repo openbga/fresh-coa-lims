@@ -543,3 +543,105 @@ def test_the_lot_record_export_includes_reassessments_and_their_tests(world):
     events = {(e["fields"]["object_type"], e["fields"]["object_id"]) for e in record["audit_trail"]}
     assert ("quality.reassessment", str(item.pk)) in events
     assert all(c["outcome"] == "intact" for c in record["checks"])
+
+
+# Review findings: the requirements in force, the lot lock, the guards and the boundaries ---------
+
+
+def test_a_test_the_specification_requires_later_is_assigned_before_suitable(world):
+    from tests.test_requirement_replacement import new_specification_version
+
+    item = reviewed(world, begin(world))
+    new_specification_version(world)  # version 2 also requires an assay
+    shown = reassessment.review(fresh(item))
+    assert "assay" in shown.codes and "assay" not in shown.assigned
+    assert "assay: no test is assigned." in shown.blockers
+    with pytest.raises(ValidationError, match="assay: no test is assigned"):
+        conclude(world, item, SUITABLE, today() + timedelta(days=90))
+    (assay,) = assign(world, fresh(item)).values()  # only the missing test is added
+    assert assay.test_code == "assay" and "synthetic-rt-spec@v2" in assay.spec.source
+    record(world, assay, "100.25")
+    submit(world, assay)
+    review(world, assay)
+    assert conclude(world, item, SUITABLE, today() + timedelta(days=90)).state == "concluded"
+
+
+def test_a_certificate_is_not_issued_beside_a_conclusion_that_ends_the_use(world, monkeypatch):
+    import core.services as signing
+    from laboratory.tests.helpers import run_interleaved
+    from reporting.models import Report
+
+    item = reviewed(world, begin(world))
+    _, evidence_hash, blockers = reporting.preview(world["lot"])
+    assert blockers == []
+
+    def ending():
+        return conclude(world, item, NOT_SUITABLE)
+
+    def issuing():
+        return reporting.issue_report(
+            actor=world["people"]["approver"],
+            pin=PIN,
+            lot=world["lot"],
+            recipient="Synthetic recipient",
+            evidence_hash=evidence_hash,
+            reason="Certificate requested meanwhile",
+        )
+
+    # The conclusion holds the lot: the certificate waits for it and then finds the use ended.
+    outcome = run_interleaved(monkeypatch, signing, "record_event", ending, issuing)
+    assert outcome["first"].outcome == NOT_SUITABLE
+    assert isinstance(outcome["second"], ValidationError), outcome["second"]
+    assert not Report.objects.filter(lot=world["lot"], state="issued").exists()
+
+
+def test_the_database_refuses_a_reassessment_of_a_lot_without_a_retest_date(django_user_model):
+    world = released_world(django_user_model, retest_in=None, expiry_in=300)
+    with pytest.raises(DatabaseError, match="with a retest date"), transaction.atomic():
+        Reassessment.objects.create(
+            lot=world["lot"],
+            reason="Direct write",
+            sample_reference="SYN-RA-NODATE",
+            sampled_on=today(),
+            quantity=1,
+            quantity_unit="g",
+            containers="SYN-C001",
+            dates_basis={"expiry_on": None},  # the cap reads the lot's record, not this
+            started_by=world["people"]["analyst"],
+        )
+
+
+def test_the_expiry_cap_reads_the_lot_s_record_not_the_basis_written(world):
+    item = begin(world)
+    Reassessment.objects.filter(pk=item.pk).update(revision=item.revision)  # allowed: no change
+    with pytest.raises(DatabaseError, match="never after the expiry date"), transaction.atomic():
+        Reassessment.objects.filter(pk=item.pk).update(
+            state="concluded",
+            outcome="suitable",
+            retest_on=today() + timedelta(days=401),
+            result_evidence={"schema": "x"},
+            decided_at=timezone.now(),
+            decision_reason="Direct write",
+        )
+
+
+def test_no_reassessment_starts_on_the_expiry_day_or_on_a_sample_before_release(
+    django_user_model, monkeypatch
+):
+    world = released_world(django_user_model, retest_in=10, expiry_in=20)
+    last_day = today() + timedelta(days=20)
+    monkeypatch.setattr(dates, "today", lambda: last_day)
+    assert "expires at the end of today" in reassessment.start_refusal(world["lot"])
+    monkeypatch.undo()
+    with pytest.raises(ValidationError) as caught:
+        begin(world, sampled_on=today() - timedelta(days=1))
+    assert "on or after" in caught.value.message_dict["sampled_on"][0]
+
+
+def test_lots_that_cannot_take_a_certificate_are_not_queued_for_one(world, monkeypatch):
+    from quality import dashboard
+
+    assert dashboard.lot_queues()["certificate"].filter(pk=world["lot"].pk).exists()
+    retest = today() + timedelta(days=10)
+    monkeypatch.setattr(dates, "today", lambda: retest)
+    assert not dashboard.lot_queues()["certificate"].filter(pk=world["lot"].pk).exists()

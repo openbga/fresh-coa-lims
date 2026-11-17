@@ -58,7 +58,7 @@ Starts the reassessment of a released lot: the material is examined again on a s
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Sample reference | `Reassessment.sample_reference` | Text, max 80, unique | Yes | The identifier on the sample taken for the reassessment. No other reassessment may use it |
-| Date sampled | `Reassessment.sampled_on` | Date, default today | Yes | When the sample was taken; not in the future |
+| Date sampled | `Reassessment.sampled_on` | Date, default today | Yes | When the sample was taken; not in the future, and not before the lot's release or the conclusion of its latest reassessment |
 | Quantity taken | `Reassessment.quantity` | Decimal, up to 4 decimal places | Yes | Greater than zero |
 | Quantity unit | `Reassessment.quantity_unit` | Choice | Yes | The unit of the quantity |
 | Containers sampled | `Reassessment.containers` | Text, max 200 | Yes | Which containers of the lot were sampled, and where the lot is stored |
@@ -68,8 +68,8 @@ Starts the reassessment of a released lot: the material is examined again on a s
 ## Rules and hidden logic
 
 - **Who may open it**: analyst or quality, otherwise 403.
-- **Refusals on opening** (error message, redirect to the lot record), also checked again when the form is submitted: "Only a released lot is reassessed."; "The use of this lot ended with RA-n."; "RA-n of this lot is open."; "The lot has no retest date. A reassessment gives a released lot a later retest date."; "The lot expired after <date>; it is not reassessed."; "The lot was released without requirements assigned in the system." The retest date need not have been reached.
-- **Field messages**: "A reason is required."; "Name the sample taken for the reassessment."; "Say which containers were sampled and where the lot is stored."; "Enter a date."; "The sample cannot be taken in the future."; "Enter a quantity greater than zero."; "Another reassessment already uses this sample reference."
+- **Refusals on opening** (error message, redirect to the lot record), also checked again when the form is submitted: "Only a released lot is reassessed."; "The use of this lot ended with RA-n."; "RA-n of this lot is open."; "The lot has no retest date. A reassessment gives a released lot a later retest date."; "The lot expired after <date>; it is not reassessed."; "The lot expires at the end of today, <date>: a reassessment could not give it a later retest date."; "The lot was released without requirements assigned in the system." The retest date need not have been reached.
+- **Field messages**: "A reason is required."; "Name the sample taken for the reassessment."; "Say which containers were sampled and where the lot is stored."; "Enter a date."; "The sample cannot be taken in the future."; "The sample must be taken on or after <date>, when the lot was released or last reassessed."; "Enter a quantity greater than zero."; "Another reassessment already uses this sample reference."
 - **Concurrent starts**: the lot is locked while the reassessment is created. Two people starting at the same moment get one reassessment; the second is refused because the first is open. Nothing is saved on a refusal.
 - **Freezes the dates it started from**: the lot's expiry date and retest date in force when it was started are kept on the reassessment ("Retest date when started").
 - **Effects**: the reassessment and the audit event `lot.reassessment_started` (with the reason, sample reference, date sampled, quantity, containers and the dates in force) are committed together. The lot's revision does not change, and no test exists yet.

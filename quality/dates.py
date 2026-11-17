@@ -125,6 +125,18 @@ REASSESSING = "reassessing"
 SOON = "soon"
 
 
+def usable(lots, on):
+    """Released lots from ``annotate_in_force`` that can take a certificate on the local date
+    ``on``: their use has not ended, they have not expired and their retest date is not
+    reached (as ``reporting.evidence.date_blockers`` decides)."""
+    # Positive conditions only: a missing date (NULL) is neither reached nor not reached.
+    return lots.filter(
+        Q(date_expiry__isnull=True) | Q(date_expiry__gte=on),
+        Q(date_retest__isnull=True) | Q(date_retest__gt=on),
+        date_use_ended=False,
+    )
+
+
 def filter_in_force(lots, wanted, on):
     """Lots from ``annotate_in_force`` narrowed to one Dates filter of the lot list: lots in
     quarantine or released whose retest is due, that expired or whose retest or expiry date is

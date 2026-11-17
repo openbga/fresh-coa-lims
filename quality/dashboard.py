@@ -71,6 +71,8 @@ def lot_queues():
     from reporting.models import Report
     from sampling.models import LotAssignment, SamplingRecord
 
+    from . import dates
+
     latest = LotAssignment.objects.filter(lot=OuterRef("pk")).order_by("-assigned_at", "-id")
     quarantine = Lot.objects.filter(state="quarantine").annotate(
         requirement_status=Subquery(latest.values("status")[:1])
@@ -112,9 +114,10 @@ def lot_queues():
                 )
             )
         ),
-        "certificate": Lot.objects.filter(state="released").filter(
-            ~Exists(Report.objects.filter(lot=OuterRef("pk"), state="issued"))
-        ),
+        # Lots that can take a certificate: not expired, not due for retest, still in use.
+        "certificate": dates.usable(
+            dates.annotate_in_force(Lot.objects.filter(state="released")), dates.today()
+        ).filter(~Exists(Report.objects.filter(lot=OuterRef("pk"), state="issued"))),
     }
 
 

@@ -58,7 +58,7 @@ The record of one reassessment of a released lot: the sample taken for it, its o
 |---|---|---|---|
 | **Assign tests** | Open, tests still to assign and they can be stated; primary while there are no tests | Analyst | Opens Assign reassessment tests |
 | (reason shown instead) | Open and the specifications cannot state the tests | Analyst | Shows "Tests cannot be assigned: …" in place of the button |
-| **Conclude** | Open | Quality | Opens Conclude reassessment; primary once there are tests and the material can be found suitable |
+| **Conclude** | Open, and you did not start, test or investigate it | Quality | Opens Conclude reassessment; primary once there are tests and the material can be found suitable |
 | **Withdraw** (under More, red) | Open and not in progress and no result failed | Quality | Opens Withdraw reassessment |
 
 ## Fields
@@ -80,7 +80,7 @@ The record of one reassessment of a released lot: the sample taken for it, its o
 - **The lot is not changed**: the tests name no lot, so nothing that reads the lot's tests counts them. The lot's record, revision, dates as frozen at release and disposition stay as signed.
 - **What a suitable conclusion does**: the new retest date becomes the lot's retest date in force, shown on the lot record and in the lot list, printed on the next certificate with a "Reassessed" line. What a use-ended conclusion does: the lot shows "Use ended", takes no certificate and no further reassessment.
 - **Conclude shows** as the primary button only when there are tests and the material can be found suitable; a quality user may still open it to conclude that the material is not suitable.
-- **Withdraw is hidden** while testing is in progress (a test awaiting review, an open test holding results or raw data that were not submitted, or an open investigation) and when a result failed.
+- **Withdraw is hidden** while testing is in progress (a test awaiting review, an open test holding results or raw data that were not submitted, or an open investigation), and the header says "Withdrawal waits until no testing is in progress." in its place; it is also hidden when a result failed, which the Out of specification notice explains.
 - **Tests and investigations**: each test is recorded, reviewed, investigated and retested like any test, with a retest on the same sample and no resample. An open investigation of a reassessment test holds the reassessment: it cannot be concluded as suitable until quality concludes the investigation. A failing result confirmed by its investigation is concluded as the end of the lot's use.
 - **Signatures and audit events**: `lot.reassessment_started`, `test.assigned` for each test, `signed.reassessed` or `signed.withdrawn`. Signatures show the signer, meaning, server time and bound revision.
 - **Rejecting a QC batch**: a test of a concluded or withdrawn reassessment is left as it is when its QC batch is rejected.

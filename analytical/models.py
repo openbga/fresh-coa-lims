@@ -549,7 +549,7 @@ class Investigation(models.Model):
 
     @property
     def is_stability(self):
-        return self.lot_id is None
+        return self.test.pull_id is not None
 
 
 class InvestigationEntry(models.Model):

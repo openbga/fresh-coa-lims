@@ -123,11 +123,13 @@ def _tests_section(item, found):
                     test.get_kind_display(),
                 ]
             )
+        if not row["lineage"]:  # required by the specifications in force, not yet assigned
+            table.append([row["test_code"], status("No test assigned", "warning"), "", ""])
     if item.state == STATE.CONCLUDED:
         note = f"Concluded: {item.get_outcome_display().lower()}."
     elif item.state == STATE.WITHDRAWN:
         note = "Withdrawn; its tests take no more work."
-    elif not found.codes:
+    elif not found.assigned:
         note = "No test is assigned yet."
     elif found.suitable_refusal:
         note = found.suitable_refusal
@@ -192,12 +194,12 @@ def reassessment_detail(request, pk):
         accepted, holds = resolve_reassessment(item)
         if holds:
             actions.append(refused("Tests cannot be assigned: " + " ".join(holds)))
-        elif set(accepted) - set(found.codes):
+        elif set(accepted) - found.assigned:
             actions.append(
                 action(
                     "Assign tests",
                     reverse("quality:reassessment_tests", args=[item.pk]),
-                    not found.codes,
+                    not found.assigned,
                 )
             )
     if is_open and reassessment.QUALITY in roles:
@@ -212,7 +214,7 @@ def reassessment_detail(request, pk):
                 action(
                     "Conclude",
                     reverse("quality:reassessment_conclude", args=[item.pk]),
-                    bool(found.codes) and not found.suitable_refusal,
+                    bool(found.assigned) and not found.suitable_refusal,
                 )
             )
         if not found.withdraw_refusal:
@@ -224,6 +226,8 @@ def reassessment_detail(request, pk):
                     more=True,
                 )
             )
+        elif found.in_progress:  # a failure is explained by the notice
+            actions.append(refused("Withdrawal waits until no testing is in progress."))
     basis = item.dates_basis
     return record_page(
         request,

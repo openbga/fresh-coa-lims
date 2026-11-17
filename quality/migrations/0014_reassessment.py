@@ -1,6 +1,7 @@
-"""The reassessment of a released lot: started only on a released lot whose use has not
-ended, one open at a time, and unchanged once concluded or withdrawn. Its outcome may give
-a later retest date, never after the expiry date in force when it started."""
+"""The reassessment of a released lot: started only on a released lot with a retest date whose
+use has not ended, one open at a time, and unchanged once concluded or withdrawn. Its outcome may
+give a later retest date, never after the expiry date of the lot's dates record, which the
+release froze and nothing changes afterwards."""
 
 import django.db.models.deletion
 from django.conf import settings
@@ -20,6 +21,12 @@ BEGIN
   IF NEW.state IS DISTINCT FROM 'open' THEN
     RAISE EXCEPTION 'A reassessment starts open';
   END IF;
+  -- The lot's dates record in force: it was frozen at release and never changes after it.
+  IF NOT EXISTS (SELECT 1 FROM quality_lotdates d
+                 WHERE d.lot_id = NEW.lot_id AND d.retest_on IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM quality_lotdates c WHERE c.replaces_id = d.id)) THEN
+    RAISE EXCEPTION 'Only a lot with a retest date is reassessed';
+  END IF;
   IF EXISTS (SELECT 1 FROM quality_reassessment
              WHERE lot_id = NEW.lot_id AND outcome = 'not_suitable') THEN
     RAISE EXCEPTION 'The use of this lot ended with a reassessment';
@@ -34,6 +41,7 @@ CREATE FUNCTION quality_guard_reassessment() RETURNS trigger AS $$
 DECLARE
   decided text[] := ARRAY['state', 'outcome', 'retest_on', 'result_evidence', 'decided_at',
                           'decision_reason', 'revision'];
+  expiry date;
 BEGIN
   IF TG_OP = 'DELETE' THEN
     RAISE EXCEPTION 'Reassessments cannot be deleted';
@@ -44,9 +52,13 @@ BEGIN
   IF (to_jsonb(OLD) - decided) IS DISTINCT FROM (to_jsonb(NEW) - decided) THEN
     RAISE EXCEPTION 'What a reassessment examines is immutable';
   END IF;
-  IF NEW.retest_on IS NOT NULL AND NEW.dates_basis ->> 'expiry_on' IS NOT NULL
-     AND NEW.retest_on > (NEW.dates_basis ->> 'expiry_on')::date THEN
-    RAISE EXCEPTION 'A new retest date is never after the expiry date';
+  IF NEW.retest_on IS NOT NULL THEN
+    SELECT d.expiry_on INTO expiry FROM quality_lotdates d
+    WHERE d.lot_id = NEW.lot_id
+      AND NOT EXISTS (SELECT 1 FROM quality_lotdates c WHERE c.replaces_id = d.id);
+    IF expiry IS NOT NULL AND NEW.retest_on > expiry THEN
+      RAISE EXCEPTION 'A new retest date is never after the expiry date';
+    END IF;
   END IF;
   RETURN NEW;
 END;

@@ -134,10 +134,36 @@ def start_refusal(lot, on=None):
     on = on or dates.today()
     if found.expiry_on is not None and on > found.expiry_on:
         return f"The lot expired after {found.expiry_on.isoformat()}; it is not reassessed."
+    if found.expiry_on is not None and on == found.expiry_on:
+        return (
+            f"The lot expires at the end of today, {found.expiry_on.isoformat()}: a reassessment "
+            "could not give it a later retest date."
+        )
     assignment = current_assignment(lot)
     if assignment is None or assignment.status != "ready":
         return "The lot was released without requirements assigned in the system."
     return None
+
+
+def earliest_sample(lot):
+    """The first day a sample for a new reassessment can be taken: the local date of the
+    lot's release, or of the conclusion of its latest reassessment, whichever is later."""
+    from core.models import ElectronicSignature
+
+    moments = [
+        found.signed_at
+        for found in ElectronicSignature.objects.filter(
+            object_type="quality.lot", object_id=str(lot.pk), meaning="approved"
+        ).order_by("-signed_at")[:1]
+    ]
+    last = (
+        Reassessment.objects.filter(lot_id=lot.pk, state=STATE.CONCLUDED)
+        .order_by("-decided_at")
+        .values_list("decided_at", flat=True)
+        .first()
+    )
+    moments += [last] if last else []
+    return timezone.localdate(max(moments)) if moments else None
 
 
 def _quantity(value):
@@ -185,6 +211,11 @@ def start(*, actor, lot, reason, sample_reference, sampled_on, quantity, quantit
         errors["sampled_on"] = "Enter a date."
     elif sampled_on > dates.today():
         errors["sampled_on"] = "The sample cannot be taken in the future."
+    elif (earliest := earliest_sample(lot)) is not None and sampled_on < earliest:
+        errors["sampled_on"] = (
+            f"The sample must be taken on or after {earliest.isoformat()}, when the lot was "
+            "released or last reassessed."
+        )
     if errors:
         raise ValidationError(errors)
     item = Reassessment(
@@ -250,6 +281,7 @@ class Review:
 
     reassessment: Reassessment
     codes: list = field(default_factory=list)
+    assigned: set = field(default_factory=set)
     rows: list = field(default_factory=list)
     blockers: list = field(default_factory=list)
     in_progress: list = field(default_factory=list)
@@ -264,7 +296,7 @@ class Review:
         """Why the material cannot be found suitable now, or ""."""
         from analytical.outcomes import CONFORMS
 
-        if not self.codes:
+        if not self.assigned:
             return "No test of the reassessment is assigned."
         if self.blockers:
             return "Testing is not complete: " + " ".join(self.blockers)
@@ -295,15 +327,24 @@ def review(reassessment):
     """Read the reassessment's tests and investigations once: their outcome, what blocks a
     conclusion, and the lot's dates in force."""
     from analytical import outcomes
+    from analytical.contracts import resolve_reassessment
 
     tests = list(tests_of(reassessment).order_by("test_code", "pk"))
     investigations = list(investigations_of(reassessment).order_by("pk"))
-    codes = sorted({test.test_code for test in tests})
+    assigned = {test.test_code for test in tests}
+    # The material is judged against every test the specifications in force require now, also
+    # one added after the tests were assigned: it is a blocker until it is assigned and decided.
+    required, holds = resolve_reassessment(reassessment) if assigned else ({}, [])
+    codes = sorted(assigned | set(required))
     blockers, rows, outcome = outcomes.results(codes, tests, investigations)
+    if holds:
+        blockers = [f"The requirements in force cannot be resolved: {' '.join(holds)}", *blockers]
+        outcome = ""
     found = dates.in_force(reassessment.lot)
     return Review(
         reassessment=reassessment,
         codes=codes,
+        assigned=assigned,
         rows=rows,
         blockers=blockers,
         in_progress=outcomes.work_in_progress(
@@ -333,6 +374,19 @@ def _frozen(item, found, authors):
         "investigations": outcomes.frozen_investigations(found.investigations),
         "author_ids": sorted(authors),
     }
+
+
+def _lock_lot(reassessment):
+    """``prepare`` of a conclusion or a withdrawal: lock the lot after the signer and before
+    the reassessment (the order of ``start``). Issuing or amending a certificate locks the lot
+    and reads its dates, so it waits for a conclusion in progress and then reads its outcome:
+    no certificate is issued beside a conclusion that ends the lot's use. Testing never locks
+    the lot, so no cycle forms with it."""
+
+    def prepare():
+        Lot.objects.select_for_update().get(pk=reassessment.lot_id)
+
+    return prepare
 
 
 def retest_refusal(retest_on, on, expiry_on):
@@ -391,6 +445,7 @@ def conclude(*, actor, pin, reassessment, expected_revision, outcome, retest_on,
         reason=reason,
         permission=QUALITY,
         apply=apply,
+        prepare=_lock_lot(reassessment),
     )
 
 
@@ -416,4 +471,5 @@ def withdraw(*, actor, pin, reassessment, expected_revision, reason):
         reason=reason,
         permission=QUALITY,
         apply=apply,
+        prepare=_lock_lot(reassessment),
     )
