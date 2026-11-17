@@ -14,7 +14,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -23,7 +22,7 @@ from django.views.decorators.http import require_http_methods
 from core.audit import record_event
 from core.forms import StyledForm
 from core.services import require_role
-from core.uploads import size_text
+from core.uploads import size_text, stored_bytes
 
 from .models import AnalyticalTest, RawDataFile
 from .services import (
@@ -91,10 +90,9 @@ def attach_raw_file(*, actor, test, upload, description):
             raise ValidationError("This file content is already attached to this test.")
         ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
         if ceiling:
-            used = RawDataFile.objects.aggregate(total=Sum("size"))["total"] or 0
-            if used + len(content) > ceiling:
+            if stored_bytes() + len(content) > ceiling:
                 raise ValidationError(
-                    "This deployment has reached its storage limit for raw-data files. "
+                    "This deployment has reached its storage limit for files. "
                     "The file was not stored."
                 )
         stored = RawDataFile.objects.create(

@@ -88,7 +88,12 @@ def drift(acceptance, configuration=None, release=None):
     release = services.running_release() if release is None else release
     rows = services.configuration_changes(acceptance.configuration, configuration)
     moved = ""
-    if release != acceptance.accepted_release:
+    if not release or not acceptance.accepted_release:
+        moved = (
+            "The deployment does not state its release (SOURCE_REVISION), so the running "
+            "release cannot be compared with the accepted one."
+        )
+    elif release != acceptance.accepted_release:
         moved = (
             f"The running release ({_release_text(release)}) is not the accepted one "
             f"({_release_text(acceptance.accepted_release)})."
@@ -101,7 +106,9 @@ def _drift_text(rows, moved):
     if rows:
         parts.append(f"{len(rows)} change{'s' if len(rows) != 1 else ''} to the configuration")
     if moved:
-        parts.append("another release")
+        parts.append(
+            "a release that cannot be compared" if "cannot" in moved else "another release"
+        )
     return " and ".join(parts) if parts else "None"
 
 
@@ -437,7 +444,11 @@ def use_accept(request, pk):
         request.POST or None,
         initial={"expected_revision": acceptance.revision, "token": token},
     )
-    denial = services.use_denial(request.user, acceptance, accept=True)
+    denial = services.use_denial(request.user, acceptance, accept=True) or (
+        services.owner_refusal(acceptance)
+        if acceptance.state == UseAcceptance.State.RECORDED
+        else ""
+    )
     if not denial and missing:
         denial = (
             f"{', '.join(missing)} has no approved version in force. Withdraw this record and "
@@ -501,10 +512,8 @@ def use_accept(request, pk):
 
 
 def _withdraw_page(request, record, *, service, detail, crumbs, noun, state_refusal, refusal):
-    if refusal:
-        raise PermissionDenied(refusal)
-    if state_refusal:
-        messages.warning(request, state_refusal)
+    if state_refusal or refusal:
+        messages.warning(request, state_refusal or refusal)
         return redirect(detail)
     form = WithdrawForm(request.POST or None, initial={"expected_revision": record.revision})
     if request.method == "POST" and form.is_valid():

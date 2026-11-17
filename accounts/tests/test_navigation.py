@@ -21,6 +21,7 @@ WORKSPACE_PATHS = {
     "/suppliers/",
     "/rules/",
     "/reports/",
+    "/validation/",
 }
 ACCOUNT_PATHS = {"/signature-pin/", "/accounts/access/"}
 ADMIN_PATHS = {"/accounts/users/", "/accounts/announcement/"}

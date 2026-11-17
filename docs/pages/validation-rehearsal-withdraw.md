@@ -14,7 +14,7 @@ Withdraw a rehearsal record that will not be accepted, for example one recorded 
 ## Who can use it
 
 - Sign-in required. Roles to open the page: Quality or Admin; others receive 403.
-- Only the person who recorded the rehearsal or a Quality user may withdraw it. An Admin who did not record it and is not Quality receives 403 ("Only the person who recorded the rehearsal or a quality person withdraws it.").
+- Only the person who recorded the rehearsal or a Quality user may withdraw it. An Admin who did not record it and is not Quality is sent back to the rehearsal record with the warning "Only the person who recorded the rehearsal or a quality person withdraws it."
 
 ## Layout
 

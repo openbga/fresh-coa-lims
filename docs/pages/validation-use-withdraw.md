@@ -13,7 +13,7 @@ Withdraw a record of the intended use that will not be accepted, for example bec
 
 ## Who can use it
 
-- Sign-in required. Role: Quality. Others, including an account holding only the Admin role, receive 403 ("Only a quality person withdraws a record of the intended use.").
+- Sign-in required. Role: Quality. Others, including an account holding only the Admin role, receive 403.
 - Any Quality user may withdraw it, including its recorder.
 
 ## Layout

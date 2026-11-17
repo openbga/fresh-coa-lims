@@ -336,11 +336,19 @@ def test_the_database_keeps_records_as_recorded_and_signed(people, configured):
             recorded.pk,
         )
     accepted = accept(recorded, people["approver"])
+    with pytest.raises(DatabaseError, match="superseded by another record"):
+        raw_update(
+            "UPDATE validation_useacceptance SET revision = revision + 1, "
+            "state = 'superseded', superseded_at = now(), superseded_by_id = id WHERE id = %s",
+            accepted.pk,
+        )
+    other = record(people)
     with pytest.raises(DatabaseError, match="immutable"):
         raw_update(
             "UPDATE validation_useacceptance SET configuration = '{}'::jsonb, "
             "revision = revision + 1, state = 'superseded', superseded_at = now(), "
-            "superseded_by_id = id WHERE id = %s",
+            "superseded_by_id = %s WHERE id = %s",
+            other.pk,
             accepted.pk,
         )
     with pytest.raises(DatabaseError, match="accepted or withdrawn once"):
@@ -373,3 +381,48 @@ def test_the_database_keeps_records_as_recorded_and_signed(people, configured):
             people["admin"].pk,
             people["author"].pk,
         )
+
+
+def test_owners_must_still_be_active_when_it_is_accepted(people, configured):
+    recorded = record(people)
+    people["admin"].is_active = False
+    people["admin"].save()
+    with pytest.raises(ValidationError, match="system owner named is no longer an active"):
+        accept(recorded, people["approver"])
+    assert services.owner_refusal(recorded).startswith("The system owner")
+    recorded.refresh_from_db()
+    assert recorded.state == "recorded"
+    services.withdraw_use(
+        actor=people["approver"],
+        acceptance=recorded,
+        expected_revision=recorded.revision,
+        reason="System owner left",
+    )
+
+
+def test_a_recorded_row_never_carries_what_a_signature_writes(people, configured):
+    accepted = accept(record(people), people["approver"])
+    for column, value in (
+        ("superseded_by_id", accepted.pk),
+        ("configuration_hash", "'x'"),
+        ("accepted_release", "'x'"),
+    ):
+        with pytest.raises(DatabaseError, match="starts awaiting acceptance"):
+            raw_update(
+                "INSERT INTO validation_useacceptance (title, intended_use, exclusions, "
+                "method_codes, process_owner_id, system_owner_id, other_responsibilities, "
+                "validation_ref, validation_url, open_issues, recorded_by_id, recorded_at, "
+                "state, configuration_hash, accepted_release, revision"
+                + (", superseded_by_id" if column == "superseded_by_id" else "")
+                + ") VALUES ('T', 'U', '', '[\"m\"]', %s, %s, '', 'V', '', '', %s, now(), "
+                "'recorded', "
+                + ("'x'" if column == "configuration_hash" else "''")
+                + ", "
+                + ("'x'" if column == "accepted_release" else "''")
+                + ", 1"
+                + (f", {value}" if column == "superseded_by_id" else "")
+                + ")",
+                people["author"].pk,
+                people["admin"].pk,
+                people["author"].pk,
+            )

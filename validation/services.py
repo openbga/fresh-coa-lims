@@ -18,7 +18,7 @@ import os
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.utils import timezone
 
 from core.audit import record_event, snapshot
@@ -228,7 +228,8 @@ def _supported(method_codes):
         raise ValidationError(
             {"method_codes": f"An acceptance names at most {MAX_METHODS} supported assays."}
         )
-    unknown = [code for code in codes if code not in method_choices()]
+    in_force = method_choices()
+    unknown = [code for code in codes if code not in in_force]
     if unknown:
         raise ValidationError(
             {
@@ -288,6 +289,25 @@ def record_use_acceptance(
 SELF_ACCEPTANCE = "You cannot accept a validation record you recorded."
 
 
+def owner_refusal(acceptance):
+    """Why the owners named can no longer be accepted, or ""."""
+    active = set(
+        owner_candidates()
+        .filter(pk__in=[acceptance.process_owner_id, acceptance.system_owner_id])
+        .values_list("pk", flat=True)
+    )
+    for label, user_id in (
+        ("process owner", acceptance.process_owner_id),
+        ("system owner", acceptance.system_owner_id),
+    ):
+        if user_id not in active:
+            return (
+                f"The {label} named is no longer an active account with a working role. "
+                "Withdraw this record and record the intended use again."
+            )
+    return ""
+
+
 def use_denial(actor, acceptance, *, accept):
     """Why this person cannot accept or withdraw this record now, or "". Repeated under lock."""
     return use_state_refusal(acceptance) or use_person_refusal(actor, acceptance, accept=accept)
@@ -328,7 +348,11 @@ def accept_use(*, actor, pin, acceptance, expected_revision, reason, token):
             raise ValidationError("Only a record awaiting acceptance can be accepted.")
         if locked.recorded_by_id == actor.pk:
             raise PermissionDenied(SELF_ACCEPTANCE)
+        if refusal := owner_refusal(locked):
+            raise ValidationError(refusal)
         moment = locked._signing_timestamp
+        # Five reads, each of committed rows: an approval committing during them shows up as
+        # a change since acceptance on the next view, never as a silent difference.
         configuration = configuration_in_force(moment)
         supported, missing = supported_versions(locked.method_codes, configuration)
         if missing:
@@ -485,9 +509,8 @@ def attach_rehearsal_file(*, actor, rehearsal, upload, description):
     advances, so a signing page opened before shows the record as changed."""
     from django.conf import settings
 
-    from analytical.models import RawDataFile
     from analytical.rawdata import clean_filename, max_bytes
-    from core.uploads import size_text
+    from core.uploads import size_text, stored_bytes
 
     require_role(actor, *REHEARSAL_RECORDERS)
     description = (description or "").strip()
@@ -519,10 +542,7 @@ def attach_rehearsal_file(*, actor, rehearsal, upload, description):
             raise ValidationError("This file content is already attached to this rehearsal.")
         ceiling = getattr(settings, "RAW_DATA_TOTAL_MAX_BYTES", 0)
         if ceiling:
-            used = (RawDataFile.objects.aggregate(total=Sum("size"))["total"] or 0) + (
-                RehearsalFile.objects.aggregate(total=Sum("size"))["total"] or 0
-            )
-            if used + len(content) > ceiling:
+            if stored_bytes() + len(content) > ceiling:
                 raise ValidationError(
                     "This deployment has reached its storage limit for files. The file was "
                     "not stored."
@@ -537,8 +557,7 @@ def attach_rehearsal_file(*, actor, rehearsal, upload, description):
             description=description,
             uploaded_by=actor,
         )
-        locked.revision += 1
-        locked.save(update_fields=["revision"])
+        # The database advances the rehearsal's revision for each file (validation.0002).
         record_event(
             actor=actor,
             action="rehearsal.file_attached",
@@ -593,6 +612,10 @@ def accept_rehearsal(*, actor, pin, rehearsal, expected_revision, reason):
             raise ValidationError(refusal)
         if refusal := rehearsal_person_refusal(actor, locked, accept=True):
             raise PermissionDenied(refusal)
+        locked.evidence = [
+            {"id": f.pk, "filename": f.filename, "size": f.size, "sha256": f.sha256}
+            for f in locked.files.order_by("pk")
+        ]
         locked.state = REHEARSAL.ACCEPTED
         locked.accepted_at = locked._signing_timestamp
 

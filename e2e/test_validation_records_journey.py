@@ -31,8 +31,10 @@ EVIDENCE = b"Synthetic restore check report\nAll synthetic checks passed.\n"
 
 @pytest.mark.django_db(transaction=True)
 def test_intended_use_and_rehearsal_are_recorded_and_accepted(
-    live_server, django_user_model, artifacts
+    live_server, django_user_model, artifacts, monkeypatch
 ):
+    # The deployment states its release, so the acceptance can be compared with it.
+    monkeypatch.setenv("SOURCE_REVISION", "e2e-synthetic-revision")
     qa_a, qa_b = person("val_qa_a", "quality"), person("val_qa_b", "quality")
     admin, analyst = person("val_admin", "admin"), person("val_analyst", "analyst")
     approved_rules(qa_a)

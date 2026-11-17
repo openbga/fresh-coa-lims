@@ -50,6 +50,7 @@ Show one record of the laboratory's intended use: its content, the supported ass
 ## Rules and hidden logic
 
 - **Notice**: "What an acceptance does" (info) says the acceptance records the decision that the system is fit for the use described, holds no work, and that changes are shown for the laboratory's own change control. On the accepted record it becomes "Changed since acceptance" (warning) when approved versions in force differ from the frozen ones or the running release differs from the accepted release. A superseded record shows "Superseded" with the later record and time; it is kept as accepted.
+- When the deployment states no release, now or at acceptance, the "Changed since acceptance" notice says: "The deployment does not state its release (SOURCE_REVISION), so the running release cannot be compared with the accepted one."
 - **Changes since acceptance** compares codes. Each code whose version in force is not the frozen one gets a row: "Another version in force", "No longer in force" or "Newly in force". The kinds are Rule set, Specification, Method, Sampling plan and Stability protocol.
 - The frozen configuration shows the SHA-256 of the frozen record and the time it applied.
 - Supersession: when a newer record is accepted, the one accepted before becomes Superseded. At most one record is accepted at a time (a database constraint).

@@ -17,6 +17,9 @@ BEGIN
   ELSIF OLD.state = 'recorded' AND NEW.state = 'withdrawn' THEN
     changed := ARRAY['state', 'revision', 'withdrawn_at'];
   ELSIF OLD.state = 'accepted' AND NEW.state = 'superseded' THEN
+    IF NEW.superseded_by_id IS NULL OR NEW.superseded_by_id = NEW.id THEN
+      RAISE EXCEPTION 'An acceptance is superseded by another record of the intended use';
+    END IF;
     changed := ARRAY['state', 'revision', 'superseded_at', 'superseded_by_id'];
   ELSIF OLD.state = NEW.state THEN
     RAISE EXCEPTION 'A record of the intended use is immutable; withdraw it and record a new one';
@@ -36,8 +39,10 @@ FOR EACH ROW EXECUTE FUNCTION validation_guard_use_acceptance();
 
 CREATE FUNCTION validation_guard_use_acceptance_insert() RETURNS trigger AS $$
 BEGIN
-  IF NEW.state <> 'recorded' OR NEW.configuration IS NOT NULL OR NEW.accepted_at IS NOT NULL
-     OR NEW.superseded_at IS NOT NULL OR NEW.withdrawn_at IS NOT NULL THEN
+  IF NEW.state <> 'recorded' OR NEW.configuration IS NOT NULL OR NEW.configuration_hash <> ''
+     OR NEW.accepted_release <> '' OR NEW.accepted_at IS NOT NULL
+     OR NEW.superseded_at IS NOT NULL OR NEW.superseded_by_id IS NOT NULL
+     OR NEW.withdrawn_at IS NOT NULL OR NEW.revision <> 1 THEN
     RAISE EXCEPTION 'A record of the intended use starts awaiting acceptance';
   END IF;
   -- The supported assays are a list of method codes, each a text that is not blank.
@@ -67,7 +72,7 @@ BEGIN
   IF OLD.state = 'recorded' AND NEW.state = 'recorded' THEN
     changed := ARRAY['revision'];  -- evidence attached
   ELSIF OLD.state = 'recorded' AND NEW.state = 'accepted' THEN
-    changed := ARRAY['state', 'revision', 'accepted_at'];
+    changed := ARRAY['state', 'revision', 'accepted_at', 'evidence'];
   ELSIF OLD.state = 'recorded' AND NEW.state = 'withdrawn' THEN
     changed := ARRAY['state', 'revision', 'withdrawn_at'];
   ELSE
@@ -85,7 +90,8 @@ FOR EACH ROW EXECUTE FUNCTION validation_guard_rehearsal();
 
 CREATE FUNCTION validation_guard_rehearsal_insert() RETURNS trigger AS $$
 BEGIN
-  IF NEW.state <> 'recorded' OR NEW.accepted_at IS NOT NULL OR NEW.withdrawn_at IS NOT NULL THEN
+  IF NEW.state <> 'recorded' OR NEW.accepted_at IS NOT NULL OR NEW.evidence IS NOT NULL
+     OR NEW.withdrawn_at IS NOT NULL OR NEW.revision <> 1 THEN
     RAISE EXCEPTION 'A rehearsal record starts awaiting acceptance';
   END IF;
   RETURN NEW;
@@ -100,8 +106,11 @@ BEGIN
   IF TG_OP <> 'INSERT' THEN
     RAISE EXCEPTION 'Rehearsal evidence files are append-only';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM validation_rehearsal
-                  WHERE id = NEW.rehearsal_id AND state = 'recorded') THEN
+  -- FOR SHARE waits for an acceptance or withdrawal in progress and then reads the row as
+  -- it committed, so no file reaches a rehearsal that was accepted meanwhile.
+  PERFORM 1 FROM validation_rehearsal
+   WHERE id = NEW.rehearsal_id AND state = 'recorded' FOR SHARE;
+  IF NOT FOUND THEN
     RAISE EXCEPTION 'Evidence is attached only while the rehearsal awaits acceptance';
   END IF;
   RETURN NEW;
@@ -110,9 +119,23 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER validation_rehearsal_file_guard
 BEFORE INSERT OR UPDATE OR DELETE ON validation_rehearsalfile
 FOR EACH ROW EXECUTE FUNCTION validation_guard_rehearsal_file();
+
+-- Each file attached advances the rehearsal's revision, so a signing page opened before it
+-- was attached is refused as stale, however the row was written.
+CREATE FUNCTION validation_rehearsal_file_attached() RETURNS trigger AS $$
+BEGIN
+  UPDATE validation_rehearsal SET revision = revision + 1 WHERE id = NEW.rehearsal_id;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER validation_rehearsal_file_revision
+AFTER INSERT ON validation_rehearsalfile
+FOR EACH ROW EXECUTE FUNCTION validation_rehearsal_file_attached();
 """
 
 REVERSE = """
+DROP TRIGGER validation_rehearsal_file_revision ON validation_rehearsalfile;
+DROP FUNCTION validation_rehearsal_file_attached();
 DROP TRIGGER validation_rehearsal_file_guard ON validation_rehearsalfile;
 DROP FUNCTION validation_guard_rehearsal_file();
 DROP TRIGGER validation_rehearsal_insert_guard ON validation_rehearsal;

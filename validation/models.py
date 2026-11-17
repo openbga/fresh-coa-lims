@@ -96,8 +96,11 @@ class UseAcceptance(models.Model):
                 condition=Q(
                     state="recorded",
                     configuration__isnull=True,
+                    configuration_hash="",
+                    accepted_release="",
                     accepted_at__isnull=True,
                     superseded_at__isnull=True,
+                    superseded_by__isnull=True,
                     withdrawn_at__isnull=True,
                 )
                 | Q(
@@ -119,6 +122,8 @@ class UseAcceptance(models.Model):
                 | Q(
                     state="withdrawn",
                     configuration__isnull=True,
+                    configuration_hash="",
+                    accepted_release="",
                     accepted_at__isnull=True,
                     superseded_at__isnull=True,
                     superseded_by__isnull=True,
@@ -197,6 +202,8 @@ class Rehearsal(models.Model):
     recorded_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=12, choices=State, default=State.RECORDED)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    # Frozen by the acceptance signature: each evidence file's id, name, size and SHA-256.
+    evidence = models.JSONField(null=True, blank=True)
     withdrawn_at = models.DateTimeField(null=True, blank=True)
     revision = models.PositiveIntegerField(default=1)
 
@@ -224,9 +231,24 @@ class Rehearsal(models.Model):
                 name="rehearsal_issues_stated",
             ),
             models.CheckConstraint(
-                condition=Q(state="recorded", accepted_at__isnull=True, withdrawn_at__isnull=True)
-                | Q(state="accepted", accepted_at__isnull=False, withdrawn_at__isnull=True)
-                | Q(state="withdrawn", accepted_at__isnull=True, withdrawn_at__isnull=False),
+                condition=Q(
+                    state="recorded",
+                    accepted_at__isnull=True,
+                    evidence__isnull=True,
+                    withdrawn_at__isnull=True,
+                )
+                | Q(
+                    state="accepted",
+                    accepted_at__isnull=False,
+                    evidence__isnull=False,
+                    withdrawn_at__isnull=True,
+                )
+                | Q(
+                    state="withdrawn",
+                    accepted_at__isnull=True,
+                    evidence__isnull=True,
+                    withdrawn_at__isnull=False,
+                ),
                 name="rehearsal_states",
             ),
         ]

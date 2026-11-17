@@ -291,3 +291,30 @@ def test_restore_check_covers_rehearsal_evidence(people):
     check = recovery.check_raw_files()
     assert check["status"] == recovery.FAILED
     assert check["problems"][0].startswith(f"Evidence file {stored.pk} of rehearsal")
+
+
+def test_a_release_the_deployment_does_not_state_is_not_called_unchanged(
+    client, people, configured, monkeypatch
+):
+    monkeypatch.delenv("SOURCE_REVISION", raising=False)
+    monkeypatch.delenv("RENDER_GIT_COMMIT", raising=False)
+    acceptance = accepted_use(people)
+    client = login(client, people["auditor"])
+    listing = client.get(reverse("validation:use_list")).content.decode()
+    assert "Changed since acceptance" in listing and "Current acceptance" not in listing
+    assert "a release that cannot be compared" in listing
+    body = client.get(reverse("validation:use_detail", args=[acceptance.pk])).content.decode()
+    assert "does not state its release (SOURCE_REVISION)" in body
+    assert "Not stated by the deployment" in body
+
+
+def test_withdrawing_someone_elses_rehearsal_says_why(client, people):
+    rehearsal = recorded_rehearsal(people["author"])
+    from catalog.tests.factories import person
+
+    other_admin = person("admin-b", "admin")
+    url = reverse("validation:rehearsal_withdraw", args=[rehearsal.pk])
+    response = login(client, other_admin).get(url, follow=True)
+    assert "Only the person who recorded the rehearsal" in response.content.decode()
+    rehearsal.refresh_from_db()
+    assert rehearsal.state == "recorded"

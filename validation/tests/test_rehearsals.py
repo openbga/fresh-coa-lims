@@ -234,3 +234,78 @@ def test_the_database_keeps_rehearsals_and_their_evidence(people):
             "revision = revision + 1 WHERE id = %s",
             recorded.pk,
         )
+
+
+def test_the_acceptance_freezes_the_evidence_it_was_shown(people):
+    recorded = rehearse(people["admin"])
+    first = attach(people["admin"], recorded)
+    recorded.refresh_from_db()
+    shown = recorded.revision
+    # A file written past the service still advances the revision: the page is stale.
+    RehearsalFile.objects.create(
+        rehearsal=recorded,
+        filename="unseen.bin",
+        size=6,
+        sha256="1" * 64,
+        content=b"unseen",
+        description="Not shown to the signer",
+        uploaded_by=people["admin"],
+    )
+    recorded.refresh_from_db()
+    assert recorded.revision == shown + 1
+    with pytest.raises(ValidationError, match="Record changed"):
+        accept(recorded, people["author"], expected_revision=shown)
+    accepted = accept(recorded, people["author"])
+    assert [e["sha256"] for e in accepted.evidence] == [first.sha256, "1" * 64]
+    signature = ElectronicSignature.objects.get(object_type="validation.rehearsal")
+    assert signature.content["evidence"] == accepted.evidence
+
+
+def test_no_file_reaches_a_rehearsal_accepted_meanwhile(people):
+    import threading
+    import time
+
+    recorded = rehearse(people["admin"])
+    attach(people["admin"], recorded)
+    holding = threading.Event()
+    outcome = {}
+
+    def acceptor():
+        try:
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute(
+                    "UPDATE validation_rehearsal SET state = 'accepted', accepted_at = now(), "
+                    "evidence = '[]'::jsonb, revision = revision + 1 WHERE id = %s",
+                    [recorded.pk],
+                )
+                holding.set()
+                time.sleep(1)
+        finally:
+            connection.close()
+
+    def inserter():
+        holding.wait(10)
+        try:
+            with transaction.atomic():
+                RehearsalFile.objects.create(
+                    rehearsal_id=recorded.pk,
+                    filename="late.bin",
+                    size=4,
+                    sha256="0" * 64,
+                    content=b"late",
+                    description="Added while it was accepted",
+                    uploaded_by=people["admin"],
+                )
+            outcome["inserted"] = True
+        except Exception as exc:  # reported to the asserting test
+            outcome["error"] = exc
+        finally:
+            connection.close()
+
+    threads = [threading.Thread(target=acceptor), threading.Thread(target=inserter)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(20)
+    assert "awaits acceptance" in str(outcome.get("error")), outcome
+    assert not RehearsalFile.objects.filter(filename="late.bin").exists()

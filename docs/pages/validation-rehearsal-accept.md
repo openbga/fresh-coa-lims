@@ -9,7 +9,7 @@ reviewed: 2026-11-17
 
 ## Purpose
 
-Accept a rehearsal record with meaning **accepted**: you confirm it as a true account of the rehearsal, with the outcome it states and the evidence attached. The signature does not make the criteria met.
+Accept a rehearsal record with meaning **accepted**: you confirm it as a true account of the rehearsal, with the outcome it states and the evidence attached. The signature does not make the criteria met. The signature freezes the list of evidence files (identifier, name, size and SHA-256) with the record. Attaching a file advances the record's revision, so a page opened before a file was attached is refused as changed.
 
 ## Who can use it
 

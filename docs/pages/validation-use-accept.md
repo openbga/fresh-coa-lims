@@ -15,6 +15,7 @@ Accept the system for the intended use described, with meaning **accepted**. The
 
 - Sign-in required. Role: Quality. Others, including an account holding only the Admin role, receive 403.
 - The Quality user who recorded the record sees "You cannot accept a validation record you recorded."; a record that is not awaiting acceptance shows "This record is <state>; only a record awaiting acceptance can be accepted or withdrawn."; a supported assay without a version in force shows "<codes> has no approved version in force. Withdraw this record and record the intended use again.". Each shows the facts, no PIN control and **Back to record** (403).
+- A record whose process owner or system owner is no longer an active account with a working role shows "The process owner named is no longer an active account with a working role. Withdraw this record and record the intended use again." (or "system owner"), with no PIN entry; the signature repeats this check.
 
 ## Layout
 

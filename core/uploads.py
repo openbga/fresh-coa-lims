@@ -17,6 +17,18 @@ def size_text(size):
     return f"{size / (1024 * 1024):.1f} MiB"
 
 
+def stored_bytes():
+    """Bytes of every file the deployment stores: raw data of tests and evidence of rehearsals.
+    ``RAW_DATA_TOTAL_MAX_BYTES`` is one ceiling for all of them."""
+    from django.apps import apps
+    from django.db.models import Sum
+
+    return sum(
+        apps.get_model(label).objects.aggregate(total=Sum("size"))["total"] or 0
+        for label in ("analytical.RawDataFile", "validation.RehearsalFile")
+    )
+
+
 def request_limit():
     """Largest body, in bytes, of a request that carries files."""
     return settings.RAW_DATA_MAX_BYTES + FORM_ALLOWANCE
