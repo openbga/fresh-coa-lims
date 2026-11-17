@@ -24,6 +24,9 @@ build/
 *.log
 
 # Editor and tool state
-.impeccable/
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/config.local.json
+.claude/scheduled_tasks.lock
 .playwright-cli/
 .DS_Store

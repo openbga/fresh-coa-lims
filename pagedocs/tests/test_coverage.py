@@ -1,4 +1,4 @@
-"""Keeps docs/pages in step with the URLconf. See .agents/skills/page-documentation/SKILL.md."""
+"""Keeps docs/pages in step with the URLconf. See .agents/skills/document-page/SKILL.md."""
 
 from collections import Counter
 
@@ -18,7 +18,7 @@ from pagedocs.docs import REQUIRED_SECTIONS, all_docs
 
 DOCS = all_docs()
 ROUTES = set(named_routes())
-SKILL = "Use the page-documentation skill (.agents/skills/page-documentation/SKILL.md)."
+SKILL = "Use the document-page skill (.agents/skills/document-page/SKILL.md)."
 
 
 def test_every_page_route_has_a_doc():
