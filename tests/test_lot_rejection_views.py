@@ -114,8 +114,9 @@ def test_the_rejection_page_says_what_must_happen_first(client, world):  # noqa:
     reject_url = reverse("quality:lot_reject", args=[lot.pk])
     page = text(client.get(reject_url))
     assert "The lot cannot be rejected yet" in page
-    assert "holds results that were not submitted" in page
-    assert "results not submitted" in page and 'name="pin"' not in page
+    assert "holds a result outside its limits that was not submitted (96.00)" in page
+    assert "results not submitted: 96.00 (96.00 outside the limits)" in page
+    assert 'name="pin"' not in page
     submit(world, assay)
     page = text(client.get(reject_url))
     assert "is open. Conclude it before the lot is rejected" in page

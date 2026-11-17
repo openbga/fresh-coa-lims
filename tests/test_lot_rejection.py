@@ -251,15 +251,15 @@ def test_an_open_investigation_is_concluded_before_the_lot_is_rejected(world):
     )
 
 
-def test_results_not_yet_submitted_are_submitted_before_the_lot_is_rejected(world):
+def test_a_result_outside_its_limits_is_submitted_before_the_lot_is_rejected(world):
     assay = world["tests"]["assay"]
     record(world, assay, "96.00")
     preview = rejection.rejection_preview(fresh(world))
     assert preview.reasons == [
-        f"{assay.label} assay holds results that were not submitted. Submit them first, so "
-        "that a failing result is evaluated and investigated."
+        f"{assay.label} assay holds a result outside its limits that was not submitted "
+        "(96.00). Submit it first, so that it is evaluated and investigated."
     ]
-    with pytest.raises(ValidationError, match="holds results that were not submitted"):
+    with pytest.raises(ValidationError, match="outside its limits that was not submitted"):
         reject(world)
     # Submitting evaluates the result: the failure opens an investigation, which is
     # concluded before the rejection.
@@ -457,3 +457,20 @@ def test_whoever_created_a_lot_does_not_cancel_it(received):
     assert rejection.cancellation_preview(legacy).evidence["receipt"] is None
     cancelled = cancel({"lot": legacy, "people": people}, who="author")
     assert cancelled.state == "cancelled"
+
+
+def test_results_within_their_limits_on_an_unfinished_test_are_kept_as_recorded(world):
+    # The sample is lost after an in-limit result was recorded: the test cannot be finished,
+    # and nothing out of specification is set aside by rejecting the lot.
+    assay, impurity = world["tests"]["assay"], world["tests"]["impurity"]
+    record(world, assay, "99.60")
+    record(world, impurity, "4.20")
+    preview = rejection.rejection_preview(fresh(world))
+    assert preview.possible
+    lot = reject(world)
+    rows = {row["test_code"]: row for row in lot.disposition_evidence["tests"]}
+    assert rows["assay"]["state"] == "open" and rows["assay"]["results"] is True
+    assert rows["assay"]["unsubmitted"] == ["99.60"] and rows["assay"]["outside_limits"] == []
+    assert rows["identity"]["unsubmitted"] == [] and rows["identity"]["results"] is False
+    assay.refresh_from_db()
+    assert assay.state == "open" and assay.evaluated_at is None

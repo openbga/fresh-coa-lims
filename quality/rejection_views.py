@@ -1,14 +1,18 @@
 """Pages for the signed rejection of a lot and the cancellation of a lot received in error
 (HTTP only; the rules are in ``rejection``)."""
 
+import copy
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
+from analytical.models import AnalyticalTest
 from catalog.web import form_status, run
 from core.services import require_role
+from stability.models import Hold
 
 from . import rejection
 from .forms import CancellationForm, RejectionForm
@@ -54,10 +58,22 @@ def _reissue(form, lot, basis):
 
 
 def _test_rows(evidence):
+    kinds = dict(AnalyticalTest.Kind.choices)
     return [
-        {**row, "state_label": TEST_STATES.get(row["state"], row["state"])}
+        {
+            **row,
+            "state_label": TEST_STATES.get(row["state"], row["state"]),
+            "kind_label": kinds.get(row["kind"], row["kind"]),
+        }
         for row in evidence.get("tests", [])
     ]
+
+
+def _with_hold_kinds(evidence):
+    kinds = dict(Hold.Kind.choices)
+    for hold in evidence.get("holds", []):
+        hold["kind_label"] = kinds.get(hold["kind"], hold["kind"])
+    return evidence
 
 
 def _closure_page(request, pk, decision):
@@ -105,7 +121,8 @@ def _closure_page(request, pk, decision):
             # Submitted while it could not be signed; the lot has changed since. Say so.
             form.add_error(None, rejection.CLOSURE_STALE)
         _reissue(form, lot, closure.basis)
-    evidence = closure.evidence
+    # The labels are added to a copy: the evidence itself is what the signature freezes.
+    evidence = _with_hold_kinds(copy.deepcopy(closure.evidence))
     return render(
         request,
         "quality/closure.html",

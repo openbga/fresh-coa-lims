@@ -26,7 +26,7 @@ A reviewer signs the rejection of a batch whose QC failed. Its tests are invalid
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Sign and reject** | Always | Reviewer | "BATCH rejected; linked reruns were created."; returns to the batch |
+| **Sign and reject** | Always | Reviewer | "BATCH rejected; linked reruns were created.", or "BATCH rejected; no test was invalidated, so no rerun was created." when every test was left as it was; returns to the batch |
 | **Cancel** | Always | Reviewer | Nothing signed |
 
 ## Fields

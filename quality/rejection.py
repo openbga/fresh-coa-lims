@@ -2,8 +2,9 @@
 
 ``reject_lot``: quality rejects a lot that failed its requirements or cannot be used. The lot
 need not be fully tested, but an investigation that is still open is concluded first, and a
-result recorded and not yet submitted is submitted first, so that a failure is evaluated and
-investigated whatever is decided about the lot.
+result recorded outside its limits and not yet submitted is submitted first, so that a failure is
+evaluated and investigated whatever is decided about the lot. Results within their limits that
+were never submitted (a test that cannot be finished) are frozen with the rejection as recorded.
 
 ``cancel_receipt``: quality cancels a lot that was recorded in error, while nothing has been done
 with its material: no sample, test, reserve sample or stability study, and no supplier result
@@ -91,11 +92,26 @@ class Closure:
 def _tests(lot):
     from analytical.models import AnalyticalTest, Observation, RawDataFile
 
-    worked = set(
-        Observation.objects.filter(test__lot_id=lot.pk, correction__isnull=True).values_list(
-            "test_id", flat=True
-        )
+    current = Observation.objects.filter(test__lot_id=lot.pk, correction__isnull=True)
+    worked = set(current.values_list("test_id", flat=True))
+    tests = list(
+        AnalyticalTest.objects.filter(lot_id=lot.pk).select_related("sample").order_by("pk")
     )
+    # Results recorded on an open test were never evaluated. Each one is compared on its own
+    # with the test's frozen requirement, as batch rejection does, so that one outside its
+    # limits is never set aside unseen.
+    by_pk = {test.pk: test for test in tests}
+    unsubmitted = {test.pk: ([], []) for test in tests if test.state == "open"}
+    specs = {}
+    for observation in current.filter(test_id__in=unsubmitted).order_by("test_id", "pk"):
+        test = by_pk[observation.test_id]
+        if test.pk not in specs:
+            specs[test.pk] = test.spec
+        spec = specs[test.pk]
+        recorded, outside = unsubmitted[test.pk]
+        recorded.append(observation.value_text)
+        if not spec.conforms(observation.reading):
+            outside.append(observation.value_text)
     # A raw-data file is not a result: it is kept with the test and evaluated by nobody, so the
     # signer sees that it is there.
     files = set(RawDataFile.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True))
@@ -110,10 +126,10 @@ def _tests(lot):
             "conforms": test.conforms,
             "results": test.pk in worked,
             "raw_data": test.pk in files,
+            "unsubmitted": unsubmitted.get(test.pk, ([], []))[0],
+            "outside_limits": unsubmitted.get(test.pk, ([], []))[1],
         }
-        for test in AnalyticalTest.objects.filter(lot_id=lot.pk)
-        .select_related("sample")
-        .order_by("pk")
+        for test in tests
     ]
 
 
@@ -219,10 +235,11 @@ def rejection_preview(lot):
         if item["phase"] != "closed"
     ]
     reasons += [
-        f"{row['label']} {row['test_code']} holds results that were not submitted. Submit them "
-        "first, so that a failing result is evaluated and investigated."
+        f"{row['label']} {row['test_code']} holds a result outside its limits that was not "
+        f"submitted ({', '.join(row['outside_limits'])}). Submit it first, so that it is "
+        "evaluated and investigated."
         for row in tests
-        if row["state"] == "open" and row["results"]
+        if row["outside_limits"]
     ]
     evidence = {
         "requirements": _requirements(lot),
