@@ -28,4 +28,6 @@ version, files and verified tarball integrity.
 | Bootstrap Icons 1.13.2 (subset in `static/img/icons.svg`) | MIT; https://github.com/twbs/icons/blob/v1.13.2/LICENSE; retain `static/img/icons.LICENSE` |
 | htmx 2.0.11 | 0BSD; https://github.com/bigskysoftware/htmx/blob/v2.0.11/LICENSE; retain `static/vendor/htmx-2.0.11/LICENSE` |
 | DataTables 3.1.5 (core and Bootstrap 5 integration) / ColReorder 3.1.2 | MIT; https://datatables.net/license/mit; retain `static/vendor/datatables/License.txt` |
+| Tom Select 2.7.0 (including bundled Sifter and microplugin) | Apache-2.0; https://github.com/orchidjs/tom-select/blob/v2.7.0/LICENSE; retain `static/vendor/tom-select/LICENSE` and the file headers |
+| Vanilla Calendar Pro 3.4.0 | MIT; https://github.com/uvarov-frontend/vanilla-calendar-pro/blob/v3.4.0/LICENSE; retain `static/vendor/vanilla-calendar-pro-3.4.0/LICENSE` and the file header |
 | Playwright / pytest-playwright (optional test tools) | Apache-2.0; https://github.com/microsoft/playwright-python/blob/main/LICENSE |

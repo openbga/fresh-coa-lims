@@ -15,6 +15,7 @@
   var root = document.documentElement;
   var narrow = window.matchMedia("(max-width: 991.98px)"); // matches pagedocs.css
   var panel, body, splitter, fullLink, loadedPath, request;
+  var formDialog, home; // the shared form dialog (static/js/form-dialog.js) and the panel's place
 
   function store(key, value) {
     try {
@@ -34,6 +35,12 @@
 
   function toggles() {
     return document.querySelectorAll("[data-pagedocs-toggle]");
+  }
+
+  // While the form dialog is open the panel docks inside it: inside the dialog's focus boundary,
+  // never in the inert page behind it, and it documents the form shown in the dialog.
+  function docked() {
+    return Boolean(formDialog && formDialog.contains(panel));
   }
 
   function isOpen() {
@@ -66,7 +73,9 @@
   }
 
   function currentPath() {
-    return window.location.pathname;
+    var form = docked() && formDialog.querySelector("#vr-form-content [data-vr-form-page]");
+    var url = form && form.getAttribute("data-vr-form-url");
+    return url ? new URL(url, window.location.href).pathname : window.location.pathname;
   }
 
   function syncLinks() {
@@ -106,6 +115,7 @@
       })
       .then(function (html) {
         body.innerHTML = html; // server-rendered, sanitized fragment from the same origin
+        enhance(body);
         body.scrollTop = 0;
         if (focusAfter) {
           focusTitle();
@@ -128,10 +138,95 @@
       });
   }
 
+  // "Find a field or action": in a doc with the friendly layer the reference sections are
+  // collapsed. Typing hides the blocks that don't match, opens the sections that do and marks the
+  // matches. Marks are built from text nodes only; documentation text never becomes markup.
+  var UNITS = ":scope > p, :scope > ul > li, :scope > ol > li, :scope > pre, :scope > .pagedocs-note, :scope > h4, :scope > h5, tbody > tr";
+
+  function enhance(scope) {
+    scope.querySelectorAll("[data-pagedocs-filter-box]").forEach(function (box) {
+      box.hidden = false;
+    });
+  }
+
+  function unmark(scope) {
+    scope.querySelectorAll("mark.pagedocs-hit").forEach(function (hit) {
+      var parent = hit.parentNode;
+      parent.replaceChild(document.createTextNode(hit.textContent), hit);
+      parent.normalize();
+    });
+  }
+
+  function mark(element, query) {
+    var walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode);
+    }
+    nodes.forEach(function (node) {
+      var text = node.nodeValue;
+      var lower = text.toLowerCase();
+      var index = lower.indexOf(query);
+      if (index === -1) {
+        return;
+      }
+      var parts = document.createDocumentFragment();
+      var at = 0;
+      while (index !== -1) {
+        parts.appendChild(document.createTextNode(text.slice(at, index)));
+        var hit = document.createElement("mark");
+        hit.className = "pagedocs-hit";
+        hit.textContent = text.slice(index, index + query.length);
+        parts.appendChild(hit);
+        at = index + query.length;
+        index = lower.indexOf(query, at);
+      }
+      parts.appendChild(document.createTextNode(text.slice(at)));
+      node.parentNode.replaceChild(parts, node);
+    });
+  }
+
+  function filter(input) {
+    var reference = input.closest("[data-pagedocs-reference]");
+    if (!reference) {
+      return;
+    }
+    var query = input.value.trim().toLowerCase();
+    var any = false;
+    unmark(reference);
+    reference.querySelectorAll("[data-pagedocs-section]").forEach(function (section) {
+      var title = section.querySelector("summary");
+      var content = section.querySelector(".pagedocs-section-body");
+      var whole = Boolean(query) && title.textContent.toLowerCase().indexOf(query) !== -1;
+      var matches = whole ? 1 : 0;
+      content.querySelectorAll(UNITS).forEach(function (unit) {
+        var hit = Boolean(query) && unit.textContent.toLowerCase().indexOf(query) !== -1;
+        unit.hidden = Boolean(query) && !hit && !whole;
+        if (hit) {
+          matches += 1;
+        }
+      });
+      // A table whose rows are all hidden loses its header too.
+      content.querySelectorAll(".table-responsive").forEach(function (table) {
+        table.hidden = Boolean(query) && !table.querySelector("tbody > tr:not([hidden])");
+      });
+      if (query && matches) {
+        mark(section, query);
+      }
+      section.hidden = Boolean(query) && !matches;
+      section.open = Boolean(query) && matches > 0;
+      any = any || matches > 0;
+    });
+    reference.querySelector("[data-pagedocs-none]").hidden = !query || any;
+  }
+
   // Narrow screens: the open panel covers the page, so the covered content leaves the tab order
   // and the accessibility tree (with the skip link to it). The top bar and the phone navigation (its
   // own overlay) stay usable.
   function syncCovered() {
+    if (docked()) {
+      return; // the form dialog keeps the page behind it inert
+    }
     var covered = isOpen() && narrow.matches;
     document.querySelectorAll(".vr-skip, .vr-shell > :not(#vr-nav)").forEach(function (element) {
       element.inert = covered;
@@ -157,7 +252,7 @@
     store(OPEN_KEY, "0");
     syncCovered();
     syncLinks();
-    var toggle = toggles()[0];
+    var toggle = (docked() ? formDialog : document).querySelector("[data-pagedocs-toggle]");
     if (hadFocus && toggle) {
       toggle.focus();
     }
@@ -232,6 +327,7 @@
     body = panel.querySelector("[data-pagedocs-body]");
     splitter = panel.querySelector("[data-pagedocs-splitter]");
     fullLink = panel.querySelector("[data-pagedocs-full]");
+    enhance(document); // the full-page fallback renders a doc outside the panel
     setWidth(currentWidth(), false);
     syncLinks();
     syncCovered();
@@ -247,6 +343,23 @@
         close();
       }
     });
+    document.addEventListener("input", function (event) {
+      if (event.target.matches("[data-pagedocs-filter]")) {
+        filter(event.target);
+      }
+    });
+    // Escape in a filled filter clears it first (capture: before the panel's Escape closes it).
+    document.addEventListener(
+      "keydown",
+      function (event) {
+        if (event.key === "Escape" && event.target.matches("[data-pagedocs-filter]") && event.target.value) {
+          event.preventDefault();
+          event.target.value = "";
+          filter(event.target);
+        }
+      },
+      true
+    );
     document.addEventListener("keydown", function (event) {
       if ((event.key === " " || event.key === "Spacebar") && event.target.closest("[data-pagedocs-toggle]")) {
         onToggle(event); // role="button" links activate on Space like buttons
@@ -255,6 +368,7 @@
     panel.addEventListener("keydown", function (event) {
       if (event.key === "Escape" && !event.defaultPrevented) {
         event.preventDefault();
+        event.stopPropagation(); // docked in the form dialog: Escape closes the panel, not the form
         close();
       }
     });
@@ -267,6 +381,30 @@
       setWidth(currentWidth(), false);
     });
     narrow.addEventListener("change", syncCovered);
+
+    formDialog = document.getElementById("vr-form-dialog");
+    if (formDialog) {
+      home = document.createComment("pagedocs panel");
+      panel.before(home);
+      // Dock before form-dialog.js marks the other branches of the page inert.
+      formDialog.addEventListener("show.bs.modal", function () {
+        formDialog.append(panel);
+        navigated();
+      });
+      formDialog.addEventListener("hidden.bs.modal", function () {
+        home.after(panel);
+        syncCovered();
+        navigated();
+      });
+      var content = formDialog.querySelector("#vr-form-content");
+      if (content) {
+        new MutationObserver(function () {
+          if (docked()) {
+            navigated(); // the dialog moved to another form
+          }
+        }).observe(content, { childList: true });
+      }
+    }
 
     // History navigation without a full load (HTMX boosting or history restore).
     window.addEventListener("popstate", navigated);

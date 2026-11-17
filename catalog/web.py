@@ -6,12 +6,12 @@ from operator import or_
 from django.apps import apps
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.paginator import Paginator
 from django.db import IntegrityError
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from psycopg.errors import UniqueViolation
 
+from core import grids
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 
@@ -84,13 +84,9 @@ def form_status(request, form):
     return 422 if request.method == "POST" and form.errors else 200
 
 
-def page(request, queryset, per_page=25):
-    try:
-        per_page = int(request.GET.get("per_page", per_page))
-    except ValueError:
-        per_page = 25
-    per_page = per_page if per_page in (25, 50, 100) else 25
-    return Paginator(queryset, per_page).get_page(request.GET.get("page"))
+def page(request, queryset):
+    """The requested page at the requested rows per page (core.grids, {% pagination sizes=True %})."""
+    return grids.paginate(request, queryset)
 
 
 def sorted_by(request, queryset, allowed, default):

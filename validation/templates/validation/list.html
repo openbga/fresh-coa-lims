@@ -1,3 +1,4 @@
 {% extends "ops/list.html" %}
+{% load ui %}
 {% comment %}The intended-use list: the generic list with a notice on the current acceptance.{% endcomment %}
-{% block page_intro %}{{ block.super }}{% if notice %}<div class="alert alert-{{ notice.tone }} mt-3 mb-0" role="{% if notice.tone == 'warning' %}alert{% else %}status{% endif %}">{% include "includes/status.html" with label=notice.label tone=notice.tone plain=True %}<div>{{ notice.text }}</div></div>{% endif %}{% endblock %}
+{% block page_intro %}{{ block.super }}{% if notice %}{% if notice.tone == "warning" %}{% notice tone=notice.tone label=notice.label blocking=True class="mt-3 mb-0" %}{{ notice.text }}{% endnotice %}{% else %}{% notice tone=notice.tone label=notice.label class="mt-3 mb-0" %}{{ notice.text }}{% endnotice %}{% endif %}{% endif %}{% endblock %}

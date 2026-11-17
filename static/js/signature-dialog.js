@@ -19,7 +19,7 @@
     window.location.assign(cancel.href);
   });
   dialog.showModal();
-  const error = content.querySelector('.errorlist');
+  const error = content.querySelector('[data-vr-form-errors]');
   if (error) {
     error.setAttribute('tabindex', '-1');
     error.setAttribute('role', 'alert');

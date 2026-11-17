@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -58,6 +59,14 @@ def tabs(request, current):
     return [{"label": label, "url": url, "current": label == current} for label, url in items]
 
 
+class SpecificationFilterForm(forms.Form):
+    """The specification list's stage filter; the search box is the toolbar's own (q)."""
+
+    stage = forms.ChoiceField(
+        label="Stage", choices=[("", "All stages"), *Stage.choices], required=False
+    )
+
+
 def crumbs_for(*trail):
     return [(SECTION, reverse("catalog:specifications")), *trail]
 
@@ -92,17 +101,18 @@ def specification_list(request):
         latest=Max("revisions__version"),
     )
     query = request.GET.get("q", "").strip()
-    stage = request.GET.get("stage", "")
+    filters = SpecificationFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown stage lists every specification
+        filters = SpecificationFilterForm()
+    stage = filters.cleaned_data["stage"] if filters.is_bound else ""
     if query:
         specs = specs.filter(
             Q(code__icontains=query)
             | Q(title__icontains=query)
             | Q(material__code__icontains=query)
         )
-    if stage in Stage.values:
+    if stage:
         specs = specs.filter(stage=stage)
-    else:
-        stage = ""
     specs, sort = sorted_by(
         request,
         specs,
@@ -122,8 +132,7 @@ def specification_list(request):
             "tabs": tabs(request, "Specifications"),
             "page_obj": page(request, specs),
             "query": query,
-            "stage": stage,
-            "stages": Stage.choices,
+            "filters": filters,
             "sort": sort,
             "filtered": bool(query or stage),
             "can_edit": can(request.user, services.AUTHOR_ROLE),

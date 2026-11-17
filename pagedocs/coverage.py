@@ -20,6 +20,8 @@ EXEMPT_NAMES = {
     "login_sso_callback": "Return from the identity provider; redirects without rendering a page.",
     "logout": "POST-only sign-out action; redirects without rendering a page.",
     "pagedocs:doc": "The documentation endpoint itself.",
+    "core:lookup": "JSON options of the remote select (core/lookups.py); renders no page.",
+    "core:preference": "POST-only save of a presentation preference (core/preferences.py).",
 }
 
 # Transitional backlog: namespaces where not every page is documented yet. Docs that do exist in
@@ -28,6 +30,11 @@ EXEMPT_NAMES = {
 # a missing doc for a page you are changing.
 _BACKLOG = "Pages built before page documentation existed; not yet documented."
 PENDING_NAMESPACES = dict.fromkeys((), _BACKLOG)
+
+# The friendly layer (summary, Common tasks, Good to know) is being rolled out page by page.
+# While this is False a doc may lack it; set it to True when every doc has it, and the coverage
+# test then requires it (the test fails as a reminder once nothing is left to roll out).
+FRIENDLY_LAYER_REQUIRED = False
 
 
 def named_routes(patterns=None, namespace=""):

@@ -1,0 +1,881 @@
+/* OpenBGA QM LIMS form controls and the collapsible sidebar (owner: controls).
+
+   Loaded after app.css by the application shell. Colours, spacing, radii and shadows come only
+   from the --vr-* tokens defined in app.css (Tokens section); this file defines none. */
+
+/* ================================================================ Form controls
+
+   No control shows the browser's default UI (docs/ui-standards.md section 8). Each is one widget
+   template in templates/django/forms/widgets/ plus static/js/controls.js; vendor stylesheets keep
+   their stock colours, so every colour they set is overridden here with tokens. The field box
+   itself (treatment A: a 1px outline, no fill, the focus ring and the invalid ring) is the
+   .form-control/.form-select rule in Bootstrap components; this section extends it to the
+   enhanced controls. */
+
+/* ---- Select, multi-select and suggestion input (Tom Select) ---------------------------------
+   The wrapper keeps the select's .form-select (or the input's .form-control) class, so it is the
+   field box; the inner control has no box of its own. Tom Select moves focus inside, so the
+   focus and invalid rings are repeated here on its .focus and .is-invalid states. */
+
+.ts-wrapper {
+  --bs-body-bg: transparent;
+  --bs-body-color: var(--vr-text);
+  --bs-border-color: var(--vr-border-strong);
+  --bs-border-color-translucent: transparent;
+  --bs-secondary-bg: transparent;
+  --bs-tertiary-bg: var(--vr-surface-hover);
+  --bs-secondary-color: var(--vr-placeholder);
+}
+
+.ts-wrapper.form-control,
+.ts-wrapper.form-select {
+  height: auto;
+  min-height: var(--vr-control-height);
+  padding: 0;
+  background-image: none;
+}
+
+.ts-wrapper .ts-control,
+.ts-wrapper.form-select .ts-control,
+.ts-wrapper.single.input-active .ts-control,
+.ts-wrapper.form-control .ts-control {
+  min-height: calc(var(--vr-control-height) - 2 * var(--vr-border-width));
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-1) var(--vr-space-8) var(--vr-space-1) var(--vr-space-3);
+  background: transparent;
+  color: var(--vr-text);
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+/* A suggestion input is free text: no chevron, the text cursor. */
+.ts-wrapper.form-control .ts-control {
+  padding-right: var(--vr-space-3);
+  cursor: text;
+}
+
+.ts-wrapper .ts-control > input,
+.ts-wrapper .ts-control .item {
+  color: var(--vr-text);
+}
+
+.ts-wrapper.single .ts-control > .item {
+  font-weight: var(--vr-font-weight-medium);
+}
+
+.ts-wrapper .ts-control > input::placeholder,
+.ts-dropdown .dropdown-input::placeholder {
+  color: var(--vr-placeholder);
+  opacity: 1;
+}
+
+.ts-wrapper.form-select.focus,
+.ts-wrapper.form-control.focus {
+  background-color: transparent;
+  border-color: var(--vr-focus);
+  box-shadow: var(--vr-field-focus-ring);
+  outline: none;
+}
+
+.ts-wrapper.focus .ts-control,
+.ts-wrapper.plugin-dropdown_input.focus.dropdown-active .ts-control {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Invalid: the combobox carries aria-invalid (copied from the field); the wrapper shows it. */
+.ts-wrapper:has([aria-invalid="true"]),
+.ts-wrapper.focus:has([aria-invalid="true"]) {
+  border-color: var(--vr-danger-border);
+  background-image: none;
+  box-shadow: var(--vr-field-invalid-ring);
+}
+
+.ts-wrapper.disabled.form-select,
+.ts-wrapper.disabled.form-control,
+.ts-wrapper.disabled .ts-control {
+  background-color: transparent;
+  color: var(--vr-text-muted);
+  opacity: 1;
+}
+
+/* The chevron is a Bootstrap Icons symbol (controls.js), not the stylesheet's background image. */
+.vr-ts-caret {
+  position: absolute;
+  top: 50%;
+  right: var(--vr-space-3);
+  display: inline-flex;
+  color: var(--vr-text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: transform 0.15s var(--vr-ease);
+}
+
+.ts-wrapper.dropdown-active .vr-ts-caret {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.ts-wrapper.disabled .vr-ts-caret {
+  opacity: 0.5;
+}
+
+/* Clear button (controls.js addClear): beside the chevron, never moving it. The space is kept
+   whether or not it shows, so nothing shifts; it fades in while the control is hovered, focused
+   or open, and stays visible on touch screens. Hidden (the attribute) while there is no value. */
+.ts-wrapper.vr-clearable .ts-control {
+  padding-right: calc(var(--vr-space-8) + var(--vr-space-6));
+}
+
+.ts-wrapper.vr-clearable.multi .ts-control {
+  padding-right: var(--vr-space-8);
+}
+
+.vr-ts-clear {
+  position: absolute;
+  z-index: calc(var(--vr-z-raised) + 1); /* over Tom Select's control (z-index 1) */
+  top: 50%;
+  right: var(--vr-space-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-space-6);
+  height: var(--vr-space-6);
+  padding: 0;
+  background: transparent;
+  color: var(--vr-text-muted);
+  border: 0;
+  border-radius: var(--vr-radius-pill);
+  font-size: var(--vr-font-size-5);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--vr-motion-fast) ease-out;
+}
+
+.ts-wrapper.multi .vr-ts-clear {
+  right: var(--vr-space-2);
+}
+
+.vr-ts-clear[hidden] {
+  display: none;
+}
+
+.ts-wrapper:hover .vr-ts-clear,
+.ts-wrapper.focus .vr-ts-clear,
+.ts-wrapper.dropdown-active .vr-ts-clear,
+.vr-ts-clear:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .vr-ts-clear {
+    opacity: 1;
+  }
+}
+
+.vr-ts-clear:hover {
+  background: var(--vr-surface-hover);
+  color: var(--vr-text);
+}
+
+.vr-ts-clear:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-ts-clear {
+    transition: none;
+  }
+}
+
+/* Chosen items of a multi-select: pills with a remove button. */
+.ts-wrapper.multi .ts-control {
+  padding-left: var(--vr-space-1-5);
+  cursor: text;
+}
+
+.ts-wrapper.multi .ts-control > div,
+.ts-wrapper.multi .ts-control > div.item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1);
+  margin: 0;
+  padding: var(--vr-space-0-5) var(--vr-space-1) var(--vr-space-0-5) var(--vr-space-2-5);
+  background: var(--vr-selection);
+  color: var(--vr-text);
+  border: 0;
+  border-radius: var(--vr-radius-pill);
+  font-size: var(--vr-font-size-1);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.ts-wrapper.multi .ts-control > div.item.active {
+  background: var(--vr-ink);
+  color: var(--vr-on-ink);
+}
+
+.ts-wrapper.multi.disabled .ts-control > div,
+.ts-wrapper.multi.disabled .ts-control > div.active {
+  background: var(--vr-surface-2);
+  color: var(--vr-text-muted);
+}
+
+.ts-wrapper.plugin-remove_button .item .remove,
+.ts-wrapper.plugin-remove_button:not(.rtl) .item .remove,
+.ts-wrapper.plugin-remove_button:not(.rtl) .item.active .remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-space-5);
+  height: var(--vr-space-5);
+  margin-left: 0;
+  padding: 0;
+  color: inherit;
+  border: 0;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.ts-wrapper.plugin-remove_button .item .remove:hover {
+  background: var(--vr-surface-hover);
+  color: var(--vr-text);
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .ts-wrapper.plugin-remove_button .item .remove {
+    width: var(--vr-space-8);
+    height: var(--vr-space-8);
+  }
+}
+
+/* The menu: a raised surface, fixed beside its control by controls.js (vr-floating) so a dialog
+   body or a scrolling table cannot clip it. */
+.ts-dropdown,
+.ts-dropdown.form-control,
+.ts-dropdown.form-select {
+  z-index: var(--vr-z-menu);
+  height: auto;
+  margin: 0;
+  padding: var(--vr-space-1-5);
+  background: var(--vr-raised);
+  color: var(--vr-text);
+  border: 0;
+  border-radius: var(--vr-radius-menu);
+  box-shadow: var(--vr-shadow-raised);
+}
+
+.ts-dropdown.vr-floating {
+  position: fixed;
+}
+
+.ts-dropdown .ts-dropdown-content {
+  max-height: 18rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vr-scrollbar) transparent;
+}
+
+.ts-dropdown .option,
+.ts-dropdown .no-results,
+.ts-dropdown .create,
+.ts-dropdown .loading-more-results {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+  padding: var(--vr-space-1-5) var(--vr-space-2-5);
+  color: var(--vr-text);
+  border-radius: var(--vr-radius-lg);
+}
+
+.ts-dropdown .no-results,
+.ts-dropdown .loading-more-results,
+.ts-dropdown .create {
+  color: var(--vr-text-muted);
+}
+
+.ts-dropdown .optgroup-header {
+  padding: var(--vr-space-2) var(--vr-space-2-5) var(--vr-space-1);
+  background: transparent;
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-1);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.ts-dropdown .optgroup::before {
+  display: none;
+}
+
+.ts-dropdown .active,
+.ts-dropdown .active.create {
+  background-color: var(--vr-surface-hover);
+  color: var(--vr-text);
+}
+
+.ts-dropdown .option.selected {
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.ts-dropdown .vr-ts-check {
+  display: none;
+  margin-left: auto;
+  color: var(--vr-ink);
+}
+
+.ts-dropdown .option.selected .vr-ts-check {
+  display: inline-flex;
+}
+
+.ts-dropdown [data-selectable] .highlight {
+  background: var(--vr-selection);
+  color: inherit;
+  border-radius: var(--vr-radius-xs);
+}
+
+.ts-dropdown .spinner::after {
+  border-color: var(--vr-border-strong) transparent;
+}
+
+/* Search box at the top of a long list's menu (dropdown_input plugin), with a search icon. */
+.ts-dropdown .dropdown-input-wrap {
+  position: relative;
+  margin-bottom: var(--vr-space-1);
+}
+
+.ts-dropdown .dropdown-input-wrap > .vr-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--vr-space-2-5);
+  color: var(--vr-text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.ts-dropdown .dropdown-input,
+.plugin-dropdown_input .dropdown-input {
+  height: var(--vr-control-height-sm);
+  min-height: 0;
+  padding: 0 var(--vr-space-2) 0 var(--vr-space-8);
+}
+
+.ts-dropdown .vr-ts-meta {
+  color: var(--vr-text-muted);
+}
+
+/* A select in a table cell (entry grids) stays wide enough to read its value. */
+.vr-table .ts-wrapper {
+  min-width: 10rem;
+  max-width: 22rem;
+}
+
+/* ---- Date and date-time fields ----------------------------------------------------------------
+   A typed text field with a calendar button; the calendar (Vanilla Calendar Pro, layout only)
+   opens in a popover beside it. */
+
+.vr-date-input {
+  position: relative;
+}
+
+.vr-date-input .vr-date-text {
+  padding-right: var(--vr-space-8);
+  font-variant-numeric: tabular-nums;
+}
+
+.vr-date-input:has(.vr-date-text[aria-expanded="true"]) .vr-date-text {
+  border-color: var(--vr-focus);
+  box-shadow: var(--vr-field-focus-ring);
+}
+
+.vr-table .vr-date-input {
+  min-width: 12.5rem;
+}
+
+.vr-date-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-control-height);
+  height: var(--vr-control-height);
+  padding: 0;
+  background: transparent;
+  color: var(--vr-text-muted);
+  border: 0;
+  border-radius: var(--vr-radius-lg);
+}
+
+.vr-date-icon:hover:not(:disabled) {
+  color: var(--vr-text);
+}
+
+.vr-date-icon:disabled {
+  opacity: 0.5;
+}
+
+.vr-date-hint {
+  margin-top: var(--vr-space-1);
+}
+
+.vr-date-error:not(:empty) {
+  display: block;
+}
+
+.vr-popover {
+  z-index: var(--vr-z-menu);
+  padding: var(--vr-space-3);
+  background: var(--vr-raised);
+  color: var(--vr-text);
+  border: 0;
+  border-radius: var(--vr-radius-menu);
+  box-shadow: var(--vr-shadow-raised);
+}
+
+.vr-popover.vr-floating {
+  position: fixed;
+}
+
+.vr-popover[hidden] {
+  display: none;
+}
+
+.vr-datepicker {
+  width: 18rem;
+  max-width: calc(100vw - 1rem);
+}
+
+.vr-datepicker.vr-datetime {
+  width: 20rem;
+}
+
+/* The calendar itself: Vanilla Calendar's layout sheet, coloured here. */
+.vr-datepicker [data-vc="calendar"] {
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--vr-text);
+  border-radius: 0;
+}
+
+.vr-datepicker [data-vc="header"] {
+  margin-bottom: var(--vr-space-1);
+}
+
+.vr-datepicker [data-vc="month"],
+.vr-datepicker [data-vc="year"] {
+  color: var(--vr-text);
+  font-size: var(--vr-font-size-3);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+/* Month arrows: Bootstrap Icons chevrons (controls.js); the library's own image is hidden. */
+.vr-datepicker [data-vc-arrow] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-control-height-sm);
+  height: var(--vr-control-height-sm);
+  color: var(--vr-text-muted);
+  border-radius: var(--vr-radius-lg);
+}
+
+.vr-datepicker [data-vc-arrow]::before {
+  content: none;
+}
+
+.vr-datepicker [data-vc-arrow]:hover,
+.vr-datepicker [data-vc="month"]:hover,
+.vr-datepicker [data-vc="year"]:hover {
+  background: var(--vr-surface-hover);
+  color: var(--vr-text);
+}
+
+.vr-datepicker [data-vc-week-day] {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-1);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.vr-datepicker [data-vc-date-btn],
+.vr-datepicker [data-vc-months-month],
+.vr-datepicker [data-vc-years-year] {
+  min-height: 2rem;
+  background: transparent;
+  color: var(--vr-text);
+  border-radius: var(--vr-radius-lg);
+  font-size: var(--vr-font-size-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.vr-datepicker [data-vc-date-btn]:hover,
+.vr-datepicker [data-vc-months-month]:hover,
+.vr-datepicker [data-vc-years-year]:hover {
+  background: var(--vr-surface-hover);
+}
+
+.vr-datepicker [data-vc-date-month="prev"] [data-vc-date-btn],
+.vr-datepicker [data-vc-date-month="next"] [data-vc-date-btn],
+.vr-datepicker [data-vc-date-disabled] [data-vc-date-btn],
+.vr-datepicker [data-vc-months-month]:disabled,
+.vr-datepicker [data-vc-years-year]:disabled {
+  color: var(--vr-text-muted);
+}
+
+.vr-datepicker [data-vc-date-disabled] [data-vc-date-btn] {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.vr-datepicker [data-vc-date-today] [data-vc-date-btn] {
+  box-shadow: inset 0 0 0 var(--vr-border-width-md) var(--vr-border-strong);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.vr-datepicker [data-vc-date-selected] [data-vc-date-btn],
+.vr-datepicker [data-vc-months-month][aria-selected="true"],
+.vr-datepicker [data-vc-years-year][aria-selected="true"] {
+  background: var(--vr-ink);
+  color: var(--vr-on-ink);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.vr-datepicker [data-vc="calendar"] button:focus-visible,
+.vr-datepicker [data-vc="calendar"] [tabindex="0"]:focus-visible,
+.vr-datepicker [data-vc="calendar"]:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: calc(-1 * var(--vr-focus-width));
+  border-radius: var(--vr-radius-lg);
+}
+
+.vr-time-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vr-space-1-5) var(--vr-space-2);
+  margin-top: var(--vr-space-2);
+  padding-top: var(--vr-space-2);
+  font-size: var(--vr-font-size-2);
+}
+
+.vr-time-row label {
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.vr-time-row .vr-time {
+  width: 6rem;
+  height: var(--vr-control-height-sm);
+  min-height: 0;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.vr-tz {
+  margin-left: auto;
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-1);
+}
+
+.vr-cal-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vr-space-1-5);
+  margin-top: var(--vr-space-2);
+  padding-top: var(--vr-space-2);
+}
+
+/* ---- Numbers ------------------------------------------------------------------------------------
+   Text inputs with a numeric keypad: right-aligned tabular digits, no spinners. With a unit, the
+   input group is the one field box; the input and the unit inside it have no box of their own. */
+
+.vr-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.vr-table .vr-number {
+  min-width: 5rem;
+}
+
+.input-group:has(> .vr-number) {
+  flex-wrap: nowrap;
+  align-items: stretch;
+  border: var(--vr-border-width) solid var(--vr-border-strong);
+  border-radius: var(--vr-radius-lg);
+}
+
+.input-group:has(> .vr-number):hover {
+  border-color: var(--vr-border-strong-hover);
+}
+
+.input-group:has(> .vr-number) > .vr-number,
+.input-group:has(> .vr-number) > .vr-number:focus,
+.input-group:has(> .vr-number) > .vr-number[aria-invalid="true"],
+.input-group:has(> .vr-number) > .input-group-text {
+  min-height: calc(var(--vr-control-height) - 2 * var(--vr-border-width));
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+.input-group:has(> .vr-number) > .input-group-text {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-2);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+.input-group:has(> .vr-number) > .input-group-text:last-child {
+  padding-left: 0;
+}
+
+.input-group:has(> .vr-number):focus-within {
+  border-color: var(--vr-focus);
+  box-shadow: var(--vr-field-focus-ring);
+}
+
+.input-group:has(> .vr-number[aria-invalid="true"], > .vr-number.is-invalid) {
+  border-color: var(--vr-danger-border);
+  box-shadow: var(--vr-field-invalid-ring);
+}
+
+.input-group:has(> .vr-number[aria-invalid="true"], > .vr-number.is-invalid) > .input-group-text {
+  color: var(--vr-danger-text);
+}
+
+/* ---- Files --------------------------------------------------------------------------------------
+   Without JavaScript the native input shows as a Bootstrap form-control. Once ready, the native
+   input is visually hidden but keeps keyboard focus, and the drop zone shows that focus. */
+
+.vr-file-field .vr-drop,
+.vr-file-field .vr-file-name {
+  display: none;
+}
+
+.vr-file-ready {
+  position: relative;
+}
+
+.vr-file-ready .vr-file-native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.vr-file-ready .vr-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vr-space-1);
+  margin: 0;
+  padding: var(--vr-space-6) var(--vr-space-4);
+  background: var(--vr-surface);
+  color: var(--vr-text-muted);
+  border-radius: var(--vr-radius-xl);
+  box-shadow: var(--vr-shadow-panel);
+  text-align: center;
+  cursor: pointer;
+}
+
+.vr-file-ready .vr-drop:hover,
+.vr-file-ready .vr-drop.vr-drop-over {
+  background: var(--vr-surface-hover);
+}
+
+.vr-file-ready:has(.vr-file-native:focus-visible) .vr-drop {
+  box-shadow: var(--vr-field-focus-ring);
+}
+
+.vr-file-ready:has(.vr-file-native[aria-invalid="true"]) .vr-drop {
+  box-shadow: var(--vr-field-invalid-ring);
+}
+
+.vr-file-ready:has(.vr-file-native:disabled) .vr-drop {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.vr-drop .vr-icon {
+  color: var(--vr-ink);
+  font-size: var(--vr-font-size-8);
+}
+
+.vr-drop-title {
+  color: var(--vr-pen);
+  font-weight: var(--vr-font-weight-semibold);
+  text-decoration: underline;
+}
+
+.vr-drop-hint {
+  font-size: var(--vr-font-size-1);
+}
+
+.vr-file-ready .vr-file-name {
+  display: block;
+  margin: var(--vr-space-1-5) 0 0;
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-2);
+  overflow-wrap: anywhere;
+}
+
+.vr-file-chosen .vr-file-name {
+  color: var(--vr-text);
+  font-weight: var(--vr-font-weight-semibold);
+}
+
+.vr-file-current {
+  margin-bottom: var(--vr-space-1);
+}
+
+/* ---- Search boxes: one clear button, never WebKit's own --------------------------------------- */
+
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  appearance: none;
+}
+
+.vr-search-input {
+  padding-right: var(--vr-space-8);
+}
+
+.vr-search-clear {
+  position: absolute;
+  right: var(--vr-space-1);
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vr-space-8);
+  height: var(--vr-control-height);
+  padding: 0;
+  background: transparent;
+  color: var(--vr-text-muted);
+  border: 0;
+  border-radius: var(--vr-radius-lg);
+}
+
+.vr-search-clear:hover {
+  color: var(--vr-text);
+}
+
+.vr-search-clear:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: calc(-1 * var(--vr-focus-width));
+}
+
+.vr-search-clear[hidden] {
+  display: none;
+}
+
+:has(> .vr-search-input) {
+  position: relative;
+}
+
+.form-control-sm.vr-search-input + .vr-search-clear {
+  height: 100%;
+}
+
+/* ================================================================ Shell: collapsible sidebar
+
+   static/js/sidebar.js: from 992px the staff menu folds into an icon rail (.vr-nav-collapsed on
+   .vr-shell, the user's "nav.collapsed" preference). Labels stay in the markup for assistive
+   technology and show as Bootstrap tooltips; group headings become thin dividers. */
+
+.vr-nav-toggle {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .vr-shell {
+    transition: grid-template-columns var(--vr-motion-fast) ease-out;
+  }
+
+  .vr-nav-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--vr-space-2-5);
+    width: 100%;
+    min-height: var(--vr-nav-item-height);
+    margin-bottom: var(--vr-space-2);
+    padding: 0 var(--vr-space-3);
+    background: transparent;
+    color: var(--vr-topbar-text-muted);
+    border: 0;
+    border-radius: var(--vr-radius-lg);
+    font-size: var(--vr-font-size-2);
+    text-align: left;
+  }
+
+  .vr-nav-toggle:hover {
+    background: var(--vr-shell-hover);
+    color: var(--vr-topbar-text);
+  }
+
+  .vr-nav-toggle > .vr-icon {
+    flex: none;
+    font-size: var(--vr-font-size-5);
+    transition: transform var(--vr-motion-fast) ease-out;
+  }
+
+  .vr-shell.vr-nav-collapsed {
+    grid-template-columns: var(--vr-sidenav-rail-width) minmax(0, 1fr);
+  }
+
+  .vr-nav-collapsed .vr-sidenav .offcanvas-body {
+    padding-right: 0;
+    padding-left: var(--vr-space-2);
+  }
+
+  .vr-nav-collapsed .vr-nav-toggle > .vr-icon {
+    transform: rotate(180deg);
+  }
+
+  /* Icons only: the label and count leave the layout but stay in the accessibility tree. */
+  .vr-nav-collapsed .vr-nav-toggle,
+  .vr-nav-collapsed .vr-navlink {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .vr-nav-collapsed .vr-nav-toggle-label,
+  .vr-nav-collapsed .vr-navlink > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Group headings become a short rule in their area's line colour. */
+  .vr-nav-collapsed .vr-nav-heading {
+    justify-content: center;
+    gap: 0;
+    margin: var(--vr-space-1) 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .vr-nav-collapsed .vr-nav-list + .vr-nav-section,
+  .vr-nav-collapsed .vr-nav-section + .vr-nav-section {
+    margin-top: var(--vr-space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-shell,
+  .vr-nav-toggle > .vr-icon {
+    transition: none;
+  }
+}
+
+/* The rail's label tooltips: the shell's current-item colours. */
+.vr-nav-tooltip {
+  --bs-tooltip-bg: var(--vr-shell-current);
+  --bs-tooltip-color: var(--vr-on-shell-current);
+  --bs-tooltip-font-size: var(--vr-font-size-2);
+}

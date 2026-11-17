@@ -1,9 +1,9 @@
-{% comment %}Resources and calculation of a method version. Parameters: revision; actions show on a draft when can_edit is set.{% endcomment %}
+{% load ui %}{% comment %}Resources and calculation of a method version. Include with revision=... can_edit=... only; actions show on a draft when can_edit is set.{% endcomment %}
 <h3 class="h6 mt-3">Calculation</h3>
 {% if revision.has_calculation %}
 <dl class="vr-facts">
-  <div><dt>Formula</dt><dd>{% if revision.calculation_formula %}<code>{{ revision.calculation_formula }}</code>{% else %}Not set{% endif %}</dd></div>
-  <div><dt>Result</dt><dd>{% if revision.calculation_unit %}{{ revision.calculation_unit }}{% else %}Unit not set{% endif %}{% if revision.calculation_decimals is not None %}, {{ revision.calculation_decimals }} decimal{{ revision.calculation_decimals|pluralize }}{% else %}, decimals not set{% endif %}</dd></div>
+  {% fact label="Formula" %}{% if revision.calculation_formula %}<code>{{ revision.calculation_formula }}</code>{% else %}Not set{% endif %}{% endfact %}
+  {% fact label="Result" %}{% if revision.calculation_unit %}{{ revision.calculation_unit }}{% else %}Unit not set{% endif %}{% if revision.calculation_decimals is not None %}, {{ revision.calculation_decimals }} decimal{{ revision.calculation_decimals|pluralize }}{% else %}, decimals not set{% endif %}{% endfact %}
 </dl>
 {% if revision.calculation_inputs.all %}
 <div class="vr-table-wrap"><table class="table vr-table">

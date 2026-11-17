@@ -17,6 +17,7 @@ from analytical import services as analytical
 from tests.test_integrated_journey import PASSWORD, PIN, observed_test
 
 DESKTOP = {"width": 1280, "height": 900}
+ACTION_TIMEOUT_MS = 10_000  # a missing element fails in seconds, not after half a minute
 
 
 @contextmanager
@@ -25,6 +26,7 @@ def browser_page(viewport=DESKTOP):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport)
+        page.set_default_timeout(ACTION_TIMEOUT_MS)
         try:
             yield page
         finally:

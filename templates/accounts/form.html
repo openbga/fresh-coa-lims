@@ -1,20 +1,24 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}Account forms: a signed account change by an administrator (signing: create an account, change its roles, status or credentials) and the user's own password change. Context: page_title, form, submit_label, cancel_url, signing, target, required_change, unavailable, crumbs.{% endcomment %}
+{% block breadcrumbs %}{% if crumbs %}{% breadcrumbs crumbs=crumbs %}{% elif signing %}{% url 'accounts:user_list' as users_url %}{% if target %}{% url 'accounts:user_detail' target.pk as target_url %}{% breadcrumbs section="Users and roles" section_url=users_url record=target.username record_url=target_url %}{% else %}{% breadcrumbs section="Users and roles" section_url=users_url %}{% endif %}{% endif %}{% endblock %}
 {% block content %}
-{% if required_change %}<p class="alert alert-info">Choose a new password before continuing. You can sign out from the top bar.</p>{% endif %}
+{% if required_change %}{% notice tone="info" class="mb-3" %}Choose a new password before continuing. You can sign out from the top bar.{% endnotice %}{% endif %}
 {% if signing %}
-<section class="card mb-3"><div class="card-body">
-<p>Signer: <strong>{{ user.get_full_name|default:user.username }}</strong>. Your signature means <strong>account_authorized</strong>: you authorize this account change, with its reason and server timestamp.</p>
-{% if target %}<dl class="vr-facts"><div><dt>Account</dt><dd>{{ target.username }}</dd></div><div><dt>Identity</dt><dd>{{ target.get_full_name|default:"Not supplied" }}</dd></div><div><dt>Roles</dt><dd>{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}</dd></div><div><dt>Active</dt><dd>{{ target.is_active|yesno:"Yes,No" }}</dd></div><div><dt>Revision</dt><dd>Reviewing {{ target.management_revision }}; signature binds revision {{ target.management_revision|add:"1" }}.</dd></div></dl>{% else %}<p>A new account starts at revision 1 and must change its initial password at first sign-in.</p>{% endif %}
-<p>Existing sessions are revoked after changes. You cannot grant yourself additional roles or remove the last active admin. Staff and superuser flags are never changed here.</p>
-<p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
-</div></section>
+{% panel title="Account change" heading_id="account-change-heading" class="mb-3" %}
+  <p>Signer: <strong>{{ user.get_full_name|default:user.username }}</strong>. Your signature means <strong>account_authorized</strong>: you authorize this account change, with its reason and server timestamp.</p>
+  {% if target %}<dl class="vr-facts">
+    {% fact label="Account" value=target.username %}
+    {% fact label="Identity" value=target.get_full_name|default:"Not supplied" %}
+    {% fact label="Roles" %}{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}{% endfact %}
+    {% fact label="Active" value=target.is_active|yesno:"Yes,No" %}
+    {% fact label="Revision" %}Reviewing {{ target.management_revision }}; signature binds revision {{ target.management_revision|add:"1" }}.{% endfact %}
+  </dl>{% else %}<p>A new account starts at revision 1 and must change its initial password at first sign-in.</p>{% endif %}
+  <p>Existing sessions are revoked after changes. You cannot grant yourself additional roles or remove the last active admin. Staff and superuser flags are never changed here.</p>
+  <p class="mb-0"><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
+{% endpanel %}
 {% endif %}
-{% if unavailable %}<p class="alert alert-info">{{ unavailable }}</p><a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>{% else %}
-<form class="vr-form" method="post" autocomplete="off" novalidate>
-{% csrf_token %}{% include "includes/form_errors.html" with form=form %}
-{% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
-{% for field in form.hidden_fields %}{{ field }}{% endfor %}
-<div class="vr-form-actions">{% if not required_change %}<a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>{% endif %}<button class="btn btn-primary" type="submit">{{ submit_label }}</button></div>
-</form>
+{% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}<a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>{% else %}
+{% if required_change %}{% form_page form=form submit_label=submit_label autocomplete_off=True %}{% endform_page %}{% else %}{% form_page form=form cancel_url=cancel_url submit_label=submit_label autocomplete_off=True %}{% endform_page %}{% endif %}
 {% endif %}
 {% endblock %}

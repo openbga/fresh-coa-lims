@@ -1,14 +1,16 @@
 {% extends "base.html" %}
+{% load ui %}
+{% comment %}The supplier register. Context: page_title, page_obj, query, sort, filtered, can_edit.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Companies that lots are received from. The register records who a supplier is; it does not qualify a supplier or reduce testing. A qualification is a separate signed record on the supplier's page.</p>{% endblock %}
-{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'suppliers:new' %}">{% include "includes/icon.html" with name="plus-lg" %}New supplier</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'suppliers:new' %}">{% icon name="plus-lg" %}New supplier</a>{% endif %}{% endblock %}
 {% block content %}
-<section class="card vr-table-card" aria-labelledby="list-heading">
-  <h2 class="visually-hidden" id="list-heading">Suppliers</h2>
-  {% include "catalog/includes/toolbar.html" with label="Filter suppliers" placeholder="Code, name or location" %}
-  {% if page_obj.paginator.count %}
+{% panel title="Suppliers" heading_id="list-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter suppliers" q=query placeholder="Code, name or location" sort=sort active=filtered %}
+  {% if can_edit %}{% url 'suppliers:new' as create_url %}{% endif %}
+  {% list_results items=page_obj noun="suppliers" filtered=filtered sizes=True clear_url=request.path empty_title="No suppliers yet" empty_body="A lot received from a supplier names one from this register. A quality user adds the first supplier." action_url=create_url action_label="New supplier" no_results_body="Search covers codes, names and locations. Change or clear the filters." %}
   <div class="vr-table-wrap">
     <table class="table table-hover vr-table" aria-labelledby="list-heading">
-      <thead><tr>{% include "catalog/includes/sort.html" with label="Supplier" key="code" current=sort %}{% include "catalog/includes/sort.html" with label="Name" key="name" current=sort %}<th scope="col">Location</th><th scope="col" class="text-end">Lots received</th><th scope="col">Created</th></tr></thead>
+      <thead><tr>{% sort_header label="Supplier" asc="code" desc="-code" sort=sort %}{% sort_header label="Name" asc="name" desc="-name" sort=sort %}<th scope="col">Location</th><th scope="col" class="text-end">Lots received</th><th scope="col">Created</th></tr></thead>
       <tbody>
         {% for supplier in page_obj %}
         <tr>
@@ -22,12 +24,6 @@
       </tbody>
     </table>
   </div>
-  {% include "catalog/includes/pagination.html" with noun="suppliers" %}
-  {% elif filtered %}
-  {% include "catalog/includes/empty.html" with kind="no-results" title="No suppliers match these filters" body="Search covers codes, names and locations. Change or clear the filters." clear_url=request.path %}
-  {% else %}
-  {% if can_edit %}{% url 'suppliers:new' as create_url %}{% endif %}
-  {% include "catalog/includes/empty.html" with title="No suppliers yet" body="A lot received from a supplier names one from this register. A quality user adds the first supplier." action_url=create_url action_label="New supplier" %}
-  {% endif %}
-</section>
+  {% endlist_results %}
+{% endpanel %}
 {% endblock %}

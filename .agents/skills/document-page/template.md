@@ -5,7 +5,25 @@ views: app.views.view_name
 templates: app/template.html
 models: app.Model
 reviewed: YYYY-MM-DD
+summary: What the reader can find or do here, in one or two sentences on one line.
 ---
+
+## Common tasks
+
+### Do the page's main job
+
+1. Select [[Exact button label]].
+2. One action per step; add an outcome only when it matters.
+
+### Do the next most common thing
+
+1. Select [[Another exact label]].
+
+## Good to know
+
+- Something that regularly surprises people.
+- Something that prevents a wrong conclusion or explains a refusal.
+- Something that protects the record.
 
 ## Purpose
 

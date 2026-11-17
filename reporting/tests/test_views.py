@@ -112,7 +112,11 @@ def test_new_lists_only_released_lots(login, people, lot):
     build_lot(people, number="SYN-QUAR", release=False)
     client = login("quality")
     page = client.get(reverse("reporting:new")).content.decode()
-    assert "SYN-100" in page and "SYN-QUAR" not in page
+    # The lot menu loads its options from the released-lots lookup as the user types.
+    lookup = reverse("core:lookup", args=["released-lots"])
+    assert f'data-vr-lookup="{lookup}"' in page and "SYN-QUAR" not in page
+    offered = [item["text"] for item in client.get(lookup).json()["results"]]
+    assert "SYN-100" in offered and "SYN-QUAR" not in offered
     response = client.get(reverse("reporting:new"), {"lot": lot.pk})
     assert response.status_code == 302
     assert response["Location"] == reverse("reporting:issue_preview", args=[lot.pk])

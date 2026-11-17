@@ -3,6 +3,7 @@ from django.conf import settings
 
 from core import formulas
 from core.forms import SignatureIdentityForm
+from core.lookups import RemoteSelect
 
 from .models import (
     ExpectedResult,
@@ -153,7 +154,9 @@ class SpecificationRevisionForm(GroupedForm):
 class SpecificationForm(SpecificationRevisionForm):
     code = forms.SlugField(max_length=60)
     title = forms.CharField(max_length=200)
-    material = forms.ModelChoiceField(queryset=Material.objects.all())
+    material = forms.ModelChoiceField(
+        queryset=Material.objects.all(), widget=RemoteSelect("materials")
+    )
     stage = forms.ChoiceField(choices=Stage.choices)
     scope = forms.SlugField(
         max_length=60,
@@ -193,7 +196,7 @@ class SpecificationForm(SpecificationRevisionForm):
 class TestLineForm(GroupedForm):
     code = forms.SlugField(max_length=80, help_text="Stable test code, e.g. assay or identity.")
     name = forms.CharField(max_length=160)
-    method = forms.ModelChoiceField(queryset=Method.objects.all())
+    method = forms.ModelChoiceField(queryset=Method.objects.all(), widget=RemoteSelect("methods"))
     position = forms.IntegerField(min_value=1, max_value=999, initial=1)
     result_type = forms.ChoiceField(
         choices=ResultType.choices,

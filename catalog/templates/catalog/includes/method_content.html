@@ -1,19 +1,17 @@
-<section class="card mb-3" aria-labelledby="content-heading">
-  <div class="card-header"><h2 class="card-title" id="content-heading">Content being approved</h2></div>
-  <div class="card-body">
-    <dl class="vr-facts mb-0">
-      <div><dt>Method</dt><dd>{{ revision.method }}</dd></div>
-      <div><dt>Technique</dt><dd>{{ revision.technique }}</dd></div>
-      <div><dt>Controlled procedure</dt><dd>{{ revision.document_ref }}</dd></div>
-      <div><dt>Suitability</dt><dd>{{ revision.get_suitability_kind_display }} · {{ revision.suitability_ref }}</dd></div>
-      <div><dt>Effective</dt><dd>{% include "catalog/includes/effective.html" %}</dd></div>
-      <div><dt>QC batch</dt><dd>{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}</dd></div>
-      <div><dt>Instrument</dt><dd>{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
-      <div><dt>Reagent or standard</dt><dd>{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}</dd></div>
-      {% if revision.summary %}<div><dt>Summary</dt><dd>{{ revision.summary|linebreaksbr }}</dd></div>{% endif %}
-      <div><dt>Author</dt><dd>{{ revision.author.get_full_name|default:revision.author.username }}</dd></div>
-    </dl>
-    {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all %}{% endif %}
-    {% include "catalog/includes/calculation.html" %}
-  </div>
-</section>
+{% load ui %}{% comment %}The method version being approved (catalog/approve.html). Include with revision=... only.{% endcomment %}
+{% panel title="Content being approved" heading_id="content-heading" class="mb-3" %}
+  <dl class="vr-facts mb-0">
+    {% fact label="Method" value=revision.method %}
+    {% fact label="Technique" value=revision.technique %}
+    {% fact label="Controlled procedure" value=revision.document_ref %}
+    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {{ revision.suitability_ref }}{% endfact %}
+    {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
+    {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
+    {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
+    {% fact label="Reagent or standard" %}{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
+    {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
+    {% fact label="Author" value=revision.author.get_full_name|default:revision.author.username %}
+  </dl>
+  {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all revision=revision only %}{% endif %}
+  {% include "catalog/includes/calculation.html" with revision=revision only %}
+{% endpanel %}

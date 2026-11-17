@@ -1,31 +1,17 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "layouts/entrance.html" %}
+{% load static ui %}
 {% block title %}Sign in · OpenBGA QM LIMS{% endblock %}
-{% block body_class %}vr-app vr-entrance-page{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/login.css' %}">{% endblock %}
-{% block body %}
-<div class="vr-login">
-  <div class="vr-login-scene" aria-hidden="true">
-    <div class="vr-login-caption">
-      <p class="vr-login-title">Manufacturing quality control</p>
-      <p class="vr-login-description">From raw materials to finished product.</p>
-    </div>
-  </div>
-  <div class="vr-login-workspace">
-    <div class="vr-entrance-theme">{% include "includes/theme_menu.html" %}</div>
-    <main id="main" class="vr-login-main" tabindex="-1">
-      {% include "includes/brand.html" with variant="entrance" %}
-      <div class="vr-entrance-panel">
+{% block panel %}
         <h1>Two-factor sign-in</h1>
         <p class="vr-entrance-lead">{% if first_factor == "identity_provider" %}Your organization signed you in.{% else %}Your password was accepted.{% endif %} {% if keys and app %}Use your security key, or enter the code your authenticator app shows for this account.{% elif keys %}Use your security key or passkey.{% else %}Enter the code your authenticator app shows for this account.{% endif %}</p>
-        {% include "includes/messages.html" %}
+        {% messages %}
         <form method="post" autocomplete="off" novalidate{% if keys %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
           {% csrf_token %}
-          {% include "includes/form_errors.html" with form=form %}
+          {% form_errors form=form %}
           {% if keys %}
           {{ form.security_key_response }}
-          <p class="alert alert-info" data-security-key-unsupported hidden>This browser cannot use security keys here. Enter a code{% if not app %}: one of your recovery codes{% endif %}.</p>
-          <noscript><p class="alert alert-info">Security keys need JavaScript. Enter a code instead.</p></noscript>
+          {% notice tone="info" hook="security-key-unsupported" hidden=True %}This browser cannot use security keys here. Enter a code{% if not app %}: one of your recovery codes{% endif %}.{% endnotice %}
+          <noscript>{% notice tone="info" %}Security keys need JavaScript. Enter a code instead.{% endnotice %}</noscript>
           <button class="btn btn-primary vr-login-submit mb-2" type="button" data-security-key-button>Use your security key</button>
           <p class="vr-login-help" role="status" data-security-key-status></p>
           {% endif %}
@@ -34,11 +20,6 @@
         </form>
         {% if keys_elsewhere %}<p class="vr-login-help">Your security keys cannot be used at this address. Enter a code instead.</p>{% endif %}
         <p class="vr-login-help">{% if app %}Each code works once: if you have just used the one shown, wait for the next. No access to the app? Enter one of your recovery codes instead; each works once.{% else %}No access to your key? Enter one of your recovery codes instead; each works once.{% endif %} <a href="{% url 'login' %}">Start again</a></p>
-      </div>
-      <p class="vr-login-help">Finish within {{ pending_seconds|floatformat:0 }} seconds of your password, or start again. Repeated wrong codes or refused keys pause sign-in for this account for a while, as wrong passwords do.</p>
-    </main>
-    {% include "includes/app_footer.html" with centered=True %}
-  </div>
-</div>
 {% endblock %}
+{% block after_panel %}<p class="vr-login-help">Finish within {{ pending_seconds|floatformat:0 }} seconds of your password, or start again. Repeated wrong codes or refused keys pause sign-in for this account for a while, as wrong passwords do.</p>{% endblock %}
 {% block extra_js %}{% if keys %}{{ key_options|json_script:"security-key-options" }}<script src="{% static 'js/security-keys.js' %}" defer></script>{% endif %}{% endblock %}

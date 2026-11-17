@@ -1,18 +1,14 @@
 {% extends "base.html" %}
-{% comment %}Full-page create/change form. Context: page_title, form (optionally grouped()), crumbs, cancel_url, submit_label, submit_tone, intro, facts.{% endcomment %}
-{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with crumbs=crumbs %}{% endblock %}
+{% load ui %}
+{% comment %}Full-page create/change form. Context: page_title, form (optionally grouped()), crumbs, cancel_url, submit_label, submit_tone ("danger" for a destructive submit), intro, facts.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_intro %}{% if intro %}<p class="vr-page-intro">{{ intro }}</p>{% endif %}{% endblock %}
 {% block content %}
 {% if facts %}
-<section class="card mb-3" aria-labelledby="facts-heading">
-  <div class="card-header"><h2 class="card-title" id="facts-heading">Record</h2></div>
-  <div class="card-body"><dl class="vr-facts mb-0">{% for label, value in facts %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl></div>
-</section>
+{% panel title="Record" heading_id="facts-heading" class="mb-3" %}<dl class="vr-facts mb-0">{% for label, value in facts %}{% fact label=label value=value %}{% endfor %}</dl>{% endpanel %}
 {% endif %}
-<form class="vr-form" method="post" novalidate>
-  {% csrf_token %}
-  {% include "includes/form_errors.html" with form=form %}
-  <p class="vr-form-note">Fields marked <span class="vr-req" aria-hidden="true">*</span><span class="visually-hidden">with an asterisk</span> are required. The change is recorded in the audit trail with your reason.</p>
+{% firstof submit_tone|yesno:"danger," as destructive %}
+{% form_page form=form cancel_url=cancel_url submit_label=submit_label destructive=destructive note="The change is recorded in the audit trail with your reason." %}
   {% if form.grouped %}
   {% for legend, fields in form.grouped %}
   <fieldset class="vr-form-section">
@@ -21,12 +17,8 @@
   </fieldset>
   {% endfor %}
   {% else %}
-  {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+  <fieldset class="vr-form-section">{% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}</fieldset>
   {% endif %}
   {% for field in form.hidden_fields %}{{ field }}{% endfor %}
-  <div class="vr-form-actions">
-    <a class="btn btn-link" href="{{ cancel_url }}">Cancel</a>
-    <button class="btn btn-{{ submit_tone|default:'primary' }}" type="submit">{{ submit_label }}</button>
-  </div>
-</form>
+{% endform_page %}
 {% endblock %}

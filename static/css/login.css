@@ -17,7 +17,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 5rem 2rem 3rem;
+  padding: var(--vr-space-20) var(--vr-space-8) var(--vr-space-12); /* room for the theme menu */
 }
 
 .vr-login-main {
@@ -31,20 +31,20 @@
 
 .vr-login-submit {
   width: 100%;
-  margin-top: 1rem;
+  margin-top: var(--vr-space-4);
 }
 
 .vr-login-help {
-  margin: 1.25rem 0 0;
+  margin: var(--vr-space-5) 0 0;
   color: var(--vr-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.6;
+  font-size: var(--vr-font-size-3);
+  line-height: var(--vr-line-height-base);
   text-align: center;
   text-wrap: pretty;
 }
 
 .vr-login-workspace > .vr-app-footer {
-  margin-top: 1.5rem;
+  margin-top: var(--vr-space-6);
   padding: 0;
   border: 0;
   text-align: center;
@@ -52,7 +52,7 @@
 
 @media (max-width: 575.98px) {
   .vr-login-workspace {
-    padding: 4.5rem 1rem 2rem;
+    padding: var(--vr-space-16) var(--vr-space-4) var(--vr-space-8);
   }
 
   .vr-login-main .alert:has(> .vr-status) {
@@ -81,20 +81,20 @@
 
   .vr-login-caption {
     position: relative;
-    margin: 2.5rem;
+    margin: var(--vr-space-10);
     color: var(--vr-text);
   }
 
   .vr-login-title {
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 650;
-    line-height: 1.25;
+    font-size: var(--vr-font-size-8);
+    font-weight: var(--vr-font-weight-bold);
+    line-height: var(--vr-line-height-tight);
     text-wrap: balance;
   }
 
   .vr-login-description {
-    margin: 0.375rem 0 0;
-    line-height: 1.5;
+    margin: var(--vr-space-1-5) 0 0;
+    line-height: var(--vr-line-height-base);
   }
 }

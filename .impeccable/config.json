@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-11T15:59:59.220Z",
         "reason": "Agent and finish reviewer: qual-intro uses clamp(3rem, 7vw, 6.5rem) padding-block; qual-scope has an inner container with section padding and responsive gutters. Desktop, 390px and 320px captures confirm generous spacing. These two findings are false positives."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "staticfiles/admin/css/changelists.59465e72d1ef.css"
+        ],
+        "createdAt": "2026-11-17T09:01:51.961Z",
+        "reason": "reports agent: Django admin's stock vendored stylesheet copied by collectstatic; not project CSS"
       }
     ]
   }

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}<a href="{% url 'accounts:two_factor' %}">Two-factor sign-in</a>{% endblock %}
+{% load ui %}
+{% block breadcrumbs %}{% url 'accounts:access' as access_url %}{% url 'accounts:two_factor' as two_factor_url %}{% breadcrumbs section="Account access" section_url=access_url record="Two-factor sign-in" record_url=two_factor_url %}{% endblock %}
 {% block content %}
-<section class="card mb-3" aria-labelledby="recovery-codes"><div class="card-header"><h2 class="card-title" id="recovery-codes">Your recovery codes</h2></div><div class="card-body">
+{% panel title="Your recovery codes" heading_id="recovery-codes" class="mb-3" %}
 <p><strong>This is the only time these codes are shown.</strong> Write them down or print this page now and keep them somewhere safe, apart from your phone. If you lose the authenticator app, each code signs you in once in place of a code from the app.</p>
 <ol class="vr-recovery-codes">{{ code_list }}</ol>
 <p>Hyphens and letter case do not matter when you enter a code. When you run low, make new codes on Two-factor sign-in.</p>
 <a class="btn btn-primary" href="{% url 'accounts:two_factor' %}">I have saved the codes</a>
-</div></section>
+{% endpanel %}
 {% endblock %}

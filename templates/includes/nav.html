@@ -1,0 +1,17 @@
+{% load ui %}{% comment %}
+The sidebar's sections and items, rendered by {% nav %} ({% load ui %}) inside the shell's
+nav#vr-nav. Sections, items, their visibility and which item a page marks current (one rule: the
+page's URL namespace or view name) are declared in core/navigation.py. Documented reads: request,
+user and the account_navigation flags can_view_workspace, can_view_audit, can_manage_accounts.
+Empty sections disappear; views still enforce every permission. Each link keeps .vr-navlink with
+its label in a direct child <span> (sidebar.js reads it for the collapsed rail's tooltip).
+{% endcomment %}
+{% for section in sections %}
+<div class="vr-nav-section">
+  <p class="vr-nav-heading" id="vr-nav-{{ section.key }}">{{ section.label }}</p>
+  <ul class="vr-nav-list" aria-labelledby="vr-nav-{{ section.key }}">
+    {% for item in section.items %}<li><a class="vr-navlink" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{% icon name=item.icon %}<span data-label="{{ item.label }}">{{ item.label }}</span></a></li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}

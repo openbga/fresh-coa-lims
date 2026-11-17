@@ -1,6 +1,6 @@
 # UI standards
 
-These are the OpenBGA QM LIMS house rules. The shared templates and `static/css/app.css` are the implementation reference. The foundation establishes the shell; later modules must complete these states rather than treating this document as a claim that every component already exists.
+These are the OpenBGA QM LIMS house rules. The shared components (`core/templatetags/ui.py`, `templates/includes/`) and `static/css/app.css` are the implementation reference. Rules marked *enforced* are checked by tests; rules still pending in those tests switch on as pages move onto the components.
 
 ## Components and theme
 
@@ -17,7 +17,7 @@ Bootstrap is the component library. Use the inherited `--vr-*` tokens mapped to 
 | Overview | Work queues linking to filtered lists | Actionable counts and clear empty states |
 | Document | Breadcrumbs and version identity | Preview of issued content, download/version/amendment controls |
 
-One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Reuse shared includes before copying markup. Use the OpenBGA QM LIMS name and mark throughout, with manufacturing QC imagery and terms.
+One destination has one navigation home. Mark exactly one current sidebar item on its lists, records and actions; account pages may mark none. Breadcrumbs belong on record/action/document pages, not lists. Cross-links belong beside the evidence they reference. Build pages from the shared components before writing markup of your own. Use the OpenBGA QM LIMS name and mark throughout, with manufacturing QC imagery and terms.
 
 Show menu destinations according to the signed-in user's explicit roles and the destination's read permissions. Combine multiple roles, retain read-only destinations and hide empty sections. Accounts without a recognized role keep account guidance and credential access. Menu visibility never replaces server authorization for a page or action.
 
@@ -36,9 +36,9 @@ Keep sign-in's manufacturing illustration separate from the shared notebook form
 
 ## Lists and forms
 
-Tables expose identity first, status nearby, numbers aligned with units in headings, unambiguous dates and actions last. The server filters, sorts and paginates the entire authorized queryset. DataTables, when used, only manages column presentation. Filters preserve input and have an explicit clear action. Show empty, filtered-empty, denied, failed and successful states with useful next actions; never show a blank table as the only explanation.
+Tables expose identity first, status nearby, numbers aligned with units in headings, unambiguous dates and actions last. The server filters, sorts and paginates the entire authorized queryset. Column presentation (which columns show, their order) is the user's, saved per account on the server; it never filters, sorts or hides data from the server's answer. Filters preserve input and have an explicit clear action. Show empty, filtered-empty, denied, failed and successful states with useful next actions; never show a blank table as the only explanation.
 
-Forms use Django validation with escaped values and CSRF. Preserve nonsecret input after errors; never repopulate a PIN. Labels are visible and associated with controls. Required status, format and units are explicit. Link error summaries to fields; do not rely on colour alone. Full-page forms remain usable without JavaScript. HTMX responses preserve focus and messages, and must not hide server errors. Do not build separate modal infrastructure for each module.
+Forms use Django validation with escaped values and CSRF. Preserve nonsecret input after errors; never repopulate a PIN. Labels are visible and associated with controls. Required status, format and units are explicit. Link error summaries to fields; do not rely on colour alone. Full-page forms remain usable without JavaScript. HTMX responses preserve focus and messages, and must not hide server errors. Dedicated data-entry forms may open in the one shared form dialog; never build modal infrastructure per module.
 
 ## Signing and review
 
@@ -63,6 +63,50 @@ Use sentence case and one term per concept. `New <thing>` creates, `Record` adds
 
 Use semantic headings, real buttons for actions and links for navigation. Provide visible focus, sufficient contrast in both themes, text with status colour, labelled icon-only controls and accessible modal behavior. Keep dense tables readable at normal zoom; allow horizontal table scrolling instead of clipping data. Test the real journey at desktop and narrow widths, with keyboard navigation, validation errors, denied permissions and a failed signing attempt.
 
-Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. Keep field help on forms and page-level explanations in `docs/pages/`, written with the [document-page skill](../.agents/skills/document-page/SKILL.md); avoid separate per-page help modals. The panel follows navigation and remembers open state and width. On narrow screens the open panel covers the page, and the covered page leaves the keyboard order until the panel closes.
+Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. A documented page opens with a summary, Common tasks and Good to know; the reference sections follow collapsed, with a filter. Inside the form dialog the panel documents the form shown there. Keep field help on forms and page-level explanations in `docs/pages/`, written with the [document-page skill](../.agents/skills/document-page/SKILL.md); avoid separate per-page help modals. The panel follows navigation and remembers open state and width. On narrow screens the open panel covers the page, and the covered page leaves the keyboard order until the panel closes.
 
 On phone widths, the top bar shows Menu as a labelled icon, reserves room for theme, sign-out and page-documentation controls, and truncates only the brand text if needed. Verify the shell in Linux Chromium as well as the local browser: system-font metrics must not push controls outside the viewport. Do not mask layout overflow with page-wide clipping.
+
+## Tokens
+
+Every colour, length, size, weight, line height, radius, shadow and layer comes from the `--vr-*` tokens defined once at the top of `static/css/app.css`, with a light, a dark and a print palette (*enforced*: `tests/test_css_tokens.py` refuses colour literals and px/rem lengths outside the Tokens section and in the other first-party stylesheets; an element's own width or height is the allowed exception). Scales:
+
+| Scale | Tokens | Use |
+|---|---|---|
+| Space | `--vr-space-0-5` … `--vr-space-20` (0.125–5rem) | margins, padding, gaps, offsets |
+| Font size | `--vr-font-size-1` … `-9` (0.75–1.75rem) | 3 body on desktop panels, 6 panel titles, 9 page title |
+| Weight | `--vr-font-weight-regular`, `-medium`, `-semibold`, `-bold`, `-heavy` | bold for headings |
+| Line height | `--vr-line-height-tight`, `-snug`, `-base` | |
+| Radius | `--vr-radius-xs`, `-sm`, `--vr-radius`, `-lg`, `-xl`, `-menu`, `-pill` | |
+| Lines | `--vr-border-width` (`-md`, `-lg`, `-xl`), `--vr-focus-width`, `--vr-focus-offset` | |
+| Shadow | `--vr-shadow-panel`, `-raised`, `-dialog` | none in print |
+| Layer | `--vr-z-below` … `--vr-z-skip` | one ladder around Bootstrap's own layers |
+
+Bootstrap's semantic colours (`primary`, `secondary`, `info`, `success`, `warning`, `danger`, with their `-rgb`, `-text-emphasis`, `-bg-subtle` and `-border-subtle` forms, buttons and table rows) are mapped onto the status tones, so a Bootstrap class never shows a stock colour. Muted text is `.vr-muted`, the only way. Values may change with the design direction; names and scales stay.
+
+## Components
+
+Pages are built from the components of `{% load ui %}`: each is a tag with keyword arguments and a context of its own (no page variable leaks in). The tags and their parameters are documented at the top of each `templates/includes/<name>.html`. Use the component, never its markup: panels (`panel`, `panel_section`), notices (`notice`, `messages`), list states (`list_results`, `empty_state`), `pagination`, `grid_toolbar`, `sort_header`, `status`, `fact`, `page_meta`, `breadcrumbs`, `section_tabs`, `history_panel`/`history_item`, `form_page`, `form_actions`, `field`, `form_errors`, `required_note`, `post_button`, `confirm_dialog`, `more_actions`, `record_layout`, `signature_list` and the shell pieces. Form controls render through the shared Django widgets: no browser-default select, date or file control (*enforced*: `tests/test_controls.py`).
+
+*Enforced* by `tests/test_ui_standards.py`: no inline style or `<style>`, no colour literal and no unthemed colour utility in templates; status labels and breadcrumbs only through their components. Switched on as migration completes: hand-written cards, alerts, list states, history, `<dt>` facts, page meta, pagination, toolbars and action rows; raw `<input>`/`<select>`; `as_p`; POST forms without `novalidate`; plain includes of a component; a page's own `<h1>` or emptied page header; more than one primary action in the header.
+
+## Icons
+
+Icons are Bootstrap Icons only, copied verbatim from the pinned release into the sprite `static/img/icons.svg` and drawn through `{% icon %}` or, in scripts, `window.vrUi.icon` (*enforced*: `tests/test_icons.py`). No inline SVG, invented glyph or CSS-drawn shape stands in for an icon; the brand mark and the sign-in illustration are files. An icon is decorative: the text beside it, or a visually hidden label, carries the meaning.
+
+## Panel spacing and alignment
+
+Spacing inside panels is defined once: every panel body insets its content by `--vr-panel-inset`, and stacked blocks inside it are `--vr-stack` apart. A table runs edge to edge only as a table panel's own body, with its first and last columns at the inset. Key facts sit on an aligned grid. `e2e/test_panel_spacing.py` fails when text or a control comes closer to a panel's edge than the inset.
+
+Labels sit vertically centred in buttons, navigation items, status labels and table cells. A typeface whose capitals sit off-centre is corrected once, by its ascent and descent overrides at `@font-face`, never by per-component nudges (`e2e/test_alignment.py` measures the ink).
+
+Scrollbars are thin and inset, so a thumb never touches the neighbouring panel; the navigation's scrollbar appears while the pointer or focus is in it.
+
+## Lists, dialogs and notices
+
+Lists fit 1280 and 1440 pixel windows without sideways scrolling. Columns marked low priority are hidden by default below 1366 pixels; the user can show them again under Columns, and the choice is saved for their account. Rows stay within two lines; a shortened value ends in an ellipsis and keeps its full text in a tooltip and for assistive technology.
+
+The shared form dialog shows a dedicated form page in place, with the same view, permissions and validation as the full page. Its action row is the dialog's last element; the page header's actions move into the dialog header; history never shows inside the dialog; closing with unsaved changes asks in a confirmation pop-up; Escape inside an open list or picker closes that control, not the dialog. Signing never happens in the form dialog: signatures keep their own signature dialog.
+
+There are no toasts. The result of an action is a notice where messages appear on the page; a failed background request says what happened in the same place and keeps the user's input.
+

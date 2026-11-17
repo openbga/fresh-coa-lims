@@ -1,19 +1,29 @@
 {% extends "base.html" %}
-{% block breadcrumbs %}<a href="{% url 'accounts:user_list' %}">Users and roles</a>{% endblock %}
+{% load ui %}
+{% comment %}One account (admin): identity, roles, status, credentials, the signed account actions and the account's history (newest first). Context: target, evidence, two_factor, single_sign_on, single_sign_on_configured, single_sign_on_issuer, actions [(label, url)], history (a page of audit events).{% endcomment %}
+{% block breadcrumbs %}{% url 'accounts:user_list' as users_url %}{% breadcrumbs section="Users and roles" section_url=users_url current=target.username %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if target.is_active %}{% status label="Active" tone="success" %}{% else %}{% status label="Inactive" tone="neutral" %}{% endif %}</li><li>{{ evidence.roles|join:", "|default:"No role assigned" }}</li>{% endpage_meta %}{% endblock %}
+{% block page_actions %}{% for label, url in actions %}{% if forloop.counter <= 3 %}<a class="btn btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endif %}{% endfor %}{% if actions|length > 3 %}{% more_actions %}{% for label, url in actions %}{% if forloop.counter > 3 %}<li><a class="dropdown-item" href="{{ url }}">{{ label }}</a></li>{% endif %}{% endfor %}{% endmore_actions %}{% endif %}{% endblock %}
 {% block content %}
-<section class="card mb-3"><div class="card-body"><dl class="vr-facts">
-<div><dt>Identity</dt><dd>{{ target.get_full_name|default:"Not supplied" }}</dd></div><div><dt>Email</dt><dd>{{ target.email|default:"Not supplied" }}</dd></div>
-<div><dt>Roles</dt><dd>{{ evidence.roles|join:", "|default:"No role assigned" }}</dd></div><div><dt>Status</dt><dd>{{ target.is_active|yesno:"Active,Inactive" }}</dd></div>
-<div><dt>Last sign-in</dt><dd>{{ target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" }}</dd></div><div><dt>Password change required</dt><dd>{{ target.password_change_required|yesno:"Yes,No" }}</dd></div>
-<div><dt>Signature PIN</dt><dd>{{ evidence.pin_enrolled|yesno:"Enrolled,Enrollment required" }}{% if evidence.pin_locked_until %}; lock until {{ evidence.pin_locked_until }}{% endif %}; {{ evidence.pin_failures }} failed attempts</dd></div>
-<div><dt>Two-factor sign-in</dt><dd>{% if two_factor.enabled %}On since {{ two_factor.since|date:"Y-m-d" }}: {% if two_factor.app %}authenticator app{% if two_factor.keys %}, {% endif %}{% endif %}{% if two_factor.keys %}{{ two_factor.keys|length }} security key{{ two_factor.keys|length|pluralize }}{% endif %}; {{ two_factor.recovery_codes_left }} unused recovery code{{ two_factor.recovery_codes_left|pluralize }}{% if two_factor.stopped %}; <strong>stopped after too many wrong codes or refused keys</strong>: reset it once the person's identity is verified{% endif %}{% else %}Off{% endif %}{% if two_factor.required %}; required for this account{% endif %}</dd></div>
-<div><dt>Organization sign-in</dt><dd>{% if single_sign_on %}Linked to <span class="text-break">{{ single_sign_on.label|default:single_sign_on.subject }}</span> (subject <span class="text-break">{{ single_sign_on.subject }}</span>) since {{ single_sign_on.created_at|date:"Y-m-d" }}; last used {{ single_sign_on.last_used_at|date:"Y-m-d H:i T"|default:"not yet" }}{% if single_sign_on.issuer != single_sign_on_issuer %}; <strong>made with another identity provider</strong> (<span class="text-break">{{ single_sign_on.issuer }}</span>), so it no longer signs in{% endif %}{% elif single_sign_on_configured %}Not linked{% else %}Not configured for this deployment{% endif %}</dd></div>
-{% if target.credentials_locked %}<div><dt>Shared demonstration account</dt><dd>Cannot change its own password or signature PIN. <strong>Force password reset</strong> or <strong>Require PIN re-enrollment</strong> ends this.</dd></div>{% endif %}
-<div><dt>Management revision</dt><dd>{{ target.management_revision }}</dd></div><div><dt>Django staff / superuser</dt><dd>{{ target.is_staff|yesno:"Yes,No" }} / {{ target.is_superuser|yesno:"Yes,No" }} (read-only)</dd></div>
-</dl></div></section>
-<div class="d-flex flex-wrap gap-2 mb-4">{% for label, url in actions %}<a class="btn btn-outline-secondary" href="{{ url }}">{{ label }}</a>{% endfor %}</div>
-<section class="card"><div class="card-header"><h2 class="card-title">Account history</h2></div><div class="card-body">
-<ol class="vr-timeline">{% for event in history %}{% include "includes/history_item.html" with title=event.action at=event.occurred_at actor=event.actor reason=event.reason %}<li><details><summary>Inspect recorded values</summary><strong>Before</strong><pre>{{ event.before }}</pre><strong>After</strong><pre>{{ event.after }}</pre></details>{% if event.electronicsignature %}<p>Signed by {{ event.electronicsignature.signer_name }} · {{ event.electronicsignature.meaning }} · {{ event.electronicsignature.signed_at|date:"c" }} · revision {{ event.electronicsignature.revision }}</p>{% endif %}</li>{% empty %}<li>No account events recorded.</li>{% endfor %}</ol>
-<nav aria-label="Account history pages">Page {{ history.number }} of {{ history.paginator.num_pages }} {% if history.has_previous %}<a href="?page={{ history.previous_page_number }}">Previous</a>{% endif %} {% if history.has_next %}<a href="?page={{ history.next_page_number }}">Next</a>{% endif %}</nav>
-</div></section>
+{% panel title="Account" heading_id="account-heading" class="mb-3" %}
+  <dl class="vr-facts mb-0">
+    {% fact label="Identity" value=target.get_full_name|default:"Not supplied" %}
+    {% fact label="Email" value=target.email|default:"Not supplied" %}
+    {% fact label="Roles" value=evidence.roles|join:", "|default:"No role assigned" %}
+    {% fact label="Status" value=target.is_active|yesno:"Active,Inactive" %}
+    {% fact label="Last sign-in" value=target.last_login|date:"Y-m-d H:i T"|default:"Never signed in" %}
+    {% fact label="Password change required" value=target.password_change_required|yesno:"Yes,No" %}
+    {% fact label="Signature PIN" %}{{ evidence.pin_enrolled|yesno:"Enrolled,Enrollment required" }}{% if evidence.pin_locked_until %}; lock until {{ evidence.pin_locked_until }}{% endif %}; {{ evidence.pin_failures }} failed attempts{% endfact %}
+    {% fact label="Two-factor sign-in" wide=True %}{% if two_factor.enabled %}On since {{ two_factor.since|date:"Y-m-d" }}: {% if two_factor.app %}authenticator app{% if two_factor.keys %}, {% endif %}{% endif %}{% if two_factor.keys %}{{ two_factor.keys|length }} security key{{ two_factor.keys|length|pluralize }}{% endif %}; {{ two_factor.recovery_codes_left }} unused recovery code{{ two_factor.recovery_codes_left|pluralize }}{% if two_factor.stopped %}; <strong>stopped after too many wrong codes or refused keys</strong>: reset it once the person's identity is verified{% endif %}{% else %}Off{% endif %}{% if two_factor.required %}; required for this account{% endif %}{% endfact %}
+    {% fact label="Organization sign-in" wide=True %}{% if single_sign_on %}Linked to <span class="text-break">{{ single_sign_on.label|default:single_sign_on.subject }}</span> (subject <span class="text-break">{{ single_sign_on.subject }}</span>) since {{ single_sign_on.created_at|date:"Y-m-d" }}; last used {{ single_sign_on.last_used_at|date:"Y-m-d H:i T"|default:"not yet" }}{% if single_sign_on.issuer != single_sign_on_issuer %}; <strong>made with another identity provider</strong> (<span class="text-break">{{ single_sign_on.issuer }}</span>), so it no longer signs in{% endif %}{% elif single_sign_on_configured %}Not linked{% else %}Not configured for this deployment{% endif %}{% endfact %}
+    {% if target.credentials_locked %}{% fact label="Shared demonstration account" wide=True %}Cannot change its own password or signature PIN. <strong>Force password reset</strong> or <strong>Require PIN re-enrollment</strong> ends this.{% endfact %}{% endif %}
+    {% fact label="Management revision" value=target.management_revision %}
+    {% fact label="Django staff / superuser" %}{{ target.is_staff|yesno:"Yes,No" }} / {{ target.is_superuser|yesno:"Yes,No" }} (read-only){% endfact %}
+  </dl>
+{% endpanel %}
+{% history_panel events=history title="Account history" heading_id="account-history-heading" empty_title="No account events recorded" %}
+  {% for event in history %}{% history_item title=event.action at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/account_evidence.html" %}{% endfor %}
+  {% fill footer %}{% if history %}{% pagination page_obj=history noun="account events" %}{% endif %}{% endfill %}
+{% endhistory_panel %}
 {% endblock %}
+{% block record_foot %}{% record_foot identifier=target.username %}{% endblock %}

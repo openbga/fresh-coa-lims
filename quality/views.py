@@ -1,7 +1,7 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from accounts.services import ROLES
 from catalog.web import form_status, run
+from core.grids import paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, require_role
 
@@ -40,6 +41,14 @@ def access(user):
     require_role(user, "analyst", "reviewer", "quality", "admin", "auditor")
 
 
+class LotFilterForm(forms.Form):
+    """The material lot list's status filter; the search box is the toolbar's own (q)."""
+
+    state = forms.ChoiceField(
+        label="Status", choices=[("", "All lots"), *LotState.choices], required=False
+    )
+
+
 @login_required
 def lot_list(request):
     if (
@@ -52,9 +61,10 @@ def lot_list(request):
     lots = Lot.objects.select_related("rules").prefetch_related(
         Prefetch("receipts", queryset=current.select_related("supplier"), to_attr="current")
     )
-    state = request.GET.get("state", "")
-    if state not in LotState.values:
-        state = ""
+    filters = LotFilterForm(request.GET)
+    if not filters.is_valid():  # an unknown status lists every lot, as before the filter
+        filters = LotFilterForm()
+    state = filters.cleaned_data["state"] if filters.is_bound else ""
     if state:
         lots = lots.filter(state=state)
     query = request.GET.get("q", "").strip()
@@ -72,10 +82,9 @@ def lot_list(request):
         "quality/lot_list.html",
         {
             "page_title": "Material lots",
-            "page_obj": Paginator(lots, 30).get_page(request.GET.get("page")),
+            "page_obj": paginate(request, lots),
             "query": query,
-            "state": state,
-            "states": LotState.choices,
+            "filters": filters,
             "filtered": bool(query or state),
             "can_receive": request.user.groups.filter(name="analyst").exists(),
         },
@@ -102,6 +111,7 @@ def lot_detail(request, pk):
         request,
         "quality/lot_detail.html",
         {
+            "page_title": lot.number,
             "lot": lot,
             "receipt": receipt,
             "receipt_history": receipt_history(receipts),
@@ -194,11 +204,18 @@ def receipt_history(receipts):
     ]
 
 
-def form_page(request, form, title, submit):
+def form_page(request, form, title, submit, lot):
+    """An action page on a lot record (add a sample, record a result)."""
     return render(
         request,
         "quality/form.html",
-        {"form": form, "title": title, "submit": submit},
+        {
+            "page_title": title,
+            "form": form,
+            "submit": submit,
+            "lot": lot,
+            "cancel_url": reverse("quality:lot_detail", args=[lot.pk]),
+        },
         status=422 if request.method == "POST" else 200,
     )
 
@@ -376,7 +393,7 @@ def sample_new(request, pk):
         )
         if sample:
             return redirect("quality:lot_detail", pk=lot.pk)
-    return form_page(request, form, f"Add sample · {lot.number}", "Add sample")
+    return form_page(request, form, f"Add sample · {lot.number}", "Add sample", lot)
 
 
 @login_required
@@ -391,7 +408,9 @@ def result_new(request, pk):
         )
         if result:
             return redirect("quality:lot_detail", pk=sample.lot_id)
-    return form_page(request, form, f"Record result · {sample.reference}", "Record result")
+    return form_page(
+        request, form, f"Record result · {sample.reference}", "Record result", sample.lot
+    )
 
 
 @login_required
@@ -419,6 +438,7 @@ def sign(request, pk, action):
         request,
         "signatures/sign.html",
         {
+            "page_title": "Sign result review" if is_review else "Sign lot disposition",
             "form": form,
             "lot": lot,
             "record": obj,

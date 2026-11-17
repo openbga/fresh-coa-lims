@@ -5,7 +5,41 @@ views: quality.views.lot_detail
 templates: quality/lot_detail.html
 models: quality.Lot, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, quality.Sample, quality.Result, suppliers.Supplier, suppliers.SupplierQualification, core.RuleSet, core.ElectronicSignature, sampling.LotAssignment, reporting.Report
 reviewed: 2026-11-17
+summary: Everything about one material lot: its receipt, supplier certificates, samples and signatures, and the actions that take it out of quarantine.
 ---
+
+## Common tasks
+
+### Add a sample
+
+1. Select [[Add sample]]. It shows only while the lot is in Quarantine.
+
+### Check requirements and test results
+
+1. Select [[Requirements and sampling]] to see the specification and sampling requirements that apply.
+2. Select [[Testing and investigations]] for native results, reviews and investigations.
+
+### Record or correct the receipt details
+
+1. In the Receipt card, select [[Record receipt details]], or [[Correct receipt details]] when details exist.
+2. A correction adds a new record. The earlier one stays in the receipt history.
+
+### Release or reject the lot
+
+1. Select [[Review disposition]] to release it, or [[Reject lot]] if it failed its requirements or cannot be used.
+2. Sign with your PIN on that page. If you cannot decide this lot, the page says why before asking for a PIN.
+
+### Issue a certificate of analysis
+
+1. After release, select [[Issue certificate of analysis]] under Certificates of analysis.
+
+## Good to know
+
+- You cannot release or reject a lot that holds your own receipt, supplier certificate, sampling or test data, even with the quality role.
+- A discrepancy found on receipt does not hold the lot. Place a hold from [[Holds]] if it must not be dispositioned.
+- A supplier result counts towards disposition only once a reviewer accepts it in place of a test. A proposal awaiting acceptance blocks disposition.
+- Receipt details and supplier certificates are never edited. A correction or withdrawal adds a linked record and the earlier one stays.
+- The results table here shows manual foundation results only. Native testing is on [[Testing and investigations]].
 
 ## Purpose
 
@@ -25,11 +59,10 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 
 ## Layout
 
-- **Back link**: "Material lots".
-- **Facts**: Material, Status, Rule set, Record revision. When the lot's current requirements apply additional rule sets, the Rule set fact adds a second line: "Applied in addition by the lot's requirements: RS-EU v1" (each as "code vN", separated by commas).
-- **Actions row** (Quarantine lots only): **Add sample**, **Review disposition**, **Reject lot**, **Cancel lot received in error**.
+- **Breadcrumbs**: Lots › the lot number.
+- **Header**: the lot number as the title, with its status, material and record revision below it. Actions at the right, by lot status and role: on a Quarantine lot, quality users see **Reject lot**, **Cancel lot received in error** and **Review disposition**, and analysts see **Add sample** (the primary button; for a quality user without the analyst role **Review disposition** is the primary). On a Released lot, quality users see **Issue certificate of analysis**.
 - **Decision card** (Rejected or Cancelled lots only, titled "Rejection" or "Cancelled as received in error"): Grounds (rejection only), Reason, Record in the quality system ("Not stated" when blank), Signed by (name, time in UTC and lot revision), and for a rejection Tests at the rejection (the count, and "N not finished:" with the open or awaiting-review tests) followed by "What stood in the way of release" or "The release gates found nothing missing or failing when the lot was rejected." Closing line: "The lot takes no more records and keeps every record as it was signed." with, for a rejection, "What happens to the material is decided and recorded in the quality system." or, for a cancellation, "Its number is not used again."
-- **Requirements line**: **Requirements and sampling** with the assignment status ("Requirements assigned", "Applicability hold" or "Not assigned"), **Testing and investigations**, and for admin, quality and auditor **Export record**.
+- **Lot** card, facts: Material, Status, Rule set, Record revision; Requirements (**Requirements and sampling**, with the assignment status "Requirements assigned", "Applicability hold" or "Not assigned"); Testing (**Testing and investigations**); and for admin, quality and auditor Lot record (**Export record**). When the lot's current requirements apply additional rule sets, the Rule set fact adds a second line: "Applied in addition by the lot's requirements: RS-EU v1" (each as "code vN", separated by commas).
 - **Receipt** card, header: for analysts on a Quarantine lot, **Correct receipt details** when the lot has receipt details, otherwise **Record receipt details**.
 - **Receipt** card, details: Source; for a lot received from a supplier also Supplier (code, name and location), Supplier lot number ("Not known" when blank), Manufacturer (name and location, or "Not stated") and Manufacturer lot number (only when recorded); then Delivery or batch document, Date received, Quantity received, Containers (number, then description) and Examination on receipt (the label "No discrepancy found" or "Discrepancy found", with the examination notes below it).
 - **Receipt** card, discrepancy note: when a discrepancy was found, "A discrepancy does not hold the lot by itself. Place a hold from Holds if the lot must not be dispositioned until it is resolved.", with a link to Holds.
@@ -41,9 +74,9 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 - **Supplier certificates** card, requirements note: on a Quarantine lot received from a supplier that has no approved requirements, an analyst sees no button and, at the end of the card, "Assign approved requirements to the lot first: supplier results are recorded against them.", followed by why they are missing or held (for example "No specification or sampling requirements are assigned."). Other roles do not see this note.
 - **Supplier certificates** card, made-on-site note: when a Quarantine lot holds certificates and its receipt details were corrected to Made on site, every viewer sees "The receipt details now state that this lot was made on site. Withdraw a supplier certificate that no longer applies." Such a certificate cannot be corrected, only withdrawn.
 - **Supplier results in place of tests** card (only when the lot has such a record, withdrawn ones included): the text "Each accepted result answers its requirement for the whole lot in place of a laboratory test. A proposal answers nothing until a reviewer accepts it, and blocks QC disposition until then.", then one row per record, oldest first: Record (SRA-n, a link), Test (name, with the code below), Supplier's result, Certificate, Qualification, Proposed by and Status.
-- **Samples and results**: one card per sample with its collection time, a **Record result** link (Quarantine lots only) and the foundation results table: Test, Result, Limits, Analyst, Review. This table shows only manual foundation results; native observations, reviews and investigations are on Testing and investigations. "No results recorded." here does not mean no native testing exists. "No samples recorded." when the lot has no samples.
-- **Certificates of analysis** (Released lots only): **Issue certificate of analysis** for quality users, then links to issued reports, or "No certificate issued yet."
-- **Electronic signatures**: foundation result review signatures, then every signature on the lot, oldest first: the disposition (meaning approved) and any signed replacement of its requirements during testing (meaning requirements_replaced). "No lot disposition signature yet." shows until the lot has a signature with the meaning approved. Native test review signatures are not listed here.
+- **Samples and results** card, with the number of samples: one section per sample with its reference, collection time, a **Record result** button (Quarantine lots only) and the foundation results table: Test, Result, Limits, Analyst, Review. A result outside its limits is labelled "Out of specification". This table shows only manual foundation results; native observations, reviews and investigations are on Testing and investigations. "No results recorded." here does not mean no native testing exists. "No samples recorded" when the lot has no samples.
+- **Certificates of analysis** card (Released lots only): links to issued reports, or "No certificate issued yet".
+- **Electronic signatures** card: each signature shows the signer, meaning, server time and the revision it binds. Under "Results", foundation result review signatures ("Result N revision R"); under "Lot", every signature on the lot, oldest first: the disposition (meaning approved) and any signed replacement of its requirements during testing (meaning requirements_replaced). "No lot disposition signature yet." shows until the lot has a signature with the meaning approved. Native test review signatures are not listed here.
 
 ## Actions
 
@@ -67,7 +100,7 @@ The hub for one material lot: its facts, receipt details, supplier certificates,
 | **Review result** | Reviewer role, result is Recorded and not its analyst | Reviewer, not its analyst | Opens Sign result review |
 | **Issue certificate of analysis** | Quality role and lot is Released | Quality | Opens the certificate preview for this lot |
 | Report number link | Lot is Released and a report exists | Viewers of reports | Opens the certificate record |
-| **Material lots** | Always | Any viewer | Returns to the list |
+| **Lots** (breadcrumb) | Always | Any viewer | Returns to the Material lots list |
 
 ## Fields
 

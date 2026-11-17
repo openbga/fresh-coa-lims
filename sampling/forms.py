@@ -7,6 +7,7 @@ from catalog.forms import TZ, GroupedForm, LocalDateTimeInput, effective_fields,
 from catalog.models import Material, Stage
 from catalog.units import QUANTITY_UNITS
 from core.forms import SignatureIdentityForm
+from core.lookups import RemoteSelect
 from quality.models import Sample
 
 from .models import SamplingBasis, SamplingPlan, SamplingPurpose, SamplingRecord
@@ -56,7 +57,9 @@ class PlanRevisionForm(GroupedForm):
 class PlanForm(PlanRevisionForm):
     code = forms.SlugField(max_length=60)
     title = forms.CharField(max_length=200)
-    material = forms.ModelChoiceField(queryset=Material.objects.all())
+    material = forms.ModelChoiceField(
+        queryset=Material.objects.all(), widget=RemoteSelect("materials")
+    )
     stage = forms.ChoiceField(choices=Stage.choices)
     groups = [("Plan", ["code", "title", "material", "stage"]), *PlanRevisionForm.groups]
 
@@ -82,7 +85,9 @@ class PlanForm(PlanRevisionForm):
 
 class AssignForm(GroupedForm):
     material = forms.ModelChoiceField(
-        queryset=Material.objects.all(), help_text="The controlled material this lot is."
+        queryset=Material.objects.all(),
+        widget=RemoteSelect("materials"),
+        help_text="The controlled material this lot is.",
     )
     stage = forms.ChoiceField(choices=Stage.choices)
     scopes = forms.CharField(

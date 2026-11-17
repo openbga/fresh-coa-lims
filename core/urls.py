@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import lookups, preferences, views
 
 app_name = "core"
 urlpatterns = [
@@ -8,4 +8,6 @@ urlpatterns = [
     path("rules/", views.rules, name="rules"),
     path("rules/<int:pk>/approve/", views.rule_approve, name="rule_approve"),
     path("audit/", views.audit, name="audit"),
+    path("lookups/<slug:name>/", lookups.lookup, name="lookup"),
+    path("preferences/", preferences.preference, name="preference"),
 ]

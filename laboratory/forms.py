@@ -1,6 +1,7 @@
 from django import forms
 
 from core.forms import SignatureIdentityForm
+from core.lookups import RemoteSelect
 from quality.models import Sample
 
 from .eligibility import users_with_roles
@@ -101,7 +102,9 @@ class CalibrationForm(forms.ModelForm):
 class QualificationForm(forms.Form):
     """Analyst qualification when `equipment` is absent, instrument qualification otherwise."""
 
-    user = forms.ModelChoiceField(queryset=users_with_roles(), label="Qualified person")
+    user = forms.ModelChoiceField(
+        queryset=users_with_roles(), label="Qualified person", widget=RemoteSelect("active-users")
+    )
     activity = forms.CharField(
         max_length=120, help_text="Method or activity code this evidence qualifies."
     )

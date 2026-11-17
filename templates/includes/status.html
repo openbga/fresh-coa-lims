@@ -1,8 +1,14 @@
 {% comment %}
-Status label: text plus a tone glyph, so colour is never the only cue. Parameters:
-  label  visible text (e.g. sample.get_status_display)
+Status label: text plus a tone glyph, so colour is never the only cue. Rendered by {% status %}
+({% load ui %}). Also included directly by reporting/_certificate.html (screen and PDF), so its
+markup stays plain HTML without other tags.
+Parameters:
+  label  visible text (e.g. lot.get_state_display)
   tone   neutral | info | progress | success | warning | danger | hold
   plain  truthy for the compact table-cell variant without the pill
   title  optional longer explanation (tooltip and accessible description)
+  print  truthy for printed documents rendered by WeasyPrint (the certificate of analysis): text
+         and data-tone only, never an icon from the external sprite
+Usage: {% status label="Quarantine" tone="hold" %}
 {% endcomment %}
 <span class="vr-status{% if plain %} vr-status-plain{% endif %}" data-tone="{{ tone|default:'neutral' }}"{% if title %} title="{{ title }}"{% endif %}>{{ label }}</span>

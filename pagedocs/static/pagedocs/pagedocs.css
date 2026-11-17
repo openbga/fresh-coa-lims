@@ -12,7 +12,7 @@
 .pagedocs-panel {
   display: none;
   position: fixed;
-  z-index: 1025; /* under the top bar (1030) so its menus stay on top; under offcanvas/modals */
+  z-index: var(--vr-z-panel); /* under the top bar so its menus stay on top; under offcanvas/modals */
   top: var(--vr-topbar-height);
   right: 0;
   bottom: 0;
@@ -20,7 +20,7 @@
   flex-direction: column;
   background: var(--vr-surface);
   color: var(--vr-text);
-  border-left: 1px solid var(--vr-border);
+  border-left: var(--vr-border-width) solid var(--vr-border);
   box-shadow: var(--vr-shadow-raised);
 }
 
@@ -36,16 +36,16 @@
 .pagedocs-header {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.375rem 0.5rem 0.375rem 1rem;
+  gap: var(--vr-space-1);
+  padding: var(--vr-space-1-5) var(--vr-space-2) var(--vr-space-1-5) var(--vr-space-4);
   background: var(--vr-band);
-  border-bottom: 1px solid var(--vr-border);
+  border-bottom: var(--vr-border-width) solid var(--vr-border);
 }
 
 .pagedocs-kicker {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--vr-space-2);
   margin: 0 auto 0 0;
   font-family: var(--vr-font-mono);
   font-size: var(--vr-label-size);
@@ -64,7 +64,7 @@
   flex: 1 1 auto;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 1rem 1rem 2rem;
+  padding: var(--vr-space-4) var(--vr-space-4) var(--vr-space-8);
 }
 
 .pagedocs-body[aria-busy="true"] {
@@ -72,8 +72,8 @@
 }
 
 .pagedocs-title {
-  font-size: 1.25rem;
-  margin-bottom: 0.125rem;
+  font-size: var(--vr-font-size-7);
+  margin-bottom: var(--vr-space-0-5);
 }
 
 .pagedocs-title:focus {
@@ -81,38 +81,38 @@
 }
 
 .pagedocs-title:focus-visible {
-  outline: 2px solid var(--vr-focus);
-  outline-offset: 2px;
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: var(--vr-focus-offset);
 }
 
 .pagedocs-reviewed {
   font-family: var(--vr-font-mono);
   font-size: var(--vr-label-size);
   color: var(--vr-text-muted);
-  margin-bottom: 1rem;
+  margin-bottom: var(--vr-space-4);
 }
 
 .pagedocs-doc h3 {
-  font-size: 1rem;
-  font-weight: 650;
-  margin: 1.25rem 0 0.5rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid var(--vr-border);
+  font-size: var(--vr-font-size-5);
+  font-weight: var(--vr-font-weight-bold);
+  margin: var(--vr-space-5) 0 var(--vr-space-2);
+  padding-bottom: var(--vr-space-1);
+  border-bottom: var(--vr-border-width) solid var(--vr-border);
 }
 
 .pagedocs-doc h4 {
-  font-size: 0.9375rem;
-  font-weight: 650;
-  margin: 1rem 0 0.375rem;
+  font-size: var(--vr-font-size-4);
+  font-weight: var(--vr-font-weight-bold);
+  margin: var(--vr-space-4) 0 var(--vr-space-1-5);
 }
 
 .pagedocs-doc :is(p, ul, ol) {
-  margin-bottom: 0.625rem;
+  margin-bottom: var(--vr-space-2-5);
 }
 
 .pagedocs-doc ul,
 .pagedocs-doc ol {
-  padding-left: 1.25rem;
+  padding-left: var(--vr-space-5);
 }
 
 .pagedocs-doc code {
@@ -120,16 +120,16 @@
   font-size: 0.875em;
   color: var(--vr-text);
   background: var(--vr-surface-2);
-  border-radius: 4px;
+  border-radius: var(--vr-radius-sm);
   padding: 0 0.25em;
   overflow-wrap: anywhere;
 }
 
 .pagedocs-doc pre {
   background: var(--vr-surface-2);
-  border: 1px solid var(--vr-border);
+  border: var(--vr-border-width) solid var(--vr-border);
   border-radius: var(--vr-radius);
-  padding: 0.5rem 0.75rem;
+  padding: var(--vr-space-2) var(--vr-space-3);
 }
 
 .pagedocs-doc pre code {
@@ -138,27 +138,132 @@
 }
 
 .pagedocs-table {
-  font-size: 0.875rem;
-  margin-bottom: 0.75rem;
+  font-size: var(--vr-font-size-3);
+  margin-bottom: var(--vr-space-3);
 }
 
 .pagedocs-table th {
   white-space: nowrap;
   color: var(--vr-text-muted);
-  font-weight: 600;
+  font-weight: var(--vr-font-weight-semibold);
 }
 
 .pagedocs-note {
-  border-left: 3px solid var(--vr-info-border);
+  border-left: var(--vr-border-width-xl) solid var(--vr-info-border);
   background: var(--vr-info-bg);
   color: var(--vr-text);
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
+  padding: var(--vr-space-2) var(--vr-space-3);
+  margin-bottom: var(--vr-space-3);
   border-radius: 0 var(--vr-radius) var(--vr-radius) 0;
 }
 
 .pagedocs-note p:last-child {
   margin-bottom: 0;
+}
+
+/* Friendly layer: summary, Common tasks, Good to know, then the collapsed reference with its
+   filter. Spacing follows the values above until the shared spacing scale lands in app.css. */
+.pagedocs-summary {
+  font-size: var(--vr-font-size-5);
+  color: var(--vr-text);
+  margin-bottom: var(--vr-space-4);
+}
+
+.pagedocs-friendly h3,
+.pagedocs-reference h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-2);
+}
+
+.pagedocs-friendly h3 .vr-icon,
+.pagedocs-reference h3 .vr-icon {
+  color: var(--vr-text-muted);
+}
+
+.pagedocs-steps li::marker {
+  color: var(--vr-text-muted);
+  font-weight: var(--vr-font-weight-semibold);
+}
+
+.pagedocs-steps li + li,
+.pagedocs-tips li + li {
+  margin-top: var(--vr-space-1);
+}
+
+/* An exact on-screen label ([[Label]]), so the reader can find the same words on the page. */
+.pagedocs-label {
+  font-weight: var(--vr-font-weight-semibold);
+  color: var(--vr-text);
+  background: var(--vr-surface-2);
+  border: var(--vr-border-width) solid var(--vr-border);
+  border-radius: var(--vr-radius);
+  padding: 0 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.pagedocs-filter {
+  margin-bottom: var(--vr-space-2);
+}
+
+.pagedocs-filter .form-label {
+  font-size: var(--vr-font-size-3);
+  color: var(--vr-text-muted);
+  margin-bottom: var(--vr-space-1);
+}
+
+.pagedocs-section {
+  border-bottom: var(--vr-border-width) solid var(--vr-border);
+}
+
+.pagedocs-section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--vr-space-1-5);
+  padding: var(--vr-space-2) 0;
+  font-weight: var(--vr-font-weight-bold);
+  cursor: pointer;
+  list-style: none;
+}
+
+.pagedocs-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pagedocs-section > summary:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: var(--vr-focus-offset);
+}
+
+.pagedocs-chevron {
+  color: var(--vr-text-muted);
+  transition: transform 0.15s var(--vr-ease);
+}
+
+.pagedocs-section[open] > summary .pagedocs-chevron {
+  transform: rotate(90deg);
+}
+
+.pagedocs-section-body {
+  padding: 0 0 var(--vr-space-2) var(--vr-space-6);
+}
+
+mark.pagedocs-hit {
+  background: var(--vr-highlight-wash);
+  color: inherit;
+  padding: 0;
+}
+
+.pagedocs-none {
+  color: var(--vr-text-muted);
+  margin-top: var(--vr-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagedocs-chevron {
+    transition: none;
+  }
 }
 
 .pagedocs-error {
@@ -170,8 +275,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -5px;
+  left: 0;
   width: 10px;
+  transform: translateX(-50%); /* the grip straddles the panel's edge */
   cursor: col-resize;
   touch-action: none;
 }
@@ -181,8 +287,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 4px;
-  width: 2px;
+  left: 50%;
+  width: var(--vr-border-width-lg);
+  transform: translateX(-50%);
   background: transparent;
 }
 
@@ -196,8 +303,7 @@
 }
 
 .pagedocs-splitter:focus-visible::after {
-  left: 3px;
-  width: 4px;
+  width: calc(2 * var(--vr-border-width-lg));
   background: var(--vr-focus);
 }
 
@@ -222,7 +328,7 @@
 @media (max-width: 991.98px) {
   .pagedocs-panel {
     width: 100%;
-    z-index: 1035;
+    z-index: var(--vr-z-panel-cover); /* over the top bar: the panel covers the page */
     border-left: 0;
   }
 

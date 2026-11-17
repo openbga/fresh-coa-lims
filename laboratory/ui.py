@@ -9,17 +9,16 @@ import re
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from core import grids
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 
 READERS = ("analyst", "reviewer", "quality", "admin", "auditor")
-PAGE_SIZES = (25, 50, 100)
 
 # Sibling lists under one sidebar item, shown as tabs on the overview and every list.
 SECTION_TABS = {
@@ -216,13 +215,7 @@ def paginate(request, queryset, sorts, default):
         if descending
         else expressions
     )
-    queryset = queryset.order_by(*ordering, "pk")
-    try:
-        per_page = int(request.GET.get("per_page", PAGE_SIZES[0]))
-    except ValueError:
-        per_page = PAGE_SIZES[0]
-    per_page = per_page if per_page in PAGE_SIZES else PAGE_SIZES[0]
-    page = Paginator(queryset, per_page).get_page(request.GET.get("page"))
+    page = grids.paginate(request, queryset.order_by(*ordering, "pk"))
     return page, base, descending
 
 
@@ -250,17 +243,19 @@ def list_page(
         "intro": intro,
         "noun": noun,
         "columns": [
-            {"label": label, "sort": key, "numeric": numeric} for label, key, numeric in columns
+            {"label": label, "sort": key, "desc": f"-{key}" if key else "", "numeric": numeric}
+            for label, key, numeric in columns
         ],
         "rows": [[wrap(c) for c in row] for row in rows],
         "page_obj": page,
-        "sort": sort,
-        "descending": descending,
+        "sort": f"-{sort}" if descending else sort,
         "filter_form": filter_form,
+        # The toolbar's search box is the q field; the other fields sit beside it.
+        "query": (filter_form["q"].value() or "") if "q" in filter_form.fields else "",
+        "filter_fields": [field for field in filter_form if field.name != "q"],
         "filtered": filtered,
         "new": new,
         "empty_body": empty_body,
-        "page_sizes": PAGE_SIZES,
         "tabs": section_tabs(request),
         **(extra or {}),
     }
@@ -324,7 +319,13 @@ def record_page(
     notice=None,
     status_code=200,
 ):
-    """`related` are objects whose signatures and audit history appear on the page."""
+    """`related` are objects whose signatures and audit history appear on the page.
+
+    The header shows at most one primary action (last) and three others; the rest go under
+    More (docs/ui-standards.md)."""
+    actions = [a for a in actions if a]
+    primary = next((a for a in actions if a["primary"]), None)
+    others = [a for a in actions if a is not primary]
     return render(
         request,
         "ops/record.html",
@@ -334,7 +335,9 @@ def record_page(
             "crumbs": crumbs,
             "state": state,
             "facts": [(label, wrap(value)) for label, value in facts],
-            "actions": [a for a in actions if a],
+            "primary_action": primary,
+            "actions": others[:3],
+            "more_actions": others[3:],
             "sections": sections,
             "signatures": signatures_for(*related),
             "history": history_for(*related),

@@ -4,7 +4,10 @@ from django import template
 from django.urls import reverse
 from django.utils.http import urlencode
 
+from pagedocs.markdown import label_text
+
 register = template.Library()
+register.filter("label_text", label_text, is_safe=True)
 
 
 def _context(context):

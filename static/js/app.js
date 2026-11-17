@@ -2,6 +2,32 @@
 (function () {
   "use strict";
 
+  // Shared markup for the other scripts (grid.js, form-dialog.js, controls.js, sidebar.js), so
+  // they build the same icon as {% icon %} (templates/includes/icon.html) and the standard
+  // button roles. Every script builds icons only through window.vrUi.icon.
+  var BUTTON_ROLES = {
+    primary: "btn btn-primary",
+    secondary: "btn btn-outline-secondary",
+    quiet: "btn btn-link",
+    destructive: "btn btn-outline-danger",
+  };
+
+  window.vrUi = {
+    // Decorative sprite icon as markup (for innerHTML and Tom Select render strings).
+    icon: function (name) {
+      var sprite = document.body.getAttribute("data-vr-icons") || "";
+      return '<svg class="vr-icon" aria-hidden="true" focusable="false"><use href="' + sprite + "#i-" + name + '"></use></svg>';
+    },
+    // <button type="button"> in a standard role; small for table cells, panel headers and dialogs.
+    button: function (label, role, small) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = (BUTTON_ROLES[role] || BUTTON_ROLES.secondary) + (small ? " btn-sm" : "");
+      button.textContent = label;
+      return button;
+    },
+  };
+
   // Colour theme: "light" | "dark" | "system" in localStorage "vr-theme" (see theme-init.js).
   var THEME_KEY = "vr-theme";
   var systemDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
@@ -215,6 +241,45 @@
     document.querySelectorAll(".vr-choices").forEach(addChoiceFilter);
   });
 
+  // Column priority on tables without a Columns control (record sub-tables): the cells of a column
+  // whose header carries data-vr-col-priority="low" are marked, and app.css hides them below 1366px,
+  // so the table fits; the full data stays on the record. Lists (data-vr-grid) use grid.js instead.
+  function markLowPriorityColumns(scope) {
+    (scope || document).querySelectorAll(".vr-table:not([data-vr-grid])").forEach(function (table) {
+      var head = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      if (!head || table.dataset.vrPriorityReady === "true") {
+        return;
+      }
+      var low = [];
+      var position = 0;
+      Array.from(head.cells).forEach(function (cell) {
+        if (cell.getAttribute("data-vr-col-priority") === "low") {
+          low.push(position);
+          cell.setAttribute("data-vr-low", "");
+        }
+        position += cell.colSpan || 1;
+      });
+      if (!low.length) {
+        return;
+      }
+      table.dataset.vrPriorityReady = "true";
+      Array.from(table.tBodies).concat(table.tFoot ? [table.tFoot] : []).forEach(function (section) {
+        Array.from(section.rows).forEach(function (row) {
+          var column = 0;
+          Array.from(row.cells).forEach(function (cell) {
+            if ((cell.colSpan || 1) === 1 && low.indexOf(column) !== -1) {
+              cell.setAttribute("data-vr-low", "");
+            }
+            column += cell.colSpan || 1;
+          });
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { markLowPriorityColumns(document); });
+  document.addEventListener("htmx:load", function (event) { markLowPriorityColumns(event.detail.elt); });
+
   // After a failed submission, put keyboard focus on the first field with an error.
   document.addEventListener("DOMContentLoaded", function () {
     var invalid = document.querySelector("form [aria-invalid=true]");
@@ -406,28 +471,39 @@
     document.querySelectorAll("[data-formset-add]").forEach(initFormsetButton);
   });
 
-  // HTMX transport and server errors: keep the page as it is and say what happened.
+  // HTMX transport and server errors: keep the page as it is and say what happened, in a notice
+  // where Django messages appear (no toasts). The notice markup is server-rendered once in
+  // <template id="vr-request-error"> (layouts/document.html).
   function showRequestError(message) {
-    var region = document.getElementById("vr-live");
-    if (!region) {
+    var template = document.getElementById("vr-request-error");
+    var main = document.querySelector(".vr-main");
+    if (!template || !main) {
       return;
     }
-    region.replaceChildren();
-    var alert = document.createElement("div");
-    alert.className = "alert alert-danger alert-dismissible shadow-sm";
-    alert.setAttribute("role", "alert");
-    var text = document.createElement("div");
-    text.textContent = message;
-    var close = document.createElement("button");
-    close.type = "button";
-    close.className = "btn-close";
-    close.setAttribute("data-bs-dismiss", "alert");
-    close.setAttribute("aria-label", "Dismiss");
-    alert.append(text, close);
-    region.append(alert);
+    main.querySelectorAll("[data-vr-request-error]").forEach(function (old) { old.remove(); });
+    var notice = template.content.firstElementChild.cloneNode(true);
+    notice.querySelector("[data-vr-notice-text]").textContent = message;
+    notice.setAttribute("tabindex", "-1");
+    var region = main.querySelector(":scope > .vr-messages");
+    if (!region) {
+      region = document.createElement("div");
+      region.className = "vr-messages";
+      var header = main.querySelector(":scope > .vr-page-header");
+      main.insertBefore(region, header ? header.nextSibling : main.firstChild);
+    }
+    region.prepend(notice);
+    notice.focus();
+  }
+
+  function inFormDialog(event) {
+    // The form dialog keeps its error beside the preserved inputs (form-dialog.js).
+    return Boolean(event.detail.target && event.detail.target.closest("#vr-form-dialog"));
   }
 
   document.addEventListener("htmx:responseError", function (event) {
+    if (inFormDialog(event)) {
+      return;
+    }
     var status = event.detail.xhr ? event.detail.xhr.status : "";
     var message = status === 403
       ? "You do not have permission for that action. Nothing was changed."
@@ -435,7 +511,10 @@
     showRequestError(message);
   });
 
-  document.addEventListener("htmx:sendError", function () {
+  document.addEventListener("htmx:sendError", function (event) {
+    if (inFormDialog(event)) {
+      return;
+    }
     showRequestError("The server could not be reached. Check the connection and try again.");
   });
 })();

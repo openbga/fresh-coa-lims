@@ -89,3 +89,24 @@ class AuditReview(models.Model):
     reviewed_at = models.DateTimeField(auto_now_add=True)
     events = models.ManyToManyField(AuditEvent)
     conclusion = models.TextField()
+
+
+class UserPreference(models.Model):
+    """One presentation setting of one user (core.preferences): a grid's columns, a list's page
+    size and sort, the sidebar's state. Kept on the server because lab workstations are shared.
+    Presentation only: it never widens what the user may see."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="preferences"
+    )
+    key = models.CharField(max_length=120)
+    value = models.JSONField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "key"], name="unique_user_preference")
+        ]
+
+    def __str__(self):
+        return f"{self.user} {self.key}"

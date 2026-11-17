@@ -50,8 +50,25 @@ Front matter (plain `key: value`, lists comma separated):
 | `templates` | recommended | Template names (verified loadable) |
 | `models` | recommended | `app_label.Model` for models shown or changed (verified to exist) |
 | `reviewed` | yes | ISO date the doc was last checked against the code |
+| `summary` | with the friendly layer | One line, at most 240 characters: what the reader can find or do here |
 
-Body: these `##` sections in this order. Write `None.` rather than dropping a section.
+Body, friendly layer (being rolled out; write it for every new or rewritten doc). All or none
+with `summary`, and before the reference sections:
+
+- **`## Common tasks`**: 2–5 tasks. Each is a `### Title` (a verb phrase, at most 80
+  characters) and a numbered list of 1–4 steps (at most 200 characters each). Wrap every exact
+  on-screen label in `[[ ]]`: `1. Select [[New material lot]].`
+- **`## Good to know`**: a bulleted list of 3–5 items (at most 200 characters each) that
+  surprise people, prevent a wrong conclusion, explain a refusal or protect the record.
+
+Read [references/friendly-layer.md](references/friendly-layer.md) before writing them: tone,
+what to include, worked examples and the per-page checklist. The parser in `pagedocs/docs.py`
+refuses a file that breaks a limit, the order or the all-or-none rule, and an unpaired `[[`.
+`FRIENDLY_LAYER_REQUIRED` in `pagedocs/coverage.py` turns the layer from optional to required
+when the roll-out ends.
+
+Body, reference: these `##` sections in this order. Write `None.` rather than dropping a section.
+With the friendly layer they render collapsed under "All fields and actions" with a filter.
 
 1. **Purpose**: one or two sentences; what job the page does in the QC workflow.
 2. **Who can use it**: sign-in requirement, roles allowed to view, roles allowed for each action,
@@ -82,12 +99,22 @@ Body: these `##` sections in this order. Write `None.` rather than dropping a se
   `|`, `>` notes, inline code, bold, italic, links to `/relative` paths or `https://`. Raw HTML
   is escaped.
 
+## Workflow
+
+1. Read the URL, view, form, services, models and template (table above). Note every visible
+   label exactly as rendered, including labels from shared components.
+2. Write or update the seven reference sections first; they are the source of truth.
+3. Write the friendly layer from the reference (references/friendly-layer.md).
+4. Set `reviewed` to today, run the checks below and read the doc in the panel beside the page.
+
 ## Check
 
 ```
 uv run ruff check pagedocs
 uv run pytest pagedocs/tests
 ```
+
+(Set `TEST_DATABASE_NAME=test_...` when several test runs share one database server.)
 
 Then open the page, click the documentation icon and read the doc beside the page: every
 visible control should be explained, and nothing described should be missing.

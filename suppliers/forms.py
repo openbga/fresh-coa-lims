@@ -1,6 +1,7 @@
 from django import forms
 
 from catalog.forms import GroupedForm, reason_field
+from core.lookups import RemoteSelect
 
 from .models import Supplier
 
@@ -26,6 +27,7 @@ class MaterialChoiceForm(forms.Form):
 
     material = forms.ModelChoiceField(
         queryset=None,
+        widget=RemoteSelect("materials"),
         help_text="The tests a qualification can cover are those of this material's "
         "specifications.",
     )

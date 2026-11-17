@@ -1,0 +1,51 @@
+{% comment %}
+Table footer: result count, rows per page and pager, rendered by {% pagination %} ({% load ui %})
+and by {% list_results %}. Shown even on a single page; omit it in empty states. Keeps every other
+query parameter; changing rows per page returns to page 1.
+Parameters:
+  page_obj  the Django Page
+  noun      plural, e.g. "material lots" (default "records")
+  filtered  truthy when filters apply
+  sizes     truthy when the view honours ?per_page= (core.grids.paginate): the rows-per-page form,
+            core.grids.PageSizeForm's field ({% page_size_field %})
+Usage: {% pagination page_obj=page_obj noun="audit events" filtered=filtered %}
+{% endcomment %}
+{% load ui %}{% with paginator=page_obj.paginator %}
+<div class="vr-table-footer vr-pagination">
+  <p class="vr-count">
+    Showing <strong>{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong>
+    of <strong>{{ paginator.count }}</strong> {{ noun|default:"records" }}{% if filtered %} matching filters{% endif %}
+  </p>
+  <div class="d-flex flex-wrap align-items-center gap-3">
+    {% if sizes %}
+    <form class="d-flex align-items-center gap-2" method="get" action="{{ request.path }}">
+      {% for key, values in request.GET.lists %}{% if key != "page" and key != "per_page" %}{% for value in values %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}{% endif %}{% endfor %}
+      <label class="vr-count text-nowrap" for="per-page-{{ noun|default:'records'|slugify }}">Rows per page</label>
+      {% page_size_field paginator.per_page noun as page_size %}{{ page_size }}
+      <button class="btn btn-sm btn-outline-secondary" type="submit">Show</button>
+    </form>
+    {% endif %}
+    {% if paginator.num_pages > 1 %}
+    <nav aria-label="{{ noun|default:'Records'|capfirst }} pages">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="{% querystring page=1 %}" aria-label="First page">{% icon name="chevron-double-left" %}</a></li>
+        <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" rel="prev" aria-label="Previous page">{% icon name="chevron-left" %}</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link" aria-hidden="true">{% icon name="chevron-double-left" %}</span></li>
+        <li class="page-item disabled"><span class="page-link" aria-hidden="true">{% icon name="chevron-left" %}</span></li>
+        {% endif %}
+        <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}" rel="next" aria-label="Next page">{% icon name="chevron-right" %}</a></li>
+        <li class="page-item"><a class="page-link" href="{% querystring page=paginator.num_pages %}" aria-label="Last page">{% icon name="chevron-double-right" %}</a></li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link" aria-hidden="true">{% icon name="chevron-right" %}</span></li>
+        <li class="page-item disabled"><span class="page-link" aria-hidden="true">{% icon name="chevron-double-right" %}</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endwith %}

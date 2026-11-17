@@ -21,6 +21,15 @@ _LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC = re.compile(r"(?<![\w*])[*_](?![\s*_])(.+?)(?<![\s*_])[*_](?![\w*])")
 _SAFE_TARGET = re.compile(r"^(/(?!/)|#|https://)[^\"'<>\s]*$")
+LABEL = re.compile(r"\[\[([^\[\]]+)\]\]")
+
+
+def label_text(text: str) -> SafeString:
+    """Friendly-layer text as HTML: the whole string escaped first, then each ``[[Label]]`` (an
+    exact on-screen label, already escaped) wrapped in a label chip. No other markup."""
+    return mark_safe(  # noqa: S308 - the text is escaped before the chip spans are added
+        LABEL.sub(r'<span class="pagedocs-label">\1</span>', escape(text))
+    )
 
 
 def _inline(text):
@@ -60,10 +69,12 @@ def _cells(line):
     return [cell.strip().replace("\\|", "|") for cell in re.split(r"(?<!\\)\|", line)]
 
 
-def render(source: str, heading_offset: int = 1) -> SafeString:
-    """Render ``source`` to sanitized HTML. Headings shift by ``heading_offset`` levels."""
+def render(source: str, heading_offset: int = 1, used_ids: set | None = None) -> SafeString:
+    """Render ``source`` to sanitized HTML. Headings shift by ``heading_offset`` levels;
+    ``used_ids`` shares heading anchors across several calls that build one page."""
     lines = source.replace("\r\n", "\n").split("\n")
-    out, paragraph, used_ids = [], [], set()
+    out, paragraph = [], []
+    used_ids = set() if used_ids is None else used_ids
     i = 0
 
     def flush():

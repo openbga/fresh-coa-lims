@@ -30,7 +30,7 @@ def pin(request):
         return render(
             request,
             "core/form.html",
-            {"heading": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
+            {"page_title": "Signature PIN", "unavailable": CREDENTIALS_LOCKED},
             status=403 if request.method == "POST" else 200,
         )
     form = PINForm(request.POST or None)
@@ -41,7 +41,7 @@ def pin(request):
             return redirect("core:pin")
         except ValidationError as exc:
             form.add_error(None, exc)
-    return render(request, "core/form.html", {"form": form, "heading": "Signature PIN"})
+    return render(request, "core/form.html", {"form": form, "page_title": "Signature PIN"})
 
 
 @login_required
@@ -68,7 +68,12 @@ def rules(request):
     return render(
         request,
         "core/rules.html",
-        {"rules": revisions, "form": form, "can_configure": can_configure},
+        {
+            "page_title": "Rule sets",
+            "rules": revisions,
+            "form": form,
+            "can_configure": can_configure,
+        },
     )
 
 
@@ -128,7 +133,7 @@ def rule_approve(request, pk):
         "core/form.html",
         {
             "form": form,
-            "heading": f"Approve {rule}",
+            "page_title": f"Approve {rule}",
             "signing": True,
             "record": rule,
             "retires": retires,
@@ -192,6 +197,14 @@ def audit(request):
             ):
                 raise forms.ValidationError("From date must be on or before through date.")
             return values
+
+    class AuditReviewForm(forms.Form):
+        conclusion = forms.CharField(
+            label="Review conclusion",
+            widget=forms.Textarea(attrs={"rows": 3}),
+            help_text="Record what you checked and any follow-up needed. Previous conclusions "
+            "remain available. You cannot review your own events.",
+        )
 
     filters = AuditFilters(request.GET)
     for field in filters.fields.values():
@@ -279,7 +292,8 @@ def audit(request):
             "can_review": can_review,
             "filters": filters,
             "error": error,
-            "conclusion": conclusion,
+            "page_title": "Audit trail",
+            "review_form": AuditReviewForm(initial={"conclusion": conclusion}),
             "selected_ids": selected_ids,
             "base_query": base_query,
             "filtered": any(request.GET.get(key) for key in filters.fields),

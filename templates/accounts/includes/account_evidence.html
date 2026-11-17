@@ -1,0 +1,3 @@
+{% comment %}Recorded values and signature for one account audit event (history_item extra; context: event).{% endcomment %}
+<details class="vr-timeline-body"><summary>Inspect recorded values</summary><strong>Before</strong><pre>{{ event.before }}</pre><strong>After</strong><pre>{{ event.after }}</pre></details>
+{% if event.electronicsignature %}<p class="vr-timeline-meta">Signed by {{ event.electronicsignature.signer_name }} · {{ event.electronicsignature.meaning }} · {{ event.electronicsignature.signed_at|date:"c" }} · revision {{ event.electronicsignature.revision }}</p>{% endif %}

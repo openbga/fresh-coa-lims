@@ -1,21 +1,15 @@
 from django import forms
 
 from core.forms import SignatureIdentityForm
+from core.lookups import RemoteSelect
 from quality.models import Lot
 
 
-class StyledForm(forms.Form):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            if not field.widget.is_hidden:
-                field.widget.attrs.setdefault("class", "form-control")
-
-
-class LotPickForm(StyledForm):
+class LotPickForm(forms.Form):
     lot = forms.ModelChoiceField(
         queryset=Lot.objects.none(),
         label="Released lot",
+        widget=RemoteSelect("released-lots"),
         empty_label="Select a lot",
         help_text="Only lots with a signed QC disposition are listed.",
     )
@@ -82,7 +76,7 @@ class AmendForm(SignReportForm):
         ].help_text = "Printed on the amended certificate and kept in the audit trail."
 
 
-class LotRecordForm(StyledForm):
+class LotRecordForm(forms.Form):
     purpose = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 3}),
         max_length=500,
