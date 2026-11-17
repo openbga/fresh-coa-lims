@@ -46,7 +46,7 @@ Evidence that a person or instrument is qualified for an activity within stated 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Approve** | Awaiting approval; you are neither the recorder nor the subject | Quality | Opens the approval signing page |
-| **Revoke** | Approved (including past its last day); you are not the subject | Quality | Opens the revocation signing page |
+| **Revoke** (under **More**) | Approved (including past its last day); you are not the subject | Quality | Opens the revocation signing page |
 | Evidence link | An evidence URL was recorded | Any reader | Opens the external link (`noopener noreferrer`); treat its content as untrusted |
 
 ## Fields

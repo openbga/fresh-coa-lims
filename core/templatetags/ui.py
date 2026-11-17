@@ -547,3 +547,12 @@ def when(value, style=""):
     if isinstance(value, date):
         return format_html('<time datetime="{0}">{0}</time>', value.isoformat())
     return value
+
+
+@register.filter(name="person")
+def person_filter(user):
+    """A person as the app names them everywhere (core.people.person): full name, else
+    username, blank for nobody."""
+    from core.people import person
+
+    return person(user)

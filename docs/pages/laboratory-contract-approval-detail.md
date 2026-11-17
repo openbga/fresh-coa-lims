@@ -47,7 +47,7 @@ The evidence that a contract laboratory may perform one test method between two 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Approve** | Awaiting approval; you did not record it | Quality | Opens the approval signing page. Evidence whose Valid until has passed can still be signed, for reports dated within its dates |
-| **Revoke** | Approved (including Expired and not yet started) | Quality, the recorder included | Opens the revocation signing page |
+| **Revoke** (under **More**) | Approved (including Expired and not yet started) | Quality, the recorder included | Opens the revocation signing page |
 | Laboratory link | Always | Any reader | Opens the contract laboratory record |
 | Evidence link | An evidence URL was recorded | Any reader | Opens the external link (`noopener noreferrer`); treat its content as untrusted |
 | Work link | A result relied on the approval | Any reader | Opens the test record |

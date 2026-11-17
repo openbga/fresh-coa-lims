@@ -15,7 +15,7 @@
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:batch_detail' b.pk %}">{{ b.number }}</a><span class="vr-sub">{% code value=b.method_code %} rev. {{ b.method.revision }}</span></th>
           <td class="vr-nowrap">{% include "analytical/_qc_status.html" with status=b.status state=b.state only %}</td>
           <td class="vr-nowrap">{{ b.created_at|when }}</td>
-          <td>{{ b.created_by.get_full_name|default:b.created_by.get_username }}</td>
+          <td>{{ b.created_by|person }}</td>
         </tr>
         {% endfor %}
       </tbody>

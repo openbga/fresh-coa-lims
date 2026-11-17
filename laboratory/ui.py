@@ -17,6 +17,7 @@ from django.utils.text import slugify
 
 from core import grids
 from core.models import AuditEvent, ElectronicSignature
+from core.people import person  # noqa: F401 (re-exported: one person display app-wide)
 from core.services import require_role
 from core.templatetags.ui import when as shown_when
 
@@ -102,6 +103,7 @@ def cell(
     sub="",
     code=False,
     critical=False,
+    muted=False,
 ):
     """One table/fact value. `tone` renders `text` as a status label (text plus glyph; filled for
     the states that must not hide: danger, hold, warning); `pill` (label, tone) adds a status
@@ -119,6 +121,7 @@ def cell(
         "sub": sub,
         "code": code,
         "critical": critical,
+        "muted": muted,
     }
 
 
@@ -209,14 +212,6 @@ def when(moment):
 
 def day(value):
     return value.isoformat() if value else ""
-
-
-def person(user):
-    """A person as the app names them everywhere (as the lot record does): full name, else the
-    username; blank for nobody."""
-    if user is None:
-        return ""
-    return user.get_full_name() or user.get_username()
 
 
 def status(label, tone="neutral"):
@@ -390,10 +385,27 @@ def _brief(value):
 
 
 def signatures_for(*objs):
+    """The objects' signatures, oldest first, each with `record`: the signed record named as the
+    page names it ("Protocol SYN-QA-STAB v1"), not its stored type and number."""
     query = Q()
+    names = {}
     for obj in objs:
         query |= Q(object_type=obj._meta.label_lower, object_id=str(obj.pk))
-    return ElectronicSignature.objects.filter(query).order_by("signed_at", "id")
+        names[(obj._meta.label_lower, str(obj.pk))] = record_name(obj)
+    signatures = list(ElectronicSignature.objects.filter(query).order_by("signed_at", "id"))
+    for signature in signatures:
+        signature.record = names.get(
+            (signature.object_type, signature.object_id),
+            f"{signature.object_type} {signature.object_id}",
+        )
+    return signatures
+
+
+def record_name(obj):
+    """A record as people name it: its kind (the model's verbose name) and its identifier."""
+    kind = str(obj._meta.verbose_name)
+    identifier = getattr(obj, "identifier", None) or getattr(obj, "label", None) or str(obj)
+    return f"{kind[:1].upper()}{kind[1:]} {identifier}"
 
 
 def record_page(
@@ -420,7 +432,8 @@ def record_page(
     More (docs/ui-standards.md)."""
     actions = [a for a in actions if a]
     primary = next((a for a in actions if a["primary"]), None)
-    others = [a for a in actions if a is not primary]
+    visible = [a for a in actions if a is not primary and not a["more"]]
+    rare = [a for a in actions if a is not primary and a["more"]]
     return render(
         request,
         "ops/record.html",
@@ -431,8 +444,8 @@ def record_page(
             "state": state,
             "facts": [(label, wrap(value)) for label, value in facts],
             "primary_action": primary,
-            "actions": others[:3],
-            "more_actions": others[3:],
+            "actions": visible[:3],
+            "more_actions": visible[3:] + rare,
             "sections": sections,
             "signatures": signatures_for(*related),
             "history": history_for(*related),
@@ -455,8 +468,12 @@ def section(title, columns, rows, empty, note=""):
     }
 
 
-def action(label, href, primary=False):
-    return {"label": label, "href": href, "primary": primary}
+def action(label, href, primary=False, *, danger=False, more=False):
+    """A header action. The header rule (includes/more_actions.html): one primary, the role's
+    next step, last; the actions that resolve the record's current state stay visible
+    (`danger` for a destructive one: outlined red); `more` puts a rare, corrective or
+    administrative action under More."""
+    return {"label": label, "href": href, "primary": primary, "danger": danger, "more": more}
 
 
 # --- Forms and signing -----------------------------------------------------------------------

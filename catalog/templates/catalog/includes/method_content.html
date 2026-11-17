@@ -10,7 +10,7 @@
     {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
     {% fact label="Reagent or standard" %}{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
     {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
-    {% fact label="Author" value=revision.author.get_full_name|default:revision.author.username %}
+    {% fact label="Author" value=revision.author|person %}
   </dl>
   {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all revision=revision only %}{% endif %}
   {% include "catalog/includes/calculation.html" with revision=revision only %}

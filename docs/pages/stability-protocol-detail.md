@@ -38,13 +38,13 @@ One protocol version (code and version number) with its header facts, storage co
 
 ## Layout
 
-- **Header**: breadcrumbs, title, identifier and status label, action buttons.
+- **Header**: breadcrumbs, title, identifier and status label, action buttons. The status is the filled label; the identifier is a code; a muted line under it gives "Record revision". One primary button, the next step for you; further buttons are secondary or under **More**.
 - **Details**: Product, Protocol document (a link when a URL is set, otherwise the reference text), Test profile revision, Acceptance criteria (the specification, as "<code> · <title> (<material>, <stage>, scope <scope>)" and a link to it, or "Not in the system: pulls link a sample or external evidence"), Basis, Author, Approved (time), Content digest, Revision.
 - **Storage conditions**: condition, setpoint, temperature (°C), humidity (%).
 - **Timepoints**: condition, timepoint, day, window (± days), tests (codes comma separated). Ordered by condition then day. Empty states: "No conditions yet. Add the approved storage conditions." and "No timepoints yet."
 - **Acceptance criteria in force** (only when the protocol names a specification): Test, Name, Acceptance criterion, Method (code and revision) for each test code of its timepoints, as the specification's approved version in force states them now; a test it cannot state shows a warning in place of the criterion. Empty: "Add timepoints to see the acceptance criterion of each test." A note names the specification version and says each pull's tests freeze the version in force when they are assigned, so a later version applies to later pulls.
 - **Notice** "Criteria incomplete" (warning), when the specification cannot state a test, for a Draft or Approved protocol: it lists the reasons and adds "The protocol cannot be approved until this is resolved in the specification." (Draft) or "Tests cannot be assigned to its pulls until this is resolved in the specification." (Approved). Not shown for a Superseded protocol.
-- **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
+- **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; a short "No signatures yet." line when there are none.
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 
 ## Actions

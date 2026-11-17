@@ -7,5 +7,5 @@
   {% fact label="Rationale" %}{{ revision.rationale|linebreaksbr }}{% endfact %}
   {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
   {% fact label="Record revision" value=revision.revision %}
-  {% fact label="Author" value=revision.author.get_full_name|default:revision.author.username %}
+  {% fact label="Author" value=revision.author|person %}
 </dl>

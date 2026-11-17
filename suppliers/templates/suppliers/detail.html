@@ -10,7 +10,7 @@
     {% fact label="Code" class="vr-id" value=supplier.code %}
     {% fact label="Name" value=supplier.name %}
     {% fact label="Location" value=supplier.location %}
-    {% fact label="Created" %}<time datetime="{{ supplier.created_at|date:'c' }}">{{ supplier.created_at|date:"Y-m-d H:i T" }}</time> by {{ supplier.created_by.get_full_name|default:supplier.created_by.get_username }}{% endfact %}
+    {% fact label="Created" %}<time datetime="{{ supplier.created_at|date:'c' }}">{{ supplier.created_at|date:"Y-m-d H:i T" }}</time> by {{ supplier.created_by|person }}{% endfact %}
   </dl>
 {% endpanel %}
 {% panel title="Qualifications" table=True class="mb-3" %}

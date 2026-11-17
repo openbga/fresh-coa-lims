@@ -6,7 +6,7 @@
 {% if required_change %}{% notice tone="info" class="mb-3" %}Choose a new password before continuing. You can sign out from the top bar.{% endnotice %}{% endif %}
 {% if signing %}
 {% panel title="Account change" heading_id="account-change-heading" class="mb-3" %}
-  <p>Signer: <strong>{{ user.get_full_name|default:user.username }}</strong>. Your signature means <strong>account_authorized</strong>: you authorize this account change, with its reason and server timestamp.</p>
+  <p>Signer: <strong>{{ user|person }}</strong>. Your signature means <strong>account_authorized</strong>: you authorize this account change, with its reason and server timestamp.</p>
   {% if target %}<dl class="vr-facts">
     {% fact label="Account" value=target.username %}
     {% fact label="Identity" value=target.get_full_name|default:"Not supplied" %}

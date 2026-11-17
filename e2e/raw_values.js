@@ -35,6 +35,7 @@
     ['decimal-repr', /Decimal\(/],
     ['iso-timestamp', /\d{4}-\d\d-\d\dT\d\d:\d\d|\d\d:\d\d:\d\d\.\d{1,6}|[+-]\d\d:\d\d\b(?! *[A-Za-z])|\d\d:\d\dZ\b/],
     ['object-repr', /<[A-Z]\w+: |object at 0x|\b[A-Z]\w+ object \(\d+\)/],
+    ['model-label', /\b[a-z][a-z_]*\.[a-z][a-z_]* \d+\b/],
   ];
   const root = document.querySelector('main') || document.body;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

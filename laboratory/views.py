@@ -431,7 +431,10 @@ def equipment_detail(request, pk):
         if can(user, "analyst", "reviewer", "quality")
         else None,
         action(
-            "Take out of service", reverse("laboratory:equipment_out_of_service", args=[item.pk])
+            "Take out of service",
+            reverse("laboratory:equipment_out_of_service", args=[item.pk]),
+            danger=True,
+            more=True,
         )
         if not out_of_service and can(user, "analyst", "reviewer", "quality")
         else None,
@@ -859,7 +862,12 @@ def qualification_detail(request, pk):
         action("Approve", reverse("laboratory:qualification_approve", args=[q.pk]), True)
         if q.state == "recorded" and eligible_actor and can(user, "quality")
         else None,
-        action("Revoke", reverse("laboratory:qualification_revoke", args=[q.pk]))
+        action(
+            "Revoke",
+            reverse("laboratory:qualification_revoke", args=[q.pk]),
+            danger=True,
+            more=True,
+        )
         if q.state == "approved" and q.user_id != user.pk and can(user, "quality")
         else None,
     ]
@@ -1070,7 +1078,7 @@ def reagent_detail(request, pk):
         action("Release for use", reverse("laboratory:reagent_release", args=[lot.pk]), True)
         if lot.state == "received" and lot.recorded_by_id != user.pk and can(user, "reviewer")
         else None,
-        action("Reject lot", reverse("laboratory:reagent_reject", args=[lot.pk]))
+        action("Reject lot", reverse("laboratory:reagent_reject", args=[lot.pk]), danger=True)
         if lot.state != "rejected" and can(user, "analyst", "reviewer", "quality")
         else None,
     ]

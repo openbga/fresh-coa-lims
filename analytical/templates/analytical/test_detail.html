@@ -14,7 +14,7 @@
 {% block page_actions %}
 {% if can_return %}<a class="btn btn-outline-secondary" href="{% url 'analytical:test_return' test.pk %}">Return test</a>{% endif %}
 {% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% endif %}
-{% if can_contract_correct %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a>{% endif %}
+{% more_actions %}{% if can_contract_correct %}<li><a class="dropdown-item" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a></li>{% endif %}{% endmore_actions %}
 {# Review needs a submitted test, recording and batching an open one; a test needs a batch before recording when its method runs in one. #}
 {% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">{% icon name="vector-pen" %}Sign review</a>{% elif can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">{% icon name="plus-lg" %}Record observation</a>{% endif %}
 {% endblock %}
@@ -53,7 +53,7 @@
             <td{% if not spec.is_qualitative %} class="text-end vr-nowrap"{% endif %}>{% if o.is_current %}{{ o.value_text }}{% else %}<del class="vr-prior">{{ o.value_text }}</del>{% endif %}{% if o.observed_text %}<div class="small vr-muted">{{ o.observed_text }}</div>{% endif %}</td>
             <td>{% if o.in_limits %}{% status label="Yes" tone="success" plain=True %}{% elif o.qualifier %}{% status label="Cannot be shown" tone="danger" plain=True %}{% else %}{% status label="No" tone="danger" plain=True %}{% endif %}</td>
             <td>{{ o.raw_reference }}{% if o.reason %}<div class="small vr-muted">{{ o.reason }}</div>{% endif %}</td>
-            <td class="vr-nowrap">{{ o.recorded_by.get_full_name|default:o.recorded_by.get_username }}<div class="small vr-muted"><time datetime="{{ o.recorded_at|date:'c' }}">{{ o.recorded_at|date:"Y-m-d H:i T" }}</time></div></td>
+            <td class="vr-nowrap">{{ o.recorded_by|person }}<div class="small vr-muted"><time datetime="{{ o.recorded_at|date:'c' }}">{{ o.recorded_at|date:"Y-m-d H:i T" }}</time></div></td>
             <td>{% if can_correct and o.is_current and not o.contract %}<a href="{% url 'analytical:observation_correct' o.pk %}">Correct<span class="visually-hidden"> replicate {{ o.replicate }}</span></a>{% endif %}</td>
           </tr>
           <tr>
@@ -97,7 +97,7 @@
       {% fact label="QC batch" %}{% if contract %}<span class="vr-muted">Run by the contract laboratory; see its report</span>{% elif test.batch %}<a class="vr-id" href="{% url 'analytical:batch_detail' test.batch_id %}">{{ test.batch.number }}</a> {% include "analytical/_qc_status.html" with status=batch_status state=test.batch.state plain=True only %}{% elif spec.method.requires_batch %}<span class="vr-muted">Not yet assigned</span>{% else %}<span class="vr-muted">Not required by method</span>{% endif %}{% endfact %}
       {% if not spec.is_qualitative %}{% fact label="Mean" %}{% if test.mean_value is not None %}{{ test.mean_value.normalize }} {{ spec.unit }}{% elif test.evaluated_at %}<span class="vr-muted">None: a replicate is reported as less than a value</span>{% else %}<span class="vr-muted">Not calculated</span>{% endif %}{% endfact %}{% endif %}
       {% if test.conforms is False and test.state != "invalidated" and test.state != "superseded" %}{% fact label="Reportable" critical="danger" %}{% status label="Out of specification" tone="danger" %}<small class="vr-data">{{ test.reportable_with_unit }}</small>{% endfact %}{% else %}{% fact label="Reportable" %}{% if test.reportable_display %}<strong class="vr-data">{{ test.reportable_with_unit }}</strong>{% else %}<span class="vr-muted">Calculated on submission</span>{% endif %}{% endfact %}{% endif %}
-      {% if test.submitted_by %}{% fact label="Submitted by" %}{{ test.submitted_by.get_full_name|default:test.submitted_by.get_username }}{% endfact %}{% endif %}
+      {% if test.submitted_by %}{% fact label="Submitted by" %}{{ test.submitted_by|person }}{% endfact %}{% endif %}
       {% if test.parent %}{% fact label="Replaces" %}<a class="vr-id" href="{% url 'analytical:test_detail' test.parent_id %}">{{ test.parent.label }}</a>{% endfact %}{% endif %}
       {% if children %}{% fact label="Linked tests" %}{% for c in children %}<a class="vr-id" href="{% url 'analytical:test_detail' c.pk %}">{{ c.label }}</a> {{ c.get_kind_display|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endfact %}{% endif %}
     </dl>

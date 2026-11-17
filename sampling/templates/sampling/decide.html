@@ -14,7 +14,7 @@
       {% if preview.additional_rules %}{% fact label="Additional rule sets in force" %}{% for rule in preview.additional_rules %}{{ rule.code }} v{{ rule.version }} · requires {{ rule.required_tests|join:", " }}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% endfact %}{% endif %}
       {% if preview.plan %}{% fact label="Sampling plan" %}{{ preview.plan }}{% if preview.plan.pk == current.plan_revision_id %} · kept{% endif %}{% endfact %}{% endif %}
       {% fact label="Rule set" %}{{ lot.rules }}{% if preview.rules.pk != lot.rules_id %} <span aria-hidden="true">→</span><span class="visually-hidden">replaced by</span> <strong>{{ preview.rules }}</strong>, the version in force{% endif %}{% endfact %}
-      {% fact label="Hold recorded" %}{{ current.assigned_by.get_full_name|default:current.assigned_by.username }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time>{% endfact %}
+      {% fact label="Hold recorded" %}{{ current.assigned_by|person }} · <time datetime="{{ current.assigned_at|date:'c' }}">{{ current.assigned_at|date:"Y-m-d H:i T" }}</time>{% endfact %}
     </dl>
 {% endpanel %}
 {% if preview.reasons %}
@@ -46,7 +46,7 @@
     <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
     {% else %}
     <p>Your signature records the meaning <strong>requirements decided</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>: the requirements chosen above are frozen for the lot together with the requirements stated one way, as shown. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If a specification, a method or a rule set in force changes before you sign, signing fails and you must review again.</p>
-    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <p>Signer: <strong>{{ request.user|person }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
     {% form_page form=form id="decision-form" cancel_url=cancel_url submit_label="Sign decision and freeze requirements" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
     {% endif %}
 {% endsignature_card %}

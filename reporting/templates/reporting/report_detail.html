@@ -18,7 +18,7 @@
 {% endif %}    {% fact label="Certificate" value=report.number class="vr-id text-wrap text-break" %}
     {% fact label="Lot" %}<a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a> · {{ report.lot.material }}{% endfact %}
     {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
-    {% fact label="Opened" %}{{ report.created_at|when }} by {{ report.created_by.get_full_name|default:report.created_by.get_username }}{% endfact %}
+    {% fact label="Opened" %}{{ report.created_at|when }} by {{ report.created_by|person }}{% endfact %}
   </dl>
   {% if latest %}<p class="small mt-3 mb-0 text-break">Current PDF SHA-256 <span class="vr-id text-wrap text-break">{{ report.current_pdf_sha256 }}</span></p>{% endif %}
   {% if not latest %}<p class="mb-0">No version has been issued. A draft record holds no evidence.</p>{% endif %}

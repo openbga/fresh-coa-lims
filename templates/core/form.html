@@ -9,7 +9,7 @@
   <dl class="vr-facts mb-0">
     {% policy_facts data=record.policy exclude="applies_to" %}
     {% if record.policy.applies_to %}{% fact label="Applies to" wide=True %}In addition to a lot's own rule set, every lot whose requirements are assigned for:{% if record.policy.applies_to.materials %} materials {{ record.policy.applies_to.materials|join:", " }};{% endif %}{% if record.policy.applies_to.stages %} stages {{ record.policy.applies_to.stages|join:", " }};{% endif %}{% if record.policy.applies_to.scopes %} scopes {{ record.policy.applies_to.scopes|join:", " }};{% endif %} each one named must match. A dimension not named matches every lot. It applies to a lot from the next time its requirements are assigned or replaced.{% endfact %}{% endif %}
-    {% fact label="Author" value=record.author.get_full_name|default:record.author.get_username %}
+    {% fact label="Author" value=record.author|person %}
     {% fact label="Effective interval" wide=True %}{% if record.effective_until %}{{ record.effective_from|when }} to {{ record.effective_until|when }}{% else %}from {{ record.effective_from|when }}{% endif %}{% endfact %}
     {% fact label="Revision" %}Reviewing {{ record.revision }}; signature binds approved revision {{ record.revision|add:"1" }}.{% endfact %}
   </dl>

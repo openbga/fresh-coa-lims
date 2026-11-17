@@ -423,7 +423,12 @@ def contract_approval_detail(request, pk):
             )
             if keeper and not contract.approval_denial(user, approval, approve=True)
             else None,
-            action("Revoke", reverse("laboratory:contract_approval_revoke", args=[approval.pk]))
+            action(
+                "Revoke",
+                reverse("laboratory:contract_approval_revoke", args=[approval.pk]),
+                danger=True,
+                more=True,
+            )
             if keeper and not contract.approval_denial(user, approval, approve=False)
             else None,
         ],

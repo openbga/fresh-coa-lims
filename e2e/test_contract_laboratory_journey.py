@@ -151,9 +151,12 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             expect(page.get_by_text("It was not tested in this laboratory.")).to_be_visible()
             expect(page.get_by_text("Approval relied on:")).to_be_visible()
             expect(page.get_by_text("QAG-SYN-001 rev 1")).to_be_visible()
+            # A correction is corrective, so it sits under More in the header.
+            page.locator(".vr-page-actions").get_by_role("button", name="More").click()
             expect(
                 page.get_by_role("link", name="Correct contract laboratory result", exact=True)
             ).to_be_visible()
+            page.keyboard.press("Escape")
             shots("contract-result-recorded")
             field("Reason").fill("Report transcribed")
             page.get_by_role("button", name="Submit for review", exact=True).click()

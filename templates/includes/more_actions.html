@@ -1,6 +1,9 @@
 {% comment %}
-The page header's "More" menu (docs/ui-standards.md): actions beyond the one primary and
-three secondary buttons, as a Bootstrap dropdown. Rendered by the {% more_actions %} block tag
+The page header's "More" menu (docs/ui-standards.md). Header actions rule: one primary = the
+role's next step, placed last; the actions that RESOLVE the current state stay visible as
+secondaries (at most three; destructive ones btn-outline-danger, e.g. Reject lot); More holds only
+rare, corrective or administrative actions (e.g. Cancel lot received in error), as a Bootstrap
+dropdown between the secondaries and the primary. Rendered by the {% more_actions %} block tag
 ({% load ui %}); the body is the menu's items, each <li><a class="dropdown-item" href="...">.
 An empty body renders nothing.
 Parameters:

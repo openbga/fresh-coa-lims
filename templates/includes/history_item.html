@@ -32,7 +32,7 @@ Usage:
     </ul>
     {% endif %}
     {% if reason %}<p class="vr-timeline-body">{{ reason|linebreaksbr }}</p>{% endif %}
-    {% if actor %}<p class="vr-timeline-meta">{% if by %}{{ by }} {% endif %}{{ actor.get_full_name|default:actor.get_username }}</p>{% endif %}
+    {% if actor %}<p class="vr-timeline-meta">{% if by %}{{ by }} {% endif %}{{ actor|person }}</p>{% endif %}
     {% if detail %}<p class="vr-timeline-meta">{{ detail }}</p>{% endif %}
     {% if extra %}{{ extra }}{% endif %}
   </div>

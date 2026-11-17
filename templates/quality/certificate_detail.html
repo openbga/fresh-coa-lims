@@ -25,7 +25,7 @@
       {% if receipt and receipt.supplier %}{% fact label="Receipt" %}<a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.code }}</a> · {{ receipt.supplier.name }}; supplier lot {{ receipt.supplier_lot|default:"not known" }}{% if receipt.manufacturer_lot %}; manufacturer lot {{ receipt.manufacturer_lot }}{% endif %}{% endfact %}{% endif %}
       {% fact label="Where the certificate is kept" %}{{ certificate.document_ref }}{% endfact %}
       {% fact label="Notes" %}{{ certificate.notes|default:"None"|linebreaksbr }}{% endfact %}
-      {% fact label="Recorded" %}<time datetime="{{ certificate.recorded_at|date:'c' }}">{{ certificate.recorded_at|date:"Y-m-d H:i T" }}</time> by {{ certificate.recorded_by.get_full_name|default:certificate.recorded_by.get_username }}{% endfact %}
+      {% fact label="Recorded" %}<time datetime="{{ certificate.recorded_at|date:'c' }}">{{ certificate.recorded_at|date:"Y-m-d H:i T" }}</time> by {{ certificate.recorded_by|person }}{% endfact %}
     </dl>
 {% endpanel %}
 {% panel title="Results stated by the supplier" heading_id="results-heading" count=rows|length class="mb-3" %}

@@ -4,7 +4,7 @@
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% include "catalog/includes/revision_status.html" with status=revision.status only %}</li><li>Record revision {{ revision.revision }}</li><li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
-{% if can_edit %}<a class="btn btn-outline-secondary" href="{% url 'catalog:test_new' revision.pk %}">Add test</a><a class="btn btn-outline-secondary" href="{% url 'catalog:specification_withdraw' revision.pk %}">Withdraw draft</a>{% endif %}
+{% if can_edit %}<a class="btn btn-outline-secondary" href="{% url 'catalog:test_new' revision.pk %}">Add test</a><a class="btn btn-outline-danger" href="{% url 'catalog:specification_withdraw' revision.pk %}">Withdraw draft</a>{% endif %}
 {% if can_approve %}<a class="btn btn-primary" href="{% url 'catalog:specification_approve' revision.pk %}">Review and approve</a>{% endif %}
 {% endblock %}
 {% block content %}
@@ -16,7 +16,7 @@
     {% fact label="Stage and scope" %}{{ spec.get_stage_display }} · {{ spec.scope }}{% endfact %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% fact label="Basis" %}{{ revision.basis|linebreaksbr }}{% endfact %}
-    {% fact label="Author" value=revision.author.get_full_name|default:revision.author.username %}
+    {% fact label="Author" value=revision.author|person %}
     {% fact label="Reason for version" %}{{ revision.change_reason|linebreaksbr }}{% endfact %}
   </dl>
 {% endpanel %}

@@ -10,7 +10,7 @@ submit_label, meaning, record (has revision), record_label, crumbs, cancel_url, 
 {% signature_card title=page_title hook="signature-dialog" %}
   {% fill summary %}<p>Your signature records <strong>{{ meaning }}</strong> for <strong class="vr-id">{{ record_label }}</strong> at record revision <strong>{{ record.revision }}</strong>. If the record changes before you sign, the server refuses the signature and you must review again.</p>
   {% include "analytical/_summary.html" with summary=summary only %}
-  <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>. The server records the execution time and binds the signature to the resulting revision {{ record.revision|add:"1" }}. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
+  <p>Signer: <strong>{{ request.user|person }}</strong>. The server records the execution time and binds the signature to the resulting revision {{ record.revision|add:"1" }}. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
   {% form_page form=form cancel_url=cancel_url cancel_hook="signature-cancel" submit_label=submit_label submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
 {% endsignature_card %}
 {% endblock %}

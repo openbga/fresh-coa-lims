@@ -92,7 +92,7 @@
     <p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to {{ lot.number }}</a></p>
     {% else %}
     <p>Your signature records the meaning <strong>requirements replaced</strong> for lot <strong>{{ lot.number }}</strong> at record revision <strong>{{ lot.revision }}</strong>: the requirements shown above as in force now are frozen for the lot, {{ preview.superseded|length }} test{{ preview.superseded|length|pluralize }} {{ preview.superseded|length|pluralize:"is,are" }} superseded and {{ preview.carried|length }} carr{{ preview.carried|length|pluralize:"ies,y" }} over. The earlier requirements and every test stay in the record. The server records the time and binds the signature to the resulting lot revision {{ lot.revision|add:"1" }}. If the versions in force or the lot's tests change before you sign, signing fails and you must review again.</p>
-    <p>Signer: <strong>{{ request.user.get_full_name|default:request.user.username }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
+    <p>Signer: <strong>{{ request.user|person }}</strong> ({{ request.user.username }}). To sign as someone else, sign out first. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a>.</p>
     {% form_page form=form cancel_url=cancel_url submit_label="Sign and replace requirements" submit_icon="vector-pen" autocomplete_off=True %}
       <fieldset class="vr-form-section">{% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}</fieldset>
       {% for field in form.hidden_fields %}{{ field }}{% endfor %}

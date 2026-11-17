@@ -52,7 +52,7 @@ Show one rehearsal: what was done, the criteria and outcome, the evidence files,
 |---|---|---|---|
 | **Attach evidence** | Awaiting acceptance, and you recorded it | Recorder | Opens the evidence form |
 | **Accept** | Awaiting acceptance, evidence attached, you are Quality and did not record it | Quality | Opens the signing page |
-| **Withdraw** | Awaiting acceptance, and you recorded it or are Quality | Recorder, Quality | Opens the withdrawal page |
+| **Withdraw** (under **More**) | Awaiting acceptance, and you recorded it or are Quality | Recorder, Quality | Opens the withdrawal page |
 | File name link | Each evidence file | Any viewer | Downloads the stored bytes |
 
 ## Fields

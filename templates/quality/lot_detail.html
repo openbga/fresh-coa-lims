@@ -9,7 +9,7 @@
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
 {% if can_record and can_dispose and not disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% if can_dispose and disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
-{% if can_dispose %}{% more_actions %}<li><a class="dropdown-item vr-menu-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a></li><li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
+{% if can_dispose %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
 {% if can_dispose and not disposition_denied %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% else %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
@@ -41,7 +41,7 @@
   {% fill actions %}<a class="vr-panel-link" href="{% url 'sampling:lot' lot.pk %}">Requirements and sampling{% icon name="arrow-right" %}</a><a class="vr-panel-link" href="{% url 'analytical:lot_testing' lot.pk %}">Testing and investigations{% icon name="arrow-right" %}</a>{% endfill %}
   <dl class="vr-facts vr-facts-3 mb-0">
     {% fact label="Supplier" %}{% if receipt.supplier %}<a href="{% url 'suppliers:detail' receipt.supplier_id %}">{{ receipt.supplier.name }}</a>{% if receipt.supplier_lot %}<small>{% code value=receipt.supplier_lot %}</small>{% endif %}{% elif receipt %}{{ receipt.get_source_display }}{% endif %}{% endfact %}
-    {% fact label="Received" %}{% if receipt %}{{ receipt.received_on|when:"date" }}<small>by {{ receipt.recorded_by.get_full_name|default:receipt.recorded_by.get_username }}</small>{% endif %}{% endfact %}
+    {% fact label="Received" %}{% if receipt %}{{ receipt.received_on|when:"date" }}<small>by {{ receipt.recorded_by|person }}</small>{% endif %}{% endfact %}
     {% fact label="Quantity" %}{% if receipt %}<span class="vr-data">{{ receipt.quantity_text }}</span> <span class="vr-unit">{{ receipt.quantity_unit }}</span><small>{{ receipt.containers }} · {{ receipt.container_description }}</small>{% endif %}{% endfact %}
     {% fact label="Rule set" %}{% code value=lot.rules %}{% for extra in assignment.payload.additional_rules %}{% if forloop.first %}<small>Applied in addition by the lot's requirements: {% else %}, {% endif %}{{ extra.code }} v{{ extra.version }}{% if forloop.last %}</small>{% endif %}{% endfor %}{% endfact %}
     {% fact label="Requirements" %}{% if assignment.status == "ready" %}{% status label=assignment.get_status_display tone="success" %}{% elif assignment %}{% status label=assignment.get_status_display tone="warning" %}{% else %}{% status label="Not assigned" tone="neutral" %}{% endif %}{% endfact %}
@@ -133,7 +133,7 @@
           <td>{{ item.evidence.stated.result }}{% if item.evidence.unit %} {{ item.evidence.unit }}{% endif %}{% if item.evidence.stated.wording %}<div class="vr-muted small">Stated as: {{ item.evidence.stated.wording }}</div>{% endif %}</td>
           <td>{{ item.evidence.certificate.number }}</td>
           <td>{{ item.evidence.qualification.label }}</td>
-          <td>{{ item.proposed_by.get_full_name|default:item.proposed_by.get_username }}</td>
+          <td>{{ item.proposed_by|person }}</td>
           <td>{% if item.state == "withdrawn" %}{% status label="Withdrawn" tone="neutral" plain=True %}{% elif item.problems %}{% status label="No longer stands" tone="danger" plain=True %}<div class="small">{{ item.problems|join:"; " }}. Withdraw it.</div>{% elif item.state == "accepted" %}{% status label="Accepted" tone="success" plain=True %}{% if item.notice %}<div>{% status label="Qualification revoked since" tone="warning" plain=True %}</div>{% endif %}{% else %}{% status label="Awaiting acceptance" tone="progress" plain=True %}{% endif %}</td>
         </tr>
         {% endfor %}

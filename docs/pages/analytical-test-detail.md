@@ -62,7 +62,7 @@ One analytical test: its frozen specification, replicate observations (made here
 |---|---|---|---|
 | **Record observation** | Test Open, test open for work (see Rules), fewer current values than replicates, and a batch assigned if the method needs one | Analyst | Opens the Record observation form |
 | **Record contract laboratory result** | Test Open, test open for work, no QC batch assigned, no observations | Analyst | Opens the Record contract laboratory result form. When no laboratory is approved for the method you are returned here with "No contract laboratory is approved for method METHOD. Quality records and signs the approval under Laboratory, Contract laboratories." |
-| **Correct contract laboratory result** | Test Open, test open for work, every current replicate was reported by a contract laboratory | Analyst | Opens the same page to correct the whole result |
+| **Correct contract laboratory result** (under **More**) | Test Open, test open for work, every current replicate was reported by a contract laboratory | Analyst | Opens the same page to correct the whole result |
 | **Correct** (row) | Test Open, test open for work, row is current and was not reported by a contract laboratory | Analyst | Opens the Correct observation form |
 | **Add to QC batch** | Open, test open for work, method needs a batch, none assigned, no observations | Analyst | Opens the Add to QC batch form |
 | **Attach raw data** | Test Open and test open for work | Analyst | Opens the Attach raw data form |

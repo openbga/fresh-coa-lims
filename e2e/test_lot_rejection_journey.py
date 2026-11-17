@@ -74,7 +74,6 @@ def test_quality_rejects_a_lot_and_cancels_one_received_in_error(
         # Independent quality person rejects the lot.
         login("rt_approver")
         page.goto(lot_url)
-        page.get_by_role("button", name="More", exact=True).click()  # beyond the primary
         page.get_by_role("link", name="Reject lot", exact=True).click()
         expect(page).to_have_url(reject_url)
         expect(page.get_by_role("heading", name=re.compile("^Reject lot"), level=1)).to_be_visible()
@@ -148,7 +147,7 @@ def test_quality_cancels_a_lot_received_in_error(live_server, django_user_model,
 
         login("rt_approver")
         page.goto(lot_url)
-        page.get_by_role("button", name="More", exact=True).click()  # beyond the primary
+        page.get_by_role("button", name="More", exact=True).click()  # a corrective action
         page.get_by_role("link", name="Cancel lot received in error").click()
         expect(page).to_have_url(cancel_url)
         field("What was recorded in error").fill("Synthetic: delivery recorded twice")

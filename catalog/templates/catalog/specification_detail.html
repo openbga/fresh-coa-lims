@@ -24,7 +24,7 @@
           <td>{% include "catalog/includes/revision_status.html" with status=revision.status plain=True only %}</td>
           <td>{% include "catalog/includes/effective.html" with revision=revision only %}</td>
           <td class="text-end">{{ revision.test_count }}</td>
-          <td>{{ revision.author.get_full_name|default:revision.author.username }}</td>
+          <td>{{ revision.author|person }}</td>
           <td>{% signature_list signatures=revision.signature_list hash=True %}</td>
         </tr>
         {% endfor %}

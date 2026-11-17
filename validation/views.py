@@ -447,7 +447,12 @@ def use_detail(request, pk):
             if services.has_role(user, services.KEEPER)
             and not services.use_denial(user, acceptance, accept=True)
             else None,
-            action("Withdraw", reverse("validation:use_withdraw", args=[acceptance.pk]))
+            action(
+                "Withdraw",
+                reverse("validation:use_withdraw", args=[acceptance.pk]),
+                danger=True,
+                more=True,
+            )
             if not services.use_denial(user, acceptance, accept=False)
             else None,
         ],
@@ -800,7 +805,12 @@ def rehearsal_detail(request, pk):
             action("Accept", reverse("validation:rehearsal_accept", args=[rehearsal.pk]), True)
             if not services.rehearsal_denial(user, rehearsal, accept=True)
             else None,
-            action("Withdraw", reverse("validation:rehearsal_withdraw", args=[rehearsal.pk]))
+            action(
+                "Withdraw",
+                reverse("validation:rehearsal_withdraw", args=[rehearsal.pk]),
+                danger=True,
+                more=True,
+            )
             if services.has_role(user, *services.REHEARSAL_RECORDERS)
             and not services.rehearsal_denial(user, rehearsal, accept=False)
             else None,

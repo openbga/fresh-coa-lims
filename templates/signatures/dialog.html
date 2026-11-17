@@ -8,7 +8,7 @@ Context: signing_title, meaning, lot, record, is_review, form, notices, denial, 
 {% signature_card title=signing_title hook=dialog_hook %}
   {% fill summary %}<p>Your signature records <strong>{{ meaning }}</strong> for lot <strong class="vr-id">{{ lot.number }}</strong>, record revision <strong class="vr-id">{{ record.revision }}</strong>.</p>
   {% if is_review %}<p>{{ record.test_code }}: {{ record.value }} {{ record.unit }} (limits {{ record.lower_limit }}–{{ record.upper_limit }} {{ record.unit }}).</p>{% endif %}
-  <p>Signer: {{ request.user.get_full_name|default:request.user.username }}. The server records the execution time and binds your signature to the resulting transition revision <strong class="vr-id">{{ record.revision|add:"1" }}</strong>.</p>
+  <p>Signer: {{ request.user|person }}. The server records the execution time and binds your signature to the resulting transition revision <strong class="vr-id">{{ record.revision|add:"1" }}</strong>.</p>
   <p class="mb-0"><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
   {% for item in notices %}{% notice tone="warning" %}{{ item }}{% endnotice %}{% endfor %}
   {% if denial %}{% notice tone="danger" label="Not permitted" blocking=True %}{{ denial }}{% endnotice %}<a class="btn btn-outline-secondary" href="{{ lot_url }}">Return to the lot</a>

@@ -53,7 +53,7 @@ Show one record of the laboratory's intended use: its content, the supported ass
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Accept** | Awaiting acceptance, you are Quality and did not record it, and both owners are still active | Quality | Opens the signing page |
-| **Withdraw** | Awaiting acceptance | Quality | Opens the withdrawal page |
+| **Withdraw** (under **More**) | Awaiting acceptance | Quality | Opens the withdrawal page |
 
 ## Fields
 

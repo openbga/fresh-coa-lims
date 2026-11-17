@@ -3658,8 +3658,9 @@ dialog > [data-signature-dialog].card {
   white-space: nowrap;
 }
 
-/* On a surface-2 well (history items, summaries, bulk bars) the chip takes the panel surface. */
-:is(.vr-timeline > li, .vr-sign-summary, .vr-bulkbar, .vr-container, .pagedocs-tips) .vr-code {
+/* On a surface-2 well (history items, summaries, bulk bars) and on the page ground (the page
+   header's key facts) the chip takes the panel surface, so it still reads as a chip. */
+:is(.vr-timeline > li, .vr-sign-summary, .vr-bulkbar, .vr-container, .pagedocs-tips, .vr-page-header) .vr-code {
   background: var(--vr-surface);
 }
 

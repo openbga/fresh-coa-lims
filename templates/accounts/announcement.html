@@ -16,7 +16,7 @@
   {% endif %}
 {% endpanel %}
 {% panel title="Change announcement" heading_id="announcement-change" class="mb-3" %}
-  <p>Signer: <strong>{{ user.get_full_name|default:user.username }}</strong>. Your signature means <strong>{{ meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
+  <p>Signer: <strong>{{ user|person }}</strong>. Your signature means <strong>{{ meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
   <p>The text is public and stays in the audit trail after it is changed. Do not enter personal data, or the password or PIN of any account that is not a synthetic demonstration account.</p>
   <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
   {% if unavailable %}{% notice tone="info" class="mb-0" %}{{ unavailable }}{% endnotice %}{% else %}

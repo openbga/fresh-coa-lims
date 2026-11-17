@@ -38,13 +38,13 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 ## Layout
 
-- **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons.
+- **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons. The status is the filled label; the identifier is a code; a muted line under it gives "Time zero" and "Record revision". One primary button, the next step for you; further buttons are secondary or under **More**.
 - **Details**: the facts below, starting with **Next pull**: the earliest scheduled pull: when it is overdue or due now, its status label in its tone (Overdue red, Due now amber) with the time point and due date under it; otherwise the time point and due date followed by Upcoming; blank when no pull is scheduled.
 - **Pull schedule** (when the study has pulls): one row per storage condition (label and setpoint), one column per time point (label and planned date); each cell is that pull's status label in its tone (Overdue red, Due now amber, Upcoming grey, Awaiting acceptance, Accepted) and links to the pull, "—" where the condition has no pull at that time point.
 - **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due now, Overdue, Awaiting acceptance, Accepted, Missed; an accepted pull tested in the system reads "Accepted · meets acceptance criteria" or "Accepted · acceptance criteria not met"), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
 - **Notice** "Criteria not met" (danger), when a pull of the study was accepted with the outcome "does not meet": it lists the time points and says the record of the lot is not changed by a stability result and that any hold or other action is for quality to decide.
 - **Results · <condition>** (one for each storage condition that has a pull tested in the system): rows are the condition's time points by interval, each linking to its pull; columns are the tests, each headed "<name> (<code>): <acceptance criterion>". A cell shows the reviewed result with unit (green), "<result> · out of specification" (red), "<result> · open" or "In testing" while undecided, and for a time point without tests "Missed", "Not pulled yet", "Sample <reference>, tested with the lot", "External evidence" or "No test assigned". Where the criterion changed between time points, the heading names the test only and each result adds "(against <criterion>)". Time points are rows so that the table grows down the page and a phone shows every result. Empty: "No results yet."
-- **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
+- **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; a short "No signatures yet." line when there are none.
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 
 ## Actions
@@ -52,7 +52,8 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
-| **Record pull** (Next column) | Pull Scheduled and you are an Analyst | Analyst | Opens the form |
+| **Record pull** (header) | The study is Active, a pull is scheduled and you are an Analyst | Analyst | The primary button: opens the form for the earliest scheduled pull |
+| **Record pull** (Next column) | Pull Scheduled, study Active and you are an Analyst | Analyst | Opens the form. Where nothing is open to you, the column names the next step ("Record pull", "Accept pull") in muted text |
 | **Mark missed** (Next column) | Pull Scheduled, today is after its window, and you are Analyst or Quality | Analyst, Quality | Opens the reason form |
 
 Only one link shows in a pull row: Record pull takes precedence for Analysts. The server checks study and pull state and roles again.
@@ -65,7 +66,7 @@ Only one link shows in a pull row: Record pull takes precedence for Analysts. Th
 | Container and closure, Time zero | `Study.*` | Text, date | — | Study design |
 | Lot rule basis at start | `Study.rule_basis` | Text | — | Rule set code, version and revision at the start |
 | Started by | `Study.created_by` | User | — | Cannot close the study |
-| Closed | `Study.closed_at` | Time | — | Time of closure; blank while Active |
+| Closed | `Study.closed_at` | Time | — | Time of closure; shown only once the study is closed |
 | Revision | `Study.revision` | Integer | — | Raised by each change |
 | Pulls table | `Pull.*`, `ProtocolTimepoint.*` | Rows | — | Timepoint (condition and label, links to the pull), Due, Window (from to to), Status, Tests (codes), Pulled by, Next. Empty: "No pulls scheduled." |
 
