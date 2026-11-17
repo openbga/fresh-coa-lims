@@ -41,7 +41,7 @@ Lists received lots with their requirement status and sample count, so analysts 
 - **Header**: title "Sampling", followed by the introduction.
 - **Intro**: "Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold."
 - **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear all** when filtered.
-- **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples.
+- **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Lot status cell**: the lot's status label (Quarantine, Released, Rejected, Cancelled), as on the material lot list.
 - **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned", and below it "Awaiting quality assessment" (amber) while a current sampling record of the lot has a deviation not yet assessed by quality.
 - **Footer**: "Showing X–Y of N lots", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.

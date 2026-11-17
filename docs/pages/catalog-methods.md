@@ -39,7 +39,7 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 - **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
 - **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear all** when filtered.
-- **Table**: Method (code link, sortable), Title, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
+- **Table**: Method (code link with the title under it, sortable), Versions, Status ("Has approved version" or "No approved version", plus "Draft pending"). **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N methods", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No methods yet" ("Add the first method and link its controlled procedure and suitability evidence.") with **New method** for quality; "No methods match these filters" ("Change or clear the filters.") with **Clear filters**.
 

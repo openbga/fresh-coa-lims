@@ -11,7 +11,7 @@ summary: Every controlled material and product that specifications and sampling 
 ## Common tasks
 ### Find a material
 1. Type part of a material code or name in [[Search]], then select [[Apply]].
-2. To change the order, select the [[Material]] or [[Name]] column heading.
+2. To change the order, select the [[Material]] column heading (it sorts by name).
 ### Create a material
 1. Select [[New material]]. It shows only to users with the quality role.
 2. Enter the code, name, kind and a reason on that page.
@@ -41,7 +41,7 @@ Lists the controlled materials and products that specifications and sampling pla
 - **Header**: title "Specifications and methods" and the **New material** button for quality, with the introduction below.
 - **Intro**: "Controlled materials and products that specifications and sampling plans apply to."
 - **Filter bar**: **Search** (placeholder "Code or name"), **Apply**, **Clear all** when filtered.
-- **Table**: Material (code), Name, Kind, Specifications (count), Created (date). Material and Name headers sort.
+- **Table**: Material (its kind's icon, name and code), Kind, Specifications (count), Created (date). The Material header sorts by name. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N materials", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No materials yet" ("Create the first controlled material or product.") with **New material** for quality; "No materials match these filters" ("Change or clear the filters.") with **Clear filters**.
 

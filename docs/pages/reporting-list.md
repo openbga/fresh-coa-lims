@@ -37,7 +37,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 - **Header**: title, the line "Versioned, immutable certificates built from signed QC disposition evidence." and the **New certificate of analysis** button (quality only).
 - **Toolbar** (at the top of the table card): **Search** (placeholder "Number, lot, material or recipient"), **Status** (default "All statuses"), **Apply**, and **Clear all** (only while a filter is active).
-- **Table**: Certificate, Lot, Material, Issued to, Status, Version. Certificate numbers link to the record; Certificate, Lot and Status headers sort.
+- **Table**: Certificate (with "version N", or "not issued", under it), Lot (links to the lot, with the material under it), Issued to, Status. Certificate numbers link to the record; Certificate, Lot and Status headers sort. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N certificates", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No certificates of analysis yet" ("A certificate can be issued once a lot has a signed QC disposition.", with **Start a certificate** for quality users) and, when filters are active, "No certificates match these filters" ("Change the search or clear the filters.") with **Clear filters**.
 

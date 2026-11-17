@@ -42,7 +42,7 @@ Lists every specification: the tests and limits a material must meet at a stage 
 - **Header**: title "Specifications and methods" and the **New specification** button for quality, with the introduction below.
 - **Intro**: "Approved, effective-dated specifications define the tests and limits each material must meet. Approved versions cannot be changed; create a new version instead."
 - **Filter bar**: **Search** (placeholder "Code, title or material"), **Stage** (default "All stages"), **Apply**, **Clear all** when filtered.
-- **Table**: Specification (code link with title below), Material, Stage, Scope, Versions, Status. Specification and Material headers sort.
+- **Table**: Specification (code link with title below), Material (its kind's icon, name and code), Stage, Scope, Versions, Status. Specification and Material headers sort. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Status cell**: "Has approved version" or "No approved version", plus "Draft pending" when any draft exists.
 - **Footer**: "Showing X–Y of N specifications", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No specifications yet" ("Create a material and an approved method first, then the specification that lists its tests and limits.") with a **New specification** button for quality; "No specifications match these filters" ("Change or clear the filters.") with **Clear filters**.

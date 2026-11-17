@@ -35,7 +35,7 @@ Shows one specification: what it applies to, all of its versions with status, ef
 
 ## Layout
 
-- **Breadcrumbs**: Specifications and methods, the specification code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the specification title.
+- **Breadcrumbs**: Specifications and methods, the specification code. Under the heading: **Approved** for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; the material (its kind's icon, name and code); "Version N in force"; and the stage. The title is the first fact of Applicability.
 - **Applicability**: Material, Stage, Scope. A scope other than "general" adds "(overlay: applies in full to a lot assigned under this scope, beside the specifications of the lot's other scopes; never merged with them)".
 - **Versions** table, newest version first: Version (link), Status, Effective, Tests, Author, Approval.
 - **Approval column**: each signature as one line: "Signed", the signer, the meaning, the time, "Record revision N" and the start of the content hash; "Not signed." when none.

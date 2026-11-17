@@ -45,8 +45,13 @@ def test_every_list_has_columns_saved_per_user():
     for relative, text in list_templates():
         if relative in NOT_A_LIST or relative in PENDING:
             continue
-        keys = {m.group(1) for m in re.finditer(r'list_results\b[^%]*\bgrid="([^"]+)"', text)}
-        tables = {m.group(1) for m in re.finditer(r'grid_table\b[^%]*\bgrid="([^"]+)"', text)}
+        # A literal key or the same variable (a generic list template gets its key from the view).
+        keys = {
+            m.group(1) for m in re.finditer(r'list_results\b[^%]*\bgrid=("[^"]+"|[\w.]+)', text)
+        }
+        tables = {
+            m.group(1) for m in re.finditer(r'grid_table\b[^%]*\bgrid=("[^"]+"|[\w.]+)', text)
+        }
         if not keys or keys != tables:
             missing.append(relative)
     assert not missing, f"lists without a grid_table and list_results grid key: {missing}"

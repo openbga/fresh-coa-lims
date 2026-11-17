@@ -32,7 +32,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 ## Layout
 
-- **Header**: breadcrumbs, "Report number version N", status "Current version" or "Superseded", issue time, **Open PDF** and then **Download PDF** (the primary button, last).
+- **Header**: breadcrumbs, "Report number version N", status "Current version" or "Superseded" (a superseded version also shows the fact **Superseded by** as a blue **Superseded** label with the link to the newer version under it), issue time, **Open PDF** and then **Download PDF** (the primary button, last).
 - **Issued record**: Signature, Size, links to the version it amends or is superseded by, PDF SHA-256, Evidence SHA-256, and a note that content comes from the frozen snapshot.
 - **Certificate**: the stored certificate content, including the signature table.
 

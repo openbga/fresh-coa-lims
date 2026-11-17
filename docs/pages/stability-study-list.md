@@ -39,7 +39,7 @@ One study per approved protocol, lot and container closure; the entry point to e
 - **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and a **New study** button for Analyst, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (study ID, lot number or product) and **Status** (All, Active, Completed, Terminated). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Study (links to the record), Lot (number), Protocol (protocol identifier), Container closure, Time zero, State. Sort by Time zero (newest first by default), Study (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
+- **Table**: Study (links to the record, with the protocol identifier under it), Lot (links to the lot, with the protocol's product under it), Container closure, Time zero, State. Sort by Time zero (newest first by default), Study (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Start a study on an approved protocol to schedule its pulls."); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 

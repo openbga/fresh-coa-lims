@@ -33,7 +33,7 @@ One hold on a lot (optionally one reserve sample) with its reason, who placed it
 ## Layout
 
 - **Header**: breadcrumbs, title "<Kind> hold · <lot number>", identifier (HOLD-n) and state label (Active or Released), action buttons.
-- **Notice**: while active, a warning "On hold: QC disposition and disposal of this lot are blocked." For an already released lot the hold does not alter the released record or issued certificate; it blocks future issue or amendment and disposal.
+- **Status fact** (first in Details): while active, the label **On hold** in the hold tone with "QC disposition and disposal of this lot are blocked." under it; once released, the Released label. For an already released lot the hold does not alter the released record or issued certificate; it blocks future issue or amendment and disposal.
 - **Details**: Lot (links to the lot record), Reserve sample (links to its record, blank if none), Kind, Reference, Reason, Placed by, Placed, Released, Revision.
 
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
@@ -56,7 +56,7 @@ One hold on a lot (optionally one reserve sample) with its reason, who placed it
 
 ## Rules and hidden logic
 
-- An active hold shows the warning notice. Any active hold on the lot, including one limited to a reserve sample, refuses QC disposition of that lot.
+- An active hold shows the **On hold** status fact. Any active hold on the lot, including one limited to a reserve sample, refuses QC disposition of that lot.
 - A released hold is immutable. Signatures show the release signature; History shows `hold.placed` and `signed.approved` events.
 
 ## Related pages

@@ -37,7 +37,7 @@ List the recorded rehearsals of recovery from backup, downtime with reconciliati
 
 - Tabs **Intended use** and **Rehearsals**, the title and an introduction.
 - A filter bar: **Search**, **Status**, **Apply**, and **Clear all** once a filter is set.
-- A table with the columns **Record**, **Rehearsal of**, **Title**, **Performed**, **Release**, **Status**, **Files**; paging at 25, 50 or 100 rows.
+- A table with the columns **Record** (with the title under it), **Rehearsal of**, **Performed**, **Release**, **Status**, **Files**; paging at 25, 50 or 100 rows.
 - Empty state "No records yet": "Record a rehearsal after it took place, attach its evidence, then have a quality person accept it."
 
 ## Actions

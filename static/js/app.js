@@ -316,6 +316,43 @@
   document.addEventListener("DOMContentLoaded", function () { markLowPriorityColumns(document); });
   document.addEventListener("htmx:load", function (event) { markLowPriorityColumns(event.detail.elt); });
 
+  // Shortened text keeps its full text in a tooltip: a one-line sub-line or name in a table cell
+  // that ends in an ellipsis, or a value clamped to two lines, gains a title (controls.js turns
+  // titles into the shared tooltip) while it is shortened. The full text stays in the DOM.
+  var TRUNCATED = ".vr-table .vr-sub, .vr-table .vr-clip-main, .vr-table .vr-clamp, .vr-facts .vr-fact-truncate";
+
+  function tipTruncated(scope) {
+    var added = [];
+    (scope || document).querySelectorAll(TRUNCATED).forEach(function (element) {
+      var cut = element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1;
+      if (cut && !element.hasAttribute("title") && !element.hasAttribute("data-bs-original-title")) {
+        element.setAttribute("title", element.textContent.replace(/\s+/g, " ").trim());
+        element.setAttribute("data-vr-truncated", "");
+        added.push(element);
+      }
+    });
+    return added;
+  }
+
+  function tipLater() {
+    tipTruncated(document).forEach(function (element) {
+      if (window.vrControls) {
+        window.vrControls.init(element.parentElement || element);
+      }
+    });
+  }
+
+  // Before controls.js turns titles into tooltips on load; again once fonts and column fitting
+  // have settled, and after the window changes size.
+  document.addEventListener("DOMContentLoaded", function () { tipTruncated(document); });
+  window.addEventListener("load", tipLater);
+  var tipTimer = null;
+  window.addEventListener("resize", function () {
+    window.clearTimeout(tipTimer);
+    tipTimer = window.setTimeout(tipLater, 200);
+  });
+  document.addEventListener("htmx:load", function (event) { tipTruncated(event.detail.elt); });
+
   // Dashboard band: each stage's segment grows with its open work (CSSOM, so the content security
   // policy's style-src 'self' holds; the markup carries the count as text).
   function sizeFlowBand(scope) {

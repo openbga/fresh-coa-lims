@@ -37,7 +37,7 @@ Lists sampling plans: how many containers and how much material to sample for ea
 - **Header**: title "Sampling" and the **New sampling plan** button for quality, with the introduction below.
 - **Intro**: "Approved sampling plans state how many containers and how much material to sample for each material and stage."
 - **Filter bar**: **Search** (placeholder "Code, title or material"), **Apply**, **Clear all** when filtered.
-- **Table**: Plan (code link with title, sortable), Material, Stage, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending").
+- **Table**: Plan (code link with title, sortable), Material (its kind's icon, name and code), Stage, Versions, Status ("Has approved version" or "No approved version", plus "Draft pending"). **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N sampling plans", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No sampling plans yet" ("Create the plan for a material and stage.") with **New sampling plan** for quality; "No sampling plans match these filters" with **Clear filters**.
 

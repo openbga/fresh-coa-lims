@@ -46,7 +46,7 @@ Shows the approved requirements frozen for one lot (the scopes it is assigned un
 
 ## Layout
 
-- **Breadcrumbs**: Sampling, lot number. Under the heading: "Lot status" (Quarantine, Released, Rejected or Cancelled), "Record revision N" and a link **Open lot record**.
+- **Breadcrumbs**: Sampling, lot number. Under the heading: the lot status label (Quarantine, Released, Rejected or Cancelled), the material (the assigned catalog material with its kind's icon and code, or the material as received before requirements are assigned), "Record revision N" and a link **Open lot record**.
 - **Closed banner** (lot not in Quarantine): "Closed" and "This lot is no longer in quarantine. Its requirements and sampling records are read-only."
 - **Sampling readiness for QC disposition** (first panel): "No sampling blockers" with "Every sample has current sampling provenance against the assigned plan. Testing and other gates still apply.", or a "Blocked" alert "QC disposition is blocked by sampling until:" listing the reasons (see Rules).
 - **Current requirements**: when testing has started on a quarantined lot, a "Fixed" note reads "Testing has started, so these requirements cannot be assigned again. When a specification, a method or the rule set is revised, quality can replace them with a signature; tests whose requirement changes are then superseded and repeated."

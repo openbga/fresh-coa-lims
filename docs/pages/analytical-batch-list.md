@@ -38,7 +38,7 @@ List QC batches: analytical runs for one method revision with their QC checks. T
 - **Section tabs**: **Tests**, **QC batches**, **Investigations**. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Testing" and the **New QC batch** button for analysts, with the introduction below.
 - **Filter bar**: **Find**, **Status** (default "All batches"), **Apply**, **Clear all** when filtered.
-- **Table** (caption "QC batches, newest first"): Batch, QC status, Method, Created, Created by. Footer: "Showing X–Y of N batches", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
+- **Table**: Batch (with the method code and revision under it), QC status, Created, Created by. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit. Footer: "Showing X–Y of N batches", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No QC batches yet" (with **New QC batch** for analysts) and "No batches match these filters".
 
 ## Actions

@@ -41,7 +41,7 @@ List the records of the laboratory's intended use of the system and show whether
 - Tabs **Intended use** and **Rehearsals**, the title, and an introduction.
 - A notice about the current acceptance (see Rules).
 - A filter bar: **Search**, **Status**, **Apply**, and **Clear all** once a filter is set.
-- A table with the columns **Record**, **Title**, **State**, **Recorded by**, **Recorded**, **Accepted**, **Changes since acceptance**; paging at 25, 50 or 100 rows.
+- A table with the columns **Record** (with the title under it), **State**, **Recorded by**, **Recorded**, **Accepted**, **Changes since acceptance**; paging at 25, 50 or 100 rows.
 - Empty state "No records yet": "Record the laboratory's intended use, its supported assays and owners, then have a different quality person accept it."
 
 ## Actions

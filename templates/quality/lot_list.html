@@ -13,7 +13,7 @@
         <th scope="row"><a class="vr-row-link vr-id" href="{% url 'quality:lot_detail' lot.pk %}">{{ lot.number }}</a></th>
         <td>{% include "quality/includes/lot_status.html" with lot=lot plain=True only %}{% for label, tone in lot.hold_labels %}<br>{% status label=label tone=tone plain=True %}{% endfor %}</td>
         <td>{% material_tag material=lot.material kind=lot.route_material_kind code=lot.route_material_code size="sm" sub=False %}</td>
-        {% with receipt=lot.current.0 %}{% if receipt %}<td>{% if receipt.supplier %}{{ receipt.supplier.name }}<span class="vr-sub">{% if receipt.supplier_lot %}{% code value=receipt.supplier_lot %}{% else %}Supplier lot not known{% endif %}</span>{% else %}{{ receipt.get_source_display }}{% endif %}</td><td class="vr-nowrap"><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></td>{% else %}<td>Receipt not recorded</td><td>—</td>{% endif %}{% endwith %}
+        {% with receipt=lot.current.0 %}{% if receipt %}<td>{% if receipt.supplier %}<span class="vr-ellipsis" title="{{ receipt.supplier.name }}">{{ receipt.supplier.name }}</span><span class="vr-sub">{% if receipt.supplier_lot %}{% code value=receipt.supplier_lot %}{% else %}Supplier lot not known{% endif %}</span>{% else %}{{ receipt.get_source_display }}{% endif %}</td><td class="vr-nowrap"><time datetime="{{ receipt.received_on|date:'Y-m-d' }}">{{ receipt.received_on|date:"Y-m-d" }}</time></td>{% else %}<td>Receipt not recorded</td><td>—</td>{% endif %}{% endwith %}
         <td>{% route stages=lot.route micro=True summary=lot.route_summary %}</td>
         <td>{% code value=lot.rules %}</td>
       </tr>{% endfor %}</tbody>

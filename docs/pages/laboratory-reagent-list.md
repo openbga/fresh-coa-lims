@@ -39,7 +39,7 @@ Reagent, reference-standard and prepared-solution lots with provenance, independ
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New reagent lot** button for Analyst, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (identifier, name or supplier lot; case-insensitive "contains") and **Status** (All, Awaiting release, Released for use, Expiring within 30 days, Released but expired, Rejected). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Identifier (links to the record), Name, Kind, Supplier lot, Expiry (last day of use), State. Sort by Identifier (default), Name or Expiry. Sortable headers toggle ascending/descending.
+- **Table**: Identifier (links to the record, with the name under it), Kind, Supplier lot, Expiry (last day of use), State. Sort by Identifier (default) or Expiry. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record a received reagent or standard lot, or a prepared solution.", with **New reagent lot** for roles that can record); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 

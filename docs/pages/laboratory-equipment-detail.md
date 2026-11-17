@@ -64,7 +64,7 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Fitness label | — | Label | — | As on the list (Out of service, Not calibrated, Calibration failed, Calibration overdue, Not qualified, Due soon, Ready) |
-| Calibration due | Due date of the latest counted calibration | Date, shown as a label in the fitness tone (red when overdue or failed, amber when due soon) | — | First fact in Details; blank when the equipment has never been calibrated |
+| Calibration due | Due date of the latest counted calibration | Date; when overdue or due soon, the fitness label in its tone (Calibration overdue red, Due soon amber) with the date under it | — | First fact in Details; blank when the equipment has never been calibrated |
 | Category, Location | `Equipment.category`, `.location` | Text | — | Identity |
 | Qualification required | `Equipment.requires_qualification` | Yes/No | — | Whether qualification evidence is part of fitness |
 | Service state / Last status change / Changed by | `Equipment.state`, `.status_changed_at`, `.status_changed_by` | In service or Out of service; time with zone; user | — | Who last put it out of or into service; blank for equipment never changed |

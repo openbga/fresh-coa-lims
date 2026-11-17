@@ -36,7 +36,7 @@ One certificate of analysis series: its status, every issued version with who si
 
 ## Layout
 
-- **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended), "Current: version N", and actions.
+- **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended), "Current: version N", and actions. An amended certificate also opens the Record panel with the fact **Amended** (blue) and "Current version N; earlier versions stay on record unchanged" under it.
 - **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened, and the current PDF SHA-256.
 - **Versions** (once issued): Version, Kind, Status, Issued, Signed by, Reason, Files.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).

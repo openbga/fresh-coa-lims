@@ -39,7 +39,7 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 ## Layout
 
 - **Header**: breadcrumbs (Studies, this study), title (protocol product and lot number), identifier, state label (Active, Completed, Terminated) and action buttons.
-- **Details**: the facts below, starting with **Next pull**: the earliest scheduled pull's time point and due date, followed by its status label (Overdue, Due now, Upcoming); blank when no pull is scheduled.
+- **Details**: the facts below, starting with **Next pull**: the earliest scheduled pull: when it is overdue or due now, its status label in its tone (Overdue red, Due now amber) with the time point and due date under it; otherwise the time point and due date followed by Upcoming; blank when no pull is scheduled.
 - **Pull schedule** (when the study has pulls): one row per storage condition (label and setpoint), one column per time point (label and planned date); each cell is that pull's status and links to the pull, "—" where the condition has no pull at that time point. A cell whose pull is due now is marked.
 - **Pulls**: timepoint (links to the pull), due date, window, status (Upcoming, Due now, Overdue, Awaiting acceptance, Accepted, Missed; an accepted pull tested in the system reads "Accepted · meets acceptance criteria" or "Accepted · acceptance criteria not met"), tests, pulled by and a next-step link (**Record pull** or **Mark missed**).
 - **Notice** "Criteria not met" (danger), when a pull of the study was accepted with the outcome "does not meet": it lists the time points and says the record of the lot is not changed by a stability result and that any hold or other action is for quality to decide.
