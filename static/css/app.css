@@ -2109,16 +2109,23 @@ a.vr-navlink[aria-current="page"]:hover {
   white-space: normal;
 }
 
-/* Status labels in table cells keep one line, so a row stays within two lines (a second pill
-   stacks under the first). A long status sentence (a blocker reason) in a free-text cell
-   (.vr-wrap) wraps instead of widening the table past its panel. */
-.vr-table td .vr-status {
-  white-space: nowrap;
+/* Status labels in table cells keep one line from 768px, so a row stays within two lines (a
+   second pill stacks under the first). On phones a plain status sentence wraps so its text stays
+   on screen; a long one (a blocker reason) in a free-text cell (.vr-wrap) always wraps instead of
+   widening the table past its panel. Filled pills never wrap. */
+.vr-table td .vr-status-plain {
+  align-items: flex-start;
+  white-space: normal;
+}
+
+@media (min-width: 768px) {
+  .vr-table td .vr-status-plain {
+    white-space: nowrap;
+  }
 }
 
 .vr-table td.vr-wrap .vr-status-plain {
   max-width: 24rem;
-  align-items: flex-start;
   white-space: normal;
 }
 
