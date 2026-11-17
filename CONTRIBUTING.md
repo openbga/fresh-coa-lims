@@ -28,8 +28,20 @@ Run the commands in [Checks](README.md#checks) in the README against the Compose
 - `uv run python manage.py makemigrations --check --dry-run`
 - `uv run python manage.py collectstatic --noinput` (needed before template tests)
 - `uv run pytest -n auto` (parallel workers; plain `uv run pytest` runs the same tests in one process)
+- `uv run python manage.py changelog --check` (`CHANGELOG.md` is generated from `changelog.d/`)
 
 Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them. Every browser action there waits until the page's deferred scripts have run (`e2e/conftest.py`); a test that must act earlier says so with `@pytest.mark.before_page_scripts`. `E2E_CPU_THROTTLE=4` runs the pages on a slowed CPU, as on a busy CI runner.
+
+## Changelog entries
+
+Every change that users, deployers or integrators can observe adds one file to [changelog.d/](changelog.d/) in the same pull request. The application shows these entries under **What's new**, and `CHANGELOG.md` is generated from them, so never edit `CHANGELOG.md` by hand.
+
+1. Add `changelog.d/YYYY-MM-DD-short-slug.md`, dated the day you write it, with the front matter `date`, `type` (`added`, `changed`, `fixed`, `removed`, `deprecated` or `security`), `impact` (`high`, `medium` or `low`) and `title`, and optionally `area`, `link` (a page's URL name) and `pr`. Below it, one to three plain sentences for the people who use the application; settings, migrations, dependencies and upgrade steps go under `## Technical notes`.
+2. Run `uv run python manage.py changelog` and commit the entry with the regenerated `CHANGELOG.md`.
+
+Changes nobody outside the code can observe (refactors, tests, CI, internal documentation, the presentation website) need no entry: say so in the pull request, and a maintainer adds the label `no-changelog` if the `changelog` check asks for one. The format, how to rate impact and how to word an entry are in the [`changelog-entry`](.agents/skills/changelog-entry/SKILL.md) skill.
+
+A branch that added bullets to `CHANGELOG.md` before entry files existed moves each bullet into an entry file (its technical text under `## Technical notes`), then regenerates the file; `manage.py changelog --check` says the same when it finds hand edits.
 
 ## Engineering rules
 
@@ -62,6 +74,7 @@ Shared agent instructions live in `.agents/`. `.claude/skills` and `.claude/rule
 |---|---|---|
 | Skill | [`build-page`](.agents/skills/build-page/SKILL.md) | Building or changing any page, form, dialog or template: page types, `{% load ui %}` components, controls, lists, tokens, icons |
 | Skill | [`document-page`](.agents/skills/document-page/SKILL.md) | Writing or updating the in-app page documentation in `docs/pages/` |
+| Skill | [`changelog-entry`](.agents/skills/changelog-entry/SKILL.md) | Writing the `changelog.d/` entry of a change, rating its impact, regenerating `CHANGELOG.md`, moving hand-written bullets into entries |
 | Skill | [`project-code-review`](.agents/skills/project-code-review/SKILL.md) | The pre-PR gate: diff review against `AGENTS.md` and the UI rules, fixes, the CI checks, browser journeys, before/after screenshots |
 | Rule | [`backend.md`](.agents/rules/backend.md) | The helpers behind the backend rules: role checks, signed transitions, PIN handling, audit, revisions, exact decimals, migrations, tests and traceability |
 | Rule | [`frontend.md`](.agents/rules/frontend.md) | Short frontend rules: components, tokens, icons, controls, signing dialog, page documentation |

@@ -1,4 +1,4 @@
-{% load static pagedocs preferences ui %}<!doctype html>
+{% load static pagedocs preferences ui whatsnew %}<!doctype html>
 {% comment %}
 Application document and staff shell. Block contract (docs/ui-standards.md):
   title          <title>; defaults to "{{ page_title }} · OpenBGA QM LIMS"
@@ -69,6 +69,7 @@ Every page ends with {% app_footer %} outside <main>.
     {% brand href=home_url|default:"/" compact=True %}
     {% if lab.name %}<span class="vr-lab-name d-none d-md-inline">{{ lab.name }}</span>{% endif %}
     <div class="vr-topbar-end">
+      {% if user.is_authenticated %}{% whatsnew_button %}{% endif %}
       {% theme_menu %}
       {% if user.is_authenticated %}<span class="vr-topbar-user d-none d-md-inline">{{ user|person }}</span><form method="post" action="{% url 'logout' %}" novalidate>{% csrf_token %}<button class="btn btn-sm vr-topbar-btn" type="submit">Sign out</button></form>{% pagedocs_button %}{% endif %}
     </div>

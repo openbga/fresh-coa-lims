@@ -502,7 +502,7 @@ def build(results, output, root=None, acceptance=None):
     version = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"][
         "version"
     ]
-    heading, notes = release_notes(root, version)
+    heading, notes = release_notes(root)
     summary = {
         "product": PRODUCT,
         "version": version,
@@ -594,17 +594,13 @@ def build(results, output, root=None, acceptance=None):
     return summary
 
 
-def release_notes(root, version):
-    """The CHANGELOG section of this version, or the unreleased changes when it has none."""
-    text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-    for heading in (f"## [{version}]", "## [Unreleased]"):
-        start = text.find(heading)
-        if start == -1:
-            continue
-        end = text.find("\n## [", start + len(heading))
-        section = text[start : end if end != -1 else len(text)].rstrip() + "\n"
-        return heading[3:], section
-    raise PackError("CHANGELOG.md has neither a section for this version nor [Unreleased].")
+def release_notes(root):
+    """The generated CHANGELOG.md as it is: every change up to this commit, by month and impact
+    (manage.py changelog writes it from changelog.d/; it has no per-version sections)."""
+    path = root / "CHANGELOG.md"
+    if not path.is_file():
+        raise PackError("CHANGELOG.md is missing.")
+    return "Every change up to this commit", path.read_text(encoding="utf-8")
 
 
 def _counts(cases, not_run):

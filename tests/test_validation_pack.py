@@ -58,13 +58,11 @@ def repo(tmp_path, monkeypatch):
         """
         # Changelog
 
-        ## [Unreleased]
+        ## November 2026 (2026-11-17)
 
-        - Something new.
+        ### High impact
 
-        ## [0.1.0]
-
-        - First.
+        - **Added**: Something new · 2026-11-17
         """,
     )
     write(
@@ -196,7 +194,7 @@ def test_pack_of_passing_suites(repo):
     )
     assert summary["status"] == "passed"
     assert summary["commit"] == COMMIT and summary["version"] == "0.2.0"
-    assert summary["release_notes"] == "[Unreleased]"
+    assert summary["release_notes"] == "Every change up to this commit"
     assert [(r["id"], r["status"], r["counts"]) for r in summary["requirements"]] == [
         ("OQ-001", "passed", {"passed": 3, "failed": 0, "skipped": 0, "not_run": 0}),
         ("OQ-002", "passed", {"passed": 1, "failed": 0, "skipped": 0, "not_run": 0}),
@@ -218,7 +216,7 @@ def test_pack_of_passing_suites(repo):
     )
     with (output / "requirements.csv").open(encoding="utf-8") as handle:
         assert [r["requirement"] for r in csv.DictReader(handle)] == ["OQ-001", "OQ-002"]
-    assert (output / "release-notes.md").read_text() == "## [Unreleased]\n\n- Something new.\n"
+    assert (output / "release-notes.md").read_text() == (repo / "CHANGELOG.md").read_text()
     assert (output / "results/browser/junit.xml").is_file()
     assert (output / "documents/traceability.toml").is_file()
 
@@ -237,10 +235,12 @@ def test_pack_of_passing_suites(repo):
         assert hashlib.sha256((output / name).read_bytes()).hexdigest() == digest
 
 
-def test_release_notes_of_the_version_when_the_changelog_has_it(repo):
-    text = (repo / "pyproject.toml").read_text().replace('"0.2.0"', '"0.1.0"')
-    (repo / "pyproject.toml").write_text(text)
-    assert pack.release_notes(repo, "0.1.0") == ("[0.1.0]", "## [0.1.0]\n\n- First.\n")
+def test_release_notes_are_the_generated_changelog_as_it_is(repo):
+    text = (repo / "CHANGELOG.md").read_text()
+    assert pack.release_notes(repo) == ("Every change up to this commit", text)
+    (repo / "CHANGELOG.md").unlink()
+    with pytest.raises(pack.PackError, match="CHANGELOG.md is missing"):
+        pack.release_notes(repo)
 
 
 @pytest.mark.parametrize(

@@ -65,7 +65,7 @@ Use semantic headings, real buttons for actions and links for navigation. Provid
 
 Page documentation uses the shared `pagedocs` right-side panel, accessed at the top-right of the top bar. A documented page opens with a summary, Common tasks and Good to know; the reference sections follow collapsed, with a filter. Inside the form dialog the panel documents the form shown there. Keep field help on forms and page-level explanations in `docs/pages/`, written with the [document-page skill](../.agents/skills/document-page/SKILL.md); avoid separate per-page help modals. The panel follows navigation and remembers open state and width. On narrow screens the open panel covers the page, and the covered page leaves the keyboard order until the panel closes.
 
-On phone widths, the top bar shows Menu as a labelled icon, reserves room for theme, sign-out and page-documentation controls, and truncates only the brand text if needed. Verify the shell in Linux Chromium as well as the local browser: system-font metrics must not push controls outside the viewport. Do not mask layout overflow with page-wide clipping.
+The top bar's right-hand group holds the global utilities, in this order: **What's new** (with the count of changes since the user last looked), theme, the signed-in user, sign-out and page documentation. On phone widths, the top bar shows Menu as a labelled icon, reserves room for What's new, theme, sign-out and page-documentation controls (the What's new count sits on its icon), and truncates only the brand text if needed. Verify the shell in Linux Chromium as well as the local browser: system-font metrics must not push controls outside the viewport. Do not mask layout overflow with page-wide clipping.
 
 ## Tokens
 

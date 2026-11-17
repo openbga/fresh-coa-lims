@@ -19,6 +19,7 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("admin/", admin.site.urls),
     path("page-docs/", include("pagedocs.urls")),
+    path("whats-new/", include("whatsnew.urls")),
     path("", include("core.urls")),
     path("", include("quality.urls")),
     path("testing/", include("analytical.urls")),
