@@ -196,7 +196,7 @@ For an exceptional operator-run migration, stop competing deployment attempts fi
 
 Each laboratory validates the system for its own intended use. The validation pack is supplier evidence for that work: it shows which automated tests give evidence for each product requirement and how they ended on one commit. It does not validate the system for a laboratory's intended use, configuration or infrastructure, and it does not state compliance with any regulation.
 
-CI builds a pack for every pull request and every push to `develop`, after the application suite, the browser suite and the container smoke test pass, and keeps it as the workflow artifact `validation-pack-<commit>` for 90 days. The `validation-pack` job is a check of the commit like the others: an incomplete pack fails it (and is kept, with its reasons), and the demonstration deploys a `develop` commit only after all of its checks pass. A release merges a `develop` commit into `main` with the same tree, so the pack of a release is the one of that `develop` commit: download it from the commit's `checks` run on `develop` and keep it with the release record before the artifact expires.
+CI builds a pack for every pull request and every push to `develop`, after the application suite, the browser suite and the container smoke test pass (which also runs the [acceptance journeys](#acceptance-journeys) with the application image), and keeps it as the workflow artifact `validation-pack-<commit>` for 90 days. The `validation-pack` job is a check of the commit like the others: an incomplete pack fails it (and is kept, with its reasons), and the demonstration deploys a `develop` commit only after all of its checks pass. A release merges a `develop` commit into `main` with the same tree, so the pack of a release is the one of that `develop` commit: download it from the commit's `checks` run on `develop` and keep it with the release record before the artifact expires.
 
 | File | Holds |
 |---|---|
@@ -205,10 +205,11 @@ CI builds a pack for every pull request and every push to `develop`, after the a
 | `pack.json` | The summary, the tests that failed, did not run or were skipped (with the reason the map allows, or none), and results traced to no requirement |
 | `results/application/`, `results/browser/` | Each suite's JUnit file as pytest wrote it, with the commit the tests ran on and whether the checkout had uncommitted changes, recorded when the tests started; and `environment.json`: commit, run, runner, Python, the PostgreSQL server version, every installed package with its version, and Chromium's version for the browser suite |
 | `documents/` | `product.md` (the requirements), `regulations.md` (the regulatory rows they cite) and `traceability.toml` (the map from requirements to tests), as of the commit |
+| `acceptance/` | The evidence folder of the [acceptance journeys](#acceptance-journeys) run with the application image of the commit, as the command wrote it, with its own `SHA256SUMS` |
 | `release-notes.md` | The changelog section of the version in `pyproject.toml`, or the unreleased changes while the changelog has none |
 | `SHA256SUMS` | The SHA-256 of every other file. Check with `sha256sum -c SHA256SUMS` |
 
-A requirement **passed** when at least one test traced to it passed, none failed, every traced test ran and none was skipped without a reason the map allows. The pack **passed** only when every requirement and project check passed, no test failed, every result is traced and the tests ran on the commit without uncommitted changes; otherwise it is **failed** (a test failed) or **incomplete**, and the command exits nonzero. A passing test shows that the behaviour it checks worked as tested; it does not show that the requirement is met in full. The requirement's delivery column states what is not implemented.
+A requirement **passed** when at least one test traced to it passed, none failed, every traced test ran and none was skipped without a reason the map allows. The pack **passed** only when every requirement and project check passed, no test failed, every result is traced, the tests ran on the commit without uncommitted changes and the acceptance journeys included, if any, passed; otherwise it is **failed** (a test or the acceptance journeys failed) or **incomplete**, and the command exits nonzero. A passing test shows that the behaviour it checks worked as tested; it does not show that the requirement is met in full. The requirement's delivery column states what is not implemented.
 
 The map in `docs/traceability.toml` names, for each requirement in [product.md](product.md#requirements-and-traceability), the test directories, modules or single tests that give evidence for it; a project check that states no product requirement, such as the licence notice, is listed under `[project]`. `[skips]` names the tests that may be skipped where a pack is built, each with the reason; today a test that only writes certificates for a person to look at, and the backup round trip, which needs `pg_dump` of the server's major version or newer and is run with the application image by CI's container smoke job, which the pack's job waits for. The application suite refuses a map in which a requirement has no test, an entry does not exist or a test is not traced (`python scripts/validation_pack.py check` runs the same check).
 
@@ -226,7 +227,47 @@ uv run python scripts/validation_pack.py build --results build/validation/applic
   --results build/validation/browser --output build/validation-pack
 ```
 
+Add `--acceptance <folder>` to include the evidence of an [acceptance journeys](#acceptance-journeys) run of the same commit: the build refuses a folder whose files do not match its `SHA256SUMS` or whose release is another commit.
+
 Each suite's conftest writes the commit into the JUnit file when the tests start. The build refuses a JUnit file without it, results whose environment was recorded at another commit than the tests ran on, results of another commit than the checkout, results of two commits, a suite given twice and an existing output directory. A pack built on, or from tests run on, a checkout with uncommitted changes is incomplete and says so. These tests run against a disposable test database. They do not test the deployment's own configuration, data, rule sets or infrastructure; the laboratory's acceptance of those remains its own work.
+
+## Acceptance journeys
+
+The acceptance journeys run the record paths a laboratory relies on, end to end, with the release it is about to use and in its own environment: its image or installation, its PostgreSQL server and its settings. Each journey works on its own synthetic lot through the same server-side services the pages call, and checks at each step what should happen, including what must be refused:
+
+| Journey | What it does | Refusals it checks |
+|---|---|---|
+| Passing | Receives a lot, assigns its requirements, samples it, records and submits a conforming assay, has it reviewed, signs the QC disposition, issues the certificate and reads it back; tries to change the stored certificate, a signature and an audit event in the database | An observation without a value; review of one's own result; a review signed with a wrong PIN, whose failed attempt is counted and kept although the review is refused; a disposition by the person who received the lot, who also holds the quality role |
+| Failing | Records a failing assay, which opens an investigation; the original is reviewed and assessed, one retest is authorized, recorded and reviewed, the investigation concludes that the failure is confirmed and the lot is rejected on its results with a reference to the quality system | Disposition and rejection while the investigation is open; a second retest beyond the specification's one; invalidating the original when the retest also fails; requirements for the rejected lot, to sample it again |
+| Corrected | Corrects a receipt's quantity, then an observation the reviewer returned because it differs from the raw data; releases the lot and issues the certificate with the corrected value | A change to the original observation in the database; a disposition by the receipt's corrector |
+| Rejected | Rejects a lot with a discrepancy on receipt before any testing; receives the same delivery twice by mistake and cancels the second lot | Rejection by the person who received it; requirements, a disposition and a certificate for the rejected lot |
+| Amended | Releases a lot, issues its certificate and amends it with a reason; version 1 is read back unchanged | An amendment from a stale view of the certificate |
+
+Each journey ends by exporting its lot's record as the auditor, so the evidence holds the record as the journey left it. Before the journeys the run creates eight synthetic accounts and the configuration they use: a rule set, a method, a specification (assay 98.00 to 102.00 %, one retest), a sampling plan and the analyst's qualification for the method, each approved by someone other than its author; the author's own approval of the rule set is refused.
+
+Run it in a new database created for it, migrated to the release, with `SOURCE_REVISION` set to the release's commit (Render sets `RENDER_GIT_COMMIT`):
+
+```sh
+psql "$SERVER/postgres" -c 'CREATE DATABASE qm_acceptance_20261117'
+DATABASE_URL="$SERVER/qm_acceptance_20261117" python manage.py migrate
+DATABASE_URL="$SERVER/qm_acceptance_20261117" SOURCE_REVISION=<commit> \
+  python manage.py acceptance_journeys --database qm_acceptance_20261117 \
+  --output /evidence/acceptance-20261117 --operator "<name>"
+```
+
+The command refuses to run when the database it is connected to is not the one `--database` names, so a run whose `DATABASE_URL` was left at the deployment's own database stops before writing anything, even in a new production database that has no account yet. It also refuses a database that holds any account, one that lacks a migration of the release or holds one the release does not know, and an existing output directory. It commits every record it makes, as the pages do, so it runs only where nothing else is kept: never point it at the laboratory's database or at a copy someone still needs. Drop the database afterwards, or keep it to inspect the records; the accounts' passwords and PINs were random and held in memory during the run, never shown, and only their hashes are stored, so nobody can sign in with them. A run takes about a minute, mostly checking PINs at the deployment's hashing work factor. It exits nonzero when a step failed; a failed step stops its journey and the other journeys still run (a failed configuration step stops them all), and the report is written either way. A run that was interrupted leaves the records it made, so the database then refuses another run: create a new one.
+
+| File | Holds |
+|---|---|
+| `report.html` | The outcome; the operator, start and end; the application version, release, PostgreSQL server, Python, Django and platform; the synthetic accounts and their roles; each journey's steps with what was expected, what was observed, the outcome and the product requirements it gives evidence for; the files with their checksums; and space for the laboratory's review. Printable |
+| `report.json` | The same, for tools (schema `oq.acceptance-journeys/1`) |
+| `<journey>/<lot>-record-<time>.zip` | The export of each lot's record as the journey left it, the package the lot page downloads |
+| `<journey>/<certificate>-v<n>.pdf` | Each certificate version issued, as stored |
+| `SHA256SUMS` | The SHA-256 of every other file. Check with `sha256sum -c SHA256SUMS` |
+
+CI runs the journeys with the application image of every commit in a new database, and the [validation pack](#validation-pack-of-a-release) keeps their evidence under `acceptance/`.
+
+The run is evidence that the release behaves as these journeys expect in the environment it ran in. It uses synthetic configuration: it does not test the laboratory's rule sets, specifications, methods, procedures or intended use, nor the pages in a browser, which the browser suite of the validation pack covers. Assess it as a test tool for the purpose the laboratory uses it for, and record that assessment, the issues found and the conclusion in the report's review section or in the validation report. Run it when accepting a release and in the [upgrade rehearsal](#validation-records-of-the-laboratory), and attach `report.html` and `SHA256SUMS` to the rehearsal record. The same five journeys, performed through the pages with the laboratory's own configuration and each lot's record exported, are a starting point for its own acceptance tests.
 
 ## Validation records of the laboratory
 
@@ -246,7 +287,7 @@ The laboratory keeps two kinds of validation record in the system, under **Valid
 |---|---|---|
 | Recovery from backup | Take a backup with `backup_manifest`, restore it into a new database and run `verify_restore` ([backup](#backup-with-a-manifest), [restore check](#restore-check-in-a-new-local-database)); bring the application up on the copy and check sign-in, reading and a certificate download; measure the recovery time and the work that would be lost against the laboratory's RTO and RPO | The restore check report and the manifest (both hold no record content), the times measured |
 | Downtime and reconciliation | Follow the laboratory's downtime procedure: work on paper or another approved means while the system is unavailable, then enter or attach those records in the system and reconcile them | The reconciliation record: each record made during the downtime and where it now is in the system |
-| Upgrade | On a copy of the production data, apply the new release's migrations with no application connected, compare row counts before and after (the restore check report of the copy and a fresh manifest), and repeat the laboratory's acceptance tests on the new release | Row counts or manifests before and after, the laboratory's test results; name the release before and after |
+| Upgrade | On a copy of the production data, apply the new release's migrations with no application connected, compare row counts before and after (the restore check report of the copy and a fresh manifest), run the [acceptance journeys](#acceptance-journeys) with the new release in a new database, and repeat the laboratory's acceptance tests on the new release | Row counts or manifests before and after, the acceptance journeys' `report.html` and `SHA256SUMS`, the laboratory's test results; name the release before and after |
 
 Files are stored unchanged with their SHA-256 and the same size limit as raw-data files; a download checks the checksum again, and the restore check verifies it with the other stored files. Do not attach database archives, credentials or real personal data. How often to rehearse, the RTO and RPO, and which records to reconcile are the laboratory's decisions.
 
