@@ -60,6 +60,7 @@ def sign_in(page: Page, base_url: str, username: str, password: str = PASSWORD, 
     page.get_by_role("button", name="Sign in", exact=True).click()
     if home:
         expect(page).to_have_url(base_url + "/")
+        page.wait_for_load_state("domcontentloaded")  # the page's deferred scripts have run
 
 
 def login(page: Page, live_server, person, password: str = PASSWORD):

@@ -219,6 +219,7 @@ def test_sidebar_collapse_follows_the_person(live_server, django_user_model):
     with browser_page() as page:
         watch(page, errors)
         sign_in(page, live_server.url, "analyst", PASSWORD)
+        page.wait_for_load_state("domcontentloaded")  # deferred scripts have run
         toggle = page.locator("[data-vr-nav-toggle]")
         expect(toggle).to_have_attribute("aria-expanded", "true")
         with page.expect_response(lambda r: r.url.endswith("/preferences/")) as saved:
@@ -234,6 +235,7 @@ def test_sidebar_collapse_follows_the_person(live_server, django_user_model):
     assert UserPreference.objects.get(user=people["analyst"], key="nav.collapsed").value is True
     with browser_page() as page:  # another person on the same workstation
         sign_in(page, live_server.url, "analyst2", PASSWORD)
+        page.wait_for_function("window.vrPreferences")  # deferred preferences.js has run
         expect(page.locator(".vr-shell.vr-nav-collapsed")).to_have_count(0)
         # Rapid changes of one setting: requests can arrive in any order, the last one wins.
         posts = []
