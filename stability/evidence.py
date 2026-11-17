@@ -189,6 +189,22 @@ def test_author_ids(pull):
     return ids | investigation_author_ids(Investigation.objects.filter(test__pull=pull))
 
 
+def _excluded(test):
+    """A test of the lineage whose result is not reported. One recorded as not completed
+    carries the readings and cause its record froze, so a failure found only there is kept."""
+    row = {"test": test.pk, "kind": test.kind, "state": test.state}
+    if test.state == STATE.NOT_COMPLETED:
+        record = test.not_completed_record
+        row["not_completed"] = {
+            "cause": record["cause"],
+            "recorded": record["recorded"],
+            "outside_limits": record["outside_limits"],
+            "follow_up": record["follow_up"],
+            "signature": _signature("analytical.analyticaltest", test.pk, "not_completed"),
+        }
+    return row
+
+
 def frozen_results(pull, results):
     """Frozen-ready JSON of a pull's results for its acceptance; nothing is recomputed later.
     ``results`` is what ``pull_results`` read for the signature, so the signer's check and the
@@ -234,11 +250,7 @@ def frozen_results(pull, results):
                 "name": row["lineage"][0].spec.name,
                 "outcome": row["outcome"],
                 "tests": reported,
-                "excluded_tests": [
-                    {"test": t.pk, "kind": t.kind, "state": t.state}
-                    for t in row["lineage"]
-                    if t not in row["tests"]
-                ],
+                "excluded_tests": [_excluded(t) for t in row["lineage"] if t not in row["tests"]],
             }
         )
     return {

@@ -856,6 +856,10 @@ def _comparison(pulls):
                     cells.append("")
                 elif row is None or not row["lineage"]:
                     cells.append(status(*_untested(pull)))
+                elif not row["tests"] and row["outcome"] == FAILS:
+                    # Readings outside the criterion on a test that could not be completed,
+                    # confirmed by its investigation: there is no reported result to show.
+                    cells.append(status("Fails · test not completed", "danger"))
                 elif not row["tests"]:
                     missed = pull.state == Pull.State.MISSED
                     cells.append(

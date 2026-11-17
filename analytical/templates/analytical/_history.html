@@ -5,7 +5,7 @@
     {% if signatures %}
     <ol class="vr-timeline">
       {% for s in signatures %}<li class="vr-history-item">
-        <div class="vr-timeline-head"><span class="vr-timeline-title">Signed: {{ s.meaning }}</span><time class="vr-timeline-meta" datetime="{{ s.signed_at|date:'c' }}">{{ s.signed_at|date:"Y-m-d H:i T" }}</time></div>
+        <div class="vr-timeline-head"><span class="vr-timeline-title">Signed: {% if s.meaning == "not_completed" %}not completed{% else %}{{ s.meaning }}{% endif %}</span><time class="vr-timeline-meta" datetime="{{ s.signed_at|date:'c' }}">{{ s.signed_at|date:"Y-m-d H:i T" }}</time></div>
         <p class="vr-timeline-meta">{{ s.signer_name }} · bound to record revision {{ s.revision }} · content hash <span class="vr-id">{{ s.content_hash|truncatechars:17 }}</span></p>
       </li>{% endfor %}
     </ol>

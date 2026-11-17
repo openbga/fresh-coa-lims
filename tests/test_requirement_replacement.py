@@ -459,8 +459,9 @@ def test_results_that_were_not_submitted_are_not_set_aside(world):
     preview = sampling.replacement_preview(lot)
     assert preview.reasons == [
         f"{assay.label} assay holds results or raw-data files that were not submitted, and its "
-        "requirement would change. Complete and submit it first, so that what was recorded is "
-        "evaluated against the requirement it was tested under."
+        "requirement would change. Complete and submit it first, or have quality record that it "
+        "cannot be completed, so that what was recorded is evaluated against the requirement it "
+        "was tested under."
     ]
     with pytest.raises(ValidationError, match="holds results or raw-data files that were not"):
         replace(world)

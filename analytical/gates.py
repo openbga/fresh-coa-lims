@@ -303,9 +303,12 @@ def _excluded(test):
     that record and its signature, so the certificate's evidence says why."""
     row = {"test": test.pk, "test_code": test.test_code, "kind": test.kind, "state": test.state}
     if test.state == STATE.NOT_COMPLETED:
+        record = test.not_completed_record
         row["not_completed"] = {
-            "cause": test.not_completed_record["cause"],
-            "follow_up": test.not_completed_record["follow_up"],
+            "cause": record["cause"],
+            "recorded": record["recorded"],
+            "outside_limits": record["outside_limits"],
+            "follow_up": record["follow_up"],
             "signature": _signature("analytical.analyticaltest", test.pk, "not_completed"),
         }
     return row

@@ -929,7 +929,7 @@ def _oos_trigger(test, readings):
         )
     else:
         text = f"Out-of-specification {test.test_code}: reportable {test.reportable_with_unit}"
-    return text if len(text) <= TRIGGER_LENGTH else text[: TRIGGER_LENGTH - 1] + "…"
+    return investigation_trigger(text)
 
 
 def _open_investigation(*, actor, test, trigger):
@@ -1137,15 +1137,33 @@ SAME, OTHER_SAMPLE = "same", "sample"
 REPEATED, UNDER_INVESTIGATION, OPENS_INVESTIGATION = "repeat", "investigation", "opens"
 SELF_NOT_COMPLETED = (
     "You recorded or submitted data on this test, recorded QC of its batch or attached its raw "
-    "data. Another quality person must record that it cannot be completed."
+    "data, or you produced the result its investigation is about or investigated it. Another "
+    "quality person must record that it cannot be completed."
 )
 
 
 def outside_limits(test):
-    """The current readings of an open test that fail its frozen requirement on their own, as
-    recorded: the comparison batch rejection and lot rejection make."""
+    """The current readings of a test that was not submitted that show a failure: each one that
+    fails the frozen requirement on its own (``fails_alone``) or, when every replicate is
+    recorded, all of them if the result submission would calculate fails. Batch rejection, lot
+    rejection and the record that a test cannot be completed all judge unsubmitted readings
+    with it."""
     spec = test.spec
-    return [o.value_text for o in test.current_observations() if not spec.conforms(o.reading)]
+    current = list(test.current_observations())
+    outside = [o.value_text for o in current if spec.fails_alone(o.reading)]
+    if not outside and current and len(current) == spec.replicates:
+        try:
+            conforms = spec.evaluate([o.reading for o in current])[3]
+        except ValidationError:
+            conforms = True  # cannot be calculated, so it could not be submitted either
+        if not conforms:
+            outside = [o.value_text for o in current]
+    return outside
+
+
+def investigation_trigger(text):
+    """An investigation's trigger, shortened to fit its field."""
+    return text if len(text) <= TRIGGER_LENGTH else text[: TRIGGER_LENGTH - 1] + "…"
 
 
 def not_completed_follow_up(test, outside=None):
@@ -1170,9 +1188,21 @@ def not_completed_refusal(actor, test):
         return "Only an open test is recorded as not completed."
     if refusal := supplier_refusal(test):
         return refusal
-    if actor.pk in _test_authors(test):
+    if actor.pk in not_completed_authors(test):
         return SELF_NOT_COMPLETED
     return None
+
+
+def not_completed_authors(test):
+    """Who must not record that the test cannot be completed: its data authors and, for a test
+    of an investigation, everyone who may not conclude that investigation (the data authors of
+    the result investigated and the investigation's own authors)."""
+    authors = _test_authors(test)
+    if test.investigation_id is not None:
+        investigation = Investigation.objects.filter(pk=test.investigation_id)
+        authors |= investigation_author_ids(investigation)
+        authors |= _test_authors(investigation.get().test)
+    return authors
 
 
 def _root_sample_id(test):
@@ -1182,10 +1212,11 @@ def _root_sample_id(test):
 
 
 def repeat_samples(test):
-    """The other samples of the test's lot that a repeat may be made on: a sample holding no
-    original test whose every test answers for the same sample as this one, so that a new
-    sample stands in for one sample of the lot, never for several. Empty for a stability pull,
-    which is repeated on the material pulled."""
+    """The other samples of the test's lot that a repeat may be made on: a sample collected
+    after the test was assigned, holding no original test, whose every test answers for the
+    same sample as this one, so that a new sample stands in for one sample of the lot, never
+    for several, and a routine sample awaiting its own tests is never taken for one. Empty for
+    a stability pull, which is repeated on the material pulled."""
     if test.lot_id is None:
         return Sample.objects.none()
     root = _root_sample_id(test)
@@ -1195,7 +1226,7 @@ def repeat_samples(test):
         if other.kind == AnalyticalTest.Kind.ORIGINAL or _root_sample_id(other) != root:
             blocked.add(other.sample_id)
     return (
-        Sample.objects.filter(lot_id=test.lot_id)
+        Sample.objects.filter(lot_id=test.lot_id, collected_at__gt=test.created_at)
         .exclude(pk=test.sample_id)
         .exclude(pk__in=blocked)
         .order_by("-pk")
@@ -1252,8 +1283,8 @@ def record_not_completed(
                 raise ValidationError(PULL_RESAMPLE)
             if sample is None or not repeat_samples(locked).filter(pk=sample.pk).exists():
                 raise ValidationError(
-                    "Choose a sample of this lot that holds no tests of its own and stands in "
-                    "for no other sample."
+                    "Choose a sample of this lot collected after this test was assigned, that "
+                    "holds no tests of its own and stands in for no other sample."
                 )
             child = _repeat(actor, locked, sample.pk)
         else:
@@ -1267,8 +1298,10 @@ def record_not_completed(
             investigation = _open_investigation(
                 actor=actor,
                 test=locked,
-                trigger=f"Out-of-limit {locked.test_code} values {', '.join(outside)} in a "
-                "test that could not be completed",
+                trigger=investigation_trigger(
+                    f"Out-of-limit {locked.test_code} values {', '.join(outside)} in a test "
+                    "that could not be completed"
+                ),
             )
         files = locked.raw_files.count()
         locked.state = AnalyticalTest.State.NOT_COMPLETED
@@ -1593,6 +1626,18 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
             raise ValidationError("Only open batches can be rejected.")
         if locked.qc_status()[0] != "failed":
             raise ValidationError("Only a batch with failed QC can be rejected.")
+        # The investigations its tests belong to come before the tests, as in every other
+        # transition: a rerun of an authorized retest is inserted with a link to one of them.
+        # The batch is locked, so no test joins it meanwhile.
+        investigation_ids = set(
+            locked.tests.exclude(investigation=None).values_list("investigation_id", flat=True)
+        )
+        list(
+            Investigation.objects.select_for_update()
+            .filter(pk__in=investigation_ids)
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
         members = list(locked.tests.select_for_update().order_by("pk"))
         recorders = set(locked.qc_results.values_list("recorded_by_id", flat=True))
         for test in members:
@@ -1625,10 +1670,7 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
                 raise ValidationError(
                     "Only open or awaiting-review tests can be invalidated by batch rejection."
                 )
-            spec = test.spec
-            out_of_limits = [
-                o.value_text for o in test.current_observations() if not spec.conforms(o.reading)
-            ]
+            out_of_limits = outside_limits(test)
             test.state = AnalyticalTest.State.INVALIDATED
             _touch(test)
             # A rerun of an authorized retest stays inside that investigation's lineage.
@@ -1659,8 +1701,10 @@ def reject_batch(*, actor, pin, batch, expected_revision, reason):
                 _open_investigation(
                     actor=actor,
                     test=test,
-                    trigger=f"Out-of-limit {test.test_code} values {', '.join(out_of_limits)} "
-                    f"in QC-failed batch {locked.number}",
+                    trigger=investigation_trigger(
+                        f"Out-of-limit {test.test_code} values {', '.join(out_of_limits)} "
+                        f"in QC-failed batch {locked.number}"
+                    ),
                 )
         locked.state = QCBatch.State.REJECTED
         _bump(*subjects)

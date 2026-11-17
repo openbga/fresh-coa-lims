@@ -37,7 +37,7 @@
         {% for row in tests %}
         <tr>
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a><br>{{ row.test_code }}{% if row.kind != "original" %}<br><span class="small">{{ row.kind_label }}</span>{% endif %}</th>
-          <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted: {{ row.unsubmitted|join:", " }}{% if row.outside_limits %} ({{ row.outside_limits|join:", " }} outside the limits){% endif %}{% elif row.state == "open" and row.raw_data %} · raw data attached, no result{% endif %}</td>
+          <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted: {{ row.unsubmitted|join:", " }}{% if row.outside_limits %} ({{ row.outside_limits|join:", " }} outside the limits){% endif %}{% elif row.state == "open" and row.raw_data %} · raw data attached, no result{% elif row.state == "not_completed" and row.unsubmitted %} · recorded: {{ row.unsubmitted|join:", " }}{% if row.outside_limits %} ({{ row.outside_limits|join:", " }} outside the limits){% endif %}{% endif %}</td>
           <td>{% if row.conforms is True %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% elif row.conforms is False %}{% include "includes/status.html" with label="Out of specification" tone="danger" plain=True %}{% else %}—{% endif %}</td>
           <td>{{ row.sample|default:"—" }}</td>
         </tr>

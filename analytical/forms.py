@@ -464,8 +464,9 @@ class NotCompletedForm(SigningForm):
         label="Sample for the repeat",
         queryset=None,
         required=False,
-        help_text="Only for a repeat on another sample: a sample of this lot that holds no tests "
-        "of its own and stands in for no other sample.",
+        help_text="Only for a repeat on another sample: a sample of this lot collected after this "
+        "test was assigned, holding no tests of its own and standing in for no other sample. It "
+        "then stands in for this test's sample and takes no tests of its own.",
     )
     reason = _reason(
         "Why the test cannot be completed",

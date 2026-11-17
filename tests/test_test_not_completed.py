@@ -706,9 +706,10 @@ def test_a_pull_test_is_repeated_on_the_material_pulled(people):  # noqa: F811
     assert accepted.outcome == "conforms"
     (result,) = accepted.result_evidence["results"]
     assert [t["test"] for t in result["tests"]] == [repeat.pk]
-    assert result["excluded_tests"] == [
-        {"test": test.pk, "kind": "original", "state": "not_completed"}
-    ]
+    (excluded,) = result["excluded_tests"]
+    assert (excluded["test"], excluded["state"]) == (test.pk, "not_completed")
+    assert excluded["not_completed"]["cause"] == "handling"
+    assert excluded["not_completed"]["signature"]["meaning"] == "not_completed"
 
 
 def test_a_study_closes_once_unfinished_work_is_recorded_not_completed(people):  # noqa: F811
@@ -774,3 +775,37 @@ def test_a_qc_batch_keeps_a_test_not_completed_as_it_is(people):  # noqa: F811
     assert list(AnalyticalTest.objects.filter(parent=water).values_list("kind", flat=True)) == [
         "repeat"
     ]
+
+
+def test_a_pull_failure_found_on_an_unfinished_test_is_accepted_and_shown(people, client):  # noqa: F811
+    study, _ = stb.specified_study(people)
+    pull = stb.pulled(people, study)
+    (test,) = stb.assign(people, pull)
+    stb.observe(people, test, "91.0")  # outside 95.0 to 105.0
+    closed = pull_not_completed(people, test)
+    investigation = Investigation.objects.get(test=closed)
+    analytical.add_entry(
+        actor=people["analyst2"],
+        investigation=investigation,
+        kind="assessment",
+        text="Synthetic assessment: no laboratory error found",
+    )
+    investigation.refresh_from_db()
+    analytical.conclude(
+        actor=people["quality2"],
+        pin=stb.PIN,
+        investigation=investigation,
+        expected_revision=investigation.revision,
+        outcome="confirmed",
+        assignable_cause="",
+        reason="Out-of-specification result confirmed",
+    )
+    accepted = stb.accept(people, pull)
+    assert accepted.outcome == "fails"
+    (result,) = accepted.result_evidence["results"]
+    assert result["outcome"] == "fails" and result["tests"] == []
+    (excluded,) = result["excluded_tests"]
+    assert excluded["not_completed"]["outside_limits"] == ["91.0"]
+    client.force_login(people["quality"])
+    page = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
+    assert "Fails · test not completed" in page

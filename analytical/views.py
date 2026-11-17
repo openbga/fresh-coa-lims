@@ -646,7 +646,7 @@ def test_not_completed(request, pk):
         form,
         title=f"Record that {test.label} cannot be completed",
         submit="Sign: not completed",
-        meaning="not_completed",
+        meaning="not completed",
         record=test,
         record_label=test.label,
         crumbs=test_crumbs(test, "Not completed"),
@@ -661,6 +661,20 @@ def test_not_completed(request, pk):
             *([("Outside the limits", ", ".join(outside))] if outside else []),
             *([("Raw-data files", f"{files} kept with the test")] if files else []),
             *([("QC batch", test.batch.number)] if test.batch_id else []),
+            *(
+                [
+                    (
+                        "Retest allowance",
+                        "It holds readings or files, so it still counts toward the "
+                        "specification's retests."
+                        if test.observations.exists() or files
+                        else "It holds no reading or file, so it will not count toward the "
+                        "specification's retests.",
+                    )
+                ]
+                if test.investigation_id
+                else []
+            ),
             (
                 "What follows",
                 FOLLOW_UP_TEXT[follow].format(investigation=investigation, subject=subject),
@@ -1236,7 +1250,7 @@ def batch_reject(request, pk):
             ("QC status", status.capitalize()),
             (
                 "Tests invalidated",
-                batch.tests.exclude(state="superseded")
+                batch.tests.exclude(state__in=sorted(services.CLOSED_BY_RECORD))
                 .exclude(pull__state="missed")
                 .exclude(pull__study__state__in=["completed", "terminated"])
                 # A rejected lot keeps its tests as the rejection froze them.
