@@ -242,6 +242,7 @@
     "e2e/test_login_layout.py",
     "e2e/test_section_navigation.py",
     "e2e/test_shell_layout.py",
+    "tests/test_dashboard.py",
 ]
 "Shared interface components, form controls and per-user preferences" = [
     "e2e/test_alignment.py",
