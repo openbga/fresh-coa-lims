@@ -1,9 +1,14 @@
-{% load static ui %}<aside class="pagedocs-panel" id="pagedocs-panel" aria-label="Page documentation" data-pagedocs-panel data-pagedocs-endpoint="{{ endpoint }}">
-  <div class="pagedocs-splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pagedocs-panel" aria-label="Resize page documentation" data-pagedocs-splitter></div>
+{% load static ui %}{% comment %}
+The Help drawer: one edge only, set off by its own surface and a soft left shadow, never a border.
+pagedocs.js loads the current page's documentation (fragment.html) into the body, docks the drawer
+inside the form dialog while that is open, and keeps the open state and width per person.
+{% endcomment %}<aside class="pagedocs-panel" id="pagedocs-panel" aria-label="Page documentation" data-pagedocs-panel data-pagedocs-endpoint="{{ endpoint }}">
+  <div class="pagedocs-splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-controls="pagedocs-panel" aria-label="Resize page documentation" aria-describedby="pagedocs-resize-help" data-pagedocs-splitter></div>
+  <p class="visually-hidden" id="pagedocs-resize-help">Use the Left and Right arrows to resize. Home sets the narrowest width, End the widest; a double-click restores the default. Escape closes the documentation.</p>
   <div class="pagedocs-header">
-    <p class="pagedocs-kicker">{% icon name="journal-text" %}<span>Page documentation</span></p>
-    <a class="btn btn-sm vr-topbar-btn pagedocs-full" href="{{ full_url }}" data-pagedocs-full title="Open as a full page" data-bs-placement="bottom">{% icon name="file-earmark-text" %}<span class="visually-hidden">Open documentation as a full page</span></a>
-    <button class="btn btn-sm vr-topbar-btn" type="button" aria-label="Close page documentation" data-pagedocs-close>{% icon name="x-lg" %}</button>
+    <p class="pagedocs-kicker">{% icon name="journal-text" %}<span>Help</span></p>
+    <a class="btn btn-sm btn-outline-secondary vr-btn-icon pagedocs-full" href="{{ full_url }}" data-pagedocs-full title="Open as a full page" data-bs-placement="bottom">{% icon name="file-earmark-text" %}<span class="visually-hidden">Open documentation as a full page</span></a>
+    <button class="btn btn-sm btn-outline-secondary vr-btn-icon" type="button" aria-label="Close page documentation" title="Close" data-bs-placement="bottom" data-pagedocs-close>{% icon name="x-lg" %}</button>
   </div>
   <div class="pagedocs-body" data-pagedocs-body aria-live="polite"><p class="vr-muted">Loading documentation…</p></div>
 </aside>

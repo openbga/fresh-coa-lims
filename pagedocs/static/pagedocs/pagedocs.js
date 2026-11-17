@@ -357,6 +357,21 @@
       }
       if (event.target.closest("[data-pagedocs-close]")) {
         close();
+        return;
+      }
+      // Jump links scroll the drawer to a part, never the page or its address.
+      var jump = event.target.closest("[data-pagedocs-jump]");
+      if (jump && panel.contains(jump)) {
+        var target = body.querySelector(jump.getAttribute("href"));
+        if (target) {
+          event.preventDefault();
+          target.scrollIntoView({ block: "start" });
+          var heading = target.querySelector("h3");
+          if (heading) {
+            heading.setAttribute("tabindex", "-1");
+            heading.focus({ preventScroll: true });
+          }
+        }
       }
     });
     document.addEventListener("input", function (event) {

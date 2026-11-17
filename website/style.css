@@ -175,7 +175,7 @@ h1, h2, h3 { color: var(--vr-text-strong); text-wrap: balance; letter-spacing: -
 .site-chip:hover .site-tip, .site-chip:focus-visible .site-tip { opacity: 1; visibility: visible; }
 
 /* Roadmap areas */
-.site-zone-section { scroll-margin-top: 5.5rem; }
+.site-zone-section, .site-chip { scroll-margin-top: 5.5rem; }
 .site-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--vr-space-4); }
 .site-card { position: relative; background: var(--vr-surface); border-radius: var(--vr-radius-xl); box-shadow: var(--vr-shadow-panel); padding: var(--vr-space-6); scroll-margin-top: 6rem; transition: box-shadow var(--vr-motion-fast) var(--vr-ease); }
 .site-band .site-card { background: var(--vr-surface); }
@@ -208,6 +208,10 @@ h1, h2, h3 { color: var(--vr-text-strong); text-wrap: balance; letter-spacing: -
   .site-zone .site-chips { padding-left: 3.5rem; }
 }
 @media (max-width: 575.98px) {
+  /* The nav wraps to a tall header on phones: it scrolls away instead of covering anchors. */
+  html { scroll-padding-top: var(--vr-space-4); }
+  .site-header { position: static; }
+  .site-zone-section, .site-chip, .site-card { scroll-margin-top: var(--vr-space-4); }
   .site-links { width: 100%; }
   .site-tip { display: none; }
 }

@@ -26,17 +26,17 @@ summary: Everything about one material lot: its receipt, supplier certificates, 
 
 ### Release or reject the lot
 
-1. Select [[Review disposition]] to release it, or [[Reject lot]] if it failed its requirements or cannot be used.
+1. Select [[Review disposition]] to release it, or [[More]], then [[Reject lot]], if it failed its requirements or cannot be used.
 2. Sign with your PIN on that page. If you cannot decide this lot, the page says why before asking for a PIN.
 
 ### Issue a certificate of analysis
 
-1. After release, select [[Issue certificate of analysis]] under Certificates of analysis.
+1. After release, select [[Issue certificate of analysis]] at the top of the page.
 
 ## Good to know
 
 - You cannot release or reject a lot that holds your own receipt, supplier certificate, sampling or test data, even with the quality role.
-- A discrepancy found on receipt does not hold the lot. Place a hold from [[Holds]] if it must not be dispositioned.
+- A discrepancy found on receipt does not hold the lot. Place a hold from the [[Holds]] link in the Receipt card if it must not be dispositioned.
 - A supplier result counts towards disposition only once a reviewer accepts it in place of a test. A proposal awaiting acceptance blocks disposition.
 - Receipt details and supplier certificates are never edited. A correction or withdrawal adds a linked record and the earlier one stays.
 - The results table here shows manual foundation results only. Native testing is on [[Testing and investigations]].

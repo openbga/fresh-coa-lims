@@ -1256,6 +1256,12 @@ def investigation_detail(request, pk):
             "can_escalate": bool(user_roles & {"reviewer", "quality"})
             and inv.phase == "laboratory",
             "can_decide": "quality" in user_roles and inv.is_open,
+            # Quality's next step is the conclusion once nothing refuses it; recording an entry
+            # would make them an investigator and bar them from concluding, so it is never
+            # quality's primary action.
+            "conclude_ready": "quality" in user_roles
+            and inv.is_open
+            and services.conclude_refusal(request.user, inv, original, tests[1:]) is None,
             "used": inv.tests.exclude(state="invalidated").count(),
             "allowed": original.spec.max_retests,
         },

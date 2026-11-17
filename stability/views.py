@@ -8,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from analytical import services as analytical
 from analytical.contracts import parse_requirement, resolve_pull
@@ -783,7 +784,9 @@ def _next_pull(pulls, today):
     if not scheduled:
         return ""
     pull = min(scheduled, key=lambda p: (p.due_date, p.pk))
-    return cell(f"{pull.timepoint} · due {day(pull.due_date)}", pill=_pull_tone(pull, today))
+    due = day(pull.due_date)
+    text = format_html('{} · due <time datetime="{}">{}</time>', pull.timepoint, due, due)
+    return cell(text, pill=_pull_tone(pull, today))
 
 
 def timing_closed(pull, today):
@@ -797,8 +800,11 @@ def study_detail(request, pk):
     user = request.user
     today = timezone.localdate()
     pulls = list(s.pulls.select_related("timepoint__condition", "pulled_by", "sample"))
+    # Closing is the next step only once no pull is still scheduled; until then the next pull
+    # is the emphasis and Close study stays a secondary button.
+    scheduled = any(p.state == Pull.State.SCHEDULED for p in pulls)
     actions = [
-        action("Close study", reverse("stability:study_close", args=[s.pk]), True)
+        action("Close study", reverse("stability:study_close", args=[s.pk]), not scheduled)
         if s.state == "active" and can(user, "quality") and s.created_by_id != user.pk
         else None
     ]

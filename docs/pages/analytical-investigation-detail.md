@@ -34,7 +34,7 @@ One out-of-specification investigation: phase, lineage of the original result an
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403.
 - **Record entry**: analyst, reviewer or quality while open.
 - **Escalate investigation**: reviewer or quality while in Phase I.
-- **Authorize retest**, **Conclude**: quality while open.
+- **Authorize retest**, **Conclude**: quality while open. For quality, **Conclude** is the primary button once nothing refuses the conclusion, and **Record entry** sits under **More**: recording an entry makes you an investigator, who cannot conclude. For analysts and reviewers **Record entry** is the primary button.
 - **Admin** alone is a read role: no entry, escalation, authorization or conclusion buttons. Admin together with a lab role gets that role's buttons and its independence rules.
 
 ## Layout

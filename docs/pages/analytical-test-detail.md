@@ -14,7 +14,7 @@ summary: One analytical test: its frozen specification, replicate observations, 
 2. Select [[Record observation]] for each replicate, with where its original record is kept.
 3. Select [[Attach raw data]] to add an instrument export or notebook page for the reviewer.
 ### Submit the results for review
-1. When every replicate is recorded, check the [[Reason]] and select [[Submit for review]].
+1. When every replicate is recorded, enter a [[Reason]] and select [[Submit for review]].
 2. An out-of-specification result opens an investigation and holds the lot, or the stability pull.
 ### Correct a replicate
 1. Select [[Correct]] on the replicate's row while the test is open. The earlier value stays, struck through.

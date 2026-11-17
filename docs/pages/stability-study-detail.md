@@ -51,7 +51,7 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page |
+| **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
 | **Record pull** (Next column) | Pull Scheduled and you are an Analyst | Analyst | Opens the form |
 | **Mark missed** (Next column) | Pull Scheduled, today is after its window, and you are Analyst or Quality | Analyst, Quality | Opens the reason form |
 

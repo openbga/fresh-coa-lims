@@ -10,9 +10,8 @@
   <li>Revision {{ inv.revision }}</li>
 {% endpage_meta %}{% endblock %}
 {% block page_actions %}
-{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}
-{% if can_decide %}<a class="btn btn-outline-secondary" href="{% url 'analytical:authorize' inv.pk %}">Authorize retest</a><a class="btn btn-outline-secondary" href="{% url 'analytical:conclude' inv.pk %}">Conclude</a>{% endif %}
-{% if can_enter %}<a class="btn btn-primary" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a>{% endif %}
+{% if can_decide %}{% more_actions %}{% if can_enter %}<li><a class="dropdown-item" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a></li>{% endif %}{% endmore_actions %}{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}<a class="btn btn-outline-secondary" href="{% url 'analytical:authorize' inv.pk %}">Authorize retest</a><a class="btn {% if conclude_ready %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="{% url 'analytical:conclude' inv.pk %}">Conclude</a>
+{% else %}{% if can_escalate %}<a class="btn btn-outline-secondary" href="{% url 'analytical:escalate' inv.pk %}">Escalate investigation</a>{% endif %}{% if can_enter %}<a class="btn btn-primary" href="{% url 'analytical:entry_new' inv.pk %}">Record entry</a>{% endif %}{% endif %}
 {% endblock %}
 {% block content %}
 {% if inv.is_open %}

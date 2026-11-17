@@ -95,7 +95,7 @@ def test_admin_can_read_every_page_and_download(login, admins, report):
 def test_admin_sees_history_and_no_quality_actions(login, admins, report):
     client = login("siteadmin")
     detail = client.get(read_urls(report)["detail"]).content.decode()
-    assert "History" in detail and "report.opened" in detail
+    assert "History" in detail and "Report opened" in detail
     assert "Download PDF" in detail
     assert "Amend certificate" not in detail
     listing = client.get(read_urls(report)["list"]).content.decode()

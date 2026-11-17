@@ -25,6 +25,7 @@ are stripped of surrounding whitespace, so an empty body is falsy.
 tests/test_include_isolation.py renders every component with decoy page variables.
 """
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -220,7 +221,83 @@ def form_actions_values(values, body, slots, has_body):
 def fact_values(values, body, slots, has_body):
     value = body if has_body else values["value"]
     blank = value is None or (isinstance(value, str) and not value.strip())
-    return {"value": None if blank else value}
+    critical = values["critical"]
+    if critical and critical not in STATUS_GLYPHS:
+        raise template.TemplateSyntaxError(
+            f"{{% fact %}} critical must be one of {', '.join(STATUS_GLYPHS)}"
+        )
+    return {
+        "value": None if blank else value,
+        "critical_glyph": STATUS_GLYPHS.get(critical, "") if critical else "",
+    }
+
+
+# Material kinds (catalog.models.MaterialKind) → the tag's data-kind and Bootstrap icon.
+MATERIAL_KINDS = {
+    "raw_material": ("raw", "basket2"),
+    "component": ("component", "gear"),
+    "packaging": ("packaging", "box2"),
+    "intermediate": ("intermediate", "layers-half"),
+    "finished_product": ("finished", "bag-check"),
+}
+
+
+def material_tag_values(values, body, slots, has_body):
+    material = values["material"]
+    if hasattr(material, "kind"):  # a catalog Material
+        name, kind, code = material.name, material.kind, material.code
+    else:  # the material as text (a lot's), with its kind and code when known
+        name, kind, code = str(material or ""), values["kind"], values["code"]
+    data_kind, icon = MATERIAL_KINDS.get(kind, ("", "box-seam"))
+    sub = values["sub"]
+    sub = "" if sub is False else (sub or code or "")
+    return {"name": name, "data_kind": data_kind, "glyph": icon, "sub": sub}
+
+
+def code_values(values, body, slots, has_body):
+    value = str(values["value"] if values["value"] is not None else "")
+    if values["hash"]:
+        return {"shown": value[:12], "full": value}
+    return {"shown": value, "full": values["title"] or ""}
+
+
+ISO_MOMENT = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}")
+
+
+def humanize_key(key):
+    text = str(key).replace("_", " ").strip()
+    return text[:1].upper() + text[1:]
+
+
+def value_items(data, exclude=()):
+    """(label, kind, value) rows of a mapping for includes/value_list.html; never a repr."""
+    rows = []
+    items = data.items() if isinstance(data, dict) else enumerate(data or [])
+    for key, value in items:
+        if key in exclude:
+            continue
+        label = humanize_key(key) if isinstance(data, dict) else ""
+        if value is None or value == "" or value == [] or value == {}:
+            rows.append((label, "empty", None))
+        elif isinstance(value, bool):
+            rows.append((label, "text", "Yes" if value else "No"))
+        elif isinstance(value, dict):
+            rows.append((label, "dict", value))
+        elif isinstance(value, list) and all(isinstance(v, str | int) for v in value):
+            rows.append((label, "codes", value))
+        elif isinstance(value, list):
+            rows.append((label, "dict", dict(enumerate(value, start=1))))
+        elif isinstance(value, str) and ISO_MOMENT.match(value):
+            rows.append((label, "moment", value))
+        else:
+            rows.append((label, "text", value))
+    return rows
+
+
+def value_list_values(values, body, slots, has_body):
+    exclude = tuple(k.strip() for k in str(values["exclude"] or "").split(",") if k.strip())
+    data = values["data"]
+    return {"rows": value_items(data, exclude) if isinstance(data, dict | list) else []}
 
 
 def nav_values(values, body, slots, has_body):
@@ -288,7 +365,7 @@ COMPONENTS = {
     "record_layout": Component(I + "record_layout.html", ("aside_label",), body="block"),
     "fact": Component(
         I + "fact.html",
-        ("label", "value", "empty", "class", "wide", "truncate"),
+        ("label", "value", "empty", "class", "wide", "truncate", "critical"),
         body="unless:value",
         derive=fact_values,
     ),
@@ -354,7 +431,15 @@ COMPONENTS = {
         I + "signature_list.html", ("signatures", "subject", "numbered", "empty", "hash")
     ),
     "kind_tag": Component(I + "kind_tag.html", ("label",)),
-    "rule_policy": Component(I + "rule_policy.html", ("policy", "compact")),
+    "material_tag": Component(
+        I + "material_tag.html",
+        ("material", "kind", "code", "size", "sub"),
+        derive=material_tag_values,
+    ),
+    "code": Component(I + "code.html", ("value", "href", "title", "hash"), derive=code_values),
+    "value_list": Component(
+        I + "value_list.html", ("data", "compact", "nested", "exclude"), derive=value_list_values
+    ),
     "route": Component(I + "route.html", ("stages", "label", "micro", "summary")),
     "page_toc": Component(I + "page_toc.html", ("items", "label")),
     "record_foot": Component(I + "record_foot.html", ("identifier",)),
@@ -400,14 +485,16 @@ def action_label(code):
 
 
 @register.filter
-def when(value):
-    """A date and time as the app shows them everywhere: "2026-11-17 14:05 CET", laboratory time
-    zone (settings.TIME_ZONE), no seconds, microseconds or offset. Takes a datetime or an ISO
-    string (frozen JSON); a date shows as "2026-11-17"; empty shows "—"."""
+def when(value, style=""):
+    """A moment as the app shows it everywhere, inside <time datetime="ISO">: "2026-11-17 09:54
+    UTC" (Y-m-d H:i T, laboratory time zone), |when:"date" → "2026-11-17", |when:"seconds" →
+    seconds as in signatures and the audit trail. Takes a datetime, a date or an ISO string
+    (frozen JSON); never microseconds or "+00:00". Empty → "—"."""
     from datetime import date, datetime
 
     from django.utils import timezone
     from django.utils.dateformat import format as date_format
+    from django.utils.html import format_html
 
     if value in (None, ""):
         return "—"
@@ -419,7 +506,14 @@ def when(value):
     if isinstance(value, datetime):
         if timezone.is_aware(value):
             value = timezone.localtime(value)
-        return date_format(value, "Y-m-d H:i T")
+        if style == "date":
+            return format_html(
+                '<time datetime="{}">{}</time>',
+                value.date().isoformat(),
+                date_format(value, "Y-m-d"),
+            )
+        shown = date_format(value, "Y-m-d H:i:s T" if style == "seconds" else "Y-m-d H:i T")
+        return format_html('<time datetime="{}">{}</time>', value.isoformat(), shown)
     if isinstance(value, date):
-        return value.isoformat()
+        return format_html('<time datetime="{0}">{0}</time>', value.isoformat())
     return value

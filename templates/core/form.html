@@ -13,7 +13,7 @@
     {% fact label="Revision" %}Reviewing {{ record.revision }}; signature binds approved revision {{ record.revision|add:"1" }}.{% endfact %}
   </dl>
   <h3 class="h6 mt-3">Rule policy</h3>
-  {% rule_policy policy=record.policy %}
+  {% value_list data=record.policy exclude="applies_to" %}
 {% endpanel %}
 {% if retires %}{% notice tone="info" %}<p class="mb-1">This version overlaps the effective period of {{ retires|length }} approved version{{ retires|length|pluralize }} of the rule set. Your signature also retires {{ retires|length|pluralize:"it,them" }}:</p><ul class="mb-1">{% for item in retires %}<li><strong>{{ item.rule }}</strong> {% if item.never %}never applies: this version takes over before it starts{% else %}stops applying {% if item.moment > record.effective_from %}at the moment of your signature, because this version's start has already passed{% else %}on <time datetime="{{ item.moment|date:'c' }}">{{ item.moment|date:"Y-m-d H:i T" }}</time>{% endif %}{% endif %}.{% if item.lots %} {{ item.lots }} lot{{ item.lots|pluralize }} in quarantine {{ item.lots|pluralize:"is,are" }} on it: from then on {{ item.lots|pluralize:"its,their" }} requirements are assigned again (before testing has started) or replaced with a signature (once it has) under this version before further tests are assigned and before disposition. Results already recorded can still be reviewed and an investigation concluded.{% endif %}</li>{% endfor %}</ul><p class="mb-0">A retired version keeps its approved policy and signature.</p>{% endnotice %}{% endif %}
 {% endif %}

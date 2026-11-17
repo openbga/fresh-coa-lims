@@ -1,0 +1,14 @@
+{% load ui %}{% comment %}
+What a material is (Line emphasis kit 1): a kind tile (Bootstrap icon per catalog MaterialKind:
+raw basket2, component gear, packaging box2, intermediate layers-half, finished bag-check) + the
+name, with an optional muted sub (the material code). Never a status. Rendered by
+{% material_tag %} ({% load ui %}).
+Parameters:
+  material  a catalog Material, or the material as text (a lot's free-text material)
+  kind, code  the MaterialKind value and code for a text material when known (e.g. annotated
+            from the lot's current requirement assignment)
+  size      "" | "lg" (record header) | "sm" (dense table rows)
+  sub       the sub text; default the material code; False to leave it out
+Usage: {% material_tag material=assignment.material size="lg" %}
+       {% material_tag material=lot.material kind=lot.route_material_kind code=lot.route_material_code size="sm" %}
+{% endcomment %}<span class="vr-mtag{% if size == 'lg' %} is-lg{% elif size == 'sm' %} is-sm{% endif %}"{% if data_kind %} data-kind="{{ data_kind }}"{% endif %}><span class="vr-mtag-icon" aria-hidden="true">{% icon name=glyph %}</span><span class="vr-mtag-name">{{ name }}</span>{% if sub %}<span class="vr-mtag-sub">{{ sub }}</span>{% endif %}</span>

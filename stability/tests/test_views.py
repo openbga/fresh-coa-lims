@@ -507,7 +507,9 @@ def test_pull_labels_match_the_filter_and_the_study_shows_its_next_pull(client, 
     record = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
     first = min(study.pulls.all(), key=lambda pull: pull.due_date)
     assert "Next pull" in record
-    assert f"due {first.due_date.isoformat()} <span" in record and "</svg>Overdue</span>" in record
+    due = first.due_date.isoformat()
+    assert f'due <time datetime="{due}">{due}</time> <span' in record
+    assert "</svg>Overdue</span>" in record
     pull = study.pulls.get(timepoint__interval_days=100)
     detail = client.get(reverse("stability:pull_detail", args=[pull.pk])).content.decode()
     assert detail.index(">Due<") < detail.index(">Study<")  # Due and Window come first

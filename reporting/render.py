@@ -1,4 +1,5 @@
-"""Issued-PDF rendering with WeasyPrint from the frozen snapshot only.
+"""PDF rendering with WeasyPrint: the issued certificate (from its frozen snapshot only) and,
+through ``write_pdf``, the printed copy of a lot record export (reporting/lot_record.py).
 
 The same certificate partial serves the screen preview and the PDF, so the two cannot drift.
 No live record is read. The renderer loads exactly two kinds of resource, served from this

@@ -12,6 +12,7 @@ document's own title, section and record rules. Layout only: every printed word 
 {% endcomment %}
 <style>
 {% include "reporting/pdf/_line.css" %}
+  html { line-height: 1.35; } /* a long record: the line height it always had */
   h1 { margin: 0 0 3mm; font-size: 17pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
 
   /* Section titles: uppercase panel titles, no rules between things. */

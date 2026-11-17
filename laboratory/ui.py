@@ -8,7 +8,7 @@ import re
 
 from django import forms
 from django.contrib import messages
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -17,6 +17,7 @@ from django.utils import timezone
 from core import grids
 from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
+from core.templatetags.ui import when as shown_when
 
 READERS = ("analyst", "reviewer", "quality", "admin", "auditor")
 
@@ -275,23 +276,58 @@ def list_page(
 
 def history_for(*objs):
     query = Q()
+    models = {}
     for obj in objs:
         query |= Q(object_type=obj._meta.label_lower, object_id=str(obj.pk))
+        models[obj._meta.label_lower] = type(obj)
     events = list(
         AuditEvent.objects.filter(query).select_related("actor").order_by("occurred_at", "id")
     )
     for event in events:
-        # Show old/new only for changes to an existing record, never whole creation payloads.
+        # Show old/new only for changes to an existing record, never whole creation payloads,
+        # in the page's words: the field's label, a choice's label and the app's date format.
+        # The record revision is the counter shown with the signatures, not a change.
+        model = models.get(event.object_type)
         event.changes = (
             [
-                (key, _brief(event.before.get(key)), _brief(event.after.get(key)))
+                (
+                    _field_label(model, key),
+                    _shown(model, key, event.before.get(key)),
+                    _shown(model, key, event.after.get(key)),
+                )
                 for key in sorted(set(event.before) | set(event.after))
-                if event.before.get(key) != event.after.get(key)
+                if key != "revision" and event.before.get(key) != event.after.get(key)
             ]
             if event.before
             else []
         )
     return events
+
+
+def _field(model, key):
+    try:
+        return model._meta.get_field(key) if model else None
+    except FieldDoesNotExist:
+        return None
+
+
+def _field_label(model, key):
+    field = _field(model, key)
+    label = getattr(field, "verbose_name", None) or key.replace("_", " ")
+    return str(label)[:1].upper() + str(label)[1:]
+
+
+ISO_MOMENT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+def _shown(model, key, value):
+    """A recorded value as the page shows it; the audit trail keeps the raw value."""
+    field = _field(model, key)
+    if field is not None and field.choices and value is not None:
+        return dict(field.flatchoices).get(value, value)
+    if isinstance(value, str) and ISO_MOMENT.match(value):
+        return shown_when(value)
+    return _brief(value)
 
 
 BRIEF_LIMIT = 240

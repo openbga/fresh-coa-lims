@@ -631,3 +631,78 @@ def test_write_lot_record_review_pdfs(released):
     alter_raw_file(released["raw"])
     differs = unpack(export(released))[2]["record.pdf"]
     pathlib.Path(out, "lot-record-differs.pdf").write_bytes(differs)
+
+
+def printed_text(package):
+    from reporting.tests.test_certificate_pdf import pdf_text  # reading order (pdftotext -raw)
+
+    return pdf_text(unpack(package)[2]["record.pdf"])
+
+
+RECORD_PHRASES = (
+    # Identity and facts (labels, table heads and section titles print in capitals)
+    "Record of lot SYN-INTEGRATED-001",
+    "Synthetic demonstration data. This document has no regulatory or commercial standing.",
+    "MATERIAL Synthetic reference powder",
+    "STATUS Released",
+    "RECORD REVISION",
+    "EXPORTED BY Synthetic auditor (synthetic_auditor)",
+    f"PURPOSE {PURPOSE}",
+    "PRODUCED BY OpenBGA QM LIMS",
+    # How to read, contents
+    "HOW TO READ THIS RECORD",
+    "This is the printed copy.",
+    "Times are in UTC. Numbers are printed exactly as recorded. A dash means the field is blank.",
+    "are shortened here and kept in full in record.json.",
+    "CONTENTS",
+    "PART RECORDS",
+    "Audit trail events",
+    "Audit trail reviews",
+    # Records and configuration
+    "CONFIGURATION THE RECORDS NAME",
+    "As it stood at the export.",
+    "CONFIGURATION: RULE SETS",
+    "Audit trail: entered",
+    "SIGNED BY MEANING DATE AND TIME (UTC) REVISION SIGNED CONTENT SHA-256",
+    # Audit trail, reviews, files, checks
+    "Every event on the lot's records, oldest first.",
+    "TIME (UTC) PERSON ACTION RECORD REASON CHANGES",
+    "REVIEWED BY",
+    "Synthetic review of the lot's events",
+    "the review covered",
+    "PATH IN THE PACKAGE",
+    "Each checksum or hash recomputed from what is stored with it.",
+    "Matches",
+)
+
+
+def test_printed_record_shows_every_element(released):
+    """The printed copy keeps every element (.local/evidence/reports/lot-record-checklist.md),
+    identity on every page, and states a mismatch in words, never by colour alone."""
+    intact = printed_text(export(released))
+    spoken = " ".join(intact.split())
+    for phrase in RECORD_PHRASES:
+        assert phrase in spoken, phrase
+    assert "checks match. See Checks for what was recomputed." in spoken
+    pages = [page for page in intact.split("\x0c") if page.strip()]
+    for number, page in enumerate(pages, 1):
+        flat_page = " ".join(page.split())
+        assert "OpenBGA QM LIMS" in flat_page, number
+        assert "Record of lot SYN-INTEGRATED-001 · exported" in flat_page, number
+        assert f"Page {number} of {len(pages)}" in flat_page, number
+
+    alter_raw_file(released["raw"])
+    differs = " ".join(printed_text(export(released)).split())
+    assert "1 of" in differs and "checks do not match." in differs
+    assert "the checks that differ are listed under Checks." in differs
+    assert "Does not match" in differs and "Stored:" in differs and "Computed:" in differs
+
+
+def test_a_missing_font_stops_the_export_and_records_nothing(released, monkeypatch, tmp_path):
+    from reporting import render
+
+    monkeypatch.setattr(render, "_font_path", lambda: tmp_path / "absent.woff2")
+    before = AuditEvent.objects.count()
+    with pytest.raises(RenderError, match="font"):
+        export(released)
+    assert AuditEvent.objects.count() == before

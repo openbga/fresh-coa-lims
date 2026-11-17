@@ -1,29 +1,37 @@
 {% load pagedocs ui %}{% comment %}
-One page's documentation, in the panel (fragment.html) or as a full page (page.html).
-With the friendly layer: the summary, Common tasks and Good to know, then the reference sections
-under "All fields and actions", collapsed, with a filter (pagedocs.js reveals and runs it).
-Without it: the reference sections open, as before. Friendly text is escaped and only
-[[Label]] becomes a label chip (the label_text filter); reference HTML comes from pagedocs.markdown.
+One page's documentation, in the Help drawer (fragment.html) or as a full page (page.html).
+With the friendly layer: the title and summary, jump links, Common tasks as numbered steps,
+Good to know as a calm list, then the reference under "All fields and actions", collapsed, with a
+filter (pagedocs.js reveals and runs it). Without it: the reference sections open, as before.
+Friendly text is escaped and only [[Label]] becomes a label chip (the label_text filter);
+reference HTML comes from pagedocs.markdown. The review date closes the article.
 {% endcomment %}{% if doc %}<article class="pagedocs-doc" data-pagedocs-for="{{ url_name }}">
   <h2 class="pagedocs-title" id="pagedocs-title" tabindex="-1">{{ doc.title }}</h2>
-  <p class="pagedocs-reviewed">Last reviewed <time datetime="{{ doc.reviewed }}">{{ doc.reviewed }}</time></p>
   {% if doc.tasks %}
   <p class="pagedocs-summary" data-pagedocs-summary>{{ doc.summary }}</p>
-  <section class="pagedocs-friendly" aria-labelledby="pagedocs-tasks-title" data-pagedocs-tasks>
+  <ul class="pagedocs-jump" aria-label="On this help page">
+    <li><a href="#pagedocs-tasks" data-pagedocs-jump>{% icon name="list-check" %}Common tasks</a></li>
+    <li><a href="#pagedocs-tips" data-pagedocs-jump>{% icon name="info-circle" %}Good to know</a></li>
+    <li><a href="#pagedocs-reference" data-pagedocs-jump>{% icon name="journal-text" %}All fields and actions</a></li>
+  </ul>
+  <section class="pagedocs-part" id="pagedocs-tasks" aria-labelledby="pagedocs-tasks-title" data-pagedocs-tasks>
     <h3 id="pagedocs-tasks-title">{% icon name="list-check" %}Common tasks</h3>
-    {% for task in doc.tasks %}<h4>{{ task.title }}</h4>
-    <ol class="pagedocs-steps">{% for step in task.steps %}<li>{{ step|label_text }}</li>{% endfor %}</ol>
-    {% endfor %}
+    {% for task in doc.tasks %}<div class="pagedocs-task">
+      <h4>{{ task.title }}</h4>
+      <ol class="pagedocs-steps">{% for step in task.steps %}<li>{{ step|label_text }}</li>{% endfor %}</ol>
+    </div>{% endfor %}
   </section>
-  <section class="pagedocs-friendly" aria-labelledby="pagedocs-tips-title" data-pagedocs-tips>
+  <section class="pagedocs-part" id="pagedocs-tips" aria-labelledby="pagedocs-tips-title" data-pagedocs-tips>
     <h3 id="pagedocs-tips-title">{% icon name="info-circle" %}Good to know</h3>
-    <ul class="pagedocs-tips">{% for tip in doc.tips %}<li>{{ tip|label_text }}</li>{% endfor %}</ul>
+    <ul class="pagedocs-tips">{% for tip in doc.tips %}<li>{% icon name="check2" %}<span>{{ tip|label_text }}</span></li>{% endfor %}</ul>
   </section>
-  <section class="pagedocs-reference" aria-labelledby="pagedocs-reference-title" data-pagedocs-reference>
+  <section class="pagedocs-part pagedocs-reference" id="pagedocs-reference" aria-labelledby="pagedocs-reference-title" data-pagedocs-reference>
     <h3 id="pagedocs-reference-title">{% icon name="journal-text" %}All fields and actions</h3>
     <div class="pagedocs-filter" data-pagedocs-filter-box hidden>
-      <label class="form-label" for="pagedocs-filter">Find a field or action</label>
-      <input class="form-control form-control-sm" type="text" id="pagedocs-filter" enterkeyhint="search" autocomplete="off" spellcheck="false" data-pagedocs-filter>
+      <label class="form-label visually-hidden" for="pagedocs-filter">Find a field or action</label>
+      <div class="pagedocs-search">
+        <input class="form-control" type="text" id="pagedocs-filter" placeholder="Find a field or action" enterkeyhint="search" autocomplete="off" spellcheck="false" data-pagedocs-filter>{% icon name="search" %}
+      </div>
     </div>
     {% for section in doc.reference %}<details class="pagedocs-section" id="{{ section.anchor }}" data-pagedocs-section>
       <summary>{% icon name="chevron-right" class="pagedocs-chevron" %}<span>{{ section.title }}</span></summary>
@@ -31,7 +39,8 @@ Without it: the reference sections open, as before. Friendly text is escaped and
     </details>
     {% endfor %}<p class="pagedocs-none" role="status" data-pagedocs-none hidden>No field or action matches.</p>
   </section>
-  {% else %}{{ doc.html }}{% endif %}
+  {% else %}<div class="pagedocs-plain">{{ doc.html }}</div>{% endif %}
+  <p class="pagedocs-reviewed">Last reviewed <time datetime="{{ doc.reviewed }}">{{ doc.reviewed }}</time></p>
 </article>{% else %}<article class="pagedocs-doc pagedocs-missing" data-pagedocs-for="{{ url_name }}">
   <h2 class="pagedocs-title" id="pagedocs-title" tabindex="-1">Not documented yet</h2>
   <p>This page does not have documentation yet.{% if url_name %} Report the page identifier <code>{{ url_name }}</code> to your system owner so its documentation can be added.{% endif %}</p>
