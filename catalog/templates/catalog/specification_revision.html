@@ -5,7 +5,7 @@
 {% block page_meta %}{% page_meta %}<li>{% include "catalog/includes/revision_status.html" with status=revision.status only %}</li><li>Record revision {{ revision.revision }}</li><li>{{ spec.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_edit %}<a class="btn btn-outline-secondary" href="{% url 'catalog:test_new' revision.pk %}">Add test</a><a class="btn btn-outline-danger" href="{% url 'catalog:specification_withdraw' revision.pk %}">Withdraw draft</a>{% endif %}
-{% if can_approve %}<a class="btn btn-primary" href="{% url 'catalog:specification_approve' revision.pk %}">Review and approve</a>{% endif %}
+{% if can_approve %}<a class="btn btn-primary" href="{% url 'catalog:specification_approve' revision.pk %}">Review and approve</a>{% elif approve_note %}<span class="vr-action-note" data-refused="approve">{{ approve_note }}</span>{% endif %}
 {% endblock %}
 {% block content %}
 {% if is_draft and can_edit and not can_approve %}{% notice tone="info" label="Independent approval" %}You authored or edited this draft, so another quality approver must sign it.{% endnotice %}{% endif %}

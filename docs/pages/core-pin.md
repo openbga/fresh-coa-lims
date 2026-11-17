@@ -1,5 +1,5 @@
 ---
-title: Signature PIN
+title: Enroll or change signature PIN
 urls: core:pin
 views: core.views.pin
 templates: core/form.html
@@ -12,9 +12,9 @@ summary: Enroll or replace your own signature PIN, the secret you re-enter for e
 ### Enroll or change your PIN
 1. Enter your [[Current login password]].
 2. Enter 8 to 32 digits in [[New signature PIN]].
-3. Select [[Save]]. [[Your signature PIN]] then shows Enrolled.
-### Check your PIN's state
-1. Read [[Your signature PIN]]: Enrolled, with failed attempts and any lock, or Enrollment required.
+3. Select [[Save]]. The Signature PIN page then shows Enrolled.
+### Leave without a change
+1. Select [[Cancel]], or close the dialog. Nothing is saved.
 ## Good to know
 - Your PIN is never shown, and the page never shows its stored form. The fields are blank after an error.
 - A wrong login password counts towards the same lock as a failed sign-in.
@@ -33,15 +33,16 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 
 ## Layout
 
-- Title "Signature PIN", then **Your signature PIN** with the PIN's state as the admin account page shows it: "Enrolled; N failed attempts" (with "lock until <time>" when a lock time is recorded) or "Enrollment required"; never the PIN or its hash.
-- The required-fields note, two masked fields and **Save**.
+- Title **Enroll signature PIN** when you have no PIN, otherwise **Change signature PIN**. Opened from the Signature PIN page or a signing page's "Enroll or change your signature PIN" link, it shows in the form dialog; by its address or without JavaScript it is a page.
+- The required-fields note, two masked fields, **Cancel** (back to the Signature PIN page) and **Save**.
 - For a shared demonstration account: the title and an explanation, without fields.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Save** | Not a shared demonstration account | Signed-in user | Stores the new PIN, shows "Signature PIN saved." and reloads the page |
+| **Save** | Not a shared demonstration account | Signed-in user | Stores the new PIN, shows "Signature PIN saved." on the Signature PIN page |
+| **Cancel** | Always with the form | Signed-in user | Returns to the Signature PIN page without a change |
 
 ## Fields
 
@@ -64,5 +65,6 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 ## Related pages
 
 - Sign result review, Sign lot disposition, rule approval and signed account administration use this PIN.
+- [Signature PIN](/signature-pin/)
 - [Account access](/accounts/access/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)

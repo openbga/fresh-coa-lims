@@ -5,27 +5,22 @@ views: accounts.views.announcement
 templates: accounts/announcement.html, accounts/includes/announcement.html
 models: accounts.LoginAnnouncement, core.AuditEvent, core.ElectronicSignature
 reviewed: 2026-11-17
-summary: The one notice shown on the sign-in page to anyone who opens it, before they sign in. Write, publish or withdraw it and see every signed change. Admin role only.
+summary: The one notice shown on the sign-in page to anyone who opens it, before they sign in. See it as visitors do and every signed change; change it from the header. Admin role only.
 ---
 
 ## Common tasks
-### Publish or update the notice
-1. Under Change announcement, enter an optional [[Title]] and the [[Announcement text]].
-2. Check [[Show on the sign-in page]] and enter a [[Reason]].
-3. Enter your [[Signing username]] and [[Signature PIN]], then select [[Sign and save announcement]].
-### Withdraw the notice
-1. Uncheck [[Show on the sign-in page]], then enter a [[Reason]] and your signing username and PIN.
-2. Select [[Sign and save announcement]]. The text is kept here for later.
+### Publish, update or withdraw the notice
+1. Select [[Change announcement]] in the header.
+2. In the dialog, edit the text, check or uncheck Show on the sign-in page, enter a reason and your signing username and PIN, then select Sign and save announcement.
 ### See what changed and who signed
 1. In Announcement history, select [[Inspect recorded values]] on a change to see the status, title and text before and after it.
 ### Enroll your PIN first
-1. If the form is hidden, select [[Enroll or change your signature PIN]]. Saving needs your own enrolled PIN.
+1. If Change announcement is missing, the page says why: enroll your signature PIN on the Signature PIN page.
 ## Good to know
 - The text is public: anyone who opens the sign-in page sees it. Never enter personal data, or the password or PIN of a real account.
 - Every change stays in the history and the audit trail, including text you later replace or withdraw.
 - HTML is shown as typed, never interpreted. Lists, tables, bold, italic, code and links are formatted.
-- If someone saved a change after you opened the page, yours is refused. Reload and review before signing again.
-- A refused PIN still counts toward your PIN lockout, and nothing is saved.
+- Withdrawing the notice keeps its text here for later.
 
 ## Purpose
 
@@ -39,9 +34,9 @@ Signed-in, active users with the explicit **admin** role. Others receive 403, in
 
 The page opens with "One notice shown on the sign-in page to anyone who opens it, before they sign in. Changing it requires a reason and your signature PIN."
 
-**Current announcement** shows the status (**Published** or **Not published**), **Sign-in page** ("Shows the notice below" or "Shows no notice"), and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
+The header has one action, **Change announcement**, which opens the signed change in the form dialog (Change announcement). Without an enrolled signature PIN the action is not shown and a notice says **Enroll your signature PIN before changing the announcement.**
 
-**Change announcement** names you as signer with the meaning **announcement_authorized** and the revision being reviewed and bound. It warns that the text is public and links to PIN enrollment. With an enrolled PIN the form follows: title, announcement text, **Show on the sign-in page**, reason and your signing credentials, then **Cancel** and **Sign and save announcement**. Without one, the form is hidden and the page says **Enroll your signature PIN before changing the announcement.**
+**Current announcement** shows the status (**Published** or **Not published**), **Sign-in page** ("Shows the notice below" or "Shows no notice"), and the revision. Below it the saved text appears exactly as visitors see it, or **No announcement text has been saved.**
 
 **Announcement history** lists every signed change, newest first, titled "Announcement published", "Announcement withdrawn", "Published announcement changed" or "Unpublished text changed", with its time, reason, actor, signature and **Inspect recorded values**, then the history's pager. Its empty text is **No announcement changes recorded.** After saving, the page says "Announcement saved. It is shown on the sign-in page." or "Announcement saved. The sign-in page shows no notice."
 
@@ -49,9 +44,7 @@ The page opens with "One notice shown on the sign-in page to anyone who opens it
 
 | Action | Shown when | Result |
 |---|---|---|
-| Sign and save announcement | You have an enrolled PIN | Saves the title, text and status together, signs the change and reloads this page with a confirmation |
-| Cancel | With the form | Reloads the page with the saved values; nothing changes |
-| Enroll or change your signature PIN | Always | Opens Signature PIN |
+| Change announcement | You have an enrolled signature PIN | Opens Change announcement in the form dialog (its own page without JavaScript) |
 | Inspect recorded values | Each history entry | Shows the status, title and text before and after that change |
 | First / previous / next / last page | History has more than one page | Moves through the history |
 
@@ -60,22 +53,12 @@ The page opens with "One notice shown on the sign-in page to anyone who opens it
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Status | `LoginAnnouncement.published` | Published / Not published | — | Whether the sign-in page shows the notice now |
+| Sign-in page | `LoginAnnouncement.published` | Text | — | "Shows the notice below" or "Shows no notice" |
 | Revision | `LoginAnnouncement.revision` | Integer | — | Starts at 1 and rises by one with every signed change |
-| Title | `LoginAnnouncement.title` | Text, max 120 | No | Heading shown above the text |
-| Announcement text | `LoginAnnouncement.body` | Text, max 4000 | When publishing | The notice. Blank lines separate paragraphs; lists, `\|` tables, bold, italic, inline code, fenced code and https or site-relative links are formatted |
-| Show on the sign-in page | `LoginAnnouncement.published` | Checkbox | No | Checked publishes the text; unchecked keeps it here and shows visitors nothing |
-| Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Why the announcement is changed; kept with the history |
-| revision | `LoginAnnouncement.revision` | Hidden integer | Yes | The revision you reviewed; a different current revision refuses the change |
-| Signing username | — | Text | Yes | Your own username, typed again |
-| Signature PIN | — | Masked digits | Yes | Your signature PIN; never shown again or stored in the history |
 
 ## Rules and hidden logic
 
-There is exactly one announcement. Withdrawing it keeps the text for later republication. Title and text are trimmed and line endings normalized. Visitors see the text escaped first and then formatted, so HTML is displayed as typed and never interpreted; links with other schemes show as plain text.
-
-Each save is one signed transition. The admin role and the reviewed revision are rechecked inside the transaction, and the new values, the audit event **signed.announcement_authorized** and the **announcement_authorized** signature commit together, bound to the new revision. The history keeps the previous and new title, text and status, and the audit trail shows the same values to everyone who can read it. History shows 20 changes per page.
-
-Refusals return status 422 with your text kept and the PIN cleared, and change nothing: **Enter the announcement text before publishing it.**, **The announcement already has this text and status.**, **Record changed. Reload and review before signing.**, **Enter your own signing username and PIN.**, **Signature PIN was not accepted.** and **Signature PIN is temporarily locked.** A refused PIN still counts toward your PIN lockout and is recorded as **signature.denied**.
+There is exactly one announcement. Visitors see the text escaped first and then formatted, so HTML is displayed as typed and never interpreted; links with other schemes show as plain text. Every change is a signed transition made on Change announcement; this page records nothing. History shows 20 changes per page, newest first.
 
 > The text is public and its history is permanent. Enter credentials only for synthetic demonstration accounts, and never for an account that holds the admin role. Not enforced by this page: it does not inspect what the text contains.
 
@@ -83,6 +66,7 @@ In a development instance or a demonstration deployment, `seed_demo --publish-ac
 
 ## Related pages
 
+- Change announcement (the signed change)
 - [Sign in](/accounts/login/)
 - [Signature PIN](/signature-pin/)
 - [Users and roles](/accounts/users/)

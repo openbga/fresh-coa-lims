@@ -57,6 +57,7 @@ PASS_THROUGH = ("request", "user", "csrf_token")
 
 # The sidebar's visibility flags (accounts.context_processors.account_navigation).
 NAV_FLAGS = ("can_view_workspace", "can_view_audit", "can_manage_accounts")
+NAV_READS = (*NAV_FLAGS, "role_names")
 
 
 class FillNode(template.Node):
@@ -174,7 +175,12 @@ def notice_values(values, body, slots, has_body):
             f"{{% notice %}} tone must be one of {', '.join(NOTICE_TONES)}"
         )
     variant, label = NOTICE_TONES[tone]
-    return {"tone": tone, "variant": variant, "label": values["label"] or label}
+    return {
+        "tone": tone,
+        "variant": variant,
+        "label": values["label"] or label,
+        "glyph": NOTICE_GLYPHS.get(tone, ""),
+    }
 
 
 def history_panel_values(values, body, slots, has_body):
@@ -201,9 +207,15 @@ STATUS_GLYPHS = {
 }
 
 
+# A notice's stamp: an information sign for a note, the status glyph otherwise (a solid dot reads
+# as a stray mark at the head of a message).
+NOTICE_GLYPHS = {"neutral": "info-circle", "info": "info-circle-fill"}
+
+
 def status_values(values, body, slots, has_body):
     tone = values["tone"] if values["tone"] in STATUS_GLYPHS else "neutral"
-    return {"tone": tone, "glyph": "" if values["print"] else STATUS_GLYPHS[tone]}
+    glyph = values["glyph"] or STATUS_GLYPHS[tone]
+    return {"tone": tone, "glyph": "" if values["print"] else glyph}
 
 
 def empty_state_values(values, body, slots, has_body):
@@ -268,26 +280,34 @@ def humanize_key(key):
     return text[:1].upper() + text[1:]
 
 
-def value_items(data, exclude=()):
-    """(label, kind, value) rows of a mapping for includes/value_list.html; never a repr."""
+def value_items(data, exclude=(), labels=None):
+    """(label, kind, value) rows of a mapping for includes/value_list.html; never a repr.
+    labels: {key: {stored code: label}} (a model field's choices), so a stored choice reads as
+    its label ("on_site" → "Made on site"); codes without a label stay as recorded."""
     rows = []
+    labels = labels or {}
     items = data.items() if isinstance(data, dict) else enumerate(data or [])
     for key, value in items:
         if key in exclude:
             continue
         label = humanize_key(key) if isinstance(data, dict) else ""
+        named = labels.get(key, {}) if isinstance(data, dict) else {}
         if value is None or value == "" or value == [] or value == {}:
             rows.append((label, "empty", None))
         elif isinstance(value, bool):
             rows.append((label, "text", "Yes" if value else "No"))
         elif isinstance(value, dict):
             rows.append((label, "dict", value))
+        elif isinstance(value, list) and named and all(str(v) in named for v in value):
+            rows.append((label, "text", ", ".join(named[str(v)] for v in value)))
         elif isinstance(value, list) and all(isinstance(v, str | int) for v in value):
             rows.append((label, "codes", value))
         elif isinstance(value, list):
             rows.append((label, "dict", dict(enumerate(value, start=1))))
         elif isinstance(value, str) and ISO_MOMENT.match(value):
             rows.append((label, "moment", value))
+        elif str(value) in named:
+            rows.append((label, "text", named[str(value)]))
         else:
             rows.append((label, "text", value))
     return rows
@@ -317,7 +337,8 @@ def policy_facts_values(values, body, slots, has_body):
 def value_list_values(values, body, slots, has_body):
     exclude = tuple(k.strip() for k in str(values["exclude"] or "").split(",") if k.strip())
     data = values["data"]
-    return {"rows": value_items(data, exclude) if isinstance(data, dict | list) else []}
+    labels = values["labels"] if isinstance(values["labels"], dict) else None
+    return {"rows": value_items(data, exclude, labels) if isinstance(data, dict | list) else []}
 
 
 def nav_values(values, body, slots, has_body):
@@ -362,7 +383,7 @@ COMPONENTS = {
         ("form", "formset", "formset_label", "action", "multipart", "note", "times",
          "no_required_note", "cancel_url", "cancel_label", "cancel_hook", "submit_label",
          "destructive", "secondary", "no_submit", "method", "id", "class", "autocomplete_off",
-         "hook", "submit_icon"),
+         "hook", "submit_icon", "dialog", "dialog_size"),
         body="block",
     ),
     "form_actions": Component(
@@ -393,7 +414,7 @@ COMPONENTS = {
     "icon": Component(I + "icon.html", ("name", "class")),
     "status": Component(
         I + "status.html",
-        ("label", "tone", "plain", "title", "print", "size"),
+        ("label", "tone", "plain", "title", "print", "size", "glyph"),
         derive=status_values,
     ),
     "brand": Component(I + "brand.html", ("href", "name", "compact", "variant")),
@@ -468,14 +489,16 @@ COMPONENTS = {
         I + "policy_facts.html", ("data", "exclude"), derive=policy_facts_values
     ),
     "value_list": Component(
-        I + "value_list.html", ("data", "compact", "nested", "exclude"), derive=value_list_values
+        I + "value_list.html",
+        ("data", "compact", "nested", "exclude", "labels"),
+        derive=value_list_values,
     ),
     "route": Component(I + "route.html", ("stages", "label", "micro", "summary")),
     "page_toc": Component(I + "page_toc.html", ("items", "label")),
     "record_foot": Component(I + "record_foot.html", ("identifier",)),
     "app_footer": Component(I + "app_footer.html", ("centered",), reads=("source_code_url",)),
     "section_tabs": Component(I + "section_tabs.html", ("tabs", "label")),
-    "nav": Component(I + "nav.html", reads=NAV_FLAGS, derive=nav_values),
+    "nav": Component(I + "nav.html", reads=NAV_READS, derive=nav_values),
     "dateline": Component(I + "dateline.html"),
     "messages": Component(I + "messages.html", reads=("messages",)),
     "theme_menu": Component(I + "theme_menu.html"),

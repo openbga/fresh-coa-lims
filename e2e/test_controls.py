@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 from django.utils import timezone
-from helpers import browser_page, field, pick, sign_in, wait_for_enhanced
+from helpers import browser_page, expect_form, field, pick, sign_in, wait_for_enhanced
 from playwright.sync_api import expect
 
 from core.models import UserPreference
@@ -52,7 +52,8 @@ def native_controls(page):
     return page.evaluate(
         """() => [...document.querySelectorAll(
             'select, input[type=date], input[type=datetime-local], input[type=number]')]
-          .filter(el => el.offsetParent !== null && !el.closest('.ts-wrapper'))
+          .filter(el => el.offsetParent !== null && !el.closest('.ts-wrapper')
+            && !el.classList.contains('ts-hidden-accessible'))
           .map(el => el.name || el.id)"""
     )
 
@@ -109,7 +110,7 @@ def test_receipt_form_by_mouse_and_keyboard(live_server, django_user_model):
         page.keyboard.press("Escape")
         page.wait_for_timeout(600)  # longer than the lookup takes on the live server
         expect(page.locator(".ts-dropdown:visible")).to_have_count(0)
-        expect(page).to_have_url(re.compile(r"/lots/new/$"))
+        expect_form(page, reverse("quality:lot_new"))  # Escape closed the list, not the form
         page.keyboard.press("S")  # typing opens the list and starts the search
         expect(page.locator(".ts-dropdown:visible input.dropdown-input")).to_have_value("S")
         page.locator(".ts-dropdown:visible input.dropdown-input").fill("Ingredients")

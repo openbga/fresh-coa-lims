@@ -42,6 +42,15 @@ TYPES = {
     "deprecated": "Deprecated",
     "security": "Security",
 }  # Keep a Changelog 1.1.0, https://keepachangelog.com/en/1.1.0/
+# The tone of each kind's status pill on the What's new page (text + glyph, never colour alone).
+TYPE_TONES = {
+    "added": "success",
+    "changed": "info",
+    "fixed": "progress",
+    "removed": "neutral",
+    "deprecated": "warning",
+    "security": "danger",
+}
 IMPACTS = {"high": "High impact", "medium": "Medium impact", "low": "Low impact"}
 REQUIRED = ("date", "type", "impact", "title")
 OPTIONAL = ("area", "link", "pr")
@@ -81,6 +90,10 @@ class Entry:
     @property
     def type_label(self):
         return TYPES[self.type]
+
+    @property
+    def type_tone(self):
+        return TYPE_TONES[self.type]
 
     @property
     def pr_url(self):

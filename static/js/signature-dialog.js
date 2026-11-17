@@ -2,7 +2,8 @@
 (() => {
   if (!window.HTMLDialogElement) return;
   const content = document.querySelector('[data-signature-dialog]');
-  if (!content) return;
+  // In the shared form dialog (form-dialog.js) the card is already in a dialog.
+  if (!content || content.closest('#vr-form-dialog')) return;
   const cancel = content.querySelector('[data-signature-cancel]');
   // The page is shown before this deferred script runs, so someone may already be typing in
   // one of the fields. Moving the form blurs that field and opening the dialog focuses

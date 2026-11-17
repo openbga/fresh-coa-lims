@@ -9,7 +9,7 @@
 {% panel heading_id=heading_id class="mb-3" %}
   {% fill title %}Version {{ revision.version }} · {% include "catalog/includes/revision_status.html" with status=revision.status plain=True only %}{% endfill %}
   {% fill actions %}{% if revision.status == "draft" and can_edit %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_withdraw' revision.pk %}">Withdraw draft<span class="visually-hidden"> version {{ revision.version }}</span></a>
-    {% if revision.can_approve %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% else %}<span class="small">Another quality approver must sign this draft.</span>{% endif %}{% endif %}{% endfill %}
+    {% if revision.can_approve %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% elif revision.approve_note %}<span class="vr-action-note" data-refused="approve">{{ revision.approve_note }}</span>{% endif %}{% endif %}{% endfill %}
   <dl class="vr-facts">
     {% fact label="Technique" value=revision.technique %}
     {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}

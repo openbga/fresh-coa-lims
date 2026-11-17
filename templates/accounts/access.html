@@ -13,7 +13,7 @@
 {% notice tone="warning" label="No role" class="mb-3" %}<p>You are signed in as <strong>{{ user.username }}</strong>. Your account has no laboratory role. Ask your organization's account administrator to assign the role appropriate to your work. Give them your username, <strong>{{ user.username }}</strong>.</p><p class="mb-0">Signing in or holding superuser status does not grant laboratory access. You can sign out using the top bar while access is arranged.</p>{% endnotice %}
 {% endif %}
 {% panel title="Sign-in" class="mb-3" %}
-  <p class="mb-0"><a href="{% url 'accounts:password_change' %}">Change password</a> · <a href="{% url 'accounts:two_factor' %}">Two-factor sign-in</a>{% if single_sign_on %} · <a href="{% url 'accounts:single_sign_on' %}">Organization sign-in</a>{% endif %}</p>
+  <p class="mb-0"><a href="{% url 'accounts:password' %}">Password</a> · <a href="{% url 'accounts:two_factor' %}">Two-factor sign-in</a>{% if single_sign_on %} · <a href="{% url 'accounts:single_sign_on' %}">Organization sign-in</a>{% endif %}</p>
 {% endpanel %}
 {% if is_account_administrator %}
 {% panel title="Account and role management" heading_id="account-management-heading" %}

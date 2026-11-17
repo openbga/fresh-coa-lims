@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load ui %}
-{% comment %}Signature PIN enrolment, and the signed approval of a rule set revision (signing). Context: page_title, form, credential (enrolment state, PIN page), unavailable; when signing: record (the rule set revision), retires (approved versions this signature retires).{% endcomment %}
+{% comment %}Signature PIN enrolment or change (its state is core/pin.html), and the signed approval of a rule set revision (signing). Context: page_title, form, unavailable; when signing: record (the rule set revision), retires (approved versions this signature retires).{% endcomment %}
 {% block breadcrumbs %}{% if signing %}{% url 'core:rules' as rules_url %}{% breadcrumbs section="Rule sets" section_url=rules_url %}{% endif %}{% endblock %}
 {% block content %}
 {% if signing %}
@@ -18,7 +18,6 @@
 {% endif %}
 {% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}{% else %}
 {% if signing %}{% url 'core:rules' as cancel_url %}{% signature_card title="Sign approval" heading_id="sign-heading" %}{% form_page form=form cancel_url=cancel_url submit_label="Sign approval" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}{% endsignature_card %}
-{% else %}{% panel title="Your signature PIN" heading_id="pin-status-heading" %}<dl class="vr-facts mb-0">{% fact label="Signature PIN" wide=True %}{% if credential %}Enrolled{% if credential.locked_until %}; lock until {{ credential.locked_until|date:"Y-m-d H:i T" }}{% endif %}; {{ credential.failures }} failed attempts{% else %}Enrollment required{% endif %}{% endfact %}</dl>{% endpanel %}
-{% form_page form=form submit_label="Save" autocomplete_off=True %}{% endform_page %}{% endif %}
+{% else %}{% url 'core:pin_status' as cancel_url %}{% form_page form=form cancel_url=cancel_url submit_label="Save" autocomplete_off=True %}{% endform_page %}{% endif %}
 {% endif %}
 {% endblock %}

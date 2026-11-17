@@ -83,13 +83,16 @@ SECTIONS = (
         "account",
         "Account",
         (
-            NavItem("Signature PIN", "core:pin", "key", views=("core:pin",)),
+            NavItem(
+                "Signature PIN", "core:pin_status", "key", views=("core:pin_status", "core:pin")
+            ),
             NavItem(
                 "Account access",
                 "accounts:access",
                 "person-circle",
                 views=(
                     "accounts:access",
+                    "accounts:password",
                     "accounts:password_change",
                     "accounts:two_factor",
                     "accounts:two_factor_setup",
@@ -113,7 +116,7 @@ SECTIONS = (
                 "Sign-in announcement",
                 "accounts:announcement",
                 "megaphone",
-                views=("accounts:announcement",),
+                views=("accounts:announcement", "accounts:announcement_change"),
                 requires="can_manage_accounts",
             ),
         ),

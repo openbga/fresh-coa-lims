@@ -13,11 +13,11 @@
 {% endpage_meta %}{% endblock %}
 {% block page_actions %}
 {% if can_return %}<a class="btn btn-outline-secondary" href="{% url 'analytical:test_return' test.pk %}">Return test</a>{% endif %}
-{% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% endif %}
-{% if can_not_complete %}<a class="btn btn-outline-danger" href="{% url 'analytical:test_not_completed' test.pk %}">{% icon name="slash-circle" %}Record not completed</a>{% endif %}
+{% if can_contract %}<a class="btn btn-outline-secondary" href="{% url 'analytical:contract_result' test.pk %}">Record contract laboratory result</a>{% elif contract_note %}<span class="vr-action-note" data-refused="contract">{{ contract_note }}</span>{% endif %}
+{% if can_not_complete %}<a class="btn btn-outline-danger" href="{% url 'analytical:test_not_completed' test.pk %}">{% icon name="slash-circle" %}Record not completed</a>{% elif not_completed_note %}<span class="vr-action-note" data-refused="not-completed">{{ not_completed_note }}</span>{% endif %}
 {% more_actions %}{% if can_contract_correct %}<li><a class="dropdown-item" href="{% url 'analytical:contract_result' test.pk %}">Correct contract laboratory result</a></li>{% endif %}{% endmore_actions %}
 {# Review needs a submitted test, recording and batching an open one; a test needs a batch before recording when its method runs in one. #}
-{% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">{% icon name="vector-pen" %}Sign review</a>{% elif can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">{% icon name="plus-lg" %}Record observation</a>{% endif %}
+{% if can_review %}<a class="btn btn-primary" href="{% url 'analytical:test_review' test.pk %}">{% icon name="vector-pen" %}Sign review</a>{% elif review_note %}<span class="vr-action-note" data-refused="review">{{ review_note }}</span>{% elif can_batch %}<a class="btn btn-primary" href="{% url 'analytical:test_batch' test.pk %}">Add to QC batch</a>{% elif batch_note %}<span class="vr-action-note" data-batch-note>{{ batch_note }}</span>{% if new_batch_url %}<a class="btn btn-primary" href="{{ new_batch_url }}">{% icon name="plus-lg" %}New QC batch</a>{% endif %}{% elif can_record %}<a class="btn btn-primary" href="{% url 'analytical:observation_new' test.pk %}">{% icon name="plus-lg" %}Record observation</a>{% endif %}
 {% endblock %}
 {% block content %}
 {% if test.pull_id %}
@@ -47,7 +47,7 @@
 {% endif %}
 {% record_layout aside_label="Specification and result" %}
 {% fill lead %}
-{% panel title="Observations" heading_id="obs-heading" table=True class="mb-3" %}
+{% panel title="Observations" heading_id="obs-heading" table=True %}
   {% fill count %}{{ current_count }} of {{ spec.replicates }}{% endfill %}
     {% if observations %}
     <div class="vr-table-wrap">
@@ -83,7 +83,7 @@
     {% endif %}
     {% if can_submit %}
     {% url 'analytical:test_detail' test.pk as submit_url %}
-    {% form_page form=submit_form action=submit_url submit_label="Submit for review" class="mt-3" %}{% fill note %}Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the {% if test.pull_id %}pull{% else %}lot{% endif %}.{% endfill %}{% endform_page %}
+    {% form_page form=submit_form action=submit_url submit_label="Submit for review" dialog="Submit for review" dialog_size="sm" class="mt-3" %}{% fill note %}Submitting freezes the calculation. An out-of-specification result opens an investigation and holds the {% if test.pull_id %}pull{% else %}lot{% endif %}.{% endfill %}{% endform_page %}
     {% elif test.state == "open" and current_count == spec.replicates and not qc_ready %}
     <p class="vr-form-note mt-3">Results cannot be submitted until the test's QC batch is open and its QC passes.</p>
     {% elif test.state == "submitted" and not qc_ready %}
@@ -92,7 +92,7 @@
 {% endpanel %}
 {% endfill %}
 {% fill aside %}
-{% panel title="Specification and result" heading_id="spec-heading" class="mb-3" %}
+{% panel title="Specification and result" heading_id="spec-heading" %}
     <dl class="vr-facts">
       {% fact label="Test code" %}{% code value=test.test_code %}{% endfact %}
       {% fact label="Specification revision" %}{% code value=spec_label title=spec.source %}<small>Snapshot hash {% code value=test.requirement_hash hash=True %}</small>{% endfact %}
@@ -111,7 +111,7 @@
 {% endpanel %}
 {% endfill %}
 {% include "analytical/_raw_files.html" with test=test can_correct=can_correct only %}
-{% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length class="mb-3" %}{% signature_list signatures=signatures hash=True empty="No signatures yet. Signed reviews, authorizations and conclusions appear here with signer, meaning, time and revision." %}{% endpanel %}
+{% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length %}{% signature_list signatures=signatures hash=True empty="No signatures yet. Signed reviews, authorizations and conclusions appear here with signer, meaning, time and revision." %}{% endpanel %}
 {% history_panel events=history empty_title="No history recorded" %}{% endhistory_panel %}
 {% endrecord_layout %}
 {% endblock %}

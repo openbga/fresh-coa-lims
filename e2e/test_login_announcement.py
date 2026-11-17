@@ -1,11 +1,11 @@
 """An administrator signs the sign-in announcement; visitors read it before signing in."""
 
 import re
-from urllib.parse import urlsplit
 
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from helpers import fill_signature, submit_signed
 from playwright.sync_api import expect, sync_playwright
 
 from core.management.commands.seed_demo import ANNOUNCEMENT_TITLE, _announcement_text
@@ -33,15 +33,9 @@ def sign_in(page, server, username, password):
 
 
 def submit(page, username, pin, reason):
-    page.get_by_label(re.compile(r"^Reason\b")).fill(reason)
-    page.get_by_label(re.compile(r"^Signing username\b")).fill(username)
-    page.get_by_label(re.compile(r"^Signature PIN\b")).fill(pin)
-    path = urlsplit(page.url).path
-    with page.expect_response(
-        lambda r: urlsplit(r.url).path == path and r.request.method == "POST"
-    ) as response:
-        page.get_by_role("button", name="Sign and save announcement", exact=True).click()
-    return response.value.status
+    """Sign the announcement in the form dialog; 302 when the server redirected."""
+    fill_signature(page, username, pin, reason)
+    return submit_signed(page, "Sign and save announcement")
 
 
 def test_administrator_publishes_and_visitor_reads_announcement(
@@ -72,6 +66,7 @@ def test_administrator_publishes_and_visitor_reads_announcement(
         expect(page.get_by_role("link", name="Sign-in announcement", exact=True)).to_have_attribute(
             "aria-current", "page"
         )
+        page.get_by_role("link", name="Change announcement", exact=True).click()  # the dialog
         page.get_by_label(re.compile(r"^Title\b")).fill(ANNOUNCEMENT_TITLE)
         page.get_by_label(re.compile(r"^Announcement text\b")).fill(text)
         page.get_by_label("Show on the sign-in page").check()
@@ -90,7 +85,7 @@ def test_administrator_publishes_and_visitor_reads_announcement(
         expect(current.get_by_role("cell", name="demo_config_author")).to_be_visible()
         expect(page.locator(".vr-timeline")).to_contain_text("Announcement published")
         expect(page.locator(".vr-timeline")).to_contain_text(
-            "Signed by Synthetic Notice Administrator · announcement_authorized"
+            "Signed by Synthetic Notice Administrator · announcement authorized"
         )
         for width in (1440, 390):
             page.set_viewport_size({"width": width, "height": 1000})

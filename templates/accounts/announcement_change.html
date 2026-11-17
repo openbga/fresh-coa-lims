@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Change announcement (accounts:announcement_change): the signed change of the sign-in announcement on the signature card; opens in the form dialog over the announcement, this page is the no-JavaScript fallback. Context: page_title, form, announcement (the revision reviewed), meaning, unavailable.{% endcomment %}
+{% block breadcrumbs %}{% url 'accounts:announcement' as announcement_url %}{% breadcrumbs section="Sign-in announcement" section_url=announcement_url %}{% endblock %}
+{% block content %}
+{% url 'accounts:announcement' as cancel_url %}
+{% signature_card title=page_title heading_id="announcement-change" %}
+  {% fill summary %}<p>Your signature records <strong>{{ meaning|meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
+  <p>The text is public and stays in the audit trail after it is changed. Do not enter personal data, or the password or PIN of any account that is not a synthetic demonstration account.</p>
+  <p>Signer: <strong>{{ user|person }}</strong>. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
+  {% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}<a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>{% else %}
+  {% form_page form=form cancel_url=cancel_url submit_label="Sign and save announcement" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
+  {% endif %}
+{% endsignature_card %}
+{% endblock %}

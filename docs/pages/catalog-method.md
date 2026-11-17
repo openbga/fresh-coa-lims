@@ -39,7 +39,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
 - **admin** without a laboratory role can view everything here but sees no create, edit, approval or signing controls. An administrator who also holds the lab role an action needs gets that action, under the same independence rules.
 - **New version**, **Withdraw draft**, **Add QC check**, QC check **Remove**: **quality** role only (drafts only for the last three).
-- **Review and approve**: quality, draft, and only when you did not author or edit that version. Otherwise the text "Another quality approver must sign this draft." is shown instead.
+- **Review and approve**: quality, draft, and only when you did not author or edit that version. Otherwise the text "Another quality approver must sign this draft." is shown instead, or, when a later version is already approved for the same dates, that reason.
 
 ## Layout
 
@@ -58,7 +58,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 |---|---|---|---|
 | **New version** | Quality role | Quality | Opens the New version form |
 | **Withdraw draft** | Version is Draft, quality role | Quality | Opens the Withdraw page |
-| **Review and approve** | Draft, quality, independent of author and editors | Quality | Opens the Approve page |
+| **Review and approve** | Draft, quality, independent of author and editors, and no later version is already approved for the same dates (otherwise the card says why in its place) | Quality | Opens the Approve page |
 | **Add QC check** | Draft batch version, quality | Quality | Opens the Add QC check form |
 | **Remove** (QC check) | Draft, quality | Quality | Opens the Remove QC check form |
 | **Set formula** / **Change formula** | Draft, quality | Quality | Opens the Calculation form |

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load ui %}
+{% comment %}Signature PIN: the signer's own PIN state and the action that enrolls or changes it (core:pin, in the form dialog). Context: page_title, credential (PINCredential or None; never the encoded PIN), locked (a PIN lock still running), unavailable (why this account cannot change its PIN here).{% endcomment %}
+{% block page_actions %}{% if not unavailable %}<a class="btn btn-primary" href="{% url 'core:pin' %}">{% icon name="key" %}{% if credential %}Change signature PIN{% else %}Enroll signature PIN{% endif %}</a>{% endif %}{% endblock %}
+{% block content %}
+{% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}{% endif %}
+{% panel title="Your signature PIN" heading_id="pin-status-heading" %}
+  <p class="vr-muted">The secret you re-enter for every electronic signature. It is never shown.</p>
+  <dl class="vr-facts">
+    {% fact label="State" %}{% if not credential %}{% status label="Not enrolled" tone="warning" %}{% elif locked %}{% status label="Locked until "|add:locked_label tone="danger" %}{% else %}{% status label="Enrolled" tone="success" %}{% endif %}{% endfact %}
+    {% if credential %}{% fact label="Failed attempts" value=credential.failures %}{% endif %}
+  </dl>
+{% endpanel %}
+{% endblock %}

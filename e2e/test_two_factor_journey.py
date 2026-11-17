@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from django.contrib.auth.models import Group
 from django_otp.oath import TOTP
+from helpers import open_page_form
 from playwright.sync_api import expect, sync_playwright
 
 PASSWORD = "Synthetic-two-factor-browser-2026!"
@@ -70,6 +71,7 @@ def test_two_factor_sign_in_journey(live_server, django_user_model, settings, ar
             page.goto(f"{base}/accounts/access/")
             page.get_by_role("link", name="Two-factor sign-in", exact=True).click()
             expect(page.get_by_text("Off", exact=True)).to_be_visible()
+            open_page_form(page)  # the confirmation opens in the dialog
             page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
             page.get_by_role("button", name="Set up with an authenticator app", exact=True).click()
             expect(page.locator("svg.vr-qr")).to_be_visible()
@@ -133,8 +135,12 @@ def test_two_factor_sign_in_journey(live_server, django_user_model, settings, ar
         key = set_up()
 
         def choose_theme(theme):
-            page.get_by_role("button", name="Theme", exact=True).click()
-            page.get_by_role("button", name=theme, exact=True).click()
+            if page.locator("#vr-form-dialog.show").count():
+                # The theme menu is behind the open form dialog: choose as the menu does.
+                page.locator(f"[data-vr-theme-value={theme.lower()}]").first.dispatch_event("click")
+            else:
+                page.get_by_role("button", name="Theme", exact=True).click()
+                page.get_by_role("button", name=theme, exact=True).click()
             expect(page.locator("html")).to_have_attribute("data-bs-theme", theme.lower())
 
         def check(name):

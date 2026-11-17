@@ -1,5 +1,6 @@
 """Sampling pages: holds, assignment, sampling entry, corrections and role boundaries."""
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -249,11 +250,19 @@ def test_lot_list_shows_the_lot_status_and_a_deviation_awaiting_assessment(clien
     _ready_for_sampling(people, lot)
     client.force_login(people["analyst"])
     url = reverse("sampling:lots")
-    page = client.get(url).content.decode()
+
+    def rows(**query):  # the table only: the Status filter's options name the status too
+        html = client.get(url, query).content.decode()
+        return re.sub(r"<select.*?</select>", "", html, flags=re.S)
+
+    page = rows()
     assert "Quarantine" in page and "Awaiting quality assessment" not in page
+    assert lot.number not in rows(status="deviation")
     recorded = client.post(
         reverse("sampling:sampling_new", args=[lot.pk]),
         sampling_data(deviation="Two containers damaged (synthetic)."),
     )
     assert recorded.status_code == 302
-    assert "Awaiting quality assessment" in client.get(url).content.decode()
+    assert "Awaiting quality assessment" in rows()
+    # The dashboard's "Sampling deviations to assess" opens this filter.
+    assert client.get(url, {"status": "deviation"}).context["page_obj"].paginator.count == 1

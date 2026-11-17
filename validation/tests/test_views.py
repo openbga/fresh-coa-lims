@@ -341,3 +341,24 @@ def test_no_accept_button_while_an_owner_is_inactive(client, people, configured)
     assert reverse("validation:use_withdraw", args=[acceptance.pk]) in body
     page = client.get(reverse("validation:use_accept", args=[acceptance.pk]))
     assert page.status_code == 403 and "no longer an active account" in page.content.decode()
+
+
+def test_accept_is_offered_only_while_every_method_has_a_version_in_force(
+    client, people, configured, monkeypatch
+):
+    """Accept on the intended-use record checks what use_accept checks: a method that lost its
+    approved version since recording refuses it, so the record says why instead."""
+    acceptance = recorded_use(people)
+    url = reverse("validation:use_detail", args=[acceptance.pk])
+    accept_url = reverse("validation:use_accept", args=[acceptance.pk])
+    client = login(client, people["approver"])
+    assert accept_url in client.get(url).content.decode()
+    supported = services.supported_versions
+    monkeypatch.setattr(
+        services,
+        "supported_versions",
+        lambda codes, configuration: (supported(codes, configuration)[0], ["hplc-assay"]),
+    )
+    body = client.get(url).content.decode()
+    assert accept_url not in body
+    assert "hplc-assay has no approved version in force." in body

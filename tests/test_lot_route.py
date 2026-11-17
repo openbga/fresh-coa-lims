@@ -213,3 +213,53 @@ def test_lot_record_keeps_legacy_results(client, django_user_model):
     panel = body[body.index('id="samples-heading"') : body.index('id="signatures-heading"')]
     assert "SYN-LEGACY-S1" in panel and "No results recorded." in panel
     assert "Tests of sample" not in panel
+
+
+def test_lot_record_lists_its_retention_obligations(client, django_user_model):
+    """A lot-level retention obligation (no reserve sample) has its home on the lot record, with
+    Set anchor for the roles stability.services.set_anchor allows, and none once it is set."""
+    from stability.services import add_obligation, set_anchor
+
+    analyst = django_user_model.objects.create_user("route-retention")
+    analyst.groups.add(Group.objects.get_or_create(name="analyst")[0])
+    auditor = django_user_model.objects.create_user("route-retention-auditor")
+    auditor.groups.add(Group.objects.get_or_create(name="auditor")[0])
+    rules = RuleSet.objects.create(
+        code="route-retention-rules",
+        segment="synthetic",
+        status="approved",
+        effective_from=timezone.now(),
+        author=analyst,
+    )
+    lot = Lot.objects.create(
+        number="SYN-ROUTE-RET", material="Synthetic", rules=rules, created_by=analyst
+    )
+    url = reverse("quality:lot_detail", args=[lot.pk])
+    client.force_login(analyst)
+    assert 'id="retention-heading"' not in client.get(url).content.decode()  # none, no panel
+    obligation = add_obligation(
+        actor=analyst,
+        lot=lot,
+        anchor_kind="last_distribution",
+        offset_months=12,
+        basis="Synthetic retention basis",
+        reason="Synthetic",
+    )
+    anchor_url = reverse("stability:anchor_set", args=[obligation.pk])
+    body = client.get(url).content.decode()
+    row = body[body.index(f'data-obligation="{obligation.pk}"') :]
+    row = row[: row.index("</tr>")]
+    assert "Synthetic retention basis" in row and "Anchor not yet known" in row
+    assert f'href="{anchor_url}">Set anchor</a>' in row
+    client.force_login(auditor)  # may read, may not set the anchor
+    body = client.get(url).content.decode()
+    assert 'id="retention-heading"' in body and anchor_url not in body
+    set_anchor(
+        actor=analyst,
+        obligation=obligation,
+        anchor_date=timezone.localdate(),
+        reason="Synthetic last distribution",
+    )
+    client.force_login(analyst)
+    body = client.get(url).content.decode()
+    assert anchor_url not in body and "Anchor not yet known" not in body

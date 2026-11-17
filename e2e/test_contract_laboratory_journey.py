@@ -6,7 +6,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
-from helpers import pick
+from helpers import pick, submit_for_review
 from playwright.sync_api import expect, sync_playwright
 
 from analytical import services as analytical
@@ -68,7 +68,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             page.set_viewport_size({"width": 1440, "height": 1000})
 
         def fill_report(date):
-            pick(page.get_by_label("Contract laboratory"), index=1)
+            pick(field("Contract laboratory"), index=1)
             field("Report number").fill(REPORT)
             field("Date of the report").fill(date.isoformat())
             field("Where the report is kept").fill("DMS-SYN-CLR-0042")
@@ -107,9 +107,19 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             # Until a second quality person signs, no report is accepted.
             login(people["receiver"])
             goto("analytical:test_detail", test.pk)
-            page.get_by_role("link", name="Record contract laboratory result", exact=True).click()
+            # Not offered while it would be refused: the header says why instead, and the page
+            # itself still refuses when opened directly.
             expect(
-                page.get_by_text(f"No contract laboratory is approved for method {method}.")
+                page.get_by_role("link", name="Record contract laboratory result", exact=True)
+            ).to_have_count(0)
+            expect(page.locator('[data-refused="contract"]')).to_contain_text(
+                f"No contract laboratory is approved for method {method}."
+            )
+            goto("analytical:contract_result", test.pk)
+            expect(
+                page.get_by_role("alert").get_by_text(
+                    f"No contract laboratory is approved for method {method}."
+                )
             ).to_be_visible()
             sign_out()
 
@@ -158,8 +168,7 @@ def test_contract_laboratory_from_approval_to_certificate(live_server, integrate
             ).to_be_visible()
             page.keyboard.press("Escape")
             shots("contract-result-recorded")
-            field("Reason").fill("Report transcribed")
-            page.get_by_role("button", name="Submit for review", exact=True).click()
+            submit_for_review(page, "Report transcribed")
             expect(page.get_by_text("Awaiting review", exact=True)).to_be_visible()
             sign_out()
 

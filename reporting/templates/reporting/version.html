@@ -7,7 +7,7 @@
 {% block content %}
 {% panel title="Issued record" heading_id="integrity-heading" class="mb-3" %}
   <dl class="vr-facts">
-    {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning }} · {{ signature.signed_at|when:"seconds" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}
+    {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning|meaning }} · {{ signature.signed_at|when:"seconds" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}
     {% fact label="Size" %}{{ version.pdf_size }} bytes{% endfact %}
     {% if version.supersedes_id %}{% fact label="Amends" %}<a href="{% url 'reporting:version' report.pk version.supersedes.number %}">Version {{ version.supersedes.number }}</a>{% endfact %}{% endif %}
     {% if version.superseded_by %}{% fact label="Superseded by" critical="info" %}{% status label="Superseded" tone="info" %}<small><a href="{% url 'reporting:version' report.pk version.superseded_by.number %}">Version {{ version.superseded_by.number }}</a></small>{% endfact %}{% endif %}

@@ -46,7 +46,9 @@ def test_quality_reviews_and_signs_the_rejection(client, world):  # noqa: F811
     client.force_login(approver)
     detail = text(client.get(lot_url))
     assert f'href="{reject_url}"' in detail and ">Reject lot</a>" in detail
-    assert reverse("quality:lot_cancel", args=[lot.pk]) in detail
+    # The lot's material was sampled and tested: cancelling it as received in error would be
+    # refused (quality.rejection.cancellation_refusals), so it is not offered.
+    assert reverse("quality:lot_cancel", args=[lot.pk]) not in detail
 
     page = text(client.get(reject_url))
     assert "What stands in the way of release" in page
@@ -117,6 +119,10 @@ def test_the_rejection_page_says_what_must_happen_first(client, world):  # noqa:
     assert "holds a result outside its limits that was not submitted (96.00)" in page
     assert "results not submitted: 96.00 (96.00 outside the limits)" in page
     assert 'name="pin"' not in page
+    # The lot record does not offer Reject lot while it would be refused: it says why instead.
+    detail = text(client.get(reverse("quality:lot_detail", args=[lot.pk])))
+    assert f'href="{reject_url}"' not in detail
+    assert 'data-refused="reject">' in detail and "was not submitted (96.00)" in detail
     submit(world, assay)
     page = text(client.get(reject_url))
     assert "is open. Conclude it before the lot is rejected" in page
@@ -134,6 +140,7 @@ def test_quality_cancels_a_lot_received_in_error(client, received):  # noqa: F81
     client.force_login(people["analyst"])  # received the lot
     assert client.get(cancel_url).status_code == 403
     client.force_login(approver)
+    assert cancel_url in text(client.get(lot_url))  # nothing refuses it: offered under More
     page = text(client.get(cancel_url))
     assert "Cancel lot received in error" in page and "Sign and cancel the lot" in page
     assert "What was recorded in error" in page

@@ -21,6 +21,7 @@ pytestmark = pytest.mark.django_db(transaction=True)
 PASSWORD = "Synthetic-notice-pass-518!"
 PIN = "73915286"
 URL = reverse("accounts:announcement")
+CHANGE = reverse("accounts:announcement_change")
 LOGIN = reverse("login")
 
 
@@ -70,7 +71,7 @@ def post(client, user, **overrides):
         "pin": PIN,
     }
     data.update(overrides)
-    return client.post(URL, {k: v for k, v in data.items() if v is not None})
+    return client.post(CHANGE, {k: v for k, v in data.items() if v is not None})
 
 
 def test_sign_in_page_shows_nothing_until_an_announcement_is_published(client, users):
@@ -141,6 +142,7 @@ def test_only_the_admin_role_can_open_or_change_the_page(client, users):
     for name in ("quality", "analyst", "auditor", "root"):
         client.force_login(users[name])
         assert client.get(URL).status_code == 403
+        assert client.get(CHANGE).status_code == 403
         assert post(client, users[name]).status_code == 403
         assert link not in client.get(reverse("accounts:access")).content
         with pytest.raises(PermissionDenied):
@@ -156,8 +158,14 @@ def test_only_the_admin_role_can_open_or_change_the_page(client, users):
     assert link + b' aria-current="page"' in response.content
     assert b"No announcement text has been saved." in response.content
     assert b"No announcement changes recorded." in response.content
-    assert b'name="pin"' in response.content and b"announcement_authorized" in response.content
+    # The page shows the state; Change announcement signs a change on its own (dialog) page.
+    assert b'name="pin"' not in response.content
+    assert f'href="{CHANGE}">'.encode() in response.content
+    form = client.get(CHANGE)
+    assert form.status_code == 200 and b'name="pin"' in form.content
+    assert b"Your signature records <strong>announcement authorized</strong>" in form.content
     assert client.put(URL).status_code == 405
+    assert client.put(CHANGE).status_code == 405
 
 
 def test_web_change_signs_with_username_and_pin_and_lists_history(client, users):
@@ -168,7 +176,7 @@ def test_web_change_signs_with_username_and_pin_and_lists_history(client, users)
     assert b"Announcement published" in page.content
     assert b"Signed by manager" in page.content and b"revision 2" in page.content
     assert b'data-tone="success"' in page.content
-    assert b'name="revision" value="2"' in page.content
+    assert b'name="revision" value="2"' in client.get(CHANGE).content
     signature = ElectronicSignature.objects.get()
     assert signature.authentication_context["channel"] == "web"
     assert signature.authentication_context["components"] == ["username", "pin"]
@@ -225,13 +233,11 @@ def test_page_explains_a_missing_pin_before_asking_for_one(client, users):
     client.force_login(users["manager"])
     response = client.get(URL)
     assert b"Enroll your signature PIN before changing the announcement." in response.content
-    assert (
-        b'name="pin"' not in response.content
-        and b"<form"
-        not in response.content.split(b'id="announcement-change"')[1].split(
-            b'id="announcement-history"'
-        )[0]
-    )
+    assert f'href="{CHANGE}"'.encode() not in response.content  # not offered
+    form = client.get(CHANGE)
+    assert b"Enroll your signature PIN before changing the announcement." in form.content
+    assert b'name="pin"' not in form.content
+    assert b"<form" not in form.content.split(b'id="announcement-change"')[1]
 
 
 def test_database_keeps_one_row_and_refuses_an_empty_publication(users):

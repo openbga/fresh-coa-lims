@@ -140,6 +140,26 @@ def tests_in_progress(revision):
     )
 
 
+INDEPENDENT_APPROVER = "Another quality approver must sign this draft."
+
+
+def approval_offer(user, revision):
+    """(offered, note) for Review and approve on a draft: offered only when its approval page
+    would accept it (independent approver; no later version already approved for the same
+    dates: services.retirements); otherwise the note says why."""
+    if revision.status != RevisionStatus.DRAFT:
+        return False, ""
+    try:
+        services.ensure_independent(user, revision)
+    except PermissionDenied:
+        return False, INDEPENDENT_APPROVER
+    try:
+        services.retirements(revision)
+    except ValidationError as exc:
+        return False, " ".join(exc.messages)
+    return True, ""
+
+
 def approve_page(request, revision, *, kind, crumbs, success_url, detail_template):
     """Full-page signing action for any controlled revision. The service re-checks everything."""
     require_role(request.user, services.AUTHOR_ROLE)

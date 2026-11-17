@@ -62,7 +62,8 @@ def test_certificate_recorded_corrected_read_and_withdrawn(
             page.get_by_role("heading", name="Record supplier certificate", exact=True, level=1)
         ).to_be_visible()
         expect(page.locator('#vr-nav [aria-current="page"]')).to_have_text("Lots")
-        expect(page.get_by_text("SUP-LOT-SYN-001")).to_be_visible()  # The receipt, to compare.
+        # The receipt, to compare, on the form (the lot record stays behind the dialog).
+        expect(page.locator("#vr-form-content").get_by_text("SUP-LOT-SYN-001")).to_be_visible()
         field("Certificate number").fill("COA-SYN-0001")
         field("Issued by").fill("Synthetic Ingredients Supply")
         field("Date of the certificate").fill("2026-11-02")

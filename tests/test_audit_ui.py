@@ -144,3 +144,28 @@ def test_filters_limit_post_selection(client, audit_data):
     )
     assert response.status_code == 422
     assert not AuditReview.objects.exists()
+
+
+def test_inspected_values_show_stored_choices_as_their_labels(client, django_user_model):
+    """A stored choice code reads as the model field's label (owner: no raw codes on screen):
+    the event's own model first ("kind" of a material), then nested snapshots by field name (a
+    lot's receipt "source"). The export keeps the recorded codes."""
+    reviewer = django_user_model.objects.create_user("audit-labels")
+    reviewer.groups.add(Group.objects.get_or_create(name="auditor")[0])
+    AuditEvent.objects.create(
+        actor=reviewer,
+        action="material.created",
+        object_type="catalog.material",
+        object_id="1",
+        reason="Synthetic",
+        after={"kind": "raw_material", "receipt": {"source": "on_site"}, "code": "syn_code"},
+    )
+    client.force_login(reviewer)
+    response = client.get("/audit/")
+    body = response.content.decode()
+    inspected = body[body.index("Inspect values") :]
+    assert "Raw material" in inspected and "Made on site" in inspected
+    assert "raw_material" not in inspected and "on_site" not in inspected
+    assert "syn_code" in inspected  # not a choice: shown as recorded
+    export = client.get("/audit/", {"export": "csv"}).content.decode()
+    assert "raw_material" in export and "on_site" in export

@@ -1,5 +1,16 @@
 from django import forms
 
+
+class LocalDateTimeInput(forms.DateTimeInput):
+    """The shared date-time control (templates/django/forms/widgets/date.html): the laboratory's
+    local time to the minute, typed or picked; every DateTimeField in a form uses it."""
+
+    input_type = "datetime-local"
+
+    def __init__(self, attrs=None):
+        super().__init__(attrs, format="%Y-%m-%dT%H:%M")
+
+
 # A signature PIN: numeric keypad, never autofilled, never rendered back into the page.
 PIN_WIDGET_ATTRS = {"autocomplete": "off", "inputmode": "numeric"}
 
@@ -26,12 +37,26 @@ class RuleForm(forms.Form):
         "additional rule set: it is not chosen when a lot is received and applies to every "
         "lot whose requirements are assigned for a material, stage and scope it names.",
     )
-    effective_from = forms.DateTimeField()
-    effective_until = forms.DateTimeField(required=False)
+    effective_from = forms.DateTimeField(widget=LocalDateTimeInput)
+    effective_until = forms.DateTimeField(required=False, widget=LocalDateTimeInput)
     reason = forms.CharField(widget=forms.Textarea)
 
 
-class SignatureIdentityForm(forms.Form):
+SIGNING_FIELDS = ("reason", "signature_username", "pin")
+
+
+class SigningFieldOrder:
+    """Every signature asks in one order, whatever the form: its own fields (also those a form
+    adds as it is built), then the reason, then the signing username and the PIN
+    (docs/ui-standards.md, signing). Rendering iterates the form, so this decides the order."""
+
+    def __iter__(self):
+        last = [name for name in SIGNING_FIELDS if name in self.fields]
+        for name in [n for n in self.fields if n not in last] + last:
+            yield self[name]
+
+
+class SignatureIdentityForm(SigningFieldOrder, forms.Form):
     signature_username = forms.CharField(
         label="Signing username",
         max_length=150,

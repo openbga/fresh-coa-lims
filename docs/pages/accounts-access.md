@@ -12,7 +12,7 @@ summary: Your laboratory roles, links to your own sign-in settings, and the next
 ### Open your work
 1. Select [[Open workspace]]. It shows only when you hold at least one laboratory role, and opens the dashboard.
 ### Change your sign-in settings
-1. Select [[Change password]] to replace your login password.
+1. Select [[Password]] to see your login password's state and change it.
 2. Select [[Two-factor sign-in]] to add a security key, passkey or authenticator app.
 3. Select [[Organization sign-in]] to link your organization account. It shows only when single sign-on is set up.
 ### Ask for a laboratory role
@@ -46,7 +46,7 @@ The shared menu shows destinations your assigned roles can open. All five roles 
 | Action | Shown when | Result |
 |---|---|---|
 | Open workspace | At least one recognized laboratory role | Opens the Dashboard; later actions still check their own permissions |
-| Change password | Always | Opens your password-change form |
+| Password | Always | Opens Password, where you change your password |
 | Manage users and roles | Explicit admin role | Opens Users and roles |
 | View accounts in Django admin | Account administrator with staff status and user view/change permission | Opens the read-only Django account list |
 | Two-factor sign-in | Always | Opens your own two-factor sign-in settings |
@@ -77,7 +77,7 @@ The operator's `assign_roles` command replaces the complete role set. Include ev
 
 - [Dashboard](/)
 - [Users and roles](/accounts/users/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)
 - [Two-factor sign-in](/accounts/two-factor/)
 - [Organization sign-in](/accounts/single-sign-on/), when configured.
 - [Read-only Django account administration](/admin/accounts/user/)

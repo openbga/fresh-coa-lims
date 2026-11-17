@@ -19,9 +19,9 @@ Usage:
   {% notice tone="warning" label="Declined" %}Version 2 declined by ...{% endnotice %}
 {% endcomment %}
 {% load ui %}<div class="alert alert-{{ variant }}{% if dismissible %} alert-dismissible{% endif %}{% if class %} {{ class }}{% endif %}"{% if id %} id="{{ id }}"{% endif %}{% if hook %} data-{{ hook }}{% endif %}{% if focus %} tabindex="-1"{% endif %} role="{% if blocking %}alert{% else %}status{% endif %}"{% if hidden %} hidden{% endif %}>
-  {% if heading %}<div class="vr-announcement-head">{% status label=label tone=tone plain=True title=None %}<h2 class="vr-announcement-title">{{ heading }}</h2></div>
+  {% if heading %}<div class="vr-announcement-head">{% status label=label tone=tone plain=True title=None glyph=glyph %}<h2 class="vr-announcement-title">{{ heading }}</h2></div>
   <p class="vr-announcement-body">{{ body }}</p>{% else %}
-  {% status label=label tone=tone plain=True title=None %}
+  {% status label=label tone=tone plain=True title=None glyph=glyph %}
   <div>{{ body }}</div>{% endif %}
   {% if dismissible %}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss"></button>{% endif %}
 </div>

@@ -35,7 +35,7 @@
           <td>{% if v.kind == "issue" %}Issue{% else %}Amendment{% endif %}</td>
           <td>{% if v.is_current %}{% status label="Current" tone="success" plain=True %}{% else %}{% status label="Superseded" tone="neutral" plain=True %}{% endif %}</td>
           <td>{{ v.issued_at|when:"seconds" }}</td>
-          <td>{% if v.signature %}{{ v.signature.signer_name }} · {{ v.signature.meaning }}{% else %}{{ v.issued_by }}{% endif %}</td>
+          <td>{% if v.signature %}{{ v.signature.signer_name }} · {{ v.signature.meaning|meaning }}{% else %}{{ v.issued_by }}{% endif %}</td>
           <td class="vr-wrap"><span class="vr-clamp" title="{{ v.reason }}">{{ v.reason }}</span></td>
           <td><a href="{% url 'reporting:pdf' report.pk v.number %}">Download PDF<span class="visually-hidden"> version {{ v.number }}</span></a></td>
         </tr>

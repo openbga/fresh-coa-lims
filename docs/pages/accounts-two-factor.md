@@ -45,7 +45,7 @@ The **Account access** breadcrumb and a short introduction (which, when the site
 - Warnings and notices: **Two-factor sign-in is stopped for this account after too many wrong codes or refused keys. Nothing is accepted until an administrator resets it; you then set it up again.**; the info notice **Set up two-factor sign-in before continuing. You can sign out from the top bar.** when it is required and not set up; and, when fewer than 3 recovery codes remain, **Only N recovery code(s) left.** or **No recovery codes left.** with advice to make new ones.
 - **Security keys and passkeys** table: **Name** (with **Works only at HOST** for a key registered at another host name), **Kind** (**Passkey that can be copied to your other devices** or **Kept on one device**), **Added**, **Last used** (date and time, or **Not yet**) and a **Remove** button per key. Below it, instructions for removing; with a single key and no app it warns that removing it turns two-factor sign-in off (and that your account does not allow this when required).
 - When the site is opened by an IP address, an info notice says **Security keys work only when this site is opened by its host name over HTTPS, not by an IP address.**
-- When off, the **Set up** card has **Current password** and two buttons. When on, the **Change two-factor sign-in** card has **Current password** and a code field (**Code from your authenticator app or a recovery code**, or **Recovery code** without an app), with the hint to leave it empty to confirm with your security key.
+- The form card shows its introduction and one button that opens its form in a dialog: **Set up two-factor sign-in** when off, **Change two-factor sign-in** when on (without JavaScript the form shows in the card). A key's **Remove** button opens the same dialog, where **Remove** with the key's name is among the actions. When off, the form has **Current password** and two buttons. When on, the form has **Current password** and a code field (**Code from your authenticator app or a recovery code**, or **Recovery code** without an app), with the hint to leave it empty to confirm with your security key.
 - After new recovery codes are made, this URL shows **Your recovery codes** instead: ten codes in a numbered list and the link **I have saved the codes**.
 
 ## Actions
@@ -99,5 +99,5 @@ Every action needs your current password. When two-factor sign-in is on it also 
 - [Set up two-factor sign-in](/accounts/two-factor/setup/)
 - [Add a security key or passkey](/accounts/two-factor/security-key/)
 - [Sign in with a passkey](/accounts/login/passkey/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)
 - [Users and roles](/accounts/users/)

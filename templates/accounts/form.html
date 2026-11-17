@@ -5,20 +5,23 @@
 {% block content %}
 {% if required_change %}{% notice tone="info" class="mb-3" %}Choose a new password before continuing. You can sign out from the top bar.{% endnotice %}{% endif %}
 {% if signing %}
-{% panel title="Account change" heading_id="account-change-heading" class="mb-3" %}
-  <p>Signer: <strong>{{ user|person }}</strong>. Your signature means <strong>account_authorized</strong>: you authorize this account change, with its reason and server timestamp.</p>
+{% signature_card title=page_title %}
+  {% fill summary %}<p>Your signature records <strong>{{ "account_authorized"|meaning }}</strong>: you authorize this account change, with its reason and the server timestamp.</p>
   {% if target %}<dl class="vr-facts">
     {% fact label="Account" value=target.username %}
     {% fact label="Identity" value=target.get_full_name|default:"Not supplied" %}
-    {% fact label="Roles" %}{% for role in target.groups.all %}{{ role.name }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}{% endfact %}
+    {% fact label="Roles" %}{% for role in target.groups.all %}{{ role.name|title }}{% if not forloop.last %}, {% endif %}{% empty %}None{% endfor %}{% endfact %}
     {% fact label="Active" value=target.is_active|yesno:"Yes,No" %}
     {% fact label="Revision" %}Reviewing {{ target.management_revision }}; signature binds revision {{ target.management_revision|add:"1" }}.{% endfact %}
   </dl>{% else %}<p>A new account starts at revision 1 and must change its initial password at first sign-in.</p>{% endif %}
   <p>Existing sessions are revoked after changes. You cannot grant yourself additional roles or remove the last active admin. Staff and superuser flags are never changed here.</p>
-  <p class="mb-0"><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>
-{% endpanel %}
-{% endif %}
-{% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}<a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>{% else %}
-{% if required_change %}{% form_page form=form submit_label=submit_label autocomplete_off=True %}{% endform_page %}{% else %}{% form_page form=form cancel_url=cancel_url submit_label=submit_label autocomplete_off=True %}{% endform_page %}{% endif %}
+  <p>Signer: <strong>{{ user|person }}</strong>. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
+  {% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}<a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>{% else %}
+  {% form_page form=form cancel_url=cancel_url submit_label=submit_label submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
+  {% endif %}
+{% endsignature_card %}
+{% elif unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}<a class="btn btn-link" href="{{ cancel_url }}">Return without changes</a>
+{% elif required_change %}{% form_page form=form submit_label=submit_label autocomplete_off=True %}{% endform_page %}
+{% else %}{% form_page form=form cancel_url=cancel_url submit_label=submit_label autocomplete_off=True %}{% endform_page %}
 {% endif %}
 {% endblock %}

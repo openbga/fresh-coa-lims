@@ -31,7 +31,7 @@ Shows a sampling plan with every version, its content, signatures and history. Q
 - Sign-in required. Viewing requires one of **analyst**, **reviewer**, **quality**, **admin** or **auditor**; others receive 403 Forbidden.
 - **admin** without a laboratory role can view everything here but sees no create, edit, approval or signing controls. An administrator who also holds the lab role an action needs gets that action, under the same independence rules.
 - **New version**, **Withdraw draft**: **quality** role only (**Withdraw draft** on drafts).
-- **Review and approve**: quality, draft, and only when you did not author or edit that version; otherwise "Another quality approver must sign this draft." is shown.
+- **Review and approve**: quality, draft, and only when you did not author or edit that version; otherwise "Another quality approver must sign this draft." is shown, or, when a later version is already approved for the same dates, that reason.
 
 ## Layout
 
@@ -46,7 +46,7 @@ Shows a sampling plan with every version, its content, signatures and history. Q
 |---|---|---|---|
 | **New version** | Quality role | Quality | Opens the New version form |
 | **Withdraw draft** | Draft, quality | Quality | Opens the Withdraw page |
-| **Review and approve** | Draft, quality, independent of author and editors | Quality | Opens the Approve page |
+| **Review and approve** | Draft, quality, independent of author and editors, and no later version is already approved for the same dates (otherwise the card says why in its place) | Quality | Opens the Approve page |
 
 ## Fields
 

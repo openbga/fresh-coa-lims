@@ -2,16 +2,23 @@
 not grow with the number of lots."""
 
 import re
+from html import unescape
 
 import pytest
 from django.contrib.auth.models import Group
+from django.core.paginator import Page
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from core.models import RuleSet
+from quality import services as quality
 from quality.models import Lot
+from sampling import services as sampling
+from tests.receipts import on_site_receipt
+from tests.test_integrated_journey import assign_and_sample, observed_test
+from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
@@ -101,3 +108,79 @@ def test_cost_does_not_grow_with_the_number_of_lots(client, django_user_model, r
         return len(captured)
 
     assert measured(1) == measured(20)
+
+
+def linked_queues(response):
+    """[(label, list url, count)] of every queue that links to a list, as the page shows them."""
+    html = response.content.decode()
+    pattern = (
+        r'<a class="vr-queue-label" href="([^"]+)">([^<]+)</a>'
+        r'<span class="vr-queue-count"[^>]*>(\d+)<'
+    )
+    return [(label, unescape(url), int(n)) for url, label, n in re.findall(pattern, html)]
+
+
+def listed(response):
+    """The number of rows a list returns over all its pages."""
+    for key in ("page_obj", "page"):
+        page = response.context.get(key)
+        if isinstance(page, Page):
+            return page.paginator.count
+    raise AssertionError("the list has no page of rows")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("role", READERS)
+def test_every_queue_count_equals_the_rows_of_the_list_it_opens(
+    client, django_user_model, integrated, role
+):
+    data, people = integrated, integrated["people"]
+    sample = assign_and_sample(data)  # requirements assigned and sampled: not awaiting sampling
+    observed_test(data, sample, "100.25")  # submitted: awaiting review
+
+    def received(number, *, assigned=False):
+        lot = quality.receive_lot(
+            actor=people["receiver"],
+            number=number,
+            material=data["material"].name,
+            rules=data["lot"].rules,
+            reason="Synthetic dashboard receipt",
+            receipt=on_site_receipt(),
+        )
+        if assigned:
+            sampling.assign_requirements(
+                actor=people["analyst"],
+                lot=lot,
+                material=data["material"],
+                stage="incoming",
+                reason="Assign approved synthetic policy",
+            )
+        return lot
+
+    received("SYN-DASH-WAIT", assigned=True)  # awaiting sampling
+    unassigned = received("SYN-DASH-NONE")  # requirements not assigned
+    quality.add_sample(  # a sample with no test assigned
+        actor=people["receiver"],
+        lot=unassigned,
+        reference="SYN-DASH-NONE-S1",
+        collected_at=timezone.now(),
+        reason="Synthetic sample",
+    )
+    released = received("SYN-DASH-REL", assigned=True)
+    # Released with requirements assigned and no sample: never awaiting sampling.
+    Lot.objects.filter(pk=released.pk).update(state="released")
+
+    client.force_login(user_with(django_user_model, f"dash-queue-{role}", role))
+    page = client.get(reverse("quality:dashboard"))
+    shown = linked_queues(page)
+    assert {label for label, _, _ in shown} == set(queues(page))  # every count is a link
+    counts = {label: count for label, _, count in shown}
+    assert counts["Awaiting sampling"] == 1
+    assert counts["Requirements not assigned"] == 1
+    assert counts["Awaiting review"] == 1
+    assert counts["Certificates to issue"] == 1
+    assert counts["Samples without assigned tests"] == 1
+    for label, url, count in shown:
+        response = client.get(url)
+        assert response.status_code == 200, (label, url)
+        assert listed(response) == count, (label, url)

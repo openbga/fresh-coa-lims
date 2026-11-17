@@ -6,7 +6,7 @@ from django.utils.html import escape
 
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
-from core.forms import SignatureIdentityForm
+from core.forms import LocalDateTimeInput, SignatureIdentityForm, SigningFieldOrder
 from core.lookups import RemoteSelect
 from core.models import RuleSet
 from core.services import APPLIES_TO, applies_at
@@ -384,7 +384,7 @@ class AcceptanceWithdrawalForm(GroupedForm):
 
 class SampleForm(StyledForm):
     reference = forms.CharField(max_length=80)
-    collected_at = forms.DateTimeField(initial=timezone.now)
+    collected_at = forms.DateTimeField(initial=timezone.now, widget=LocalDateTimeInput)
 
     def clean_reference(self):
         reference = self.cleaned_data["reference"]
@@ -411,7 +411,7 @@ class ResultForm(StyledForm):
         return values
 
 
-class SigningForm(StyledForm):
+class SigningForm(SigningFieldOrder, StyledForm):
     signature_username = forms.CharField(label="Signing username", max_length=150)
     pin = forms.CharField(
         label="Signature PIN",

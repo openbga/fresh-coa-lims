@@ -26,6 +26,17 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   >
   > - Signed cancellation of a lot received in error (`quality:lot_cancel`, **Cancel lot received in error**): meaning `cancelled`, evidence `oq.lot-cancellation/1`; refused once the lot has a sample, test, reserve sample, stability study or standing supplier result, and signed by someone other than whoever received the lot or made its records.
 
+- **Changed**: Every form opens in a dialog over the record, signing included · Whole application · 2026-11-17
+
+  Adding a sample, recording a pull or a result, correcting a receipt, creating an account and every other form now opens in a dialog over the page it was opened from, with the page dimmed behind it. Signing forms open the same way on the signature card: the signing username and PIN are entered every time, a refused PIN is cleared, and nothing about who may sign or what a signature binds has changed. **Signature PIN** shows its state, and **Change signature PIN** opens the change in a dialog. Security keys and passkeys register inside the dialog too. Opening a form's address directly shows it over its record or list, and every signature asks for the reason, then the signing username and PIN, in that order.
+
+  > **Technical notes**
+  >
+  > - `core/form_surfaces.py` registers every form route with its dialog size and roles; `tests/test_form_dialog.py` fails when a form route is neither registered nor listed as a page with its reason (the two sign-in steps, the two-factor overview and a required password change, which has no Cancel).
+  > - Signing in the dialog keeps the server checks: a refused PIN answers 422 with the PIN cleared and the attempt counted, a stale revision is refused, and success answers 204 with `HX-Redirect` to the record.
+  > - New URL names `core:pin_status` (`/signature-pin/`); the change form `core:pin` moved to `/signature-pin/change/`.
+  > - Every date-time field uses the shared date-time control at minute precision.
+
 - **Changed**: New visual design for the whole interface · Whole application · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
   The interface has a new look, **Line**: calm tonal surfaces, rounded panels, a petrol accent and one type family, in light and dark. Each record answers what matters now first, with status and hold pills, the critical facts and the actions that resolve a state beside one primary action. Scientific, signing and audit behaviour is unchanged.
@@ -383,6 +394,16 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### Medium impact
 
+- **Changed**: A test record offers New QC batch when no open batch accepts the test · Testing · 2026-11-17
+
+  **Add to QC batch** is offered only when an open QC batch of the test's method revision accepts it. Otherwise the header says why and offers **New QC batch**, which opens with that method revision already chosen.
+
+  In the application: **Testing: tests**
+
+  > **Technical notes**
+  >
+  > `analytical.views.batch_offer` is shared by the test record and the Add to QC batch page; `batch_new` reads `?method=<code>&revision=<n>`.
+
 - **Changed**: Certificate of analysis and lot record PDFs use the new design · Certificates · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
   The certificate of analysis and the exported lot record share one print layout that stays readable in black and white. Every regulated element is kept, and no new sentence is printed on the certificate. Certificates already issued are stored files and keep their original bytes.
@@ -402,6 +423,18 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > **Technical notes**
   >
   > `quality/dashboard.py`. Every queue is one aggregate query (count and oldest date) on the same conditions as the list it links to, so a count and its list agree. Counts are not scoped per user: every reader role sees the same laboratory, as in the lists, and the services decide who may act. A lot can sit in two queues; a stage total is the sum of its queues.
+
+- **Changed**: Every dashboard and overview count opens exactly the items it counts · Dashboard · 2026-11-17
+
+  Each count on the **Dashboard**, the **Stability** overview and the **Laboratory** overview now opens a list that shows exactly that many rows, and every Dashboard queue is a link. **Material lots** has a new **Queue** filter for the Dashboard's lot queues, **Sampling** a status **Awaiting quality assessment**, **Testing** a status **Retests and resamples not done**, and **Reserve samples** a status **Retention anchor not yet known**.
+
+  In the application: **Dashboard**
+
+  > **Technical notes**
+  >
+  > - Lot queues are defined once in `quality.dashboard.LOT_QUEUES` / `lot_queues()`; the material lot list filters by the same querysets (`?queue=<key>`). Test queues use `analytical.views.TEST_FILTERS` (new key `repeats`); sampling deviations use `sampling.views.deviation_to_assess()`; reserves use `stability.views._reserve_filter`.
+  > - Tests open, Awaiting review and open investigations now include stability testing, as their lists do. Queues that open a list of lots count lots.
+  > - `tests/test_dashboard.py` and the overview tests compare every linked count with the rows of its list for each reader role.
 
 - **Added**: Every page's help starts with a summary and the common tasks · Page help · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
@@ -439,11 +472,45 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   >
   > Stored on the server in `core.UserPreference` (migration `core/0007_user_preference.py`). The endpoint is `/preferences/` (per user, CSRF-protected) with `core.preferences.GridPreferenceMiddleware`; the page-help panel keeps its own state in the same table. Writes that arrive out of order no longer overwrite a later one.
 
+- **Added**: Lot record lists the lot's retention obligations · Lots · 2026-11-17
+
+  The lot record shows a **Retention** panel when the lot has retention obligations, including those recorded for the lot without a reserve sample: the basis, the anchor or **Anchor not yet known**, the date it is retained through and the reserve sample. Analysts and quality users can **Set anchor** there while the anchor is unknown.
+
+  In the application: **Material lots**
+
 - **Fixed**: New QC batch no longer fails when no batch method is approved · Testing · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
   **New QC batch** returned an error page when there was no approved batch method. It now opens with the notice "No approved batch method is available; batches are held."
 
   In the application: **Testing: QC batches**
+
+- **Changed**: Password and Sign-in announcement pages show the current state · Account access · 2026-11-17
+
+  **Password** now shows whether a new password is required and when you last changed it; **Change password** opens the change in a dialog. **Sign-in announcement** shows the notice as visitors see it and its history; **Change announcement** opens the signed change. Account changes and the announcement change are signed on the same signature card as other signing pages.
+
+  In the application: **Password**
+
+  > **Technical notes**
+  >
+  > New URL names `accounts:password` (`/accounts/password/`) and `accounts:announcement_change` (`/accounts/announcement/change/`); `accounts:password_change` moved to `/accounts/password/change/`. A required password change still goes straight to the change form.
+
+- **Fixed**: Pulls of a terminated study are no longer shown as overdue or due · Stability · 2026-11-17
+
+  A pull that was not taken or not accepted when its study was terminated now reads **Terminated** and no longer counts as **Overdue**, **Due now**, **Upcoming** or **Awaiting acceptance** in the pull list, on the study page, in the Stability overview or on the Dashboard. **Mark missed** is no longer offered for it.
+
+  In the application: **Stability pulls**
+
+  > **Technical notes**
+  >
+  > `stability.views._pull_filter` limits the work statuses to active studies; the overview and the Dashboard count through it. A closed study and its pulls already took no more work (`stability.services.close_study`).
+
+- **Fixed**: Record pages offer only the actions the server would accept now · Whole application · 2026-11-17
+
+  A record page no longer offers an action that would only lead to a refusal. Where an action that would be offered cannot be taken now, the page header says why instead, for example on an investigation (**Authorize retest**, **Conclude**), a test (**Sign review**, **Return test**, **Record not completed**, **Record contract laboratory result**), a lot (**Reject lot**, **Cancel lot received in error**, **Review disposition**, **Replace requirements**), a draft version (**Review and approve**), equipment (**Return to service**), a stability protocol or study (**Approve**, **Close study**) and an intended use (**Accept**).
+
+  > **Technical notes**
+  >
+  > Each page computes the same refusal its action page and service check (for example `services.authorize_refusal`, `services.review_refusal`, `quality.rejection.rejection_refusals`, `catalog.web.approval_offer`, `stability.views.close_refusal`, `validation.views.accept_denial`); the services still recheck everything under lock. Ops record pages show a refusal with `laboratory.ui.refused`.
 
 - **Changed**: Selects, dates, files and plain create forms use shared controls · Whole application · 2026-11-17 · [#46](https://github.com/openbga/qm-lims/pull/46)
 
@@ -625,6 +692,20 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > **Technical notes**
   >
   > Two static SVG files replace the earlier illustrations.
+
+- **Changed**: Record pages leave no gap beside the side panel, and lists show material names in full · Whole application · 2026-11-17
+
+  On record pages the panels after the first keep stacking beside a tall side panel and take the full width once it ends. Material names in lists sit beside their kind icon and wrap to two lines before they are shortened. The Dashboard's stages wrap into rows when the page is narrow, and **What's new** uses the application's standard panels and status labels.
+
+- **Fixed**: Stored codes are shown in words in the audit trail and on signing pages · Audit trail · 2026-11-17
+
+  The audit trail's **Inspect values** shows stored choices as their labels, for example "Made on site" instead of a code, and signature meanings read as words ("account authorized") on signing pages and in histories. The audit export keeps the stored codes.
+
+  In the application: **Audit trail**
+
+- **Changed**: The top bar shows the laboratory roles you are signed in with · Whole application · 2026-11-17
+
+  Your name in the top bar is followed by your laboratory roles, for example "Synthetic Analyst · Analyst". On a phone the same line opens the **Account** section of the menu.
 
 - **Changed**: Long structured values in a record's history are named, not printed in full · Whole application · 2026-11-16 · [#32](https://github.com/openbga/qm-lims/pull/32)
 

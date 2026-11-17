@@ -9,7 +9,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
-from helpers import pick
+from helpers import pick, submit_for_review
 from playwright.sync_api import expect, sync_playwright
 from test_requirement_replacement_journey import WIDER_THAN_THE_PAGE
 
@@ -179,8 +179,7 @@ def test_stability_pull_is_tested_in_the_system_and_the_lot_record_is_left_alone
         field("Original record").fill("NB-STB-E2E p1")
         page.get_by_role("button", name="Record observation", exact=True).click()
         expect(page.get_by_text("Observation recorded.").first).to_be_visible()
-        field("Reason").fill("Original records complete")
-        page.get_by_role("button", name="Submit for review", exact=True).click()
+        submit_for_review(page, "Original records complete")
         expect(page).to_have_url(re.compile(r"/investigations/\d+/$"))
         investigation_url = page.url
         expect(page.get_by_text("Pull held").first).to_be_visible()
@@ -237,8 +236,7 @@ def test_stability_pull_is_tested_in_the_system_and_the_lot_record_is_left_alone
         field("Observed value").fill("99.4")
         field("Original record").fill("NB-STB-E2E p2")
         page.get_by_role("button", name="Record observation", exact=True).click()
-        field("Reason").fill("Retest records complete")
-        page.get_by_role("button", name="Submit for review", exact=True).click()
+        submit_for_review(page, "Retest records complete")
         expect(page.get_by_text("Awaiting review").first).to_be_visible()
         sign_out()
         login("reviewer2")

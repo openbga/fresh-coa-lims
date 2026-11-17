@@ -124,3 +124,18 @@ def test_anonymous_and_inactive_accounts_have_no_role_navigation(django_user_mod
         assert context["can_view_workspace"] is False
         assert context["can_view_audit"] is False
         assert context["can_manage_accounts"] is False
+
+
+def test_top_bar_names_the_signed_in_persons_roles(client, django_user_model):
+    user = django_user_model.objects.create_user(
+        "roles_shown", first_name="Synthetic", last_name="Person"
+    )
+    user.groups.add(*[Group.objects.get_or_create(name=r)[0] for r in ("quality", "analyst")])
+    client.force_login(user)
+    body = client.get(reverse("accounts:access")).content.decode()
+    shown = '<span class="vr-topbar-role"> · Analyst, Quality</span>'
+    assert f"Synthetic Person{shown}" in body
+    # Phones: the Account section of the menu opens with the same line.
+    assert 'class="vr-nav-person d-md-none">Synthetic Person<span class="vr-muted"> · ' in body
+    user.groups.clear()
+    assert "vr-topbar-role" not in client.get(reverse("accounts:access")).content.decode()

@@ -56,7 +56,7 @@ List every analytical test, of a lot's testing or of a stability pull, from assi
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Find | — | Text | No | Case-insensitive match on lot number, sample reference, stability study identifier, the lot number of a stability study, or test code. A stability test is not found by its own lot number through the lot field, only through its study's lot |
-| Status | `AnalyticalTest.state`, `conforms` | Choice | No | All tests, Open, Awaiting review, Out of specification, Reviewed, Invalidated, Superseded, Not completed |
+| Status | `AnalyticalTest.state`, `conforms` | Choice | No | All tests, Open, Awaiting review, Retests and resamples not done (retest and resample tests still Open or Awaiting review), Out of specification, Reviewed, Invalidated, Superseded, Not completed |
 | Test | — | "T-" and the record number | — | Link to the test |
 | Status (column) | `AnalyticalTest.state`, `conforms` | Text | — | Open, "Not tested · supplier result", Awaiting review, Reviewed · conforms, Out of specification · awaiting review, Out of specification · reviewed, Invalidated, "Superseded · requirements replaced", Not completed |
 | Kind (tag after the test) | `AnalyticalTest.kind` | Retest, Resample, Rerun after QC failure, Repeat under replaced requirements, Repeat of a test not completed | — | How the test arose |

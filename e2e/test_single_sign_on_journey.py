@@ -6,6 +6,7 @@ import re
 
 import pytest
 from django.contrib.auth.models import Group
+from helpers import open_page_form
 from playwright.sync_api import expect, sync_playwright
 
 from accounts import single_sign_on
@@ -89,6 +90,7 @@ def test_single_sign_on_journey(live_server, django_user_model, provider, artifa
         page.get_by_role("link", name="Organization sign-in", exact=True).click()
         expect(page.get_by_role("heading", name="Status")).to_be_visible()
         expect(facts(page)).to_contain_text("Not linked")
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         provider.next_subject = "sub-analyst"
         page.get_by_role("button", name="Confirm", exact=True).click()
@@ -128,6 +130,7 @@ def test_single_sign_on_journey(live_server, django_user_model, provider, artifa
         password_sign_in(page, base, analyst.username)
         page.goto(f"{base}/accounts/single-sign-on/")
         expect(facts(page)).to_contain_text(LABEL)
+        open_page_form(page)  # the confirmation opens in the dialog
         page.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         page.get_by_role("button", name="Unlink the organization account", exact=True).click()
         expect(
@@ -169,6 +172,7 @@ def test_single_sign_on_journey(live_server, django_user_model, provider, artifa
         qpage.goto(f"{base}/accounts/single-sign-on/")
         expect(facts(qpage)).to_contain_text("Not linked")
         check("organization-sign-in-not-linked")
+        open_page_form(qpage)  # the confirmation opens in the dialog
         qpage.get_by_label(re.compile(r"^Current password\b")).fill(PASSWORD)
         provider.next_subject = "sub-analyst"
         qpage.get_by_role("button", name="Confirm", exact=True).click()

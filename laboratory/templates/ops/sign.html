@@ -6,7 +6,7 @@
 {% signature_card title=page_title hook=dialog_hook %}
   {% fill summary %}<p>Record <strong>{{ identifier }}</strong>, revision <strong>{{ revision }}</strong>. {{ meaning_text }}</p>
   <dl class="vr-facts mb-3">{% for label, value in facts %}{% if value.critical %}{% fact label=label critical=value.tone %}{% status label=value.text tone=value.tone %}{% if value.sub %}<small>{{ value.sub }}</small>{% endif %}{% endfact %}{% else %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endif %}{% endfor %}</dl>
-  {% if not denial %}<p>Signer: <strong>{{ request.user|person }}</strong>. Your signature records <strong>{{ meaning }}</strong>; the server records the execution time and binds the signature to revision {{ revision|add:"1" }}, the revision this transition produces.</p>
+  {% if not denial %}<p>Signer: <strong>{{ request.user|person }}</strong>. Your signature records <strong>{{ meaning|meaning }}</strong>; the server records the execution time and binds the signature to revision {{ revision|add:"1" }}, the revision this transition produces.</p>
   <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endif %}{% endfill %}
   {% if denial %}
   {% notice tone="danger" label="Not permitted" blocking=True %}{{ denial }}{% endnotice %}

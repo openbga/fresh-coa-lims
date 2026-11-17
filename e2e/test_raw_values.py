@@ -9,6 +9,7 @@ raw audit action code. The scan is e2e/raw_values.js.
 from pathlib import Path
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.urls import URLResolver, get_resolver, reverse
 from helpers import browser_page, login, ready_test
 
@@ -47,6 +48,7 @@ def test_pages_show_no_raw_values(live_server, integrated):
     data = integrated
     ready_test(data, assign_and_sample(data))  # a signed review and its audit events
     hits = []
+    usernames = list(get_user_model().objects.values_list("username", flat=True))
     with browser_page({"width": 1440, "height": 900}) as page:
         login(page, live_server, data["people"]["author"])
         queue = staff_paths()
@@ -64,7 +66,7 @@ def test_pages_show_no_raw_values(live_server, integrated):
                 continue
             hits += [
                 f"{path}: {hit['check']} {hit['text']!r} at {hit['where']}"
-                for hit in page.evaluate(SCAN)
+                for hit in page.evaluate(SCAN, usernames)
             ]
     assert len(seen) > 30, "the crawl reached too few pages"
     assert not hits, "\n".join(hits)

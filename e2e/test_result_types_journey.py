@@ -4,6 +4,7 @@ import re
 
 import pytest
 from django.urls import reverse
+from helpers import submit_for_review
 from playwright.sync_api import expect, sync_playwright
 
 from tests.test_integrated_journey import PASSWORD, PIN
@@ -37,8 +38,7 @@ def test_qualitative_and_less_than_count_through_the_forms(live_server, world, a
             expect(page).to_have_url(live_server.url + "/")
 
         def submit(test):
-            page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic original records complete")
-            page.get_by_role("button", name="Submit for review", exact=True).click()
+            submit_for_review(page, "Synthetic original records complete")
             expect(page.get_by_text("Awaiting review", exact=True)).to_be_visible()
 
         try:

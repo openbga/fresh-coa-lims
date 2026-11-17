@@ -2,7 +2,7 @@ from django import forms
 from django.conf import settings
 
 from core import formulas
-from core.forms import SignatureIdentityForm
+from core.forms import LocalDateTimeInput, SignatureIdentityForm
 from core.lookups import RemoteSelect
 
 from .models import (
@@ -18,13 +18,6 @@ from .models import (
 from .units import INPUT_UNITS, RESULT_UNITS
 
 TZ = settings.TIME_ZONE
-
-
-class LocalDateTimeInput(forms.DateTimeInput):
-    input_type = "datetime-local"
-
-    def __init__(self, attrs=None):
-        super().__init__(attrs, format="%Y-%m-%dT%H:%M")
 
 
 def effective_fields():

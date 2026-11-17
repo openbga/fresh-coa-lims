@@ -40,7 +40,7 @@ Lists received lots with their requirement status and sample count, so analysts 
 - **Section tabs**: Lots, Sampling plans. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Sampling", followed by the introduction.
 - **Intro**: "Assign approved specifications and sampling plans to received lots and record what was actually sampled. Lots without approved requirements stay on an applicability hold."
-- **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned"), **Apply**, **Clear all** when filtered.
+- **Filter bar**: **Search** (placeholder "Lot number or material"), **Status** (default "All statuses"; options "Requirements assigned", "Applicability hold", "Not assigned", "Awaiting quality assessment"), **Apply**, **Clear all** when filtered.
 - **Table**: Lot (link, sortable), Material as received, Lot status, Requirements, Samples. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Lot status cell**: the lot's status label (Quarantine, Released, Rejected, Cancelled), as on the material lot list.
 - **Requirements cell**: "Assigned", "Applicability hold" or "Not assigned", and below it "Awaiting quality assessment" (amber) while a current sampling record of the lot has a deviation not yet assessed by quality.
@@ -60,7 +60,7 @@ Lists received lots with their requirement status and sample count, so analysts 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Search | — | Text | No | Case-insensitive contains match on lot number or material as received. |
-| Status | `LotAssignment.status` | Requirements assigned, Applicability hold, Not assigned | No | Filters on the latest assignment of each lot; "Not assigned" means none yet. |
+| Status | `LotAssignment.status` | Requirements assigned, Applicability hold, Not assigned, Awaiting quality assessment | No | Filters on the latest assignment of each lot; "Not assigned" means none yet. "Awaiting quality assessment" shows Quarantine lots with a current sampling record whose deviation quality has not yet assessed: the Dashboard's "Sampling deviations to assess" opens it, and its count equals these rows. |
 | Lot | `Lot.number` | Text | — | Lot identifier. |
 | Material as received | `Lot.material` | Text | — | Free text recorded when the lot was received. |
 | Lot status | `Lot.state` | Quarantine, Released, Rejected, Cancelled | — | Disposition state. |

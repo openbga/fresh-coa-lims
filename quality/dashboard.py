@@ -1,10 +1,11 @@
 """Dashboard: the QC flow as work queues (lot, samples, results, review, disposition, certificate).
 
-Every queue is one aggregate query (its count and its oldest date) on the same conditions the
-linked list uses where a list filter exists, so a count and its list agree. Counts are not scoped
-per user: every reader role sees the same laboratory, like the lists; the services decide who may
-act. No queue loops over lots in Python. A lot can sit in two queues; a stage total is the sum of
-its queues.
+Every queue is one aggregate query (its count and its oldest date) over the very queryset its
+linked list filters by (LOT_QUEUES for the material lot list, the lists' own filters elsewhere),
+so a count always equals the rows of the list it opens (tests/test_dashboard.py). Counts are not
+scoped per user: every reader role sees the same laboratory, like the lists; the services decide
+who may act. No queue loops over lots in Python. A lot can sit in two queues; a stage total is
+the sum of its queues.
 """
 
 from dataclasses import dataclass
@@ -49,54 +50,104 @@ def queue(label, queryset, oldest_field, *, tone, status="", url=""):
     return Queue(label, values["n"], values["oldest"], tone, status, url)
 
 
-def lanes():
+# The lot queues, by the key the material lot list filters on (?queue=<key>): the dashboard
+# counts lot_queues()[key] and links to the list filtered by the same queryset.
+LOT_QUEUES = {
+    "not-assigned": "Requirements not assigned",
+    "applicability-hold": "Applicability hold",
+    "no-supplier-certificate": "Supplier certificate not recorded",
+    "awaiting-sampling": "Awaiting sampling",
+    "untested-samples": "Samples without assigned tests",
+    "supplier-results": "Supplier results awaiting acceptance",
+    "results-reviewed": "All results reviewed",
+    "investigation": "Blocked by an investigation",
+    "certificate": "Certificates to issue",
+}
+
+
+def lot_queues():
+    """{key: Lot queryset} for LOT_QUEUES (lazy; nothing is queried until used)."""
     from analytical.models import AnalyticalTest, Investigation
     from reporting.models import Report
-    from sampling.models import DeviationReview, LotAssignment, SamplingRecord
+    from sampling.models import LotAssignment, SamplingRecord
 
     latest = LotAssignment.objects.filter(lot=OuterRef("pk")).order_by("-assigned_at", "-id")
     quarantine = Lot.objects.filter(state="quarantine").annotate(
         requirement_status=Subquery(latest.values("status")[:1])
     )
-    lot_tests = AnalyticalTest.objects.filter(lot__isnull=False)
-    open_investigation = Investigation.objects.filter(lot=OuterRef("pk")).exclude(phase="closed")
-    sampling = reverse("sampling:lots")
-    tests = reverse("analytical:test_list")
-    lots = reverse("quality:lot_list")
+    lot_tests = AnalyticalTest.objects.filter(lot=OuterRef("pk"))
     supplied = LotReceipt.objects.filter(
         lot=OuterRef("pk"), corrected_by__isnull=True, source="supplier"
     )
     certificate = SupplierCertificate.objects.filter(
         lot=OuterRef("pk"), corrected_by__isnull=True, withdrawal__isnull=True
     )
+    return {
+        "not-assigned": quarantine.filter(requirement_status__isnull=True),
+        "applicability-hold": quarantine.filter(requirement_status="hold"),
+        "no-supplier-certificate": quarantine.filter(Exists(supplied), ~Exists(certificate)),
+        "awaiting-sampling": quarantine.filter(requirement_status="ready").filter(
+            ~Exists(Sample.objects.filter(lot=OuterRef("pk"))),
+            ~Exists(SamplingRecord.objects.filter(lot=OuterRef("pk"))),
+        ),
+        "untested-samples": quarantine.filter(
+            Exists(
+                Sample.objects.filter(lot=OuterRef("pk")).filter(
+                    ~Exists(AnalyticalTest.objects.filter(sample=OuterRef("pk")))
+                )
+            )
+        ),
+        "supplier-results": quarantine.filter(
+            Exists(SupplierResultAcceptance.objects.filter(lot=OuterRef("pk"), state="proposed"))
+        ),
+        "results-reviewed": quarantine.filter(requirement_status="ready").filter(
+            Exists(lot_tests.filter(state="reviewed")),
+            ~Exists(lot_tests.filter(state__in=("open", "submitted"))),
+            ~Exists(Investigation.objects.filter(lot=OuterRef("pk")).exclude(phase="closed")),
+        ),
+        "investigation": quarantine.filter(
+            Exists(
+                Investigation.objects.filter(lot=OuterRef("pk")).filter(
+                    ~Q(phase="closed") | Q(outcome="confirmed")
+                )
+            )
+        ),
+        "certificate": Lot.objects.filter(state="released").filter(
+            ~Exists(Report.objects.filter(lot=OuterRef("pk"), state="issued"))
+        ),
+    }
+
+
+def lanes():
+    from analytical.models import AnalyticalTest, Investigation
+    from analytical.views import TEST_FILTERS
+    from sampling.views import deviation_to_assess
+
+    lots = lot_queues()
+    lot_list = reverse("quality:lot_list")
+    tests = reverse("analytical:test_list")
+
+    def lot_queue(key, oldest="created_at", **options):
+        return queue(LOT_QUEUES[key], lots[key], oldest, url=f"{lot_list}?queue={key}", **options)
+
+    def test_queue(key, label, oldest, **options):
+        return queue(
+            label,
+            AnalyticalTest.objects.filter(TEST_FILTERS[key][1]),
+            oldest,
+            url=f"{tests}?state={key}",
+            **options,
+        )
+
     return [
         Lane(
             "lots",
             "Lots",
             "box-seam",
             [
-                queue(
-                    "Requirements not assigned",
-                    quarantine.filter(requirement_status__isnull=True),
-                    "created_at",
-                    tone="warning",
-                    status="Not assigned",
-                    url=f"{sampling}?status=none",
-                ),
-                queue(
-                    "Applicability hold",
-                    quarantine.filter(requirement_status="hold"),
-                    "created_at",
-                    tone="warning",
-                    status="Applicability hold",
-                    url=f"{sampling}?status=hold",
-                ),
-                queue(
-                    "Supplier certificate not recorded",
-                    quarantine.filter(Exists(supplied), ~Exists(certificate)),
-                    "created_at",
-                    tone="info",
-                ),
+                lot_queue("not-assigned", tone="warning", status="Not assigned"),
+                lot_queue("applicability-hold", tone="warning", status="Applicability hold"),
+                lot_queue("no-supplier-certificate", tone="info"),
             ],
         ),
         Lane(
@@ -104,35 +155,16 @@ def lanes():
             "Samples",
             "eyedropper",
             [
-                queue(
-                    "Awaiting sampling",
-                    quarantine.filter(requirement_status="ready").filter(
-                        ~Exists(Sample.objects.filter(lot=OuterRef("pk"))),
-                        ~Exists(SamplingRecord.objects.filter(lot=OuterRef("pk"))),
-                    ),
-                    "created_at",
-                    tone="neutral",
-                    status="Requirements assigned",
-                    url=f"{sampling}?status=ready",
-                ),
+                lot_queue("awaiting-sampling", tone="neutral", status="Requirements assigned"),
                 queue(
                     "Sampling deviations to assess",
-                    DeviationReview.objects.filter(
-                        status="pending",
-                        record__corrected_by__isnull=True,
-                        record__lot__state="quarantine",
-                    ),
+                    deviation_to_assess(),
                     "created_at",
                     tone="warning",
+                    status="Awaiting quality assessment",
+                    url=reverse("sampling:lots") + "?status=deviation",
                 ),
-                queue(
-                    "Samples without assigned tests",
-                    Sample.objects.filter(lot__state="quarantine").filter(
-                        ~Exists(AnalyticalTest.objects.filter(sample=OuterRef("pk")))
-                    ),
-                    "collected_at",
-                    tone="neutral",
-                ),
+                lot_queue("untested-samples", tone="neutral"),
             ],
         ),
         Lane(
@@ -140,27 +172,18 @@ def lanes():
             "Results",
             "clipboard2-data",
             [
-                queue(
-                    "Tests open",
-                    lot_tests.filter(state="open"),
-                    "created_at",
-                    tone="neutral",
-                    status="Open",
-                    url=f"{tests}?state=open",
-                ),
+                test_queue("open", "Tests open", "created_at", tone="neutral", status="Open"),
                 queue(
                     "Out of specification, investigation open",
-                    Investigation.objects.filter(lot__isnull=False).exclude(phase="closed"),
+                    Investigation.objects.exclude(phase="closed"),
                     "opened_at",
                     tone="danger",
                     status="Investigation open",
                     url=reverse("analytical:investigation_list") + "?state=open",
                 ),
-                queue(
+                test_queue(
+                    "repeats",
                     "Retests and resamples not done",
-                    lot_tests.filter(
-                        kind__in=("retest", "resample"), state__in=("open", "submitted")
-                    ),
                     "created_at",
                     tone="progress",
                 ),
@@ -171,21 +194,14 @@ def lanes():
             "Review",
             "clipboard2-check",
             [
-                queue(
+                test_queue(
+                    "submitted",
                     "Awaiting review",
-                    lot_tests.filter(state="submitted"),
                     "evaluated_at",
                     tone="info",
                     status="Awaiting review",
-                    url=f"{tests}?state=submitted",
                 ),
-                queue(
-                    "Supplier results awaiting acceptance",
-                    SupplierResultAcceptance.objects.filter(state="proposed"),
-                    "proposed_at",
-                    tone="info",
-                    status="Awaiting acceptance",
-                ),
+                lot_queue("supplier-results", tone="info", status="Awaiting acceptance"),
             ],
         ),
         Lane(
@@ -193,65 +209,28 @@ def lanes():
             "Disposition",
             "clipboard-check",
             [
-                queue(
-                    "All results reviewed",
-                    quarantine.filter(requirement_status="ready").filter(
-                        Exists(lot_tests.filter(lot=OuterRef("pk"), state="reviewed")),
-                        ~Exists(
-                            lot_tests.filter(lot=OuterRef("pk"), state__in=("open", "submitted"))
-                        ),
-                        ~Exists(open_investigation),
-                    ),
-                    "created_at",
-                    tone="success",
-                    status="Complete",
-                    url=f"{lots}?state=quarantine",
-                ),
-                queue(
-                    "Blocked by an investigation",
-                    quarantine.filter(
-                        Exists(
-                            Investigation.objects.filter(lot=OuterRef("pk")).filter(
-                                ~Q(phase="closed") | Q(outcome="confirmed")
-                            )
-                        )
-                    ),
-                    "created_at",
-                    tone="warning",
-                    status="Blocked",
-                    url=f"{lots}?state=quarantine",
-                ),
+                lot_queue("results-reviewed", tone="success", status="Complete"),
+                lot_queue("investigation", tone="warning", status="Blocked"),
             ],
         ),
         Lane(
             "certificates",
             "Certificates",
             "file-earmark-check",
-            [
-                queue(
-                    "Certificates to issue",
-                    Lot.objects.filter(state="released").filter(
-                        ~Exists(Report.objects.filter(lot=OuterRef("pk"), state="issued"))
-                    ),
-                    "created_at",
-                    tone="neutral",
-                    status="Not issued",
-                    url=reverse("reporting:list"),
-                ),
-            ],
+            [lot_queue("certificate", tone="neutral", status="Not issued")],
         ),
     ]
 
 
 def gates():
-    """Stability and laboratory queues, from the same filters as their own overview pages."""
+    """Stability and laboratory queues, from the same base and filters as the lists they link to."""
     from laboratory.eligibility import equipment_filter, equipment_queryset
     from laboratory.models import ReagentLot
-    from stability.models import Hold, Pull, Study
+    from stability.models import Hold, Pull
     from stability.views import _pull_filter
 
     today = timezone.localdate()
-    pulls = Pull.objects.filter(study__state=Study.State.ACTIVE)
+    pulls = Pull.objects.all()  # the pull list's own base: its filters decide what is due
     pull_list = reverse("stability:pull_list")
     return [
         queue(
@@ -272,7 +251,7 @@ def gates():
         ),
         queue(
             "Pulls awaiting acceptance",
-            pulls.filter(state="pulled"),
+            _pull_filter(pulls, "pulled", today),
             "due_date",
             tone="info",
             status="Awaiting acceptance",

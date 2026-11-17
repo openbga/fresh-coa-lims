@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import messages
@@ -91,6 +92,13 @@ def contract_choices(method_code):
         return bench().contract_choices(method_code), None
     except ValidationError as exc:
         return None, " ".join(exc.messages)
+
+
+def no_contract_laboratory(method_code):
+    return (
+        f"No contract laboratory is approved for method {method_code}. Quality records and "
+        "signs the approval under Laboratory, Contract laboratories."
+    )
 
 
 def contract_notice(source):
@@ -207,6 +215,10 @@ TEST_FILTERS = {
     "": ("All tests", Q()),
     "open": ("Open", Q(state="open")),
     "submitted": ("Awaiting review", Q(state="submitted")),
+    "repeats": (
+        "Retests and resamples not done",
+        Q(kind__in=("retest", "resample"), state__in=("open", "submitted")),
+    ),
     "oos": (
         "Out of specification",
         Q(conforms=False) & ~Q(state__in=["invalidated", "superseded"]),
@@ -639,9 +651,52 @@ def test_detail(request, pk):
     can_contract = (
         "analyst" in user_roles and is_open and services.contract_refusal(test, current) is None
     )
-    # Offered to quality while the test can take work; the page says why when the signer
-    # recorded any of its data.
+    contract_note = not_completed_note = ""
+    if can_contract and not current:
+        # A first contract result needs a contract laboratory approved for the method (the
+        # recorded one stays selectable when correcting): the same list and message the
+        # contract result page has; shown in the header instead of the action.
+        laboratories, hold = contract_choices(spec.method.code)
+        if hold or not laboratories:
+            contract_note = hold or no_contract_laboratory(spec.method.code)
+            can_contract = False
+    # Offered to quality only when recording it would be accepted (not an author of its data);
+    # otherwise the refusal is said in the header.
     can_not_complete = "quality" in user_roles and is_open
+    if can_not_complete:
+        not_completed_note = (
+            services.subject_refusal(test) or services.not_completed_refusal(request.user, test)
+        ) or ""
+        can_not_complete = not not_completed_note
+    # Review and return: offered only when their pages would accept them (the same refusals);
+    # a refused review says why in the header instead.
+    review_note = ""
+    can_review = can_return = False
+    if "reviewer" in user_roles and test.state == "submitted":
+        subject = services.subject_refusal(test)
+        review_note = subject or services.review_refusal(request.user, test) or ""
+        can_review = not review_note
+        can_return = not (subject or services.return_refusal(request.user, test))
+    can_batch = (
+        "analyst" in user_roles
+        and is_open
+        and spec.method.requires_batch
+        and not test.batch_id
+        and not observations
+    )
+    # Offered only when the add would be accepted; otherwise the header says why instead.
+    batch_note, new_batch_url = "", ""
+    if can_batch:
+        refusal, batches = batch_offer(test)
+        if refusal:
+            batch_note, can_batch = refusal, False
+        elif not batches:
+            batch_note, can_batch = no_open_batch(spec.method), False
+            new_batch_url = (
+                reverse("analytical:batch_new")
+                + "?"
+                + urlencode({"method": spec.method.code, "revision": spec.method.revision})
+            )
     return render(
         request,
         "analytical/test_detail.html",
@@ -668,20 +723,21 @@ def test_detail(request, pk):
             "supplier_result": supplier_label,
             "can_contract": can_contract and not current,
             "can_contract_correct": can_contract and contract is not None,
-            "can_batch": "analyst" in user_roles
-            and is_open
-            and spec.method.requires_batch
-            and not test.batch_id
-            and not observations,
+            "can_batch": can_batch,
+            "batch_note": batch_note,
+            "new_batch_url": new_batch_url,
             "can_submit": "analyst" in user_roles
             and is_open
             and current_count == spec.replicates
             and qc_ready,
             "qc_ready": qc_ready,
-            "can_review": "reviewer" in user_roles and test.state == "submitted" and qc_ready,
+            "can_review": can_review,
+            "review_note": review_note,
             "can_not_complete": can_not_complete,
+            "not_completed_note": not_completed_note,
+            "contract_note": contract_note,
             "not_completed": not_completed_view(test, children=children),
-            "can_return": "reviewer" in user_roles and test.state == "submitted" and test.conforms,
+            "can_return": can_return,
             "submit_form": RevisionReasonForm(
                 initial={"expected_revision": test.revision, "reason": "Results complete"}
             ),
@@ -955,12 +1011,7 @@ def contract_result(request, pk):
             label = f"{recorded.get('code', '')} · {recorded.get('name', '')} · as recorded"
             laboratories = [(recorded.get("id"), label), *laboratories]
     if not laboratories:
-        return unavailable(
-            request,
-            f"No contract laboratory is approved for method {spec.method.code}. Quality records "
-            "and signs the approval under Laboratory, Contract laboratories.",
-            back,
-        )
+        return unavailable(request, no_contract_laboratory(spec.method.code), back)
     form = ContractResultForm(
         request.POST or None,
         spec=spec,
@@ -1024,13 +1075,12 @@ def contract_result(request, pk):
     )
 
 
-@login_required
-@require_http_methods(["GET", "POST"])
-def test_batch(request, pk):
-    require_role(request.user, "analyst")
-    test = get_test(pk)
+def batch_offer(test):
+    """(refusal, batches): why the test cannot be added to a QC batch ("" when it can), and the
+    open batches the locked add would accept (same predicates; rechecked on submit). The test
+    record's header and test_batch both read it, so the header never offers an add the page then
+    refuses."""
     method = test.spec.method
-    back = reverse("analytical:test_detail", args=[test.pk])
     refusal = (
         services.subject_refusal(test)
         or services.batching_refusal(test)
@@ -1039,21 +1089,31 @@ def test_batch(request, pk):
     if not refusal and not method.requires_batch:
         refusal = "This test cannot be added to a QC batch."
     if refusal:
-        return unavailable(request, refusal, back)
+        return refusal, QCBatch.objects.none()
     batches = QCBatch.objects.filter(state="open", method_code=method.code).order_by("-pk")
-    # Offer only batches the locked add would accept (same predicate; rechecked on submit).
-    batches = batches.filter(
+    return "", batches.filter(
         pk__in=[
             b.pk for b in batches if b.method_spec == method and not services.batch_join_refusal(b)
         ]
     )
+
+
+def no_open_batch(method):
+    return f"No open QC batch accepting tests uses {method.code} revision {method.revision}."
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def test_batch(request, pk):
+    require_role(request.user, "analyst")
+    test = get_test(pk)
+    method = test.spec.method
+    back = reverse("analytical:test_detail", args=[test.pk])
+    refusal, batches = batch_offer(test)
+    if refusal:
+        return unavailable(request, refusal, back)
     if not batches:
-        return unavailable(
-            request,
-            f"No open QC batch accepting tests uses {method.code} revision {method.revision}. "
-            "Create one under QC batches first.",
-            back,
-        )
+        return unavailable(request, f"{no_open_batch(method)} Create one first.", back)
     form = BatchAssignForm(request.POST or None, batches=batches)
     if request.method == "POST" and form.is_valid():
         if perform(
@@ -1197,6 +1257,17 @@ def batch_crumbs(batch, current=None):
     return [*crumbs, (batch.number, None)]
 
 
+def requested_method(request, methods, earlier):
+    """The method choice named by ?method=<code>&revision=<n> (a test record's "New QC batch"),
+    when it is one of the choices offered; else none."""
+    code, revision = request.GET.get("method", ""), request.GET.get("revision", "")
+    if code in methods and str(methods[code]["revision"]) == revision:
+        return code
+    if any(c == code and str(r) == revision for c, r in earlier):
+        return f"{code}@{revision}"
+    return None
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def batch_new(request):
@@ -1204,7 +1275,12 @@ def batch_new(request):
     methods = batch_methods()
     # Earlier revisions that tests in progress are frozen to: a lot keeps its frozen versions.
     earlier = sorted(services.earlier_batch_methods())
-    form = BatchForm(request.POST or None, methods=sorted(methods.items()), earlier=earlier)
+    form = BatchForm(
+        request.POST or None,
+        methods=sorted(methods.items()),
+        earlier=earlier,
+        initial={"method_code": requested_method(request, methods, earlier)},
+    )
     if request.method == "POST" and form.is_valid():
         batch = perform(
             form, lambda: services.create_batch(actor=request.user, **form.batch_data())
@@ -1448,6 +1524,16 @@ def investigation_detail(request, pk):
     tests = [original, *inv.tests.select_related("sample", *PULL).order_by("pk")]
     for test in tests:
         test.values = readings_text(test)
+    # Quality's signed steps are offered only when the server would accept them: the same
+    # refusals authorize and conclude check; otherwise the header says why instead.
+    can_decide = "quality" in user_roles and inv.is_open
+    authorize_note = conclude_note = ""
+    if can_decide:
+        subject = services.subject_refusal(original)
+        authorize_note = subject or services.authorize_refusal(request.user, inv, original) or ""
+        conclude_note = (
+            subject or services.conclude_refusal(request.user, inv, original, tests[1:]) or ""
+        )
     return render(
         request,
         "analytical/investigation_detail.html",
@@ -1461,13 +1547,12 @@ def investigation_detail(request, pk):
             "can_enter": bool(user_roles & {"analyst", "reviewer", "quality"}) and inv.is_open,
             "can_escalate": bool(user_roles & {"reviewer", "quality"})
             and inv.phase == "laboratory",
-            "can_decide": "quality" in user_roles and inv.is_open,
+            "can_decide": can_decide,
             # Quality's next step is the conclusion once nothing refuses it; recording an entry
             # would make them an investigator and bar them from concluding, so it is never
             # quality's primary action.
-            "conclude_ready": "quality" in user_roles
-            and inv.is_open
-            and services.conclude_refusal(request.user, inv, original, tests[1:]) is None,
+            "authorize_note": authorize_note,
+            "conclude_note": conclude_note,
             "used": services.retests_used(inv),
             "allowed": original.spec.max_retests,
         },

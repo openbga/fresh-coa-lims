@@ -21,7 +21,7 @@
 {% panel heading_id="sso-change" %}{% fill title %}{% if state.link %}Unlink{% else %}Link your organization account{% endif %}{% endfill %}
 {% if state.link %}<p>Confirm that it is you{% if two_factor %} with your password and a second factor{% if keys_here %}: leave the code empty and your browser asks for your security key{% endif %}{% else %} with your password{% endif %}. Afterwards you sign in with your password again.</p>
 {% else %}<p>Confirm that it is you{% if two_factor %} with your password and a second factor{% if keys_here %}: leave the code empty and your browser asks for your security key{% endif %}{% else %} with your password{% endif %}. Then you continue to {{ provider }}, sign in there as the person this laboratory account belongs to, and come back here. One organization account can be linked to one laboratory account.</p>{% endif %}
-<form class="vr-form" method="post" autocomplete="off" novalidate{% if keys_here %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
+<form class="vr-form" method="post" autocomplete="off" novalidate data-vr-local-form="{% if state.link %}Unlink the organization account{% else %}Link your organization account{% endif %}" data-vr-local-title="{% if state.link %}Unlink the organization account{% else %}Link your organization account{% endif %}" data-vr-local-size="sm"{% if keys_here %} data-security-key="get" data-security-key-options="security-key-options"{% endif %}>
 {% csrf_token %}{% form_errors form=form %}
 {% if two_factor %}{{ form.security_key_response }}{% endif %}
 {{ form.current_password.as_field_group }}

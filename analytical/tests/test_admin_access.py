@@ -292,12 +292,18 @@ def test_admin_reads_every_page_and_sees_no_scientific_actions(client, world):
         url = world["read"].get(page) or extra[page]
         body = client.get(url).content.decode()
         for marker in markers:
-            assert marker in body, (page, marker)
+            # A signed step the server would refuse now is not offered: its reason is shown
+            # in the header instead (data-refused), which also proves the role sees it.
+            refused = REFUSAL_NOTES.get(marker)
+            assert marker in body or (refused and refused in body), (page, marker)
+
+
+REFUSAL_NOTES = {}
 
 
 def _action_markers(w):
     inv = w["investigation"].pk
-    return {
+    markers = {
         "lot_testing": ['name="sample"', "Assign required tests"],
         "batch_list": [reverse("analytical:batch_new")],
         "test_detail": [
@@ -327,6 +333,13 @@ def _action_markers(w):
             reverse("analytical:conclude", args=[inv]),
         ],
     }
+    REFUSAL_NOTES.update(
+        {
+            reverse("analytical:authorize", args=[inv]): 'data-refused="authorize"',
+            reverse("analytical:conclude", args=[inv]): 'data-refused="conclude"',
+        }
+    )
+    return markers
 
 
 def test_admin_cannot_open_or_post_any_scientific_mutation(client, world, django_user_model):

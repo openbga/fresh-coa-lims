@@ -43,6 +43,7 @@
     var retryUrl = null;
     var localForm = null;
     var requests = new Set();
+    var closeWhenReady = false;
     var disabledControls = new Map();
     var background = new Map();
     var backgroundIds = new Map();
@@ -66,8 +67,9 @@
           Array.from(branch.parentElement.children).forEach(function (sibling) {
             // The discard confirmation opens over the form dialog: it is never background.
             if (sibling !== branch && sibling !== discard && !background.has(sibling) && !sibling.matches("script, style, link, template, .modal-backdrop")) {
-              background.set(sibling, sibling.inert);
+              background.set(sibling, { inert: sibling.inert, hidden: sibling.getAttribute("aria-hidden") });
               sibling.inert = true;
+              sibling.setAttribute("aria-hidden", "true"); // also for tools that ignore inert
               namespaceBackground(sibling);
             }
           });
@@ -79,7 +81,14 @@
       } else {
         backgroundIds.forEach(function (id, node) { node.id = id; });
         backgroundIds.clear();
-        background.forEach(function (value, sibling) { sibling.inert = value; });
+        background.forEach(function (value, sibling) {
+          sibling.inert = value.inert;
+          if (value.hidden === null) {
+            sibling.removeAttribute("aria-hidden");
+          } else {
+            sibling.setAttribute("aria-hidden", value.hidden);
+          }
+        });
         background.clear();
       }
     }
@@ -118,9 +127,10 @@
       }
     }
 
+    // core/form_surfaces.py sizes: sm one column of a few fields, md (default) two columns, lg wide.
     function setSize(size) {
-      dialog.classList.toggle("modal-lg", size !== "xl");
-      dialog.classList.toggle("modal-xl", size === "xl");
+      dialog.classList.toggle("modal-lg", size !== "sm" && size !== "lg");
+      dialog.classList.toggle("modal-xl", size === "lg");
     }
 
     function setBusy() {
@@ -146,6 +156,11 @@
     function finishReady() {
       setBusy();
       if (isBusy()) {
+        return;
+      }
+      if (closeWhenReady) {
+        closeWhenReady = false;
+        confirmLeave(close); // Escape pressed while the form was still loading.
         return;
       }
       if (window.vrControls) {
@@ -342,6 +357,9 @@
       }
       var heading = page.querySelector(".vr-page-header h1, h1");
       title.textContent = heading ? heading.textContent.trim() : "Form";
+      // The page's own heading stays the form's heading for assistive technology (shown only as
+      // the dialog title), so the title is not announced twice.
+      title.setAttribute("aria-hidden", heading ? "true" : "false");
       setSize(page.getAttribute("data-vr-form-size"));
       // Query-only sort/pager links belong to the form URL, while the document stays
       // on its background record. Resolve them once so modified clicks work too.
@@ -360,6 +378,9 @@
         var action = form.getAttribute("action") || currentUrl;
         action = new URL(action, new URL(currentUrl, window.location.href)).href;
         form.action = action;
+        if (form.hasAttribute("data-vr-download")) {
+          return; // Its answer is a file: the browser posts it itself and stays on this page.
+        }
         form.setAttribute(method === "post" ? "hx-post" : "hx-get", action);
         form.setAttribute("hx-target", "#vr-form-content");
         form.setAttribute("hx-swap", "innerHTML");
@@ -400,6 +421,7 @@
       form.dataset.vrLocalReady = "true";
       form.action = form.getAttribute("action") ? new URL(form.getAttribute("action"), window.location.href).href : window.location.href;
       var button = window.vrUi.button(form.getAttribute("data-vr-local-form") || "Open form", "secondary");
+      button.setAttribute("data-vr-local-opener", ""); // a stable hook for tests
       form.before(button);
       form.hidden = true;
       form.remove(); // Keep field IDs out of the background while another form is open.
@@ -408,6 +430,32 @@
         cancel.setAttribute("data-vr-form-close", "");
         var actions = form.querySelector(".vr-form-actions") || form;
         actions.insertBefore(cancel, actions.querySelector("button[type=submit]"));
+      }
+      // Buttons elsewhere on the page that submit this form (form="<id>", e.g. a table's
+      // Remove buttons) are offered in the dialog's action row too, and open the dialog.
+      var actions = form.querySelector(".vr-form-actions") || form;
+      var firstAction = actions.firstChild;
+      if (form.id) {
+        document.querySelectorAll('button[form="' + form.id + '"]').forEach(function (external) {
+          var offered = external.cloneNode(true);
+          offered.removeAttribute("form");
+          if (external.hasAttribute("data-default-guard")) {
+            // The disabled default button stays first in the form: Enter presses nothing.
+            form.insertBefore(offered, form.firstChild);
+            return;
+          }
+          offered.className = "btn btn-outline-danger";
+          if (offered.getAttribute("aria-label")) {
+            offered.textContent = offered.getAttribute("aria-label");
+            offered.removeAttribute("aria-label");
+          }
+          actions.insertBefore(offered, firstAction);
+          external.type = "button";
+          external.removeAttribute("form");
+          external.addEventListener("click", function () {
+            confirmLeave(open); // the fields come first; the chosen action is in the row
+          });
+        });
       }
       function open() {
         restoreLocal();
@@ -518,9 +566,24 @@
         event.stopPropagation();
         if (confirming) {
           keepEditing();
+        } else if (isBusy()) {
+          closeWhenReady = true;
         } else {
           confirmLeave(close);
         }
+      }
+    });
+    // While the form loads, focus may still be on the page body: Escape closes the dialog
+    // from there too (once the form is ready).
+    document.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || !active || confirming || element.contains(event.target) || discard.contains(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      if (isBusy()) {
+        closeWhenReady = true;
+      } else {
+        confirmLeave(close);
       }
     });
     ["input", "change"].forEach(function (name) {
@@ -547,6 +610,9 @@
         });
       } else if (localForm && event.target === localForm.form) {
         nativeLeaving = true;
+      } else if (event.target.hasAttribute("data-vr-download")) {
+        nativeLeaving = true; // The file arrives as a download; the page stays.
+        dirty = false; // What was typed has been submitted: closing asks nothing.
       }
     }, true);
     window.addEventListener("pageshow", function (event) {
@@ -569,6 +635,7 @@
       }
     });
     element.addEventListener("hidden.bs.modal", function () {
+      closeWhenReady = false;
       active = false;
       shown = false;
       settling = false;
@@ -603,6 +670,7 @@
         return;
       }
       if (event.detail.xhr.getResponseHeader("HX-Redirect")) {
+        document.documentElement.setAttribute("data-vr-leaving", ""); // a stable hook for tests
         nativeLeaving = true;
         dirty = false;
       } else if (event.detail.xhr.getResponseHeader("HX-Location")) {
@@ -620,7 +688,9 @@
       }
       var response = new DOMParser().parseFromString(detail.serverResponse, "text/html");
       var page = response.querySelector("[data-vr-form-page]");
-      if (page && (status < 400 || status === 409 || status === 422)) {
+      // What the server explains on its page (invalid input, a signing denial, a lock, an upload
+      // too large) shows in the dialog; a server failure keeps the form and says so.
+      if (page && status < 500) {
         settling = true;
         needsFocus = true;
         detail.shouldSwap = true;
@@ -635,6 +705,9 @@
       if (isDialogRequest(event)) {
         settling = true;
         needsFocus = true;
+        if (!content.querySelector("form")) {
+          dirty = false; // An answer without a form (a refusal): nothing typed is left to lose.
+        }
         enhancePage();
         setBusy(); // Swapped controls must inherit any request still in flight.
       }
@@ -653,6 +726,10 @@
     });
     ["htmx:sendError", "htmx:timeout", "htmx:responseError"].forEach(function (name) {
       document.addEventListener(name, function (event) {
+        // A request that failed (a connection the server closed) is over: the form is usable.
+        if (event.detail.xhr && requests.delete(event.detail.xhr)) {
+          window.setTimeout(finishReady, 0);
+        }
         if (isDialogRequest(event)) {
           showError(name === "htmx:responseError" && event.detail.xhr.status === 403 ?
             "You do not have permission for this action. Your input was kept." :
@@ -661,14 +738,29 @@
       });
     });
 
-    var dedicated = document.querySelector("main[data-vr-form-page]");
+    // Opened by its address, a signing page keeps its own signature dialog (signature-dialog.js).
+    // A refusal without a form (a denial, an unavailable action) stays a page.
+    var dedicated = document.querySelector("main[data-vr-form-page]:has(form):not(:has([data-signature-dialog]))");
     if (dedicated) {
       var cancel = Array.from(dedicated.querySelectorAll("a[href]")).find(function (link) { return link.textContent.trim() === "Cancel"; });
       var crumbs = Array.from(dedicated.querySelectorAll(".breadcrumb a[href]"));
       directDestination = cancel ? cancel.href : (crumbs.length ? crumbs[crumbs.length - 1].href : "/");
+      // Opened by its address, the form opens over the page it belongs to (its Cancel
+      // destination: the record or the list), as when opened from there. A form already showing
+      // errors (a native submission) stays where it is, with what was typed.
+      // A form with no Cancel is a required step (a password change after sign-in): it stays
+      // its own page, as does one the address bar reached through such a step's redirect.
+      var behind = new URL(directDestination, window.location.href);
+      if (cancel && !/^#vr-form=/.test(window.location.hash) &&
+          behind.origin === window.location.origin && behind.pathname !== window.location.pathname &&
+          !routeFor(behind) && !dedicated.querySelector("[aria-invalid=true], [data-vr-form-errors]")) {
+        behind.hash = "vr-form=" + encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.replace(behind.href);
+        return;
+      }
       begin();
       // The dedicated dialog is the page's main content; the empty shell stays hidden.
-      var page = document.createElement("section");
+      var page = document.createElement("div");
       Array.from(dedicated.attributes).forEach(function (attribute) {
         if (attribute.name !== "id" && attribute.name !== "class" && attribute.name !== "tabindex") {
           page.setAttribute(attribute.name, attribute.value);
@@ -690,15 +782,38 @@
       needsFocus = true;
       finishReady();
     }
-    var errorForm = null;
-    document.querySelectorAll("form[data-vr-local-form]").forEach(function (form) {
-      var open = localButton(form);
-      errorForm = errorForm || open;
-    });
-    if (errorForm && !dedicated) {
-      errorForm();
+    // A form asked for by address: open it over this page, and keep the address clean.
+    var asked = /^#vr-form=(.+)$/.exec(window.location.hash);
+    if (asked && !dedicated) {
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      var form = new URL(decodeURIComponent(asked[1]), window.location.href);
+      if (form.origin === window.location.origin && routeFor(form)) {
+        // After the page's own scripts have set it up (controls, columns), as a click would.
+        window.setTimeout(function () { load(form.href); }, 0);
+      }
+    }
+    // A page's forms move into the dialog only once the page's own scripts (deferred after
+    // this one, e.g. security-keys.js) have set them up.
+    function takeLocalForms() {
+      var errorForm = null;
+      document.querySelectorAll("form[data-vr-local-form]").forEach(function (form) {
+        var open = localButton(form);
+        errorForm = errorForm || open;
+      });
+      if (errorForm && !dedicated) {
+        errorForm();
+      }
+    }
+    if (contentLoaded) {
+      takeLocalForms();
+    } else {
+      document.addEventListener("DOMContentLoaded", takeLocalForms);
     }
   }
+
+  // Deferred scripts run before DOMContentLoaded, while readyState is already "interactive".
+  var contentLoaded = document.readyState === "complete";
+  document.addEventListener("DOMContentLoaded", function () { contentLoaded = true; });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

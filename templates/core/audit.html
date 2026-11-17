@@ -16,7 +16,7 @@
           {% if can_review %}<td>{% if event.actor_id == request.user.pk %}{% row_select disabled=True label="Your own event cannot be reviewed" %}<span class="d-block small">Your event</span>{% else %}{% with pk=event.pk|stringformat:'s' %}{% if pk in selected_ids %}{% row_select name="events" value=pk label="Review event "|add:pk checked=True %}{% else %}{% row_select name="events" value=pk label="Review event "|add:pk %}{% endif %}{% endwith %}{% endif %}</td>{% endif %}
           <td>{{ event.occurred_at|when:"seconds" }}<br>{{ event.actor }}</td>
           <td>{{ event.action }}<br><span class="small">{{ event.object_type }}:{{ event.object_id }}</span></td>
-          <td><details><summary>Inspect values</summary><strong>Original</strong>{% value_list data=event.before compact=True %}<strong>New</strong>{% value_list data=event.after compact=True %}</details></td>
+          <td><details><summary>Inspect values</summary><strong>Original</strong>{% value_list data=event.before compact=True labels=event.labels %}<strong>New</strong>{% value_list data=event.after compact=True labels=event.labels %}</details></td>
           <td class="vr-wrap">{{ event.reason }}</td>
           <td>{% if event.reviews %}<strong>Reviewed</strong>{% for review in event.reviews %}<details><summary>{{ review.reviewer }} · {{ review.reviewed_at|when:"seconds" }}</summary><p class="text-break">{{ review.conclusion|linebreaksbr }}</p><p class="small">Review {{ review.pk }} · preserved conclusion</p></details>{% endfor %}{% else %}Not reviewed{% endif %}</td>
         </tr>{% endfor %}

@@ -16,6 +16,10 @@ Parameters:
   no_required_note  truthy to leave out the note (a form without required fields)
   autocomplete_off  truthy for autocomplete="off" (signing and credential forms)
   hook            optional data attribute name on the form, rendered as data-<hook>
+  dialog          for a form inside a record or list page: the words of the button that opens it
+                  in the shared form dialog (static/js/form-dialog.js puts the button in its place;
+                  without JavaScript the form stays where it is). Also the dialog's title.
+  dialog_size     sm, md (default) or lg, as in core/form_surfaces.py
   cancel_url, cancel_label   where Cancel returns (the record when editing, the list when
                   creating) and its words (default "Cancel")
   cancel_hook     optional data attribute name on the Cancel link (e.g. "signature-cancel")
@@ -27,7 +31,7 @@ Parts ({% fill name %} ... {% endfill %}):
 Usage:
   {% form_page form=form cancel_url=cancel_url submit_label="Record result" %}{% endform_page %}
 {% endcomment %}
-{% load ui %}<form class="vr-form{% if class %} {{ class }}{% endif %}"{% if id %} id="{{ id }}"{% endif %} method="{% if method == "get" %}get{% else %}post{% endif %}"{% if action %} action="{{ action }}"{% endif %}{% if autocomplete_off %} autocomplete="off"{% endif %}{% if hook %} data-{{ hook }}{% endif %} novalidate{% if multipart %} enctype="multipart/form-data"{% endif %}>
+{% load ui %}<form class="vr-form{% if class %} {{ class }}{% endif %}"{% if id %} id="{{ id }}"{% endif %} method="{% if method == "get" %}get{% else %}post{% endif %}"{% if action %} action="{{ action }}"{% endif %}{% if autocomplete_off %} autocomplete="off"{% endif %}{% if hook %} data-{{ hook }}{% endif %}{% if dialog %} data-vr-local-form="{{ dialog }}" data-vr-local-title="{{ dialog }}" data-vr-local-size="{{ dialog_size|default:'md' }}"{% endif %} novalidate{% if multipart %} enctype="multipart/form-data"{% endif %}>
   {% if method != "get" %}{% csrf_token %}{% endif %}
   {% form_errors form=form formset=formset formset_label=formset_label %}
   {% if not no_required_note %}{% if slots.note %}{% required_note note=slots.note times=times %}{% else %}{% required_note note=note times=times %}{% endif %}{% endif %}

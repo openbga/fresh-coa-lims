@@ -1,5 +1,6 @@
 """HTTP behaviour for stability pages: queues, filters, role boundaries and signing."""
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -42,6 +43,85 @@ def test_pull_queue_filters_match_window_boundaries(client, people):
     assert study.pulls.count() == 3
     assert client.get(url, {"status": "bogus"}).status_code == 200
     assert client.get(url, {"sort": "-due"}).status_code == 200
+
+
+def test_a_terminated_studys_unpulled_pulls_are_not_due(client, people):
+    """Closing a study ends its schedule (its pulls take no more work): its scheduled pulls are
+    not Overdue, Due now or Upcoming in the pull list, the overview, the study page or the
+    dashboard, and no Mark missed is offered for them."""
+    from quality.dashboard import gates
+
+    study = started_study(people)  # pulls at day 30 (overdue), 100 (due now), 180 (upcoming)
+    study.refresh_from_db()
+    services.close_study(
+        actor=people["quality2"],
+        pin=PIN,
+        study=study,
+        expected_revision=study.revision,
+        outcome="terminated",
+        reason="Synthetic early termination",
+    )
+    client.force_login(people["analyst"])
+    url = reverse("stability:pull_list")
+    for key in ("overdue", "due", "upcoming", "pulled"):
+        page = client.get(url, {"status": key})
+        assert page.context["page_obj"].paginator.count == 0, key
+    # Row statuses only (the Status filter's options name every status).
+    every = re.sub(r"<select.*?</select>", "", client.get(url).content.decode(), flags=re.S)
+    assert "Overdue" not in every and "Due now" not in every and "Terminated" in every
+    overview = client.get(reverse("stability:overview")).content.decode()
+    assert "Pulls overdue" in overview
+    counts = {queue.label: queue.count for queue in gates()}
+    assert counts["Pulls overdue"] == counts["Pulls due now"] == 0
+    detail = client.get(reverse("stability:study_detail", args=[study.pk])).content.decode()
+    assert "Overdue" not in detail and "Mark missed" not in detail
+
+
+def test_every_overview_count_equals_the_rows_it_opens(client, people):
+    from tests.overview_counts import assert_counts_open_their_rows
+
+    started_study(people)  # pulls overdue, due now and upcoming
+    closed = started_study(people, identifier="STB-002", lot=make_lot(people, "SYN-STB-LOT-2"))
+    closed.refresh_from_db()
+    services.close_study(
+        actor=people["quality2"],
+        pin=PIN,
+        study=closed,
+        expected_revision=closed.revision,
+        outcome="terminated",
+        reason="Synthetic early termination",
+    )
+    lot = make_lot(people, "SYN-STB-RES-1")
+    reserve = services.record_reserve(
+        actor=people["quality"],
+        lot=lot,
+        reason="Reserve",
+        identifier="RES-OVERVIEW",
+        container_description="Package",
+        storage_location="Cabinet",
+        quantity="5",
+        test_quantity="10",
+        quantity_unit="g",
+        minimum_multiple=2,
+        retained_on=timezone.localdate(),
+    )
+    for anchor_date in (None, None, timezone.localdate()):  # two unknown anchors, one reserve
+        services.add_obligation(
+            actor=people["quality"],
+            lot=lot,
+            reserve=reserve,
+            reason="Retention",
+            anchor_kind="last_distribution",
+            anchor_date=anchor_date,
+            offset_months=12,
+            basis="Synthetic basis",
+        )
+    for role in ("analyst", "quality", "auditor"):
+        client.force_login(people[role])
+        counts = assert_counts_open_their_rows(client, reverse("stability:overview"))
+        assert counts["Pulls overdue"] == counts["Pulls due now"] == 1  # the active study only
+        assert counts["Retention anchors not yet known"] == 1  # one reserve
+        assert counts["Reserves below minimum quantity"] == 1
 
 
 def test_overview_counts_and_role_boundaries(client, people):

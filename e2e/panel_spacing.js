@@ -35,7 +35,8 @@
   };
   const problems = [];
   let panels = 0;
-  for (const card of document.querySelectorAll('.card')) {
+  // A form page's form is a panel too (app.css, "Forms").
+  for (const card of document.querySelectorAll('.card, .vr-main > .vr-form:not(:has(.card))')) {
     if (!visible(card) || card.closest('.modal:not(.show), .dropdown-menu:not(.show)')) continue;
     panels += 1;
     const c = card.getBoundingClientRect();

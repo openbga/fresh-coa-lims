@@ -51,7 +51,7 @@ A study's lot, protocol and every scheduled pull with its timing status; where a
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Close study** | Study Active, you are Quality, and you did not start the study | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
+| **Close study** | Study Active, you are Quality, you did not start the study, and no testing of its pulls is in progress (otherwise the header says "Testing of the study's pulls is in progress; finish it first: …") | Quality | Opens the signing page. It is the primary button only once no pull is still scheduled; until then it is a secondary button |
 | **Record pull** (header) | The study is Active, a pull is scheduled and you are an Analyst | Analyst | The primary button: opens the form for the earliest scheduled pull |
 | **Record pull** (Next column) | Pull Scheduled, study Active and you are an Analyst | Analyst | Opens the form. Where nothing is open to you, the column names the next step ("Record pull", "Accept pull") in muted text |
 | **Mark missed** (Next column) | Pull Scheduled, today is after its window, and you are Analyst or Quality | Analyst, Quality | Opens the reason form |
@@ -73,6 +73,7 @@ Only one link shows in a pull row: Record pull takes precedence for Analysts. Th
 ## Rules and hidden logic
 
 - Windows are the due date plus or minus the timepoint's window days. Status is Upcoming, Due now or Overdue while Scheduled (by today's local date), then Awaiting acceptance (pulled), Accepted or Missed; the labels match the pull list's Status filter.
+- A terminated study's pulls that were not taken or not accepted take no more work: they read "Terminated" and never count as Overdue, Due now, Upcoming or Awaiting acceptance. **Mark missed** is offered only when marking it missed would be accepted (an active study, the window closed).
 - Pulls are listed by due date, then identifier.
 - The Results sections read only pulls with tests of their own; they judge each result against the criterion frozen on its test, not the protocol's current one.
 - **Close study** is refused while testing of the study's pulls is in progress (see Close study). Once a study is closed its pulls take no more testing.

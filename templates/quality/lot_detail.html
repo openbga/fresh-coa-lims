@@ -8,8 +8,9 @@
 {% if lot.state == 'quarantine' %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
 {% if can_record and can_dispose and not disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
-{% if can_dispose and disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% endif %}
-{% if can_dispose %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
+{% if can_dispose and disposition_denied %}<span class="vr-action-note" data-refused="disposition">{{ disposition_denied }}</span>{% endif %}
+{% if can_reject %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% elif reject_note and not disposition_denied %}<span class="vr-action-note" data-refused="reject">{{ reject_note }}</span>{% endif %}
+{% if can_cancel %}{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
 {% if can_dispose and not disposition_denied %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% else %}
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
@@ -192,6 +193,20 @@
   {% panel_section %}{% empty_state title="No samples recorded" %}{% endpanel_section %}
   {% endfor %}
 {% endpanel %}
+{% if retention %}{% panel title="Retention" heading_id="retention-heading" count=retention|length table=True %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="retention-heading">
+      <thead><tr><th scope="col">Basis</th><th scope="col">Anchor</th><th scope="col">Retain through</th><th scope="col">Reserve sample</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>{% for o in retention %}<tr data-obligation="{{ o.pk }}">
+        <th scope="row">{{ o.basis }}</th>
+        <td>{% if o.anchor_date %}{{ o.get_anchor_kind_display }} <span class="vr-data">{{ o.anchor_date|when:"date" }}</span>{% else %}{{ o.get_anchor_kind_display }}<br>{% status label="Anchor not yet known" tone="warning" plain=True %}{% endif %}</td>
+        <td>{% if o.retain_until %}<span class="vr-data">{{ o.retain_until|when:"date" }}</span>{% else %}<span class="vr-muted">{{ o.offset_months }} months after the anchor</span>{% endif %}</td>
+        <td>{% if o.reserve %}<a class="vr-id" href="{% url 'stability:reserve_detail' o.reserve_id %}">{{ o.reserve.identifier }}</a>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+        <td class="text-end">{% if can_set_anchor and not o.anchor_date %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'stability:anchor_set' o.pk %}">Set anchor</a>{% endif %}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+{% endpanel %}{% endif %}
 {% panel title="Electronic signatures" heading_id="signatures-heading" %}
   {% if result_signatures %}<h3 class="h6">Results</h3>{% signature_list signatures=result_signatures subject="Result" numbered=True %}<h3 class="h6 mt-3">Lot</h3>{% endif %}
   {% if signatures %}{% signature_list signatures=signatures subject="Lot" %}{% endif %}

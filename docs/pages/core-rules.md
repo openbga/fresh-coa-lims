@@ -10,7 +10,7 @@ summary: The rule set revisions lots are received under: required tests, signatu
 
 ## Common tasks
 ### Create a new revision
-1. In [[New revision]], enter the [[Code]], [[Segment]] and [[Policy]]. Reuse a code to create its next version.
+1. Select [[New revision]] and, in the dialog, enter the [[Code]], [[Segment]] and [[Policy]]. Reuse a code to create its next version.
 2. Set [[Effective from]] and [[Effective until]], and enter a [[Reason]].
 3. Select [[Create draft]]. Quality role only.
 ### Approve another person's draft
@@ -39,7 +39,7 @@ List rule set revisions (required tests, signature meanings, whether a supplier'
 - Title "Rule sets" and a note that presets are synthetic and approved revisions cannot be edited.
 - A second note: "A lot is received under one rule set. A rule set whose policy states `applies_to` is an additional one: it is never chosen at receipt and applies, with the lot's own rule set, to every lot whose requirements are assigned for a material, stage and scope it names."
 - **Revisions table**: Rule ("code vN", with the segment below), Status (Approved, Draft or the stored status, plus "Superseded" for a retired revision) with the latest approval signature below (signer, meaning, time, revision), Effective (start date, and "to <end date>" below when an end is set, or "from <date>"; a retired revision adds "Superseded by version N from <time>" or "Superseded by version N before it took effect"), Policy (the required test codes, with "Required tests" and the review and disposition meanings below), Action. Under the policy of an additional rule set: "Applies in addition to a lot's own rule set" followed by what it names, for example "· stages incoming · scopes eu-market". Empty: "No rule revisions yet."
-- **New revision** form with **Create draft**, for quality users only, under the note "Use the same code to create the next version. When it is approved, an approved version of the same code whose effective period it overlaps stops applying from this version's start, or from the moment of approval if that is later."
+- **New revision** panel, for quality users only: its button opens the form with **Create draft** in a dialog (without JavaScript the form shows in place), under the note "Use the same code to create the next version. When it is approved, an approved version of the same code whose effective period it overlaps stops applying from this version's start, or from the moment of approval if that is later."
 
 ## Actions
 

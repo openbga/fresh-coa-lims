@@ -489,15 +489,17 @@
       withinFileLimit(event.target);
     }
   });
+  // Capture phase, before HTMX sends a form shown in the form dialog.
   document.addEventListener("submit", function (event) {
     var blocked = Array.from(event.target.querySelectorAll("input[type=file][data-vr-max-bytes]")).filter(function (input) {
       return !withinFileLimit(input);
     });
     if (blocked.length) {
       event.preventDefault();
+      event.stopImmediatePropagation();
       blocked[0].focus();
     }
-  });
+  }, true);
 
   // Native POST forms: block double submission while the request is in flight.
   // Buttons are disabled after the submit event so their name/value is still sent.

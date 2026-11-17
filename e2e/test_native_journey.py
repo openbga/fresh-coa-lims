@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from django.urls import reverse
+from helpers import submit_for_review
 from playwright.sync_api import expect, sync_playwright
 
 from analytical import services as analytical
@@ -61,8 +62,7 @@ def test_native_observation_to_signed_certificate(live_server, integrated, artif
             page.get_by_label(re.compile(r"^Original record\b")).fill("RAW-SYN-BROWSER-001 rev 1")
             page.get_by_role("button", name="Record observation", exact=True).click()
             expect(page.get_by_text("RAW-SYN-BROWSER-001 rev 1", exact=True)).to_be_visible()
-            page.get_by_label(re.compile(r"^Reason\b")).fill("Synthetic original records complete")
-            page.get_by_role("button", name="Submit for review", exact=True).click()
+            submit_for_review(page, "Synthetic original records complete")
             expect(page.get_by_text("Awaiting review", exact=True)).to_be_visible()
             page.get_by_role("button", name="Sign out", exact=True).click()
 

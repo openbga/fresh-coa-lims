@@ -56,6 +56,10 @@
   });
 
   forms.forEach((form) => {
+    // This script runs again each time the form dialog loads a security-key form; a form
+    // already set up keeps its one set of listeners.
+    if (form.dataset.securityKeyReady) return;
+    form.dataset.securityKeyReady = 'true';
     const mode = form.dataset.securityKey;
     const source = document.getElementById(form.dataset.securityKeyOptions);
     const field = form.elements.namedItem('security_key_response');
@@ -146,16 +150,23 @@
         ask(null);
       });
     });
-    form.addEventListener('submit', (event) => {
+    // Captured at the document, so it decides before any listener on the form itself (in the
+    // form dialog, HTMX's) sees the submission.
+    document.addEventListener('submit', (event) => {
+      if (event.target !== form) return;
       if (answered) {
         // The answer goes once; a second press while the page loads sends nothing.
-        if (sent) event.preventDefault();
+        if (sent) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
         sent = true;
         return;
       }
       if (asking || sent) {
         // One submission per page: a second press while it loads sends nothing.
         event.preventDefault();
+        event.stopImmediatePropagation(); // nor does the form dialog's HTMX request
         return;
       }
       field.value = '';
@@ -172,7 +183,8 @@
         return;
       }
       event.preventDefault();
+      event.stopImmediatePropagation(); // In the form dialog, HTMX sends only the answer.
       ask(event.submitter || null);
-    });
+    }, true);
   });
 })();

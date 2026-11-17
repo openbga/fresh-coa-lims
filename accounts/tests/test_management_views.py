@@ -53,7 +53,8 @@ def test_administrator_only_navigation_and_all_action_routes(client, manager):
     for action in ACTIONS:
         response = client.get(reverse("accounts:user_action", args=[target.pk, action]))
         assert response.status_code == 200
-        assert b"account_authorized" in response.content
+        assert b"Your signature records <strong>account authorized</strong>" in response.content
+        assert b'class="card vr-sign-card"' in response.content
         if action in {
             "reactivate",
             "unlock_pin",
