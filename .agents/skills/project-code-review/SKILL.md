@@ -91,6 +91,9 @@ Code that reimplements one of them is a finding. Fix in place:
   a reason.
 - A change that completes or re-scopes a capability area updates `website/roadmap.html` and the
   status tables in `docs/product.md` (rule 13).
+- A change users, deployers or integrators can observe adds an entry in `changelog.d/` and
+  regenerates `CHANGELOG.md` with the `changelog-entry` skill (rule 14); hand edits to
+  `CHANGELOG.md` become entries.
 - Third-party files carry a licence file and a `THIRD_PARTY_NOTICES.md` row; the `LICENSE`, the
   `NOTICE` and the footer **Source code** link stay as they are.
 
@@ -103,6 +106,7 @@ set -a; . ./.env; set +a
 uv run ruff check . && uv run ruff format --check .
 uv run python manage.py check
 uv run python manage.py makemigrations --check --dry-run
+uv run python manage.py changelog --check
 uv run python manage.py collectstatic --noinput
 TEST_DATABASE_NAME=test_open_qual_<you> uv run pytest <affected paths> -q
 ```

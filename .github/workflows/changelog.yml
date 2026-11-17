@@ -1,0 +1,45 @@
+name: changelog
+
+# A pull request that changes the application adds an entry to changelog.d/ (CONTRIBUTING.md,
+# "Changelog entries"); scripts/changelog_entry_check.py decides which paths count. A pull request
+# with nothing users, deployers or integrators can observe carries the label `no-changelog`.
+#
+# Its own small workflow, so adding or removing the label re-runs only this check. Pull requests,
+# including those from forks, run with a read-only token and no secrets: keep the `pull_request`
+# trigger (never `pull_request_target`). Exempt: the release pull request (develop into main),
+# whose entries were checked when they reached develop, and Dependabot's dependency updates.
+on:
+  pull_request:
+    branches-ignore: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# bash with pipefail: a failed `git diff` fails the step instead of passing an empty list.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  entry:
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Labelled no-changelog
+        if: contains(github.event.pull_request.labels.*.name, 'no-changelog')
+        run: echo "The no-changelog label is set; no entry in changelog.d/ is required."
+      # The merge commit and its first parent, the base branch: the diff is this pull request.
+      - if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Require an entry when the application changed
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        run: git diff --name-status --no-renames HEAD^1 HEAD | python3 scripts/changelog_entry_check.py

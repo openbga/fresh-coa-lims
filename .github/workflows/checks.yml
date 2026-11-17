@@ -97,6 +97,8 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check . && uv run ruff format --check .
       - run: uv run python manage.py check
+      # CHANGELOG.md is generated from changelog.d/ and every entry is valid.
+      - run: uv run python manage.py changelog --check
       # pytest applies every migration to its test databases, and the container smoke job
       # migrates an empty database with the application image.
       - run: uv run python manage.py makemigrations --check --dry-run
@@ -281,10 +283,11 @@ jobs:
         run: |
           docker run --rm qm-lims:ci python -c 'import os, pwd, stat; from pathlib import Path; user=pwd.getpwuid(os.getuid()); home=Path.home(); ssh=home/".ssh"; assert os.getuid()==10001; assert str(home)==user.pw_dir=="/home/app" and os.access(home, os.W_OK); assert user.pw_shell=="/bin/bash" and os.access(user.pw_shell, os.X_OK); assert ssh.is_dir() and ssh.stat().st_uid==os.getuid(); assert stat.S_IMODE(ssh.stat().st_mode)==0o700; assert os.access(ssh, os.W_OK)'
       - name: Verify image contents
-        # In-app documentation is read from docs/pages at runtime; application files are
-        # read-only for the runtime user; build tooling and local state stay out.
+        # In-app documentation (docs/pages) and What's new (changelog.d) are read at runtime;
+        # application files are read-only for the runtime user; build tooling and local state
+        # stay out.
         run: |
-          docker run --rm qm-lims:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests", "conftest.py"))'
+          docker run --rm qm-lims:ci python -c 'import os, shutil; from pathlib import Path; assert any(Path("docs/pages").glob("*.md")); assert any(Path("changelog.d").glob("*.md")); assert Path("staticfiles/staticfiles.json").is_file(); assert not os.access("/app", os.W_OK) and not os.access("/app/.venv", os.W_OK); assert shutil.which("uv") is None; assert not any(Path(p).exists() for p in (".git", ".env", ".local", "build", "e2e", "tests", "conftest.py"))'
       - name: Start production server and check HTTP endpoints
         run: |
           docker run --detach --name qm-lims-smoke --network host --env-file "$RUNNER_TEMP/qm-lims-smoke.env" qm-lims:ci

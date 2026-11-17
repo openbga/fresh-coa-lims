@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "laboratory",
     "stability",
     "validation",
+    "whatsnew",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

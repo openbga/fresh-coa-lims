@@ -7,6 +7,8 @@ Keys and the values they accept:
   nav.collapsed           true | false, static/js/sidebar.js
   pagedocs.open           true | false, the page documentation panel (pagedocs.js)
   pagedocs.width          PAGEDOCS_WIDTH pixels, the panel's width (pagedocs.js)
+  whatsnew.seen           id of the newest changelog entry shown to the user ("2026-11-17-slug"),
+                          set by the server when What's new is opened (whatsnew/catalogue.py)
 
 Every value is checked when written and again when read: a value that no longer fits (an old
 format, a column that was removed) is ignored and the page falls back to its defaults.
@@ -29,6 +31,7 @@ GRID_KEY = re.compile(r"^grid:[a-z0-9_.-]{1,80}:v\d{1,3}$")
 PAGE_KEY = re.compile(r"^page:[a-z0-9_:-]{1,100}$")
 COLUMN_ID = re.compile(r"^[a-z0-9_-]{1,40}$")
 SORT = re.compile(r"^-?[a-z0-9_]{1,40}$")
+ENTRY_ID = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")  # a changelog.d/ entry
 CLIENT_KEYS = re.compile(r"^(grid:|nav\.|pagedocs\.)")  # what the page hands to its scripts
 # Settings the browser may write besides grid layouts (page size and sort are server-set).
 CLIENT_SETTINGS = {"nav.collapsed", "pagedocs.open", "pagedocs.width"}
@@ -61,6 +64,9 @@ def clean(key, value):
         return cleaned or None
     if key in ("nav.collapsed", "pagedocs.open"):
         return value if isinstance(value, bool) else None
+    if key == "whatsnew.seen":
+        valid = isinstance(value, str) and len(value) <= 120 and ENTRY_ID.match(value)
+        return value if valid else None
     if key == "pagedocs.width":
         valid = isinstance(value, int) and not isinstance(value, bool) and value in PAGEDOCS_WIDTH
         return value if valid else None

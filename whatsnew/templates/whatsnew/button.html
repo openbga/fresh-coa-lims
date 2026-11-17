@@ -1,0 +1,6 @@
+{% load ui %}{% comment %}
+Top-bar link to What's new, for every signed-in user ({% whatsnew_button %}, whatsnew/templatetags).
+The badge counts the changes newer than the newest one this user has been shown; the accessible
+name and the tooltip say how many. A user without a mark gets one on first render and no badge;
+opening the page clears it (whatsnew/catalogue.py unread_count, mark_seen).
+{% endcomment %}<a class="btn btn-sm vr-topbar-btn vr-whatsnew-btn" href="{% url 'whatsnew:index' %}"{% if unread %} aria-label="What's new: {{ unread }} new change{{ unread|pluralize }}" title="What's new: {{ unread }} new change{{ unread|pluralize }}"{% else %} aria-label="What's new" title="What's new"{% endif %} data-bs-placement="bottom" data-whatsnew-button{% if current %} aria-current="page"{% endif %}>{% icon name="stars" %}<span class="d-none d-xl-inline">What's new</span>{% if unread %}<span class="vr-whatsnew-badge vr-data" aria-hidden="true" data-whatsnew-unread>{{ badge }}</span>{% endif %}</a>

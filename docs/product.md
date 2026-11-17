@@ -70,6 +70,10 @@ These identifiers are stable product requirements. “MVP” is the intended rel
 
 Every staff page offers documentation from an icon at the top-right of the top bar. It opens a resizable right-side panel (a full-width overlay on narrow screens), follows navigation, and remembers its open/closed state and width in the browser. Each entry explains purpose, permissions, layout and every tab, action and field, naming `model.field` where applicable. It also explains hidden filters, defaults, permission conditions, transitions, validations and signature/audit effects. Documentation is derived from source, labels unverified policy as an assumption, and changes with the page. Automated coverage and reference checks are part of the release gate; prose accuracy remains the author’s responsibility.
 
+## What's new
+
+Every signed-in person reaches **What's new** from the top bar. It lists each change users, deployers or integrators can observe, by month and then by impact, with what it means for their work, where to find it and, for deployers, its technical notes; a count beside it shows the changes made since the person last looked, and opening the list clears it. A new account starts with no count. The list ships with the application (one file per change in `changelog.d/`, the same source as `CHANGELOG.md`) and makes no network request.
+
 ## Implemented scope, acceptance and later work
 
 | Stage | Scope | Acceptance boundary |

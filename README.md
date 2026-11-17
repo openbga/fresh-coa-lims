@@ -33,7 +33,7 @@ The implemented workflow covers approved methods/specifications and sampling ass
 | [Page documentation](docs/pages/) | One file per staff page; the same text is shown in the in-app documentation panel |
 | [Contributing](CONTRIBUTING.md) | Setup, checks, engineering rules and pull-request expectations |
 | [Security policy](SECURITY.md) | How to report a vulnerability privately; deployment hardening |
-| [Changelog](CHANGELOG.md) | Notable changes |
+| [Changelog](CHANGELOG.md) | What changed, by month and impact; generated from [changelog.d/](changelog.d/) and shown in the application under **What's new** |
 | [Working instructions](AGENTS.md) | Rules for coding agents and contributors |
 
 ## Quick start
@@ -118,6 +118,7 @@ uv run python manage.py check
 uv run python manage.py makemigrations --check --dry-run
 uv run python manage.py collectstatic --noinput
 uv run pytest -n auto
+uv run python manage.py changelog --check
 ```
 
 `-n auto` runs the tests on one worker per CPU core, each with its own test database (the name gets a `_gw0`, `_gw1`, ... suffix); omit it to run a few tests in one process. The suite hashes passwords and PINs with the deployed PBKDF2 hasher at a reduced work factor (`conftest.py`); the browser journeys keep the work factor of a deployment. PostgreSQL is required for row locks and immutable-history triggers; SQLite is not a substitute. Headless browser tooling is in the `e2e` dependency group (`uv sync --group e2e`, then `uv run playwright install --only-shell chromium`). Run the browser journeys with `uv run --group e2e pytest -c e2e/pytest.ini e2e`; they use their own disposable test database, and screenshots go to `build/e2e/` (override with `E2E_ARTIFACTS_DIR`). The CI workflow runs the same checks, the browser journeys and a container smoke test. It runs them on pull requests into `develop` and on pushes to `develop`; a release pull request into `main` relies on the results for the same `develop` commit, and a push to `main` repeats only the container smoke test. After the test suites and the container smoke test pass it builds the [validation pack](docs/operations.md#validation-pack-of-a-release) of the commit: each product requirement, the tests traced to it in `docs/traceability.toml` and their results, the test environment, the release notes and checksums, kept as the artifact `validation-pack-<commit>`. It is evidence for a laboratory's own validation, not a validation of the system.

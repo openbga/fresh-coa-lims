@@ -245,6 +245,11 @@
     "tests/test_demo_reset.py",
     "tests/test_seed_demo.py",
 ]
+"What's new and the generated changelog" = [
+    "e2e/test_whats_new.py",
+    "tests/test_changelog_entry_check.py",
+    "whatsnew/tests/",
+]
 "Interface layout and navigation" = [
     "e2e/test_login_layout.py",
     "e2e/test_section_navigation.py",
