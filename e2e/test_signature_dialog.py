@@ -16,6 +16,7 @@ from tests.test_integrated_journey import integrated as integrated  # noqa: F401
 pytestmark = pytest.mark.django_db(transaction=True)
 
 
+@pytest.mark.before_page_scripts
 def test_dialog_script_keeps_the_field_being_typed_in(live_server, integrated):
     data = integrated
     ready_test(data, assign_and_sample(data))

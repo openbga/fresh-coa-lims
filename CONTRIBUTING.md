@@ -29,7 +29,7 @@ Run the commands in [Checks](README.md#checks) in the README against the Compose
 - `uv run python manage.py collectstatic --noinput` (needed before template tests)
 - `uv run pytest -n auto` (parallel workers; plain `uv run pytest` runs the same tests in one process)
 
-Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them.
+Copy `.env.example` to `.env` and export `UV_ENV_FILE=.env` as shown in the README, so that `uv run` supplies `DEBUG`, `DATABASE_URL` and, on macOS, the PDF library path. pytest creates its own test database; set a distinct `TEST_DATABASE_NAME=test_...` if several test runs share one server. The browser tests in `e2e/` need the `e2e` dependency group and are optional locally; CI runs them. Every browser action there waits until the page's deferred scripts have run (`e2e/conftest.py`); a test that must act earlier says so with `@pytest.mark.before_page_scripts`. `E2E_CPU_THROTTLE=4` runs the pages on a slowed CPU, as on a busy CI runner.
 
 ## Engineering rules
 
