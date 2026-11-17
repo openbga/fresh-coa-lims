@@ -105,7 +105,7 @@ The report lists each check with its result:
 | `sequences` | Each sequence will next give a value beyond those its column holds, unless the source's did not either (the sign-in announcement always uses id 1) |
 | `signatures` | Each signature's content hashes to its stored content hash, and its audit event names the same signer and record and holds the signed content at the signed revision |
 | `certificates` | Each issued certificate version's PDF matches its SHA-256 and size and its evidence snapshot matches its hash; each certificate names its current version's checksums |
-| `raw data files` | Each file's bytes match their SHA-256 and size |
+| `raw data files` | Each raw-data file's and rehearsal evidence file's bytes match their SHA-256 and size |
 | `triggers enabled` | Every history and evidence trigger fires in normal sessions: none is disabled or set to fire only in replica sessions |
 | `application` | The release running the check has every migration applied, knows every applied migration and passes its system checks |
 
@@ -124,7 +124,7 @@ Retain the target for inspection; no cleanup or drop is included here. Do not re
 | Stored files | Issued certificates and raw-data files match their checksums | `certificates`, `raw data files` |
 | Histories | Audit reviews retain selected events; approved rules, samples/results and signed disposition evidence remain retrievable | `tables`; retrieval by hand on a rehearsal server |
 | Application | Matching code passes check/readiness, authorized reads and stored export retrieval; access controls still apply | `application`; readiness, sign-in and a certificate download by hand |
-| Operations | Recovery time and lost-work interval measured against approved RTO/RPO; quality owner records acceptance before traffic switch | The operator's and quality owner's records |
+| Operations | Recovery time and lost-work interval measured against approved RTO/RPO; quality owner records acceptance before traffic switch | A rehearsal of recovery from backup with the restore check report attached and accepted by quality ([validation records](#validation-records-of-the-laboratory)) |
 
 A matching hash shows consistency with stored content, not resistance to an administrator rewriting both the data and its hashes. Database owners can disable triggers, so keep runtime privileges distinct from migration and maintenance privileges before production use. Zero signatures is meaningful only for a genuinely unsigned source database. Historical signatures bind historical snapshots; their revision need not equal a record's latest revision.
 
@@ -227,6 +227,28 @@ uv run python scripts/validation_pack.py build --results build/validation/applic
 ```
 
 Each suite's conftest writes the commit into the JUnit file when the tests start. The build refuses a JUnit file without it, results whose environment was recorded at another commit than the tests ran on, results of another commit than the checkout, results of two commits, a suite given twice and an existing output directory. A pack built on, or from tests run on, a checkout with uncommitted changes is incomplete and says so. These tests run against a disposable test database. They do not test the deployment's own configuration, data, rule sets or infrastructure; the laboratory's acceptance of those remains its own work.
+
+## Validation records of the laboratory
+
+The laboratory keeps two kinds of validation record in the system, under **Validation** in the sidebar. Both are recorded by one person and accepted by a different quality person with a signature; neither is ever edited. A record that will not be accepted is withdrawn with a reason and recorded again. They support the laboratory's own validation and periodic evaluation; they do not validate the system and state no compliance.
+
+**Intended use** (`/validation/`). Record it once the laboratory has validated the system for its use, before the system is taken into use, and again whenever a change alters that use: a new assay, a function newly used, another release, a change of owner.
+
+1. Write the laboratory's validation report first, outside the system, with its own risk assessment, the review of the [validation pack](#validation-pack-of-a-release) of the release, the laboratory's own tests of its configuration and the issues found. The system holds the decision, not the report.
+2. Approve the configuration the use relies on: rule sets, specifications, methods, sampling plans and stability protocols. Only methods with an approved version in force can be chosen as supported assays.
+3. A quality person records the intended use: what the system is used for and what is outside it, the supported assays, the process owner and the system owner, other responsibilities, the validation report with its revision and the known issues and conditions of use.
+4. A different quality person reviews the record and accepts it. The signature freezes every approved version in force, the version of each supported assay and the running release, which the deployment states in `SOURCE_REVISION` (Render sets `RENDER_GIT_COMMIT`); without either the release is recorded as not stated. Accepting supersedes the previous acceptance. The signing page is refused if the configuration, the running release or the current acceptance changed after it was opened: reload it and review again.
+5. From then on the intended-use list and the accepted record show what changed since the acceptance: each approved version in force that differs from the frozen one, methods in force that are not supported assays, and a different running release. Assess each change under the laboratory's change control. When a change alters the intended use, record and accept the intended use again. The system holds no work because of these changes.
+
+**Rehearsals** (`/validation/rehearsals/`). Record each rehearsal after it took place, as it happened. Quality or the system administrator (admin role) records it; only the recorder attaches its evidence, and a quality person who did not record it accepts it, whether the criteria were met or not. A rehearsal whose criteria were not met states its issues and actions; record a new rehearsal once they are done.
+
+| Rehearsal of | What to perform | Evidence to attach |
+|---|---|---|
+| Recovery from backup | Take a backup with `backup_manifest`, restore it into a new database and run `verify_restore` ([backup](#backup-with-a-manifest), [restore check](#restore-check-in-a-new-local-database)); bring the application up on the copy and check sign-in, reading and a certificate download; measure the recovery time and the work that would be lost against the laboratory's RTO and RPO | The restore check report and the manifest (both hold no record content), the times measured |
+| Downtime and reconciliation | Follow the laboratory's downtime procedure: work on paper or another approved means while the system is unavailable, then enter or attach those records in the system and reconcile them | The reconciliation record: each record made during the downtime and where it now is in the system |
+| Upgrade | On a copy of the production data, apply the new release's migrations with no application connected, compare row counts before and after (the restore check report of the copy and a fresh manifest), and repeat the laboratory's acceptance tests on the new release | Row counts or manifests before and after, the laboratory's test results; name the release before and after |
+
+Files are stored unchanged with their SHA-256 and the same size limit as raw-data files; a download checks the checksum again, and the restore check verifies it with the other stored files. Do not attach database archives, credentials or real personal data. How often to rehearse, the RTO and RPO, and which records to reconcile are the laboratory's decisions.
 
 ## Single sign-on
 

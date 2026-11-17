@@ -47,7 +47,7 @@
               <li><a href="#later">Later</a></li>
               <li><a href="#outside">Outside the current plan</a></li>
             </ul>
-            <p class="qual-demo-note">Last updated <time datetime="2026-11-16">16 November 2026</time>. To propose a change, <a href="https://github.com/openbga/qm-lims/issues">open an issue on GitHub</a>.</p>
+            <p class="qual-demo-note">Last updated <time datetime="2026-11-17">17 November 2026</time>. To propose a change, <a href="https://github.com/openbga/qm-lims/issues">open an issue on GitHub</a>.</p>
           </div>
           <div class="col-lg-5">
             <aside class="qual-record" aria-labelledby="reading-heading">
@@ -92,6 +92,7 @@
             <li id="two-factor-sign-in"><h3>Two-factor sign-in</h3><p>Each person can add security keys or passkeys, an authenticator app on their phone, or both: after the password, sign-in asks the key, or for the code the app shows, and one-time recovery codes cover a lost key or phone. A passkey or key that checks its holder's PIN, fingerprint or face also signs in on its own, without the password, unless the laboratory turns that off. A key's answer works only at the site's own address, so a look-alike site cannot use it. Each code and each answer works once, and wrong ones count toward the same pause as wrong passwords. The laboratory chooses which roles must use it. An administrator resets it for someone else with a reason and a signature. The PIN is still re-entered for every signature.</p></li>
             <li id="single-sign-on"><h3>Single sign-on</h3><p>A laboratory can let its staff sign in through the organization's identity provider over OpenID Connect. Each person links their own account once, after confirming their password, and the provider then signs them in without it. No account or role comes from the provider, and one organization account belongs to one laboratory account. The provider is asked to check the person at every sign-in, so a session someone left open on a shared workstation is not used. A second factor set up in the system is still asked, the PIN is still re-entered for every signature, and every link, unlink and removal is in the audit trail.</p></li>
             <li id="validation-pack"><h3>Validation pack of each release</h3><p>Every product requirement is traced to the automated tests that give evidence for it, and a test that is not traced fails the checks. For each commit, the automated checks build a pack: the requirements, the tests traced to each one and how they ended, the environment the tests ran in, the release notes and a checksum of every file. A laboratory can build the same pack in its own environment. The pack is evidence for the laboratory's own validation; it does not test the laboratory's configuration or intended use.</p></li>
+            <li id="validation-records"><h3>The laboratory's validation records</h3><p>The laboratory records the use it validated the system for: what it is used for and what is not, the supported assays, the process owner and the system owner, and its validation report with the issues found. A second quality person accepts it with a signature, which freezes the approved configuration and the release in force. The record then shows every approved version, assay or release that changed since, for the laboratory's change control; nothing is held because of it. Rehearsals of recovery from backup, of downtime with reconciliation of the records made meanwhile, and of upgrades are recorded with their criteria, outcome and evidence files, and accepted by a quality person who did not record them.</p></li>
             <li id="documentation-deployment"><h3>Documentation and deployment</h3><p>Every page has documentation inside the application. The source includes a container build, a Docker Compose profile for evaluation, automated checks and an example hosting definition.</p></li>
           </ul>
         </div>
@@ -111,11 +112,9 @@
             <ol class="qual-workflow">
               <li id="validation-support">
                 <h3>Support for validation and inspection</h3>
-                <p>Each laboratory validates the system for its own use. The validation pack of each release and the export of a lot's record already supply evidence for that work. What remains:</p>
+                <p>Each laboratory validates the system for its own use. The validation pack of each release, the export of a lot's record and the laboratory's own acceptance and rehearsal records already supply evidence for that work. What remains:</p>
                 <ul>
-                  <li>Guidance and an acceptance record for a laboratory's defined use: supported assays, approved configuration and the people responsible for it.</li>
                   <li>Acceptance journeys for passing, failing, corrected, rejected and amended records, with the evidence the laboratory keeps.</li>
-                  <li>Recorded rehearsals of recovery, downtime reconciliation and upgrades, with acceptance by the laboratory. A release's validation pack does not replace this work.</li>
                 </ul>
                 <p class="qual-ref">Requirement OQ-016</p>
               </li>

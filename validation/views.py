@@ -260,15 +260,14 @@ def _assays_section(acceptance, configuration):
         current = now.get(code)
         rows.append(
             [
-                code,
-                titles.get(code, ""),
+                f"{titles[code]} ({code})" if titles.get(code) else code,
                 f"v{accepted['version']}" if accepted else "",
                 f"v{current['version']}" if current else status("None in force", "danger"),
             ]
         )
     return section(
         "Supported assays",
-        [("Method", False), ("Title", False), ("Accepted version", False), ("In force now", False)],
+        [("Method", False), ("Accepted", False), ("In force now", False)],
         rows,
         "No supported assays.",
     )
