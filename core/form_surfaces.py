@@ -26,6 +26,10 @@ EVERYONE = ("admin", "analyst", "auditor", "quality", "reviewer")
 FORM_SURFACES = {
     # Account
     "core:pin": ("sm", EVERYONE),
+    "accounts:password_change": ("sm", EVERYONE),
+    "accounts:announcement_change": ("md", ("admin",)),
+    "accounts:two_factor_setup": ("md", EVERYONE),
+    "accounts:security_key_add": ("md", EVERYONE),
     "accounts:user_create": ("md", ("admin",)),
     "accounts:user_action": ("md", ("admin",)),
     # Rule sets
@@ -113,6 +117,8 @@ FORM_SURFACES = {
     "catalog:material_new": ("md", ("quality",)),
     # Suppliers
     "suppliers:new": ("md", ("quality",)),
+    "suppliers:qualification_approve": ("md", ("quality",)),
+    "suppliers:qualification_revoke": ("md", ("quality",)),
     "suppliers:qualification_new": ("md", ("quality",)),
     # Laboratory
     "laboratory:equipment_new": ("md", ("analyst", "quality")),
@@ -121,6 +127,10 @@ FORM_SURFACES = {
     "laboratory:equipment_return": ("md", ("quality",)),
     "laboratory:equipment_qualification_new": ("md", ("analyst", "quality", "reviewer")),
     "laboratory:calibration_accept": ("md", ("reviewer",)),
+    "laboratory:qualification_approve": ("md", ("quality",)),
+    "laboratory:qualification_revoke": ("md", ("quality",)),
+    "laboratory:contract_approval_approve": ("md", ("quality",)),
+    "laboratory:contract_approval_revoke": ("md", ("quality",)),
     "laboratory:qualification_new": ("md", ("analyst", "quality", "reviewer")),
     "laboratory:reagent_new": ("md", ("analyst", "quality")),
     "laboratory:reagent_release": ("md", ("reviewer",)),
@@ -146,18 +156,10 @@ FORM_SURFACES = {
 NOT_FORM_PAGES = {
     "login_verify": "a sign-in step: there is no session and no workspace page to open it over",
     "login_passkey": "a sign-in step: there is no session and no workspace page to open it over",
-    "accounts:two_factor": "the browser's security-key ceremony runs on this page "
-    "(static/js/security-keys.js), and its buttons lead on to the setup steps below",
-    "accounts:two_factor_setup": "a step the two-factor page's form leads to, with the QR code "
-    "and the browser's security-key ceremony on its own page",
-    "accounts:security_key_add": "the browser's security-key ceremony runs on this page "
-    "(static/js/security-keys.js)",
+    "accounts:two_factor": "the account's two-factor page: its factors and the confirmation "
+    "that leads on to a setup step (which opens in the dialog over it)",
     "accounts:single_sign_on": "an administrator confirms changes here with a security key, "
     "whose browser ceremony runs on this page (static/js/security-keys.js)",
-    "accounts:password_change": "a destination in the side navigation (and where a required "
-    "password change sends a person after sign-in): its own page, marked current there",
-    "accounts:announcement": "a destination in the side navigation: its own page, marked current "
-    "there",
     "core:rules": "a list; its New revision form opens in the dialog from the page "
     "(form_page dialog=)",
     "core:audit": "a list; the review records the events ticked in the list itself",

@@ -99,13 +99,28 @@ def routes(resolver=None, namespaces=(), converters=None):
             yield ":".join((*namespaces, route.name)), route.callback, kwargs
 
 
+POSTED = re.compile(r"request\.POST|request\.method\s*==\s*[\"']POST")
+
+
 def takes_form(view):
+    """The view, or a helper of its module it hands the request to, reads a submitted form."""
     target = getattr(view, "view_class", None) or inspect.unwrap(view)
     try:
         source = inspect.getsource(target)
     except OSError, TypeError:
         return False
-    return bool(re.search(r"request\.POST|request\.method\s*==\s*[\"']POST", source))
+    if POSTED.search(source):
+        return True
+    module = inspect.getmodule(target)
+    for name in set(re.findall(r"\b(\w+)\(\s*request\b", source)):
+        helper = getattr(module, name, None)
+        if inspect.isfunction(helper) and helper is not target:
+            try:
+                if POSTED.search(inspect.getsource(inspect.unwrap(helper))):
+                    return True
+            except OSError, TypeError:
+                continue
+    return False
 
 
 def test_every_form_opens_in_the_dialog():

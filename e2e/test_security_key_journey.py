@@ -239,8 +239,14 @@ def test_security_key_journey(live_server, django_user_model, artifacts):
         a = phone.add_authenticator()
 
         def choose_theme(theme):
-            qpage.get_by_role("button", name="Theme", exact=True).click()
-            qpage.get_by_role("button", name=theme, exact=True).click()
+            if qpage.locator("#vr-form-dialog.show").count():
+                # The theme menu is behind the open form dialog: choose as the menu does.
+                qpage.locator(f"[data-vr-theme-value={theme.lower()}]").first.dispatch_event(
+                    "click"
+                )
+            else:
+                qpage.get_by_role("button", name="Theme", exact=True).click()
+                qpage.get_by_role("button", name=theme, exact=True).click()
             expect(qpage.locator("html")).to_have_attribute("data-bs-theme", theme.lower())
 
         def check(name):

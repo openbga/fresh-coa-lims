@@ -42,7 +42,21 @@ class RuleForm(forms.Form):
     reason = forms.CharField(widget=forms.Textarea)
 
 
-class SignatureIdentityForm(forms.Form):
+SIGNING_FIELDS = ("reason", "signature_username", "pin")
+
+
+class SigningFieldOrder:
+    """Every signature asks in one order, whatever the form: its own fields (also those a form
+    adds as it is built), then the reason, then the signing username and the PIN
+    (docs/ui-standards.md, signing). Rendering iterates the form, so this decides the order."""
+
+    def __iter__(self):
+        last = [name for name in SIGNING_FIELDS if name in self.fields]
+        for name in [n for n in self.fields if n not in last] + last:
+            yield self[name]
+
+
+class SignatureIdentityForm(SigningFieldOrder, forms.Form):
     signature_username = forms.CharField(
         label="Signing username",
         max_length=150,

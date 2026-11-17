@@ -43,7 +43,7 @@ Lists every change to the application that users, deployers or integrators can o
 - With four or more months, a **Months** list of links to each month.
 - One panel per calendar month, newest first. The panel title is the month ("November 2026") and beside it the dates its changes cover ("2026-11-03 to 2026-11-17", or one date).
 - Inside each month, up to three sections in this order: **High impact**, **Medium impact**, **Low impact**. Empty sections are left out.
-- Each change: its title, then the type tag (Added, Changed, Fixed, Removed, Deprecated or Security), **New** when it is new to you, the date, the area of the application when given, and **Pull request #N** when given; then its summary, the page link when there is one and you may open it, and **Technical notes** (closed) when it has any.
+- Each change: its title, then its type as a status label with an icon (Added, Changed, Fixed, Removed, Deprecated or Security; Security in red, Deprecated in amber), **New** when it is new to you, the date, the area of the application when given, and **Pull request #N** when given; then its summary, the page link when there is one and you may open it, and **Technical notes** (closed) when it has any.
 - Empty state "No changes are recorded yet" when there are no changes.
 
 ## Actions

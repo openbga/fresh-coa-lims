@@ -99,5 +99,5 @@ Every action needs your current password. When two-factor sign-in is on it also 
 - [Set up two-factor sign-in](/accounts/two-factor/setup/)
 - [Add a security key or passkey](/accounts/two-factor/security-key/)
 - [Sign in with a passkey](/accounts/login/passkey/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)
 - [Users and roles](/accounts/users/)

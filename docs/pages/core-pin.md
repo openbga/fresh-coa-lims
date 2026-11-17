@@ -67,4 +67,4 @@ Enrol or replace your own signature PIN, the secret you re-enter for every elect
 - Sign result review, Sign lot disposition, rule approval and signed account administration use this PIN.
 - [Signature PIN](/signature-pin/)
 - [Account access](/accounts/access/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)

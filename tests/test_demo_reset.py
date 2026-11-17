@@ -230,7 +230,7 @@ def test_published_accounts_cannot_change_their_password_or_pin(
     assert client.login(username="demo_reviewer", password=PASSWORD)
     for path, fields in (
         (
-            "/accounts/password/",
+            "/accounts/password/change/",
             {
                 "current_password": PASSWORD,
                 "password": "Changed-by-a-visitor-2026!",

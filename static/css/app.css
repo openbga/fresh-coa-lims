@@ -4414,6 +4414,127 @@ a.vr-queue-label:hover {
   white-space: normal;
 }
 
+/* ================================================================ Entries and disclosures */
+
+/* A heading inside a panel section (What's new: an impact group). */
+.vr-section-title {
+  margin: 0 0 var(--vr-space-3);
+  color: var(--vr-text-strong);
+  font-size: var(--vr-font-size-5);
+  font-weight: var(--vr-font-weight-bold);
+}
+
+/* A list of entries, each a title, a line of facts, its text and an optional link (What's new). */
+.vr-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vr-entries > li + li {
+  margin-top: var(--vr-space-6);
+}
+
+.vr-entry-title {
+  margin: 0 0 var(--vr-space-1);
+  color: var(--vr-text-strong);
+  font-size: var(--vr-font-size-5);
+  font-weight: var(--vr-font-weight-semibold);
+  line-height: var(--vr-line-height-snug);
+}
+
+.vr-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vr-space-1) var(--vr-space-3);
+  margin: 0 0 var(--vr-space-2);
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
+}
+
+.vr-entry-meta .vr-kind-tag {
+  margin-left: 0;
+}
+
+.vr-entry-body > :last-child,
+.vr-disclosure-body > :last-child {
+  margin-bottom: 0;
+}
+
+.vr-entry-link {
+  margin: var(--vr-space-2) 0 0;
+}
+
+.vr-entry-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1-5);
+}
+
+/* A quiet toggle for secondary detail: a chevron that turns when open, the detail in a well. */
+.vr-disclosure {
+  margin-top: var(--vr-space-2);
+}
+
+.vr-disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vr-space-1-5);
+  margin-left: calc(-1 * var(--vr-space-2));
+  padding: var(--vr-space-1) var(--vr-space-2);
+  border-radius: var(--vr-radius);
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-4);
+  font-weight: var(--vr-font-weight-medium);
+  list-style: none;
+  cursor: pointer;
+}
+
+.vr-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vr-disclosure > summary:hover {
+  background: var(--vr-surface-hover);
+  color: var(--vr-text);
+}
+
+.vr-disclosure > summary:focus-visible {
+  outline: var(--vr-focus-width) solid var(--vr-focus);
+  outline-offset: var(--vr-focus-offset);
+}
+
+.vr-disclosure-chevron {
+  transition: transform var(--vr-motion-fast) var(--vr-ease);
+}
+
+.vr-disclosure[open] > summary .vr-disclosure-chevron {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vr-disclosure-chevron {
+    transition: none;
+  }
+}
+
+.vr-disclosure-body {
+  margin-top: var(--vr-space-2);
+  padding: var(--vr-space-3) var(--vr-space-4);
+  border-radius: var(--vr-radius-lg);
+  background: var(--vr-surface-2);
+  font-size: var(--vr-font-size-4);
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  .vr-disclosure-body {
+    padding: 0;
+    background: none;
+  }
+}
+
 /* ================================================================ Entrance pages */
 
 /* Sign-in: the form on a panel over the shell's ground, beside the illustration. */

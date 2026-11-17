@@ -112,5 +112,5 @@ The account mutation, safe before/after audit event and immutable **account_auth
 - Account record, reached by Cancel or successful change to another account.
 - [Users and roles](/accounts/users/)
 - [Signature PIN](/signature-pin/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)
 - [Organization sign-in](/accounts/single-sign-on/), where an owner links or unlinks their own account.

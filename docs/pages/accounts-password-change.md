@@ -16,7 +16,7 @@ summary: Replace your own login password, when you choose to or when an administ
 1. When the page asks you to choose a new password before continuing, fill in the same fields and select [[Change password]].
 2. To stop for now, select [[Sign out]] in the top bar. Other pages stay unavailable until the change is made.
 ### Leave without changes
-1. Select [[Cancel]] to return to Account access. It shows only when the change is not required.
+1. Select [[Cancel]] to return to Password. It shows only when the change is not required.
 ## Good to know
 - Your other sessions are signed out. This session stays signed in.
 - Wrong current passwords count toward the same limit as sign-in, and can pause sign-in for the account for a while.
@@ -40,9 +40,9 @@ If required, an information message says **Choose a new password before continui
 
 | Action | Shown when | Result |
 |---|---|---|
-| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; redirects to the Dashboard |
-| Cancel | Password change is not required | Returns to Account access without saving |
-| Return without changes | Shared demonstration account | Returns to Account access without saving |
+| Change password | Not a shared demonstration account | Replaces the password, clears the required-change flag, retains this session and invalidates other sessions; returns to Password, or to the Dashboard when the change was required |
+| Cancel | Password change is not required | Returns to Password without saving |
+| Return without changes | Shared demonstration account | Returns to Password without saving |
 | Sign out | Shared top bar | Ends the session, including when a required change is pending |
 
 ## Fields
@@ -70,6 +70,7 @@ No PIN verification or electronic signature is created. The signature PIN, roles
 
 ## Related pages
 
+- [Password](/accounts/password/)
 - [Account access](/accounts/access/)
 - [Dashboard](/)
 - [Signature PIN](/signature-pin/)

@@ -78,7 +78,7 @@ A sign-in through the provider returns here with an error message when it fails:
 
 - [Dashboard](/)
 - [Account access](/accounts/access/)
-- [Change password](/accounts/password/)
+- [Change password](/accounts/password/change/)
 - [Organization sign-in](/accounts/single-sign-on/), where you link your organization account.
 - [Sign-in announcement](/accounts/announcement/)
 - Sign in with a passkey, reached by the button of that name.

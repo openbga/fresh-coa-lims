@@ -10,7 +10,7 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 
 from core.grids import Column
 
@@ -1089,6 +1089,38 @@ def user_action(request, pk, action):
 
 
 @login_required
+@require_http_methods(["GET"])
+def password(request):
+    """The signed-in person's own password: its state and when they last changed it; Change
+    password opens password_change (in the form dialog)."""
+    from core.models import AuditEvent
+
+    from .administration import CREDENTIALS_LOCKED
+
+    user = request.user
+    last = (
+        AuditEvent.objects.filter(
+            object_type=user._meta.label_lower,
+            object_id=str(user.pk),
+            action="account.password_changed",
+        )
+        .order_by("-occurred_at")
+        .values_list("occurred_at", flat=True)
+        .first()
+    )
+    return render(
+        request,
+        "accounts/password.html",
+        {
+            "page_title": "Password",
+            "required_change": user.password_change_required,
+            "last_changed": last,
+            "unavailable": CREDENTIALS_LOCKED if user.credentials_locked else "",
+        },
+    )
+
+
+@login_required
 @sensitive_post_parameters("current_password", "password", "password_confirmation")
 def password_change(request):
     from django.contrib import messages
@@ -1110,11 +1142,12 @@ def password_change(request):
             {
                 "page_title": "Change password",
                 "unavailable": CREDENTIALS_LOCKED,
-                "cancel_url": reverse("accounts:access"),
+                "cancel_url": reverse("accounts:password"),
             },
             status=403 if request.method == "POST" else 200,
         )
     form = OwnPasswordForm(request.POST or None)
+    required = request.user.password_change_required
     if request.method == "POST" and form.is_valid():
         try:
             user = change_own_password(
@@ -1136,7 +1169,8 @@ def password_change(request):
                     f"{timezone.localtime(found.created_at):%Y-%m-%d}) for sign-in. "
                     "If you do not recognize it, unlink it on Organization sign-in.",
                 )
-            return redirect("quality:dashboard")
+            # A required change was the way in: carry on to the work; else back to the state.
+            return redirect("quality:dashboard" if required else "accounts:password")
         except (ValidationError, PermissionDenied) as exc:
             form.add_error(None, exc if isinstance(exc, ValidationError) else str(exc))
     return render(
@@ -1146,7 +1180,7 @@ def password_change(request):
             "page_title": "Change password",
             "form": form,
             "required_change": request.user.password_change_required,
-            "cancel_url": reverse("accounts:access"),
+            "cancel_url": reverse("accounts:password"),
             "submit_label": "Change password",
         },
         status=422 if request.method == "POST" else 200,
@@ -1163,23 +1197,59 @@ def _announcement_summary(event):
 
 
 @login_required
-@sensitive_post_parameters("pin")
+@require_http_methods(["GET"])
 def announcement(request):
-    from django.contrib import messages
-    from django.core.exceptions import ValidationError
+    """The sign-in announcement as it stands, with its history; Change announcement opens
+    announcement_change (in the form dialog)."""
     from django.core.paginator import Paginator
-    from django.http import HttpResponseNotAllowed
-    from django.shortcuts import redirect
 
     from core.models import AuditEvent, PINCredential
     from core.services import require_role
 
-    from .announcements import MEANING, announcement_html, change_announcement, current_announcement
+    from .announcements import announcement_html, current_announcement
+
+    require_role(request.user, "admin")
+    current = current_announcement()
+    history = Paginator(
+        AuditEvent.objects.filter(object_type=current._meta.label_lower, object_id=str(current.pk))
+        .select_related("actor", "electronicsignature")
+        .order_by("-occurred_at", "-id"),
+        20,
+    ).get_page(request.GET.get("page"))
+    for event in history:
+        event.summary = _announcement_summary(event)
+    return render(
+        request,
+        "accounts/announcement.html",
+        {
+            "page_title": "Sign-in announcement",
+            "announcement": current,
+            "announcement_html": announcement_html(current),
+            "history": history,
+            "unavailable": ""
+            if PINCredential.objects.filter(user=request.user).exists()
+            else "Enroll your signature PIN before changing the announcement.",
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@sensitive_post_parameters("pin")
+def announcement_change(request):
+    """Change the sign-in announcement: a signed change (signature card), then back to the
+    announcement."""
+    from django.contrib import messages
+    from django.core.exceptions import ValidationError
+    from django.shortcuts import redirect
+
+    from core.models import PINCredential
+    from core.services import require_role
+
+    from .announcements import MEANING, change_announcement, current_announcement
     from .forms import AnnouncementForm
 
     require_role(request.user, "admin")
-    if request.method not in {"GET", "POST"}:
-        return HttpResponseNotAllowed(["GET", "POST"])
     current = current_announcement()
     form = AnnouncementForm(
         request.POST or None,
@@ -1205,24 +1275,14 @@ def announcement(request):
             return redirect("accounts:announcement")
         except ValidationError as exc:
             form.add_error(None, exc)
-    history = Paginator(
-        AuditEvent.objects.filter(object_type=current._meta.label_lower, object_id=str(current.pk))
-        .select_related("actor", "electronicsignature")
-        .order_by("-occurred_at", "-id"),
-        20,
-    ).get_page(request.GET.get("page"))
-    for event in history:
-        event.summary = _announcement_summary(event)
     return render(
         request,
-        "accounts/announcement.html",
+        "accounts/announcement_change.html",
         {
-            "page_title": "Sign-in announcement",
+            "page_title": "Change announcement",
             "form": form,
             "announcement": current,
-            "announcement_html": announcement_html(current),
             "meaning": MEANING,
-            "history": history,
             "unavailable": ""
             if PINCredential.objects.filter(user=request.user).exists()
             else "Enroll your signature PIN before changing the announcement.",

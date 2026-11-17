@@ -6,7 +6,7 @@ from django.utils.html import escape
 
 from catalog.forms import GroupedForm, reason_field
 from catalog.units import QUANTITY_UNITS
-from core.forms import LocalDateTimeInput, SignatureIdentityForm
+from core.forms import LocalDateTimeInput, SignatureIdentityForm, SigningFieldOrder
 from core.lookups import RemoteSelect
 from core.models import RuleSet
 from core.services import APPLIES_TO, applies_at
@@ -411,7 +411,7 @@ class ResultForm(StyledForm):
         return values
 
 
-class SigningForm(StyledForm):
+class SigningForm(SigningFieldOrder, StyledForm):
     signature_username = forms.CharField(label="Signing username", max_length=150)
     pin = forms.CharField(
         label="Signature PIN",

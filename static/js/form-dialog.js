@@ -721,8 +721,11 @@
       // Opened by its address, the form opens over the page it belongs to (its Cancel
       // destination: the record or the list), as when opened from there. A form already showing
       // errors (a native submission) stays where it is, with what was typed.
+      // A form with no Cancel is a required step (a password change after sign-in): it stays
+      // its own page, as does one the address bar reached through such a step's redirect.
       var behind = new URL(directDestination, window.location.href);
-      if (behind.origin === window.location.origin && behind.pathname !== window.location.pathname &&
+      if (cancel && !/^#vr-form=/.test(window.location.hash) &&
+          behind.origin === window.location.origin && behind.pathname !== window.location.pathname &&
           !routeFor(behind) && !dedicated.querySelector("[aria-invalid=true], [data-vr-form-errors]")) {
         behind.hash = "vr-form=" + encodeURIComponent(window.location.pathname + window.location.search);
         window.location.replace(behind.href);

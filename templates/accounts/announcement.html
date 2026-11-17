@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}The sign-in announcement: its current text and status, a signed change, and its history (newest first). Context: announcement, announcement_html, form, meaning, history (a page of audit events), unavailable.{% endcomment %}
+{% comment %}The sign-in announcement: its current text and status and its history (newest first); Change announcement (accounts:announcement_change, in the form dialog) signs a change. Context: announcement, announcement_html, history (a page of audit events), unavailable (why this account cannot sign a change).{% endcomment %}
+{% block page_actions %}{% if not unavailable %}<a class="btn btn-primary" href="{% url 'accounts:announcement_change' %}">{% icon name="pencil-square" %}Change announcement</a>{% endif %}{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">One notice shown on the sign-in page to anyone who opens it, before they sign in. Changing it requires a reason and your signature PIN.</p>{% endblock %}
 {% block content %}
-{% panel title="Current announcement" heading_id="announcement-current" class="mb-3" %}
+{% if unavailable %}{% notice tone="info" %}{{ unavailable }}{% endnotice %}{% endif %}
+{% panel title="Current announcement" heading_id="announcement-current" %}
   <dl class="vr-facts">
     {% fact label="Status" %}{% if announcement.published %}{% status label="Published" tone="success" %}{% else %}{% status label="Not published" tone="neutral" %}{% endif %}{% endfact %}
     {% fact label="Sign-in page" %}{% if announcement.published %}Shows the notice below{% else %}Shows no notice{% endif %}{% endfact %}
@@ -15,14 +17,6 @@
   <p class="vr-announcement-preview mb-0">No announcement text has been saved.</p>
   {% endif %}
 {% endpanel %}
-{% signature_card title="Change announcement" heading_id="announcement-change" class="mb-3" %}
-  {% fill summary %}<p>Your signature records <strong>{{ meaning|meaning }}</strong>: you authorize this text and its status for the sign-in page, with your reason and the server timestamp. Reviewing revision {{ announcement.revision }}; the signature binds revision {{ announcement.revision|add:"1" }}.</p>
-  <p>The text is public and stays in the audit trail after it is changed. Do not enter personal data, or the password or PIN of any account that is not a synthetic demonstration account.</p>
-  <p>Signer: <strong>{{ user|person }}</strong>. <a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
-  {% if unavailable %}{% notice tone="info" class="mb-0" %}{{ unavailable }}{% endnotice %}{% else %}
-  {% url 'accounts:announcement' as cancel_url %}{% form_page form=form cancel_url=cancel_url submit_label="Sign and save announcement" submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
-  {% endif %}
-{% endsignature_card %}
 {% history_panel events=history title="Announcement history" heading_id="announcement-history" empty_title="No announcement changes recorded." %}
   {% for event in history %}{% history_item title=event.summary at=event.occurred_at actor=event.actor reason=event.reason extra="accounts/includes/announcement_evidence.html" %}{% endfor %}
   {% fill footer %}{% if history %}{% pagination page_obj=history noun="announcement changes" %}{% endif %}{% endfill %}

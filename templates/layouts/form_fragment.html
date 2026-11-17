@@ -4,8 +4,8 @@ the same blocks as layouts/document.html without the shell. templates/base.html 
 layout instead of the document when the context processor sets form_surface_layout. The page
 header's actions (page_actions) are moved into the dialog header by form-dialog.js; history
 panels render nothing here ({% history_panel %} reads form_dialog), so the form's action row stays
-the dialog's last element. A page's extra_js is not rendered: form-dialog.js runs the form here,
-and a signing page's signature-dialog.js belongs to the page opened by its address.
+the dialog's last element. A page's extra_js runs here too (HTMX runs its scripts): a security key
+form's options and script come with it; signature-dialog.js stands aside inside the form dialog.
 {% endcomment %}<div data-vr-form-page data-vr-form-url="{{ request.get_full_path }}" data-vr-form-size="{{ form_surface.size|default:'md' }}">
   <div class="vr-page-header">
     {% block breadcrumbs %}{% endblock %}
@@ -18,3 +18,4 @@ and a signing page's signature-dialog.js belongs to the page opened by its addre
   {% block content %}{% endblock %}
 </div>
 {% block extra_css %}{% endblock %}
+{% block extra_js %}{% endblock %}

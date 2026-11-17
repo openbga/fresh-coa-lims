@@ -48,7 +48,7 @@ Forms use Django validation with escaped values and CSRF. Preserve nonsecret inp
 | Identity | Show the current individual signer; changing identity requires a new authenticated session |
 | Credential | Label `Signature PIN`; masked entry, numeric input hint, no stored/autofilled value in page markup |
 | Consent | Explicit `Sign and review` / `Sign and approve` / `Sign disposition` action; opening a dialog never signs |
-| Reason | Capture the transition reason when required; distinguish review comments from credential input |
+| Reason | Capture the transition reason when required; distinguish review comments from credential input. Every signing form asks in one order: its own fields, the reason, then the signing username and the PIN (`core.forms.SigningFieldOrder`) |
 | Failure | Preserve safe input, clear PIN, explain invalid credential, lockout or stale revision without silently retrying |
 | Keyboard | Focus enters the dialog, stays within it, and returns to the opener; Escape/Cancel has no mutation |
 | Manifestation | Display signer, meaning, timestamp and bound revision beside the signed record/history |

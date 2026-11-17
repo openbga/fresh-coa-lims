@@ -1,26 +1,28 @@
 {% extends 'base.html' %}
-{% load static ui %}
+{% load ui %}
 {% comment %}What's new (whatsnew:index): every entry of changelog.d/, in the groups and order of CHANGELOG.md
 (whatsnew/entries.py): months newest first, impact sections, entries newest first then by title.
+Each month is a panel, each impact a panel section; an entry is a .vr-entries item: title, then its
+kind as a status pill (entries.TYPE_TONES), "New" when newer than the reader's last visit, the date,
+area and pull request, the summary, its link and the technical notes in a disclosure.
 Context: groups (whatsnew/catalogue.py shown_groups), errors (unreadable entry files), toc, new_count.{% endcomment %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'whatsnew/whatsnew.css' %}">{% endblock %}
 {% block page_intro %}<p class="vr-page-intro">What changed in OpenBGA QM LIMS, newest first: by month, then by impact.{% if new_count %} {{ new_count }} change{{ new_count|pluralize:" is,s are" }} new since you last opened this page.{% endif %}</p>{% endblock %}
 {% block content %}
 {% if errors %}{% notice tone="warning" label="Incomplete" %}<p>Some changes could not be read and are not listed. Report this to your system owner:</p><ul>{% for error in errors %}<li><code>{{ error }}</code></li>{% endfor %}</ul>{% endnotice %}{% endif %}
 {% page_toc items=toc label="Months" %}
 {% for shown in groups %}{% with group=shown.group %}
-{% panel title=group.label heading_id="month-"|add:group.anchor count=group.range flush=True class="mb-3" id=group.anchor %}
+{% panel title=group.label heading_id="month-"|add:group.anchor count=group.range flush=True id=group.anchor %}
   {% for section in shown.sections %}{% panel_section rule=forloop.counter0 %}
-    <h3 class="vr-whatsnew-impact" id="{{ group.anchor }}-{{ section.impact }}">{{ section.label }}</h3>
-    <ol class="vr-whatsnew-list" aria-labelledby="{{ group.anchor }}-{{ section.impact }}">
-      {% for item in section.items %}{% with entry=item.entry %}<li class="vr-whatsnew-entry" id="change-{{ entry.id }}" data-whatsnew-entry="{{ entry.id }}">
-        <h4 class="vr-whatsnew-title">{{ entry.title }}</h4>
-        <p class="vr-whatsnew-meta">{% kind_tag label=entry.type_label %}{% if item.new %}{% status label="New" tone="info" %}{% endif %}<span>{{ entry.date|when:"date" }}</span>{% if entry.area %}<span>{{ entry.area }}</span>{% endif %}{% if entry.pr %}<a href="{{ entry.pr_url }}" rel="noopener">Pull request #{{ entry.pr }}</a>{% endif %}</p>
-        <div class="vr-whatsnew-summary">{{ item.summary }}</div>
-        {% if item.link_url %}<p class="vr-whatsnew-link"><a href="{{ item.link_url }}">{% icon name="arrow-right" %}{{ item.link_label }}</a></p>{% endif %}
-        {% if item.technical %}<details class="vr-whatsnew-notes">
-          <summary>{% icon name="chevron-right" class="vr-whatsnew-chevron" %}Technical notes</summary>
-          <div class="vr-whatsnew-notes-body">{{ item.technical }}</div>
+    <h3 class="vr-section-title" id="{{ group.anchor }}-{{ section.impact }}">{{ section.label }}</h3>
+    <ol class="vr-entries" aria-labelledby="{{ group.anchor }}-{{ section.impact }}">
+      {% for item in section.items %}{% with entry=item.entry %}<li id="change-{{ entry.id }}" data-whatsnew-entry="{{ entry.id }}">
+        <h4 class="vr-entry-title">{{ entry.title }}</h4>
+        <p class="vr-entry-meta">{% status label=entry.type_label tone=entry.type_tone %}{% if item.new %}{% status label="New" tone="info" %}{% endif %}<span>{{ entry.date|when:"date" }}</span>{% if entry.area %}<span>{{ entry.area }}</span>{% endif %}{% if entry.pr %}<a href="{{ entry.pr_url }}" rel="noopener">Pull request #{{ entry.pr }}</a>{% endif %}</p>
+        <div class="vr-entry-body">{{ item.summary }}</div>
+        {% if item.link_url %}<p class="vr-entry-link"><a href="{{ item.link_url }}">{% icon name="arrow-right" %}{{ item.link_label }}</a></p>{% endif %}
+        {% if item.technical %}<details class="vr-disclosure" data-whatsnew-notes>
+          <summary>{% icon name="chevron-right" class="vr-disclosure-chevron" %}Technical notes</summary>
+          <div class="vr-disclosure-body">{{ item.technical }}</div>
         </details>{% endif %}
       </li>{% endwith %}{% endfor %}
     </ol>

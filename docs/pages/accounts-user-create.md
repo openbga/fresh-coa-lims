@@ -77,4 +77,4 @@ Creation, assigned roles, the **account.created** audit event and immutable **ac
 - [Users and roles](/accounts/users/)
 - Account record, opened after creation.
 - [Signature PIN](/signature-pin/)
-- [Change password](/accounts/password/)
+- [Password](/accounts/password/)

@@ -92,6 +92,7 @@ SECTIONS = (
                 "person-circle",
                 views=(
                     "accounts:access",
+                    "accounts:password",
                     "accounts:password_change",
                     "accounts:two_factor",
                     "accounts:two_factor_setup",
@@ -115,7 +116,7 @@ SECTIONS = (
                 "Sign-in announcement",
                 "accounts:announcement",
                 "megaphone",
-                views=("accounts:announcement",),
+                views=("accounts:announcement", "accounts:announcement_change"),
                 requires="can_manage_accounts",
             ),
         ),

@@ -65,7 +65,7 @@ def test_open_whats_new_see_entries_and_the_indicator_clears(
         expect(cleared.locator("[data-whatsnew-unread]")).to_have_count(0)
 
         # Technical notes open and close from the keyboard.
-        notes = page.locator(".vr-whatsnew-notes").first
+        notes = page.locator("[data-whatsnew-notes]").first
         notes.locator("summary").focus()
         page.keyboard.press("Enter")
         expect(notes).to_have_attribute("open", "")
