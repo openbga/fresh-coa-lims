@@ -659,6 +659,25 @@ def test_not_completed(request, pk):
                 ", ".join(o.value_text for o in current) if current else "No result recorded",
             ),
             *([("Outside the limits", ", ".join(outside))] if outside else []),
+            *(
+                [
+                    (
+                        "Corrected readings",
+                        "; ".join(
+                            f"replicate {c['replicate']}: {c['recorded']} corrected to "
+                            f"{c['corrected_to']} ({c['reason']})"
+                            + (
+                                " · the replaced reading was outside the limits"
+                                if c["outside_limits"]
+                                else ""
+                            )
+                            for c in replaced
+                        ),
+                    )
+                ]
+                if (replaced := services.corrections(test))
+                else []
+            ),
             *([("Raw-data files", f"{files} kept with the test")] if files else []),
             *([("QC batch", test.batch.number)] if test.batch_id else []),
             *(

@@ -466,7 +466,8 @@ class NotCompletedForm(SigningForm):
         required=False,
         help_text="Only for a repeat on another sample: a sample of this lot recorded after this "
         "test was assigned, holding no tests of its own and standing in for no other sample. It "
-        "then stands in for this test's sample and takes no tests of its own.",
+        "then stands in for this test's sample, and the lot no longer requires tests of its own "
+        "on it: choose the replacement sample, not another routine one.",
     )
     reason = _reason(
         "Why the test cannot be completed",

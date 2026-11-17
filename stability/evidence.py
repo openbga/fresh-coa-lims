@@ -199,6 +199,7 @@ def _excluded(test):
             "cause": record["cause"],
             "recorded": record["recorded"],
             "outside_limits": record["outside_limits"],
+            "corrections": record.get("corrections", []),
             "follow_up": record["follow_up"],
             "signature": _signature("analytical.analyticaltest", test.pk, "not_completed"),
         }

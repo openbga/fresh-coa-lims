@@ -319,6 +319,7 @@ def test_an_untouched_test_is_closed_by_signature_and_repeated_on_the_same_sampl
         "cause": "equipment",
         "recorded": [],
         "outside_limits": [],
+        "corrections": [],
         "raw_data_files": 0,
         "batch": None,
         "held_work": False,

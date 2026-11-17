@@ -1143,6 +1143,24 @@ SELF_NOT_COMPLETED = (
 )
 
 
+def corrections(test):
+    """Each reading of the test that a correction replaced: what was recorded, what replaced it
+    and why, and whether the replaced reading showed a failure. A test that is not submitted
+    is reviewed by nobody, so whoever closes it sees these, and its record keeps them."""
+    spec = test.spec
+    replaced = test.observations.filter(correction__isnull=False).select_related("correction")
+    return [
+        {
+            "replicate": o.replicate,
+            "recorded": o.value_text,
+            "corrected_to": o.correction.value_text,
+            "reason": o.correction.reason,
+            "outside_limits": spec.fails_alone(o.reading),
+        }
+        for o in replaced.order_by("replicate", "pk")
+    ]
+
+
 def outside_limits(test):
     """The current readings of a test that was not submitted that show a failure: each one that
     fails the frozen requirement on its own (``fails_alone``) or, when every replicate is
@@ -1202,7 +1220,8 @@ def not_completed_authors(test):
     if test.investigation_id is not None:
         investigation = Investigation.objects.filter(pk=test.investigation_id)
         authors |= investigation_author_ids(investigation)
-        authors |= _test_authors(investigation.get().test)
+        for investigated in (investigation.get().test, *investigation.get().tests.all()):
+            authors |= _test_authors(investigated)
     return authors
 
 
@@ -1321,6 +1340,7 @@ def record_not_completed(
             "cause": cause,
             "recorded": [o.value_text for o in current],
             "outside_limits": outside,
+            "corrections": corrections(locked),
             "raw_data_files": files,
             "batch": locked.batch.number if locked.batch_id else None,
             # Anything recorded on the test, corrected readings included: such a test used

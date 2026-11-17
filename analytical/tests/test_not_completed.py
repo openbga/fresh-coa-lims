@@ -1,7 +1,8 @@
-"""The record that a test cannot be completed, against what the independent review proved:
+"""The record that a test cannot be completed, against what the independent reviews proved:
 rounding never hides a failure, its lock order meets batch rejection without a deadlock, the
-people an investigation excludes are excluded, and a routine sample is never taken as a
-stand-in. Uses the synthetic fixture provider and bench (see conftest)."""
+people an investigation excludes are excluded, a sample recorded before the test is never taken
+as a stand-in, and corrected readings are shown and kept. Uses the synthetic fixture provider and
+bench (see conftest)."""
 
 from datetime import timedelta
 from decimal import Decimal
@@ -190,3 +191,77 @@ def test_a_long_trigger_is_shortened_to_fit():
     shortened = services.investigation_trigger("Out-of-limit " + "9" * 400)
     assert len(shortened) == limit and shortened.endswith("…")
     assert services.investigation_trigger("short") == "short"
+
+
+def test_the_author_of_another_test_of_the_investigation_does_not_sign(people, assigned):
+    _, _, tests = assigned
+    batch = services.create_batch(
+        actor=people["analyst2"], number="SYN-B1", method_code="SYN-HPLC", reason="Run"
+    )
+    services.assign_to_batch(
+        actor=people["analyst"], test=tests["assay"], batch=batch, reason="Run"
+    )
+    pass_qc(people, batch)
+    record(people, tests["assay"], "106.0", "106.2")
+    _, investigation = submit(people, tests["assay"])
+    review(people, tests["assay"])
+    services.add_entry(
+        actor=people["reviewer"], investigation=investigation, kind="assessment", text="Checked"
+    )
+
+    def authorize(reason):
+        current = Investigation.objects.get(pk=investigation.pk)
+        services.authorize_retest(
+            actor=people["quality"],
+            pin=PIN,
+            investigation=current,
+            expected_revision=current.revision,
+            kind="retest",
+            reason=reason,
+        )
+        return current.tests.order_by("-pk").first()
+
+    first = authorize("Plan 1")
+    second_batch = services.create_batch(
+        actor=people["analyst2"], number="SYN-B2", method_code="SYN-HPLC", reason="Run"
+    )
+    services.assign_to_batch(actor=people["multi"], test=first, batch=second_batch, reason="Run")
+    pass_qc(people, second_batch)
+    record(people, first, "100.0", "100.2", who="multi")
+    submit(people, first, who="multi")
+    review(people, first)
+    second = authorize("Plan 2")
+    # multi produced the first retest: it may not conclude, so it may not close the second.
+    with pytest.raises(ValidationError, match="Another quality person"):
+        not_completed(people, second, who="multi")
+    assert not_completed(people, second, who="quality2").state == "not_completed"
+
+
+def test_a_corrected_reading_is_shown_and_kept_with_the_record(people, assigned, client):
+    _, _, tests = assigned
+    identity = tests["identity"]
+    record(people, identity, "1.30")
+    replaced = fresh(identity).observations.get()
+    services.correct_observation(
+        actor=people["analyst"],
+        observation=replaced,
+        value=Decimal("1.00"),
+        raw_reference="NB-SYN-2",
+        reason="Transcription error",
+    )
+    expected = [
+        {
+            "replicate": 1,
+            "recorded": replaced.value_text,
+            "corrected_to": "1.00",
+            "reason": "Transcription error",
+            "outside_limits": fresh(identity).spec.fails_alone(replaced.reading),
+        }
+    ]
+    assert services.corrections(fresh(identity)) == expected
+    client.force_login(people["quality2"])
+    page = client.get(f"/testing/tests/{identity.pk}/not-completed/").content.decode()
+    assert "Corrected readings" in page and "Transcription error" in page
+    closed = not_completed(people, identity, repeat="same")
+    assert closed.not_completed_record["corrections"] == expected
+    assert closed.not_completed_record["held_work"] is True
