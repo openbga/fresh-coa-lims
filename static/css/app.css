@@ -2852,6 +2852,26 @@ table.dtcr-cloned.dataTable {
   max-width: var(--vr-form-width);
 }
 
+/* A form page's form is one panel: the panel surface and inset at the reading width, its action
+   row closing the panel at the bottom right. The panels and notices around it take the same
+   width. Inside a panel, a signing card or the form dialog a form stays plain; a form that holds
+   panels of its own (an entry grid) stays plain too. */
+.vr-main > .vr-form:not(:has(.card)) {
+  margin-bottom: var(--vr-stack);
+  padding: var(--vr-panel-inset);
+  border-radius: var(--vr-radius-xl);
+  background: var(--vr-surface);
+  box-shadow: var(--vr-shadow-panel);
+}
+
+.vr-main > .vr-form:not(:has(.card)) > .vr-form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.vr-main:has(> .vr-form:not(.vr-form-wide)):not(:has(> .vr-form .card)) > :is(.card, .alert) {
+  max-width: var(--vr-form-width);
+}
+
 /* Reading width for panels that sit with a form (history under an edit form) but are not one. */
 .vr-narrow {
   max-width: var(--vr-form-width);

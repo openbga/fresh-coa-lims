@@ -92,7 +92,7 @@
 {% endpanel %}
 {% endfill %}
 {% fill aside %}
-{% panel title="Specification and result" heading_id="spec-heading" class="mb-3" %}
+{% panel title="Specification and result" heading_id="spec-heading" %}
     <dl class="vr-facts">
       {% fact label="Test code" %}{% code value=test.test_code %}{% endfact %}
       {% fact label="Specification revision" %}{% code value=spec_label title=spec.source %}<small>Snapshot hash {% code value=test.requirement_hash hash=True %}</small>{% endfact %}
