@@ -14,7 +14,8 @@
       <div><dt>Receipt</dt><dd>{% if receipt %}{% if receipt.supplier %}{{ receipt.supplier }} · {% if receipt.supplier_lot %}supplier lot {{ receipt.supplier_lot }} · {% endif %}{% else %}Made on site · {% endif %}{{ receipt.shipment_ref }} · <time datetime="{{ receipt.received_on }}">{{ receipt.received_on }}</time> · {{ receipt.quantity }} {{ receipt.quantity_unit }} in {{ receipt.containers }} container{{ receipt.containers|pluralize }}{% else %}Receipt details not recorded{% endif %}</dd></div>
       {% if receipt %}<div><dt>Examination on receipt</dt><dd>{% if receipt.condition == "discrepancy" %}{% include "includes/status.html" with label="Discrepancy found" tone="warning" %}<br>{{ receipt.condition_notes|linebreaksbr }}{% else %}{% include "includes/status.html" with label="No discrepancy found" tone="success" %}{% endif %}</dd></div>{% endif %}
       {% endwith %}
-      <div><dt>Supplier certificates</dt><dd>{% for item in open_certificates %}{{ item.number }}{% if item.failing %} · {% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %} {{ item.failing|join:", " }}{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}None current{% endfor %}</dd></div>
+      <div><dt>Supplier certificates</dt><dd>{% for item in evidence.supplier_certificates %}{{ item.number }}{% if item.withdrawn %} · {% include "includes/status.html" with label="Withdrawn" tone="neutral" plain=True %}{% elif item.failing %} · {% include "includes/status.html" with label="Does not meet the specification" tone="danger" plain=True %} {{ item.failing|join:", " }}{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
+      <div><dt>Supplier results in place of tests</dt><dd>{% for item in evidence.supplier_results %}<span class="vr-id">{{ item.label }}</span> · {{ item.test_code }} · {% if item.state == "accepted" %}Accepted{% elif item.state == "proposed" %}Awaiting acceptance{% else %}Withdrawn{% endif %}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
       <div><dt>Active holds</dt><dd>{% for hold in evidence.holds %}<span class="vr-id">{{ hold.hold }}</span> · {{ hold.reason }}{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</dd></div>
     </dl>
   </div>
@@ -36,7 +37,7 @@
         {% for row in tests %}
         <tr>
           <th scope="row"><a class="vr-id" href="{% url 'analytical:test_detail' row.test %}">{{ row.label }}</a><br>{{ row.test_code }}</th>
-          <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted{% endif %}</td>
+          <td>{{ row.state_label }}{% if row.state == "open" and row.results %} · results not submitted{% elif row.state == "open" and row.raw_data %} · raw data attached, no result{% endif %}</td>
           <td>{% if row.conforms is True %}{% include "includes/status.html" with label="Conforms" tone="success" plain=True %}{% elif row.conforms is False %}{% include "includes/status.html" with label="Out of specification" tone="danger" plain=True %}{% else %}—{% endif %}</td>
           <td>{{ row.sample|default:"—" }}</td>
         </tr>

@@ -66,6 +66,8 @@ def test_quality_reviews_and_signs_the_rejection(client, world):  # noqa: F811
         assert response.status_code == 422, bad
         assert message in text(response), bad
         assert Lot.objects.get(pk=lot.pk).state == "quarantine"
+        # The page carries the basis of the lot as it is now, never the one submitted.
+        assert basis_of(text(response)) == basis_of(page), bad
 
     response = client.post(reject_url, signing(approver, lot, page, grounds="receipt"), follow=True)
     assert response.redirect_chain == [(lot_url, 302)]

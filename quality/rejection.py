@@ -89,13 +89,16 @@ class Closure:
 
 
 def _tests(lot):
-    from analytical.models import AnalyticalTest, Observation
+    from analytical.models import AnalyticalTest, Observation, RawDataFile
 
     worked = set(
         Observation.objects.filter(test__lot_id=lot.pk, correction__isnull=True).values_list(
             "test_id", flat=True
         )
     )
+    # A raw-data file is not a result: it is kept with the test and evaluated by nobody, so the
+    # signer sees that it is there.
+    files = set(RawDataFile.objects.filter(test__lot_id=lot.pk).values_list("test_id", flat=True))
     return [
         {
             "test": test.pk,
@@ -106,6 +109,7 @@ def _tests(lot):
             "state": test.state,
             "conforms": test.conforms,
             "results": test.pk in worked,
+            "raw_data": test.pk in files,
         }
         for test in AnalyticalTest.objects.filter(lot_id=lot.pk)
         .select_related("sample")

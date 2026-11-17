@@ -10,6 +10,7 @@ from decimal import Decimal
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import DatabaseError, connection, transaction
+from django.urls import reverse
 from django.utils import timezone
 
 from analytical import services as analytical
@@ -158,6 +159,24 @@ def test_a_rejected_lot_takes_no_more_records(world):
         )
     with pytest.raises(ValidationError, match="signed QC disposition"):
         reporting.open_report(actor=people["approver"], lot=lot, recipient="Synthetic customer")
+    with pytest.raises(ValidationError, match="Only quarantined lots"):
+        sampling.record_sampling(
+            actor=people["analyst"],
+            lot=lot,
+            reference="SYN-RT-S002",
+            sampled_at=timezone.now(),
+            containers_total=1,
+            containers_sampled=1,
+            container_ids="SYN-C002",
+            quantity=Decimal("10"),
+            quantity_unit="g",
+            location="Synthetic sampling booth",
+            reason="Late sample",
+        )
+    # The certificate preview shows no release evidence for a rejected lot.
+    from reporting.evidence import _native
+
+    assert _native(lot) is None
     # A protective hold can still be placed on a rejected lot: its reserve may be evidence.
     hold = stability.place_hold(
         actor=people["reviewer"], lot=lot, kind=Hold.Kind.INVESTIGATION, reason="Keep the retain"
@@ -298,7 +317,7 @@ def test_a_lot_that_meets_its_requirements_can_still_be_rejected(world):
 
 
 def test_a_failed_qc_batch_is_rejected_although_it_holds_a_test_of_a_rejected_lot(
-    django_user_model,
+    django_user_model, client
 ):
     data = build_world(django_user_model, with_assay=True)
     people = data["people"]
@@ -318,6 +337,10 @@ def test_a_failed_qc_batch_is_rejected_although_it_holds_a_test_of_a_rejected_lo
         raw_reference="NB-SYN-QC p1",
     )
     lot = reject(data)
+    # The batch's rejection page counts no test of the rejected lot as invalidated.
+    client.force_login(people["reviewer"])
+    page = client.get(reverse("analytical:batch_reject", args=[batch.pk])).content.decode()
+    assert "<dt>Tests invalidated</dt><dd>0</dd>" in page
     batch.refresh_from_db()
     analytical.reject_batch(
         actor=people["reviewer"],
@@ -418,3 +441,19 @@ def test_a_lot_with_a_reserve_sample_is_not_cancelled(received):
     with pytest.raises(ValidationError, match="Reserve samples were recorded"):
         cancel(received)
     assert fresh(received).state == "quarantine"
+
+
+def test_whoever_created_a_lot_does_not_cancel_it(received):
+    people = received["people"]
+    # A lot received before receipt details were kept names only its creator.
+    legacy = Lot.objects.create(
+        number="SYN-RT-LEGACY",
+        material=received["material"].name,
+        rules=fresh(received).rules,
+        created_by=people["approver"],
+    )
+    assert rejection.cancellation_denial(people["approver"], legacy) == rejection.SELF_CANCELLATION
+    assert rejection.cancellation_denial(people["author"], legacy) == ""
+    assert rejection.cancellation_preview(legacy).evidence["receipt"] is None
+    cancelled = cancel({"lot": legacy, "people": people}, who="author")
+    assert cancelled.state == "cancelled"

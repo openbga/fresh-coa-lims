@@ -571,7 +571,11 @@ def test_resample_requires_new_sample_of_same_lot(people, assigned, make_lot):
 
 def test_released_lot_rejects_analytical_changes(people, assigned):
     lot, _, tests = assigned
-    Lot.objects.filter(pk=lot.pk).update(state="rejected")
+    Lot.objects.filter(pk=lot.pk).update(
+        state="rejected",
+        # The lot guard requires a rejected lot to carry the evidence of its decision.
+        disposition_evidence={"schema": "oq.lot-rejection/1", "decision": "rejected"},
+    )
     with pytest.raises(ValidationError, match="no longer in quarantine"):
         record(people, tests["identity"], "1.0")
 

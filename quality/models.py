@@ -15,11 +15,6 @@ class LotState(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 
-# A lot in any of these states takes no more receipt, sampling or test records: its quarantine
-# has ended.
-CLOSED_STATES = (LotState.RELEASED, LotState.REJECTED, LotState.CANCELLED)
-
-
 class Lot(models.Model):
     number = models.CharField(max_length=80, unique=True)
     material = models.CharField(max_length=160)

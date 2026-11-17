@@ -21,7 +21,7 @@ Quality signs the cancellation of a lot that was recorded in error, such as a de
 ## Layout
 
 - Breadcrumbs (Material lots, the lot, Cancel lot received in error), the lot number, material, record revision and a Quarantine label, and an introduction.
-- **The lot now**: Rule set; Requirements; Receipt; Examination on receipt; Supplier certificates; Active holds, as on the rejection page.
+- **The lot now**: Rule set; Requirements; Receipt; Examination on receipt; Supplier certificates; Supplier results in place of tests; Active holds, as on the rejection page.
 - **The lot cannot be cancelled** (only when refused): the reasons, "Nothing was changed. The lot stays in quarantine." and a back link.
 - **Sign cancellation**: statement of the signature, signer and a link to enroll or change the PIN, the form, **Cancel** and **Sign and cancel the lot**.
 

@@ -1128,6 +1128,8 @@ def batch_reject(request, pk):
                 batch.tests.exclude(state="superseded")
                 .exclude(pull__state="missed")
                 .exclude(pull__study__state__in=["completed", "terminated"])
+                # A rejected lot keeps its tests as the rejection froze them.
+                .exclude(lot__state__in=sorted(services.DECIDED_WITHOUT_RELEASE))
                 .count(),
             ),
             (

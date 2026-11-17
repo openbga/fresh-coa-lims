@@ -117,7 +117,8 @@ def _native(lot):
     certificate holds with a clear reason instead of failing or falling back.
     """
     stored = lot.disposition_evidence or {}
-    if not stored:
+    # A rejected or cancelled lot carries the evidence of that decision, never of a release.
+    if not stored or lot.decision is not None:
         return None
     payload = frozen_assignment_payload(lot)
     spec = (payload or {}).get("specification") or {}

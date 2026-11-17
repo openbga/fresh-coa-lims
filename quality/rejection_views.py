@@ -74,7 +74,8 @@ def _closure_page(request, pk, decision):
         request.POST or None,
         initial={"expected_revision": lot.revision, "basis": closure.basis},
     )
-    if request.method == "POST" and not denied and closure.possible and form.is_valid():
+    attempted = request.method == "POST" and not denied and closure.possible
+    if attempted and form.is_valid():
         data = form.cleaned_data
         extra = {"grounds": data["grounds"]} if decision == "rejected" else {}
         done = run(
@@ -99,6 +100,10 @@ def _closure_page(request, pk, decision):
         if closure.blocker:
             messages.error(request, closure.blocker)
             return redirect(back)
+        denied = mode["denial"](request.user, lot)
+        if not attempted and not denied and closure.possible:
+            # Submitted while it could not be signed; the lot has changed since. Say so.
+            form.add_error(None, rejection.CLOSURE_STALE)
         _reissue(form, lot, closure.basis)
     evidence = closure.evidence
     return render(
@@ -111,9 +116,6 @@ def _closure_page(request, pk, decision):
             "closure": closure,
             "evidence": evidence,
             "tests": _test_rows(evidence),
-            "open_certificates": [
-                item for item in evidence.get("supplier_certificates", []) if not item["withdrawn"]
-            ],
             "form": form,
             "denied": denied,
             "button": mode["button"],
