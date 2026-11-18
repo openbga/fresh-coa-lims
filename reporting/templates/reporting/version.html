@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}One issued certificate version, shown from its frozen snapshot. Context: page_title, report, version, is_current, signature, snapshot.{% endcomment %}
+{% comment %}One issued certificate version, shown from its frozen snapshot. Context: page_title, report, version, is_current, signature, snapshot, withdrawal (the certificate's withdrawal signature, or None).{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current="Version" %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% if is_current %}{% status label="Current version" tone="success" %}{% else %}{% status label="Superseded" tone="neutral" %}{% endif %}</li><li>Issued {{ version.issued_at|when:"seconds" }}</li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% if report.state == "withdrawn" %}{% status label="Withdrawn" tone="danger" %}{% elif is_current %}{% status label="Current version" tone="success" %}{% else %}{% status label="Superseded" tone="neutral" %}{% endif %}</li><li>Issued {{ version.issued_at|when:"seconds" }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk version.number %}?inline=1" target="_blank" rel="noopener">Open PDF</a><a class="btn btn-primary" href="{% url 'reporting:pdf' report.pk version.number %}">{% icon name="download" %}Download PDF</a>{% endblock %}
 {% block content %}
+{% if report.state == "withdrawn" %}
+{% notice tone="danger" label="Withdrawn" blocking=True %}Certificate {{ report.number }} was withdrawn on {{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}: this version is no longer valid. It stays on record, and its PDF stays downloadable exactly as issued, as evidence.{% endnotice %}
+{% endif %}
 {% panel title="Issued record" heading_id="integrity-heading" class="mb-3" %}
   <dl class="vr-facts">
     {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning|meaning }} · {{ signature.signed_at|when:"seconds" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}

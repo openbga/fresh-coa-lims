@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static ui %}
+{% comment %}Sign the withdrawal of an issued certificate; static/js/signature-dialog.js opens the panel marked data-signature-dialog as a modal dialog labelled by #sign-title. Opening it never signs. Context: page_title, report, latest, form, cancel_url, denial (the refusal, shown instead of the form).{% endcomment %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=cancel_url current="Withdraw" %}{% endblock %}
+{% block content %}{% if not denial %}{% firstof "signature-dialog" as dialog_hook %}{% endif %}
+{% signature_card title=page_title hook=dialog_hook %}
+  {% fill summary %}<p>Record <strong>{{ report.number }}</strong>, revision <strong>{{ report.revision }}</strong>. You withdraw this certificate: it stops being valid when you sign, and it cannot be amended afterwards. Every issued version and its PDF stay on record exactly as issued. Notify each recipient that it is withdrawn, then record the notification on the certificate record.</p>
+  <dl class="vr-facts mb-3">
+    {% fact label="Certificate" value=report.number class="vr-id" %}
+    {% fact label="Lot" %}{{ report.lot.number }} · {{ report.lot.material }}{% endfact %}
+    {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
+    {% if latest %}{% fact label="Current version" %}Version {{ latest.number }}, issued {{ latest.issued_at|when }} by {{ latest.issued_by|person }}{% endfact %}{% endif %}
+  </dl>
+  {% if not denial %}<p>Signer: <strong>{{ request.user|person }}</strong>. Your signature records <strong>{{ "withdrawn"|meaning }}</strong>; the server records the execution time and binds the signature to revision {{ report.revision|add:"1" }}, the revision this withdrawal produces.</p>
+  <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endif %}{% endfill %}
+  {% if denial %}
+  {% notice tone="danger" label="Not permitted" blocking=True %}{{ denial }}{% endnotice %}
+  <a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to record</a>
+  {% else %}
+  {% form_page form=form cancel_url=cancel_url cancel_hook="signature-cancel" submit_label="Sign and withdraw" submit_icon="vector-pen" destructive=True autocomplete_off=True %}{% endform_page %}
+  {% endif %}
+{% endsignature_card %}
+{% endblock %}
+{% block extra_js %}{% if not denial %}<script src="{% static 'js/signature-dialog.js' %}" defer></script>{% endif %}{% endblock %}

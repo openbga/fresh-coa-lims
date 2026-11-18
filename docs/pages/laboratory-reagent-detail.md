@@ -14,6 +14,9 @@ summary: One reagent, standard or prepared solution lot: its provenance, expiry 
 2. Sign with your PIN on that page.
 ### Reject the lot
 1. Select [[Reject lot]] and give the reason on that page. It shows for the analyst, reviewer and quality roles until the lot is rejected.
+### Assess what a failed lot affected
+1. Select [[More]] then [[Assess impact]]. Quality users only.
+2. Set the period on the form that opens; solutions prepared from the lot are included.
 ### Trace where the lot went
 1. See [[Preparations from this lot]] for solutions made from it, and [[Uses]] for the latest work it was used for.
 2. For a prepared solution, select the identifier under [[Source lot]] to open its source.
@@ -49,6 +52,7 @@ Provenance, release state, preparations and recorded uses of one lot.
 |---|---|---|---|
 | **Release for use** | Awaiting release; not recorded by you | Reviewer | Opens the release signing page |
 | **Reject lot** | Not already rejected | Analyst, Reviewer, Quality | Opens the reason form |
+| **Assess impact** (under **More**) | Quality role | Quality | Opens New impact assessment with this reagent or standard lot chosen. Changes nothing on this record |
 
 ## Fields
 

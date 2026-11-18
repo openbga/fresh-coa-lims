@@ -151,10 +151,20 @@ FORM_SURFACES = {
     "validation:rehearsal_file_new": ("md", ("admin", "quality")),
     "validation:rehearsal_accept": ("md", ("quality",)),
     "validation:rehearsal_withdraw": ("sm", ("admin", "quality")),
+    # Impact assessments
+    "impact:new": ("lg", ("quality",)),
+    "impact:find": ("md", ("quality",)),
+    "impact:add": ("md", ("quality",)),
+    "impact:decide": ("md", ("quality",)),
+    "impact:hold": ("sm", ("quality",)),
+    "impact:conclude": ("lg", ("quality",)),
+    "impact:withdraw": ("md", ("quality",)),
     # Certificates of analysis
     "reporting:new": ("lg", ("quality",)),
     "reporting:issue_sign": ("lg", ("quality",)),
     "reporting:amend_sign": ("lg", ("quality",)),
+    "reporting:withdraw": ("md", ("quality",)),
+    "reporting:notify": ("md", ("quality",)),
 }
 
 # Routes whose view takes a form but whose page is not a form page, with the reason.

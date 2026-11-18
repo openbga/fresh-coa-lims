@@ -221,6 +221,24 @@ def lot_detail(request, pk):
     for item in reassessments:
         item.status_label, item.status_tone = reassessment.status_of(item)
     reassess_refusal = reassessment.start_refusal(lot) if lot.state == "released" else None
+    from impact import services as impact
+
+    assessments = []
+    for found, item in impact.for_lot(lot):
+        label, tone = impact.status_of(found)
+        decision = item.get_decision_display() if item and item.decision else ""
+        assessments.append(
+            {
+                "assessment": found,
+                "status_label": label,
+                "status_tone": tone,
+                "decision": decision or ("No decision" if item else "Named through its records"),
+                "decision_tone": {"affected": "danger", "not_affected": "success"}.get(
+                    item.decision if item else "", "warning" if item else "neutral"
+                ),
+                "hold": item.hold if item else None,
+            }
+        )
     lot_signatures = list(
         ElectronicSignature.objects.filter(object_type="quality.lot", object_id=str(lot.pk))
         .select_related("audit_event")
@@ -252,6 +270,7 @@ def lot_detail(request, pk):
             "retest_on": standing.retest_on,
             "reassessed": standing.reassessment,
             "reassessments": reassessments,
+            "impact_assessments": assessments,
             "can_reassess": not reassess_refusal
             and lot.state == "released"
             and request.user.groups.filter(name__in=reassessment.START_ROLES).exists(),

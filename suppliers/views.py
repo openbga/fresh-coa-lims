@@ -144,5 +144,6 @@ def supplier_detail(request, pk):
             "history": history(supplier),
             "qualifications": qualifications,
             "can_qualify": can(request.user, services.AUTHOR_ROLE),
+            "can_assess": can(request.user, "quality"),
         },
     )

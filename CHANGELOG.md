@@ -16,6 +16,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   >
   > Acceptance journeys: `python manage.py acceptance_journeys --database NAME --output DIR --operator NAME` runs five journeys (passing, failing, corrected, rejected and amended records) end to end through the application's services in a new database migrated to the release, refusing a database other than the one named, one that holds any account or one not migrated to exactly this release. Each step records what was expected and observed and the product requirements it gives evidence for, including refusals (self-review, a wrong PIN counted and audited, disposition or rejection by an author, release while an investigation is open, a second retest, invalidation by a failing retest, requirements, a disposition or a certificate for a rejected lot, a stale amendment, and direct database changes to a certificate, an observation, a signature and an audit event). The evidence folder holds `report.html`, `report.json` (`oq.acceptance-journeys/1`), each lot's record export, the certificates and `SHA256SUMS`; the command exits nonzero when a step failed. Guidance in `docs/operations.md` ("Acceptance journeys").
 
+- **Added**: Assess the impact of a failure on tests, lots, stability studies and certificates · Impact assessments · 2026-11-17
+
+  When equipment, a reagent or standard, a supplier, a contract laboratory or anything else fails, a quality person starts an assessment under **Impact assessments**, or with **Assess impact** on the page of the record that failed, for the period the problem may have affected. The system lists the tests, lots, stability studies and certificates it can find from the cause; quality adds any other, records for each whether it was **Affected** and what is done about it, and can **Place hold** on an affected lot. A quality person who took no part in it concludes the assessment with a signature, and the lot record and the dashboard show the assessments open.
+
+  In the application: **Impact assessments**
+
+  > **Technical notes**
+  >
+  > - New app `impact` with migrations `impact.0001_initial` and `impact.0002_impact_guards` (the `Assessment` and `Item` tables and their database guards).
+  > - Audit actions `impact.started`, `impact.records_found`, `impact.record_added`, `impact.record_decided` and `impact.hold_placed`; signature meanings `impact_assessed` and `withdrawn` on `impact.assessment`. The conclusion freezes `oq.impact-assessment/1`.
+  > - A hold placed through an assessment is an ordinary `stability.Hold` of kind `quality` whose reference names the assessment. New remote lookups `equipment`, `reagent-lots` and `contract-laboratories`.
+  > - The lot record export gains the sections `impact_records` and `impact_assessments`; the dashboard gains the queue **Impact assessments open**.
+
 - **Added**: Cancel a lot received in error with a signed record · Lots · 2026-11-17 · [#44](https://github.com/openbga/qm-lims/pull/44)
 
   **Cancel lot received in error** records, with a signature, that a lot should not have been received. It is refused once the lot has a sample, test, reserve sample, stability study or standing supplier result.
@@ -119,6 +132,18 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - Signed rejection of a lot in quarantine (`quality:lot_reject`, **Reject lot** on the lot record): a quality person outside the lot's authors chooses the grounds, states the reason and may name the quality system's record; the signature (meaning `rejected`) freezes, as `oq.lot-rejection/1` in `Lot.disposition_evidence`, what stood in the way of release, the lot's tests, investigations, receipt, supplier certificates and results and active holds. Refused while an investigation is open or a test holds a recorded result outside its limits that was not submitted.
   > - `Lot.state` takes the choices `quarantine`, `released`, `rejected` and `cancelled` under a check constraint, and the lot guard (migration `quality.0012_lot_rejection`) refuses every change of a lot that left quarantine, not only of a released one; a rejected or cancelled lot's evidence must name its `decision` and `schema`, and a released lot's never does.
   > - Rejecting a failed QC batch leaves the tests of a rejected lot as they are (no invalidation, no rerun) instead of refusing the whole batch.
+
+- **Added**: Withdraw an issued certificate with a signature and record that its recipients were notified · Certificates · 2026-11-17
+
+  A quality person withdraws a certificate of analysis that can no longer be relied on with **Withdraw certificate** under **More** on its page, stating why and, optionally, the impact assessment or quality-system record behind it. The certificate then shows **Withdrawn** and takes no amendment; every issued version and its PDF stay exactly as issued, and a later certificate for the lot is a new numbered one. **Record notification** keeps who was told, when, how and where the evidence is kept; the certificate list filters **Withdrawn** and **Awaiting notification**, and the dashboard counts withdrawn certificates whose recipients are not yet recorded as notified.
+
+  In the application: **Certificates of analysis**
+
+  > **Technical notes**
+  >
+  > - Migration `reporting.0003_certificate_withdrawal`: `Report.withdrawn_at`, `withdrawal_reason` and `withdrawal_reference`, the state `withdrawn`, the partial unique constraint `report_lot_recipient_current` in place of `report_lot_recipient`, the `RecipientNotification` table, a replaced head guard and an append-only guard on notifications. Reversing it is refused while a withdrawn certificate exists.
+  > - Signature meaning `withdrawn` on `reporting.report`; audit action `report.recipient_notified`. The lot record export gains the section `report_notifications`.
+  > - The dashboard's **Certificates to issue** counts a released lot again once all its certificates are withdrawn.
 
 - **Security**: A stopped second factor stays stopped when a new app is confirmed · Account access · 2026-11-16 · [#36](https://github.com/openbga/qm-lims/pull/36)
 

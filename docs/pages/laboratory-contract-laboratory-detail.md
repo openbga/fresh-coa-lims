@@ -15,6 +15,11 @@ summary: One contract laboratory: its identity, its approvals by method and the 
 ### Approve or revoke an approval
 1. In [[Approvals by method]], select the approval number to open it.
 2. Select [[Approve]] or [[Revoke]] on that page and sign with your PIN.
+### Assess what a laboratory's results affected
+
+1. Select [[More]] then [[Assess impact]]. It shows to the quality role only.
+2. Set the period on the form that opens; the tests it reported in that period are found.
+
 ### See results that relied on the laboratory
 1. See [[Results that relied on this laboratory]]. Select a work entry to open the test.
 ## Good to know
@@ -48,6 +53,7 @@ One outside laboratory: who it is, the approvals it holds for each method, and t
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record approval** | Always | Quality | Opens the Record approval form for this laboratory |
+| **Assess impact** (under **More**) | Quality role | Quality | Opens New impact assessment with this laboratory chosen. Changes nothing on this record |
 | Approval link (CLA-n) | An approval exists | Any reader | Opens the approval record, where it is approved or revoked |
 | Work link | A result relied on the laboratory | Any reader | Opens the test record |
 

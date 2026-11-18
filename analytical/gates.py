@@ -210,6 +210,11 @@ def data_author_ids(test):
     return _authors([test])
 
 
+def tests_author_ids(tests):
+    """``data_author_ids`` of several tests together, in a fixed number of queries."""
+    return _authors(list(tests))
+
+
 def investigation_author_ids(investigations):
     """Openers and authors of investigative entries (not escalation or plan records)."""
     ids = set(investigations.values_list("opened_by_id", flat=True))

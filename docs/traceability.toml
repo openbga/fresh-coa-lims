@@ -28,7 +28,9 @@
     "e2e/test_lot_record_journey.py",
     "tests/test_admin_read.py",
     "tests/test_audit_ui.py",
+    "tests/test_certificate_withdrawal.py",
     "tests/test_core.py",
+    "tests/test_impact_assessment.py",
     "tests/test_lot_record_export.py",
     "validation/tests/test_acceptance_journeys.py",
 ]
@@ -78,6 +80,7 @@
     "tests/test_admin_read.py",
     "tests/test_calculation_bench_journey.py",
     "tests/test_core.py",
+    "tests/test_impact_assessment.py",
     "tests/test_journey.py",
     "tests/test_lookups.py",
     "tests/test_security_hardening.py",
@@ -142,10 +145,13 @@
     "analytical/tests/test_result_types.py",
     "analytical/tests/test_services.py",
     "analytical/tests/test_views.py",
+    "e2e/test_impact_assessment_journey.py",
     "e2e/test_reassessment_journey.py",
     "e2e/test_stability_testing_journey.py",
     "e2e/test_test_not_completed_journey.py",
     "stability/tests/test_testing.py",
+    "tests/test_impact_assessment.py",
+    "tests/test_impact_assessment_views.py",
     "tests/test_integrated_journey.py",
     "tests/test_journey.py",
     "tests/test_reassessment.py",
@@ -184,7 +190,9 @@
     "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-010" = [
+    "e2e/test_certificate_withdrawal_journey.py",
     "e2e/test_contract_laboratory_journey.py",
+    "e2e/test_impact_assessment_journey.py",
     "e2e/test_journey.py",
     "e2e/test_native_journey.py",
     "e2e/test_reassessment_journey.py",
@@ -195,6 +203,8 @@
     "reporting/tests/test_native.py",
     "reporting/tests/test_services.py",
     "reporting/tests/test_views.py",
+    "tests/test_certificate_withdrawal.py",
+    "tests/test_certificate_withdrawal_views.py",
     "tests/test_integrated_journey.py",
     "tests/test_lot_dates.py",
     "tests/test_reassessment.py",
@@ -209,6 +219,7 @@
     "laboratory/tests/test_services.py",
     "laboratory/tests/test_views.py",
     "tests/test_calculation_bench_journey.py",
+    "tests/test_impact_assessment.py",
 ]
 "OQ-012" = [
     "e2e/test_stability_testing_journey.py",
@@ -216,6 +227,7 @@
     "stability/tests/test_services.py",
     "stability/tests/test_testing.py",
     "stability/tests/test_views.py",
+    "tests/test_impact_assessment.py",
     "tests/test_stability_testing.py",
 ]
 "OQ-013" = [
@@ -227,6 +239,8 @@
 "OQ-014" = [
     "stability/tests/test_services.py::test_evidence_link_rules",
     "stability/tests/test_services.py::test_external_evidence_path_and_stale_signature",
+    "tests/test_impact_assessment.py",
+    "tests/test_impact_assessment_views.py",
 ]
 "OQ-015" = [
     "e2e/test_requirement_applicability_journey.py",

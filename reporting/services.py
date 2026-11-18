@@ -1,9 +1,15 @@
-"""CoA issue, amendment and retrieval.
+"""CoA issue, amendment, withdrawal and retrieval.
 
 Signed transitions use the shared `sign_transition` contract: the report head is locked, the lot
 is locked and the evidence recollected and compared with what the signer reviewed, the PDF is
 rendered inside the same transaction, and signature, audit event, version row and head update
 commit together. Any failure, including a render failure, leaves no issued version.
+
+A withdrawal is signed on the head too (meaning ``withdrawn``) and is final: the certificate
+stops being valid, every issued version and its PDF bytes stay exactly as issued and can still
+be read, and it is never amended again. A later certificate for the same lot and recipient is a
+new series with its own number. That each recipient was told is recorded afterwards as
+append-only `RecipientNotification` evidence, which leaves the head's signed revision as it is.
 """
 
 import hashlib
@@ -12,6 +18,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from core.audit import record_event, snapshot
 from core.models import ElectronicSignature
@@ -20,12 +28,19 @@ from core.session_control import signing_context
 from quality.models import Lot
 
 from . import evidence as ev
-from .models import Report, ReportVersion
+from .models import RecipientNotification, Report, ReportVersion
 from .render import RenderError, render_certificate
 
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 ISSUE_ROLE = "quality"
 HISTORY_ROLES = ("quality", "auditor", "admin")
+WITHDRAWN = (
+    "This certificate was withdrawn; it is not amended. A new certificate for the lot is issued "
+    "as a new numbered certificate."
+)
+NOT_ISSUED = "Only an issued certificate can be withdrawn."
+ALREADY_WITHDRAWN = "This certificate is already withdrawn."
+NOT_WITHDRAWN = "A recipient notification is recorded only for a withdrawn certificate."
 
 
 def require_reader(actor):
@@ -58,7 +73,10 @@ def open_report(*, actor, lot, recipient):
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
     if locked.state != "released":
         raise ValidationError("A certificate needs a lot with a signed QC disposition.")
-    existing = Report.objects.filter(lot=locked, recipient=recipient).first()
+    # The current series for this recipient; a withdrawn one is never reused.
+    existing = (
+        Report.objects.filter(lot=locked, recipient=recipient).exclude(state="withdrawn").first()
+    )
     if existing:
         return existing
     sequence = (Report.objects.filter(lot=locked).count()) + 1
@@ -87,6 +105,8 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
         raise ValidationError("A reason is required.")
 
     def apply(locked):
+        if locked.state == "withdrawn":
+            raise ValidationError(WITHDRAWN)
         if kind == "issue" and locked.version_count:
             raise ValidationError("This certificate is already issued; amend it instead.")
         if locked.version_count != expected_version:
@@ -211,6 +231,108 @@ def amend_report(*, actor, pin, report, expected_version, evidence_hash, reason,
         reason=reason,
         remarks=remarks,
     )
+
+
+def withdraw_refusal(report):
+    """Why this certificate cannot be withdrawn now, or "" (rechecked under lock when signing)."""
+    if report.state == "withdrawn":
+        return ALREADY_WITHDRAWN
+    if report.state != "issued":
+        return NOT_ISSUED
+    return ""
+
+
+@sensitive_variables("pin")
+def withdraw_report(*, actor, pin, report, expected_revision, reason, reference=""):
+    """Sign the withdrawal of an issued certificate (meaning ``withdrawn``): final, and every
+    issued version stays as issued. There is no independence rule: withdrawal protects the
+    recipient, so the quality person who issued the certificate may withdraw it."""
+    reason = reason.strip()
+    reference = reference.strip()
+
+    def apply(locked):
+        if refused := withdraw_refusal(locked):
+            raise ValidationError(refused)
+        locked.state = "withdrawn"
+        locked.withdrawn_at = locked._signing_timestamp
+        locked.withdrawal_reason = reason
+        locked.withdrawal_reference = reference
+
+    return sign_transition(
+        actor=actor,
+        pin=pin,
+        obj=report,
+        expected_revision=expected_revision,
+        meaning="withdrawn",
+        reason=reason,
+        permission=ISSUE_ROLE,
+        apply=apply,
+    )
+
+
+def withdrawal_signature(report):
+    """The electronic signature that withdrew this certificate, or None."""
+    if report.state != "withdrawn":
+        return None
+    return ElectronicSignature.objects.filter(
+        object_type="reporting.report", object_id=str(report.pk), meaning="withdrawn"
+    ).first()
+
+
+@transaction.atomic
+def record_notification(*, actor, report, recipient, notified_on, means, evidence_ref, note=""):
+    """Record that a recipient was told that the certificate is withdrawn. Append-only
+    evidence: the certificate's head and its signed revision do not change."""
+    require_role(actor, ISSUE_ROLE)
+    recipient = (recipient or "").strip()
+    evidence_ref = (evidence_ref or "").strip()
+    note = (note or "").strip()
+    lock_account(actor)
+    locked = Report.objects.select_for_update().get(pk=report.pk)
+    if locked.state != "withdrawn":
+        raise ValidationError(NOT_WITHDRAWN)
+    errors = {}
+    if not recipient:
+        errors["recipient"] = "Name the recipient who was notified."
+    elif len(recipient) > RecipientNotification._meta.get_field("recipient").max_length:
+        errors["recipient"] = "Ensure this value has at most 160 characters."
+    if means not in RecipientNotification.Means.values:
+        errors["means"] = "Choose how the recipient was notified."
+    elif means == RecipientNotification.Means.OTHER and not note:
+        errors["note"] = "Describe how the recipient was notified."
+    if not evidence_ref:
+        errors["evidence_ref"] = "Say where the notice and any acknowledgement are kept."
+    elif len(evidence_ref) > RecipientNotification._meta.get_field("evidence_ref").max_length:
+        errors["evidence_ref"] = "Ensure this value has at most 200 characters."
+    withdrawn_on = timezone.localdate(locked.withdrawn_at)
+    if notified_on is None:
+        errors["notified_on"] = "Give the date the recipient was notified."
+    elif notified_on > timezone.localdate():
+        errors["notified_on"] = "The date notified cannot be in the future."
+    elif notified_on < withdrawn_on:
+        errors["notified_on"] = (
+            f"The certificate was withdrawn on {withdrawn_on.isoformat()}; the date notified "
+            "cannot be earlier."
+        )
+    if errors:
+        raise ValidationError(errors)
+    notification = RecipientNotification.objects.create(
+        report=locked,
+        recipient=recipient,
+        notified_on=notified_on,
+        means=means,
+        evidence_ref=evidence_ref,
+        note=note,
+        recorded_by=actor,
+    )
+    record_event(
+        actor=actor,
+        action="report.recipient_notified",
+        obj=locked,
+        after={"notification": notification.pk, **snapshot(notification)},
+        reason=f"{recipient} notified of the withdrawal ({notification.get_means_display()}).",
+    )
+    return notification
 
 
 def signature_for(version):

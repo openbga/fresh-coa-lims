@@ -18,6 +18,11 @@ summary: One instrument's fitness for use: its calibrations, qualification evide
 ### Take the equipment out of service or return it
 1. Select [[Take out of service]] and give the reason on that page. It shows while the equipment is in service.
 2. To return it, a quality user selects [[Return to service]] and signs an impact assessment of [[Uses to assess after failure]].
+### Assess what a failure affected
+
+1. Select [[More]] then [[Assess impact]]. Quality users only.
+2. Set the period of concern on the form that opens and select [[Start assessment]].
+
 ### Record qualification evidence
 1. Select [[Record qualification]] and fill in the form on that page.
 2. A quality user who did not record it approves it on the qualification record.
@@ -55,6 +60,7 @@ One instrument's fitness evidence: calibrations, qualification, service state an
 |---|---|---|---|
 | **Record calibration** | Recorder role | Analyst, Quality | Opens the calibration form |
 | **Record qualification** | Scientific role | Analyst, Reviewer, Quality | Opens the equipment qualification form |
+| **Assess impact** (under **More**) | Quality role | Quality | Opens New impact assessment with this equipment chosen, to assess the tests, lots, studies and certificates it may have affected. Changes nothing on this record |
 | **Take out of service** (under **More**) | In service | Analyst, Reviewer, Quality | Opens the reason form |
 | **Return to service** | Out of service, and you did not take it out of service (otherwise the header shows "The person who removed equipment from service cannot return it.") | Quality | Opens the signed return-to-service page |
 | **Accept** (in the table) | Calibration awaiting acceptance, not recorded by you | Reviewer | Opens the acceptance signing page |

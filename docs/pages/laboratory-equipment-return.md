@@ -19,7 +19,7 @@ summary: Sign the return of out-of-service equipment to service, with your asses
 - You cannot return equipment that you took out of service, including by recording its failed calibration.
 - Signing is refused until a passing calibration after the failure is accepted and not expired, and qualification is current when required.
 - If a use or a failed calibration is recorded while you assess, signing is refused. Reload the page and reassess.
-- Your assessment is stored with the failed calibrations and uses it covered.
+- Your assessment is stored with the uses it covered. For a decision on each affected record, use **Assess impact** on the equipment record.
 - Re-enter your PIN for every signature. Five wrong PINs in a row lock it for 15 minutes, even though the action is refused.
 
 ## Purpose

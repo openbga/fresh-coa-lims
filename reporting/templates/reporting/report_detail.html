@@ -1,17 +1,26 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A certificate of analysis: its record, versions, the current version's content and (for auditors) history. Context: page_title, report, latest, versions, snapshot, history, can_issue, can_audit.{% endcomment %}
+{% comment %}A certificate of analysis: its record, its withdrawal and recipient notifications, versions, the current version's content, signatures and (for auditors) history. Context: page_title, report, latest, versions, snapshot, withdrawal (the withdrawal signature), notifications, awaiting_notification, signatures, history, can_issue, can_audit.{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% breadcrumbs section="Certificates" section_url=list_url current=report.number %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% status label=report.status_label tone=report.tone %}</li>{% if latest %}<li>Current: version {{ latest.number }}</li>{% endif %}{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% status label=report.status_label tone=report.tone %}</li>{% if latest %}<li>{% if report.state == "withdrawn" %}Last version {{ latest.number }}{% else %}Current: version {{ latest.number }}{% endif %}</li>{% endif %}{% endpage_meta %}{% endblock %}
 {% block page_actions %}
-  {% if latest %}
-  <a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk latest.number %}">{% icon name="download" %}Download PDF</a>
-  {% if can_issue %}<a class="btn btn-primary" href="{% url 'reporting:amend_preview' report.pk %}">Amend certificate</a>{% endif %}
-  {% elif can_issue %}
+  {% if latest %}<a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk latest.number %}">{% icon name="download" %}Download PDF</a>{% endif %}
+  {% if can_issue %}
+  {% if report.state == "issued" %}
+  {% more_actions %}<li><a class="dropdown-item vr-menu-danger" href="{% url 'reporting:withdraw' report.pk %}">Withdraw certificate</a></li>{% endmore_actions %}
+  <a class="btn btn-primary" href="{% url 'reporting:amend_preview' report.pk %}">Amend certificate</a>
+  {% elif report.state == "withdrawn" %}
+  {% if awaiting_notification %}<a class="btn btn-primary" href="{% url 'reporting:notify' report.pk %}">Record notification</a>{% endif %}
+  {% else %}
   <a class="btn btn-primary" href="{% url 'reporting:issue_preview' report.lot_id %}">Review and issue</a>
+  {% endif %}
   {% endif %}
 {% endblock %}
 {% block content %}
+{% if report.state == "withdrawn" %}
+{% notice tone="danger" label="Withdrawn" blocking=True %}<p class="mb-1">This certificate was withdrawn on {{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}. It is no longer valid and cannot be amended; every issued version and its PDF stay on record exactly as issued.</p><p class="mb-0">Reason: {{ report.withdrawal_reason }}{% if report.withdrawal_reference %} · Reference: {{ report.withdrawal_reference }}{% endif %}</p>{% endnotice %}
+{% if awaiting_notification %}{% notice tone="warning" label="Notification not recorded" %}Recipient notification not recorded. Tell {% if report.recipient %}{{ report.recipient }}{% else %}each recipient of this certificate{% endif %} that it is withdrawn, then record the notification here.{% endnotice %}{% endif %}
+{% endif %}
 {% panel title="Record" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts">
 {% if report.status_label == "Amended" %}    {% fact label="Status" critical="info" %}{% status label="Amended" tone="info" %}<small>Current version {{ latest.number }}; earlier versions stay on record unchanged</small>{% endfact %}
@@ -19,10 +28,36 @@
     {% fact label="Lot" %}<a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a> · {{ report.lot.material }}{% endfact %}
     {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
     {% fact label="Opened" %}{{ report.created_at|when }} by {{ report.created_by|person }}{% endfact %}
-  </dl>
-  {% if latest %}<p class="small mt-3 mb-0 text-break">Current PDF SHA-256 <span class="vr-id text-wrap text-break">{{ report.current_pdf_sha256 }}</span></p>{% endif %}
+{% if report.state == "withdrawn" %}    {% fact label="Withdrawn" %}{{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}{% endfact %}
+    {% fact label="Withdrawal reference" value=report.withdrawal_reference empty="None given" %}
+    {% fact label="Reason for withdrawal" value=report.withdrawal_reason wide=True %}
+{% endif %}  </dl>
+  {% if latest %}<p class="small mt-3 mb-0 text-break">{% if report.state == "withdrawn" %}Last issued{% else %}Current{% endif %} PDF SHA-256 <span class="vr-id text-wrap text-break">{{ report.current_pdf_sha256 }}</span></p>{% endif %}
   {% if not latest %}<p class="mb-0">No version has been issued. A draft record holds no evidence.</p>{% endif %}
 {% endpanel %}
+{% if report.state == "withdrawn" %}
+{% panel title="Recipient notifications" heading_id="notifications-heading" count=notifications|length table=True class="mb-3" %}
+  {% fill actions %}{% if can_issue and not awaiting_notification %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'reporting:notify' report.pk %}">Record notification</a>{% endif %}{% endfill %}
+  {% if notifications %}
+  <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Recipient notifications, scrollable">
+    <table class="table vr-table" aria-labelledby="notifications-heading">
+      <thead><tr><th scope="col">Recipient</th><th scope="col">Notified on</th><th scope="col">Means</th><th scope="col">Evidence</th><th scope="col">Recorded</th></tr></thead>
+      <tbody>
+      {% for n in notifications %}
+        <tr>
+          <th scope="row" class="vr-wrap">{{ n.recipient }}</th>
+          <td class="vr-nowrap">{{ n.notified_on|when }}</td>
+          <td class="vr-wrap">{{ n.get_means_display }}{% if n.note %}<span class="vr-sub">{{ n.note }}</span>{% endif %}</td>
+          <td class="vr-wrap">{{ n.evidence_ref }}</td>
+          <td>{{ n.recorded_at|when }}<span class="vr-sub">{{ n.recorded_by|person }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{% empty_state title="No notification recorded yet" body="Record who was told that the certificate is withdrawn, when, how, and where the evidence is kept." %}{% endif %}
+{% endpanel %}
+{% endif %}
 {% if latest %}
 {% panel title="Versions" table=True class="mb-3" %}
   <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Certificate versions, scrollable">
@@ -33,7 +68,7 @@
         <tr>
           <th scope="row"><a href="{% url 'reporting:version' report.pk v.number %}">Version {{ v.number }}</a></th>
           <td>{% if v.kind == "issue" %}Issue{% else %}Amendment{% endif %}</td>
-          <td>{% if v.is_current %}{% status label="Current" tone="success" plain=True %}{% else %}{% status label="Superseded" tone="neutral" plain=True %}{% endif %}</td>
+          <td>{% if not v.is_current %}{% status label="Superseded" tone="neutral" plain=True %}{% elif report.state == "withdrawn" %}{% status label="Withdrawn" tone="danger" plain=True %}{% else %}{% status label="Current" tone="success" plain=True %}{% endif %}</td>
           <td>{{ v.issued_at|when:"seconds" }}</td>
           <td>{% if v.signature %}{{ v.signature.signer_name }} · {{ v.signature.meaning|meaning }}{% else %}{{ v.issued_by }}{% endif %}</td>
           <td class="vr-wrap"><span class="vr-clamp" title="{{ v.reason }}">{{ v.reason }}</span></td>
@@ -45,6 +80,7 @@
   </div>
 {% endpanel %}
 {% include "reporting/_certificate.html" with snapshot=snapshot only %}
+{% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length class="mb-3" %}{% signature_list signatures=signatures subject="Certificate record" hash=True %}{% endpanel %}
 {% endif %}
 {% if can_audit %}{% history_panel events=history empty_title="No history yet" %}{% endhistory_panel %}{% endif %}
 {% endblock %}

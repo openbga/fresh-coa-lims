@@ -14,6 +14,9 @@ summary: One supplier: who it is, its qualifications, the lots whose current rec
 2. Choose the material, then record the evidence on that page. A different quality user approves it.
 ### Open a qualification
 1. Under [[Qualifications]], select the qualification's identifier.
+### Assess what a supplier's lots affected
+1. Select [[More]] then [[Assess impact]]. Only quality users see it.
+2. Set the period on the form that opens; lots received from the supplier in it are found.
 ### See the lots received from this supplier
 1. Under [[Lots received]], select a lot number to open its record.
 ## Good to know
@@ -34,7 +37,7 @@ Shows one supplier's identity, its qualifications, the lots whose current receip
 
 ## Layout
 
-- **Breadcrumbs**: Suppliers, supplier code. Title: the supplier code, with the supplier name below it. **Record qualification** button for quality.
+- **Breadcrumbs**: Suppliers, supplier code. Title: the supplier code, with the supplier name below it. **Record qualification** button and, under **More**, **Assess impact** for quality.
 - **Supplier** card: Code, Name, Location and Created (date, time and time zone, then "by" and the user who added it).
 - **Qualifications** card: the text "The register says who a supplier is. A qualification is the signed evidence that the supplier's certificate results can be relied on for one material and the tests it names. It takes effect only where the lot's rule set allows it and through an acceptance signed on the lot.", then a table with Qualification, Material, Tests covered, Valid from, Valid until (inclusive), Evidence and State. Empty: "No qualification is recorded. Results on this supplier's certificates are recorded on each lot and do not stand in for a test."
 - **Lots received** card: table with Lot, Status, Material, Supplier lot, Manufacturer lot, Received and Quantity. Footer "Showing X–Y of N lots", **Rows per page** (25, 50 or 100) with **Show**, and first, previous, "Page N of M", next and last page buttons when there is more than one page. Empty: "No lots received from this supplier" ("Lots appear here when their current receipt details name this supplier.").
@@ -46,6 +49,7 @@ Shows one supplier's identity, its qualifications, the lots whose current receip
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Record qualification** | Quality role | Quality | Opens Record supplier qualification for this supplier |
+| **Assess impact** (under **More**) | Quality role | Quality | Opens New impact assessment with this supplier chosen. Changes nothing on this record |
 | Qualification link (SQ-n) | One per qualification | Any viewer | Opens the supplier qualification record |
 | Lot number link | One per row | Any viewer | Opens the lot record |
 | **Suppliers** (breadcrumb) | Always | Any viewer | Returns to the register |

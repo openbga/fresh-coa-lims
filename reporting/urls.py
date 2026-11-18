@@ -11,6 +11,8 @@ urlpatterns = [
     path("reports/<int:pk>/", views.report_detail, name="detail"),
     path("reports/<int:pk>/amend/", views.amend_preview, name="amend_preview"),
     path("reports/<int:pk>/amend/sign/", views.amend_sign, name="amend_sign"),
+    path("reports/<int:pk>/withdraw/", views.withdraw, name="withdraw"),
+    path("reports/<int:pk>/notifications/new/", views.notify, name="notify"),
     path("reports/<int:pk>/versions/<int:number>/", views.version_detail, name="version"),
     path("reports/<int:pk>/versions/<int:number>/pdf/", views.version_pdf, name="pdf"),
 ]

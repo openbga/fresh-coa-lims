@@ -14,7 +14,7 @@ from reporting.tests.conftest import PASSWORD, PIN, make_user
 pytestmark = pytest.mark.django_db(transaction=True)
 
 READ_ROUTES = {"list", "issue_preview", "detail", "amend_preview", "version", "pdf"}
-MUTATION_ROUTES = {"new", "issue_sign", "amend_sign"}
+MUTATION_ROUTES = {"new", "issue_sign", "amend_sign", "withdraw", "notify"}
 
 
 @pytest.fixture
@@ -72,6 +72,8 @@ def mutation_urls(report):
         "new": reverse("reporting:new"),
         "issue_sign": reverse("reporting:issue_sign", args=[report.lot_id]) + f"?evidence={digest}",
         "amend_sign": reverse("reporting:amend_sign", args=[report.pk]) + f"?evidence={digest}",
+        "withdraw": reverse("reporting:withdraw", args=[report.pk]),
+        "notify": reverse("reporting:notify", args=[report.pk]),
     }
 
 
@@ -158,7 +160,8 @@ def test_admin_with_quality_role_keeps_the_quality_actions(login, admins, report
     assert "New certificate of analysis" in client.get(read_urls(report)["list"]).content.decode()
     assert "Continue to signing" in client.get(read_urls(report)["amend_preview"]).content.decode()
     for name, url in mutation_urls(report).items():
-        assert client.get(url).status_code == 200, name
+        # A notification is recorded only for a withdrawn certificate: back to the record.
+        assert client.get(url).status_code == (302 if name == "notify" else 200), name
     digest = services.preview(report.lot)[1]
     response = client.post(
         reverse("reporting:amend_sign", args=[report.pk]) + f"?evidence={digest}",

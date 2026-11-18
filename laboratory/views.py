@@ -447,6 +447,14 @@ def equipment_detail(request, pk):
         )
         if out_of_service and can(user, "quality")
         else None,
+        # The impact of a failure on work already done is assessed in its own record.
+        action(
+            "Assess impact",
+            reverse("impact:new") + f"?equipment={item.pk}",
+            more=True,
+        )
+        if can(user, "quality")
+        else None,
     ]
     return record_page(
         request,
@@ -1089,6 +1097,9 @@ def reagent_detail(request, pk):
         else None,
         action("Reject lot", reverse("laboratory:reagent_reject", args=[lot.pk]), danger=True)
         if lot.state != "rejected" and can(user, "analyst", "reviewer", "quality")
+        else None,
+        action("Assess impact", reverse("impact:new") + f"?reagent_lot={lot.pk}", more=True)
+        if can(user, "quality")
         else None,
     ]
     purity = (
