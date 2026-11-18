@@ -5,6 +5,7 @@ impact: high
 title: Assess the impact of a failure on tests, lots, stability studies and certificates
 area: Impact assessments
 link: impact:list
+pr: 54
 ---
 When equipment, a reagent or standard, a supplier, a contract laboratory or anything else fails, a quality person starts an assessment under **Impact assessments**, or with **Assess impact** on the page of the record that failed, for the period the problem may have affected. The system lists the tests, lots, stability studies and certificates it can find from the cause; quality adds any other, records for each whether it was **Affected** and what is done about it, and can **Place hold** on an affected lot. A quality person who took no part in it concludes the assessment with a signature, and the lot record and the dashboard show the assessments open.
 

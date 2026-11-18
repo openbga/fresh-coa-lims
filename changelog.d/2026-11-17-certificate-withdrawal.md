@@ -5,6 +5,7 @@ impact: high
 title: Withdraw an issued certificate with a signature and record that its recipients were notified
 area: Certificates
 link: reporting:list
+pr: 54
 ---
 A quality person withdraws a certificate of analysis that can no longer be relied on with **Withdraw certificate** under **More** on its page, stating why and, optionally, the impact assessment or quality-system record behind it. The certificate then shows **Withdrawn** and takes no amendment; every issued version and its PDF stay exactly as issued, and a later certificate for the lot is a new numbered one. **Record notification** keeps who was told, when, how and where the evidence is kept; the certificate list filters **Withdrawn** and **Awaiting notification**, and the dashboard counts withdrawn certificates whose recipients are not yet recorded as notified.
 
