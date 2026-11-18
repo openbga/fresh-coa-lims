@@ -456,7 +456,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### Medium impact
 
-- **Added**: Certificates carry their data in a machine-readable form, inside a tagged PDF/A-3a file · Certificates · 2026-11-18
+- **Added**: Certificates carry their data in a machine-readable form, inside a tagged PDF/A-3a file · Certificates · 2026-11-18 · [#56](https://github.com/openbga/qm-lims/pull/56)
 
   Each certificate issued or amended now holds its content as a JSON file, attached to the PDF and downloadable beside it with **Download data** on the version and certificate pages, where its checksum is shown. The PDF is written for long-term keeping and for assistive technology (tagged PDF/A-3a, also declaring PDF/UA-1). A certificate for one customer or market carries that scope only, and certificates issued before stay exactly as issued, without data.
 
