@@ -5,6 +5,7 @@ impact: high
 title: Check whether a certificate someone holds was issued here and is still current
 area: Certificates
 link: reporting:check
+pr: 57
 ---
 **Check a certificate** on the certificate list compares a certificate file, or its SHA-256, with every version issued and answers whether it is genuine and current, replaced by a later version, or withdrawn. The file is never kept. A laboratory can also let its customers make the same check without an account, at an address it gives them. Each check that found a certificate is listed under **Checks** on its page, which warns when a recipient still checks a withdrawn certificate.
 
