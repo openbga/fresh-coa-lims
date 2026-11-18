@@ -3,17 +3,16 @@ title: Certificate record
 urls: reporting:detail
 views: reporting.views.report_detail
 templates: reporting/report_detail.html, reporting/_certificate.html
-models: reporting.Report, reporting.ReportVersion, reporting.RecipientNotification, quality.Lot, core.ElectronicSignature, core.AuditEvent
+models: reporting.Report, reporting.ReportVersion, reporting.RecipientNotification, reporting.CertificateCheck, quality.Lot, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-18
-summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, the PDFs and their data, and for a withdrawn certificate its withdrawal and recipient notifications.
+summary: One certificate of analysis: its status, every issued version with its signer, the checks made of it, the current version as issued, the PDFs and their data, and for a withdrawn certificate its withdrawal and notifications.
 ---
 
 ## Common tasks
-### Download the current certificate
-1. Select [[Download PDF]] at the top of the page.
-### Open or download an earlier version
-1. In [[Versions]], select a version to open it, or [[Download PDF]] on its row.
-2. For the certificate's content as a JSON file, select [[Download data]] on its row.
+### Download the certificate or an earlier version
+1. Select [[Download PDF]] at the top of the page for the current version.
+2. In [[Versions]], select a version to open it, or [[Download PDF]] on its row.
+3. For the certificate's content as a JSON file, select [[Download data]] on its row.
 ### Amend an issued certificate
 1. Select [[Amend certificate]]. It shows only to the quality role while the certificate is issued.
 2. Review the changes on that page, then sign the amendment with your PIN.
@@ -21,12 +20,14 @@ summary: One certificate of analysis: its status, every issued version with its 
 1. Under [[More]], select [[Withdraw certificate]]. It shows only to the quality role while the certificate is issued.
 2. Sign the withdrawal with your PIN on that page.
 3. Tell the recipient, then select [[Record notification]] and record who was told, when, how and where the evidence is kept.
+### See who checked the certificate
+1. Read [[Checks]]: each check that found one of its versions, newest first, with what it answered and who checked.
 ### Issue a certificate that was not issued
 1. Select [[Review and issue]]. It shows to the quality role while no version is issued, and reviews the certificate for this record's scope.
 ## Good to know
 - An amendment adds a new version. The earlier one stays unchanged and is marked Superseded.
 - A withdrawn certificate keeps every version and its PDF as issued, and is never amended. A new certificate for the lot gets a new number.
-- "Recipient notification not recorded" shows until a notification is recorded for a withdrawn certificate.
+- "Notification not recorded" shows until a notification is recorded for a withdrawn certificate; "Checked since withdrawal" once a recipient checked it after the withdrawal.
 - The certificate shown is the stored version as issued, never rebuilt from today's records. One for a scope reports only that scope's specification.
 - History shows only to the quality, auditor and admin roles. Every PDF and data download is recorded there.
 
@@ -46,7 +47,9 @@ One certificate of analysis series: its status, every issued version with who si
 - **Withdrawn** (red notice, withdrawn certificates only): "This certificate was withdrawn on … by …. It is no longer valid and cannot be amended; every issued version and its PDF stay on record exactly as issued." with the reason and, when given, the reference. While no notification is recorded, a second notice **Notification not recorded**: "Recipient notification not recorded. Tell <Issued to, or each recipient of this certificate> that it is withdrawn, then record the notification here."
 - **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Certificate for ("All of the lot's requirements", or "Scope X: the tests its specification states, with its limits"), Opened; once withdrawn also Withdrawn (time and signer), Withdrawal reference ("None given" when blank) and Reason for withdrawal; and the current PDF SHA-256 ("Last issued PDF SHA-256" once withdrawn).
 - **Recipient notifications** (withdrawn certificates only): Recipient, Notified on, Means (with the note under it), Evidence, Recorded (time, with who recorded it under it), oldest first; empty state "No notification recorded yet".
+- **Checked since withdrawal** (amber notice, withdrawn certificates that a recipient checked without an account since): "A recipient still holds this certificate: version N was checked without an account on …, and the check answered that it is withdrawn. Make sure every recipient was told." It names the newest such check; staff checks show only in the table.
 - **Versions** (once issued): Version, Kind, Status (Current, Superseded, or Withdrawn for the last version of a withdrawn certificate), Issued, Signed by, Reason, Files.
+- **Checks** (once issued), with the number of checks: Checked (time to the second), Version (link), File (Certificate PDF or Certificate data), Answer (Current, Superseded, Withdrawn, as answered at that moment), By (the person, or "A recipient, without an account"); the 20 newest, with "The 20 newest of N checks are shown." when there are more. Empty state "Not checked yet" with **Check a certificate**.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
 - **Electronic signatures** (once issued): every signature of the certificate record (issued, amended, withdrawn) with signer, meaning, server time, bound revision and the start of the content hash.
 - **History** (quality, auditor and admin only): audit events for this record, oldest first, or the empty state "No history yet".
@@ -65,6 +68,7 @@ One certificate of analysis series: its status, every issued version with who si
 | Version link | Always, per version | Any viewer | Opens that version |
 | **Download PDF** (table) | Always, per version | Any viewer | Downloads that version |
 | **Download data** (table) | The version was issued with certificate data | Any viewer | Downloads that version's certificate data as JSON (see Certificate version) |
+| **Check a certificate** (Checks empty state) | No check yet | Any viewer | Opens Check a certificate |
 
 ## Fields
 
@@ -85,6 +89,7 @@ One certificate of analysis series: its status, every issued version with who si
 | Issued | `ReportVersion.issued_at` | UTC date and time | — | Server signing time |
 | Signed by | `ElectronicSignature.signer_name`, `meaning` | Text | — | Signer and meaning (issued, amended) |
 | Reason | `ReportVersion.reason` | Text, first 80 characters | — | Reason given when signed |
+| Checked, Version, File, Answer, By | `CertificateCheck.checked_at`, `version`, `matched`, `answer`, `checked_by` | Date and time, version, choice, choice, user or none | — | A check that found one of the versions, and what it answered then |
 
 ## Rules and hidden logic
 
@@ -94,10 +99,11 @@ One certificate of analysis series: its status, every issued version with who si
 - **Amendments** add a version that supersedes the previous one; earlier versions stay available.
 - **Withdrawal** is a signed, final transition (meaning withdrawn): the versions, their PDFs and checksums are unchanged and stay downloadable, and the amendment pages refuse the certificate ("This certificate was withdrawn; it is not amended. A new certificate for the lot is issued as a new numbered certificate.").
 - **Recipient notifications** are append-only evidence; recording one does not change the certificate's revision or signatures.
+- **Checks** are append-only too and change nothing on the certificate. Only a check that found a version is kept, and a recipient's checks without an account once a day for each version and answer; its answer is the one the certificate gave at that moment, so a later amendment or withdrawal does not change earlier rows. Nothing about a recipient who checked without an account is kept.
 - **Footer line**: the certificate number, view time and viewer.
 - **Audit events** shown include `report.opened`, `signed.issued`, `signed.amended`, `signed.withdrawn`, `report.recipient_notified`, `report.downloaded` and `report.data_downloaded`.
 
 ## Related pages
 
 - [Certificates of analysis](/reports/)
-- Certificate version, Amend certificate, Withdraw certificate, Record notification, the lot record ([Material lots](/lots/)).
+- Certificate version, Amend certificate, Withdraw certificate, Record notification, Check a certificate, the lot record ([Material lots](/lots/)).

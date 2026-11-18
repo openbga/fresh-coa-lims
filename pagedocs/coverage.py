@@ -18,6 +18,8 @@ EXEMPT_NAMES = {
     "login_passkey": "Sign-in with a key alone, outside the signed-in shell like Sign in.",
     "login_sso": "Redirect to the organization's identity provider; renders no page.",
     "login_sso_callback": "Return from the identity provider; redirects without rendering a page.",
+    "certificate_check": "Certificate check without an account, outside the signed-in shell; "
+    "documented with the signed-in check (reporting-check.md).",
     "logout": "POST-only sign-out action; redirects without rendering a page.",
     "pagedocs:doc": "The documentation endpoint itself.",
     "core:lookup": "JSON options of the remote select (core/lookups.py); renders no page.",

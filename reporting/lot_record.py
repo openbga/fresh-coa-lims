@@ -192,6 +192,12 @@ LOT_SECTIONS = (
         "reporting.RecipientNotification",
         _in("report", "reports"),
     ),
+    Section(
+        "report_checks",
+        "Checks of certificates",
+        "reporting.CertificateCheck",
+        _in("version", "report_versions"),
+    ),
     # The records of impact assessments that name the lot, one of its tests, a stability study of
     # it or one of its certificates, with the decision on each. The assessments themselves also
     # name other lots' records and are not part of this lot's record.

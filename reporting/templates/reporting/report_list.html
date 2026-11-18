@@ -2,7 +2,7 @@
 {% load ui %}
 {% comment %}Certificates of analysis. Context: page_title, page_obj, query, filters (ReportFilterForm), sort, filtered, can_issue.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Versioned, immutable certificates built from signed QC disposition evidence.</p>{% endblock %}
-{% block page_actions %}{% if can_issue %}<a class="btn btn-primary" href="{% url 'reporting:new' %}">{% icon name="plus-lg" %}New certificate of analysis</a>{% endif %}{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'reporting:check' %}">{% icon name="patch-check" %}Check a certificate</a>{% if can_issue %}<a class="btn btn-primary" href="{% url 'reporting:new' %}">{% icon name="plus-lg" %}New certificate of analysis</a>{% endif %}{% endblock %}
 {% block content %}
 {% panel title="Certificates of analysis" heading_id="coa-table-heading" table=True hidden_title=True %}
   {% grid_toolbar label="Filter certificates" q=query placeholder="Number, lot, material, recipient or scope" inline=filters sort=sort active=filtered %}

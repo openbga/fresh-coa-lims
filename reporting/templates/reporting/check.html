@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Check a certificate file, or its SHA-256, against every version this laboratory issued; the answer shows above the form. Context: page_title, form (CheckForm), result (reporting.checks.Result, None before a check), public_check (the deployment offers the check without an account), public_url.{% endcomment %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% breadcrumbs section="Certificates" section_url=list_url current=page_title %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Find out whether a certificate someone holds was issued here, and whether it is the current version.{% if public_check %} Recipients can make the same check without an account at <span class="vr-id text-break">{{ public_url }}</span>.{% endif %}</p>{% endblock %}
+{% block content %}
+{% if result %}
+{% panel title="Answer" heading_id="answer-heading" class="mb-3" %}{% include "reporting/_check_answer.html" with result=result staff=True only %}{% endpanel %}
+{% endif %}
+{% url 'reporting:list' as cancel_url %}
+{% form_page form=form multipart=True cancel_url=cancel_url submit_label="Check certificate" submit_icon="patch-check" no_required_note=True note="The file is compared with the checksums of every issued version and is not kept. A printed, scanned or re-saved copy has other bytes and is not found." %}{% endform_page %}
+{% endblock %}

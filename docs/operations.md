@@ -308,6 +308,17 @@ The ID token must be signed with an asymmetric algorithm (RS256, PS256, ES256, E
 
 After a provider or tenant change every existing link stops signing in (the issuer differs): owners unlink and link again on **Organization sign-in**, where the old link is marked as made with another provider. Signing out here does not sign the person out at the provider. The provider's own multi-factor check is not taken in place of a second factor set up here; set `MFA_REQUIRED_ROLES` as your procedure requires. Test the sign-in, a refused sign-in and an unlinked identity with your provider before production use, and keep the evidence with the validation of your configuration.
 
+## Certificate checks by recipients
+
+Staff always check a certificate file on **Check a certificate**, from the certificate list. Recipients can make the same check without an account at `https://<your host>/check/` once you offer it; the page is off, and answers 404, until then.
+
+| Setting | Value |
+|---|---|
+| `CERTIFICATE_CHECK` | `true` offers the check without an account and links it from the sign-in page; `false` (default) does not. A restart applies a change |
+| `CERTIFICATE_CHECK_RATE` | Checks without an account accepted per minute for the whole deployment, 1 to 600; 20 by default. Past it the page asks the recipient to try again after the rest of the minute (status 429 with `Retry-After`). Signed-in checks are not counted |
+
+Before offering it, decide with quality that recipients may learn the status of a certificate they hold (current, replaced and by which version number and issue time, or withdrawn and when), which is all the page discloses beyond what the file prints, and how you tell them the address: in the message that sends the certificate, on your website or in the quality agreement. The certificate prints nothing new for the check. The page is the only one a person can reach without signing in apart from the sign-in pages, so keep the reverse proxy's per-address rate limiting in front of it as for sign-in: the application's limit is shared by everyone, so a single client that uses it up delays the others for the rest of the minute. Uploads are bounded by `RAW_DATA_MAX_BYTES` and hashed without being stored. The page starts no session and stores nothing about the recipient: a check that finds a certificate is listed on that certificate's page (time, version, file, answer, and the person when signed in) and in its lot's exported record, a recipient's checks once a day for each version and answer; a check that finds nothing is not kept. A check posted from another site's page is refused before it is counted. A recipient whose file is reported as not found usually holds a copy saved again by a program or made from paper: send them the PDF again. A withdrawn certificate that a recipient still checks shows a notice on its page, a sign to review the notifications of its recipients.
+
 ## Bench checks at result entry
 
 Before a native observation or batch QC result is recorded or corrected, the analyst needs independently approved qualification evidence whose activity matches the method code (case-insensitive). The validity dates must cover the current deployment-local date, approval must already have occurred, and revocation must not have taken effect. A role assignment alone does not satisfy this check. Preserve the referenced training/suitability evidence under the organization's controlled procedure.

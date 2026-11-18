@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A certificate of analysis: its record, its withdrawal and recipient notifications, versions, the current version's content, signatures and (for auditors) history. Context: page_title, report, latest, versions, snapshot, withdrawal (the withdrawal signature), notifications, awaiting_notification, signatures, history, can_issue, can_audit.{% endcomment %}
+{% comment %}A certificate of analysis: its record, its withdrawal and recipient notifications, versions, the current version's content, signatures and (for auditors) history. Context: page_title, report, latest, versions, snapshot, withdrawal (the withdrawal signature), notifications, awaiting_notification, checks (the newest checks of its versions), check_count, checked_withdrawn (the newest check without an account that found it withdrawn), signatures, history, can_issue, can_audit.{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% breadcrumbs section="Certificates" section_url=list_url current=report.number %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% status label=report.status_label tone=report.tone %}</li>{% if latest %}<li>{% if report.state == "withdrawn" %}Last version {{ latest.number }}{% else %}Current: version {{ latest.number }}{% endif %}</li>{% endif %}{% endpage_meta %}{% endblock %}
 {% block page_actions %}
@@ -19,6 +19,7 @@
 {% block content %}
 {% if report.state == "withdrawn" %}
 {% notice tone="danger" label="Withdrawn" blocking=True %}<p class="mb-1">This certificate was withdrawn on {{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}. It is no longer valid and cannot be amended; every issued version and its PDF stay on record exactly as issued.</p><p class="mb-0">Reason: {{ report.withdrawal_reason }}{% if report.withdrawal_reference %} · Reference: {{ report.withdrawal_reference }}{% endif %}</p>{% endnotice %}
+{% if checked_withdrawn %}{% notice tone="warning" label="Checked since withdrawal" %}A recipient still holds this certificate: version {{ checked_withdrawn.version.number }} was checked without an account on {{ checked_withdrawn.checked_at|when }}, and the check answered that it is withdrawn. Make sure every recipient was told.{% endnotice %}{% endif %}
 {% if awaiting_notification %}{% notice tone="warning" label="Notification not recorded" %}Recipient notification not recorded. Tell {% if report.recipient %}{{ report.recipient }}{% else %}each recipient of this certificate{% endif %} that it is withdrawn, then record the notification here.{% endnotice %}{% endif %}
 {% endif %}
 {% panel title="Record" heading_id="facts-heading" class="mb-3" %}
@@ -79,6 +80,27 @@
       </tbody>
     </table>
   </div>
+{% endpanel %}
+{% panel title="Checks" heading_id="checks-heading" count=check_count table=True class="mb-3" %}
+  {% if checks %}
+  <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Checks of this certificate, scrollable">
+    <table class="table vr-table" aria-labelledby="checks-heading">
+      <thead><tr><th scope="col">Checked</th><th scope="col">Version</th><th scope="col">File</th><th scope="col">Answer</th><th scope="col">By</th></tr></thead>
+      <tbody>
+      {% for c in checks %}
+        <tr>
+          <th scope="row" class="vr-nowrap">{{ c.checked_at|when:"seconds" }}</th>
+          <td><a href="{% url 'reporting:version' report.pk c.version.number %}">Version {{ c.version.number }}</a></td>
+          <td>{{ c.get_matched_display }}</td>
+          <td>{% if c.answer == "current" %}{% status label="Current" tone="success" plain=True %}{% elif c.answer == "superseded" %}{% status label="Superseded" tone="neutral" plain=True %}{% else %}{% status label="Withdrawn" tone="danger" plain=True %}{% endif %}</td>
+          <td>{% if c.without_account %}A recipient, without an account{% else %}{{ c.checked_by|person }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if check_count > checks|length %}<p class="small vr-muted mb-0">The {{ checks|length }} newest of {{ check_count }} checks are shown.</p>{% endif %}
+  {% else %}{% url 'reporting:check' as check_url %}{% empty_state title="Not checked yet" body="A check that finds one of its versions is listed here: when, which file, what it answered and who checked." action_url=check_url action_label="Check a certificate" %}{% endif %}
 {% endpanel %}
 {% include "reporting/_certificate.html" with snapshot=snapshot only %}
 {% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length class="mb-3" %}{% signature_list signatures=signatures subject="Certificate record" hash=True %}{% endpanel %}

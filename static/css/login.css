@@ -139,6 +139,11 @@
   background: var(--vr-surface-2);
 }
 
+/* The answer of a certificate check, above the form for the next file. */
+.vr-login .vr-check-answer {
+  margin-bottom: var(--vr-space-5);
+}
+
 .vr-login-help {
   max-width: 52ch;
   margin: 0 auto;
@@ -163,6 +168,11 @@
 
   .vr-login-main .alert:has(> .vr-status) {
     flex-direction: column;
+  }
+
+  /* In a column the body's basis would be a height: it takes the height of its text. */
+  .vr-login-main .alert:has(> .vr-status) > :not(.vr-status) {
+    flex-basis: auto;
   }
 }
 

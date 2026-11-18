@@ -191,6 +191,7 @@
     "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-010" = [
+    "e2e/test_certificate_check_journey.py",
     "e2e/test_certificate_withdrawal_journey.py",
     "e2e/test_contract_laboratory_journey.py",
     "e2e/test_customer_certificate_journey.py",
@@ -205,6 +206,7 @@
     "reporting/tests/test_native.py",
     "reporting/tests/test_services.py",
     "reporting/tests/test_views.py",
+    "tests/test_certificate_checks.py",
     "tests/test_certificate_data.py",
     "tests/test_certificate_withdrawal.py",
     "tests/test_certificate_withdrawal_views.py",
