@@ -22,7 +22,7 @@ summary: The certificate that would be issued for a lot, for all its requirement
 1. Under [[Certificates already opened for this lot]], select a certificate number.
 ## Good to know
 - You cannot issue a certificate for a lot where you recorded the lot, a sample or a result, even with the quality role. Another quality user must sign.
-- A lot under more than one specification judges every result against each of them. A certificate for one scope is issued only when every result meets that scope's limits.
+- The certificate uses the evidence frozen at QC disposition. Each result is judged against every specification of the lot; a scope's certificate needs every result within its limits.
 - An open hold blocks the certificate until the hold is closed, resolved, cleared or released.
 - If the evidence changes after you review it, signing is refused and you review it again.
 - The certificate reports the laboratory QC disposition. It is not the manufacturer's batch release.
