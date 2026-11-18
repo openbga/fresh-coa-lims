@@ -592,3 +592,23 @@ def test_a_suppliers_accepted_result_is_judged_against_every_specification(djang
     text = flat(report.versions.get().snapshot)
     assert "Results accepted from the supplier's certificate of analysis." in text
     assert "Supplier result assay accepted in place of a test" in text
+
+
+def test_a_wrong_pin_for_a_scope_certificate_is_counted_and_issues_nothing(world):
+    from core.models import PINCredential
+
+    lot = released(world, TIGHT)
+    author = world["people"]["author"]
+    with pytest.raises(ValidationError):
+        reporting.issue_report(
+            actor=author,
+            pin="00000000",
+            lot=lot,
+            recipient="Synthetic customer EU",
+            evidence_hash=reporting.preview(lot, MARKET)[1],
+            reason="Synthetic",
+            scope=MARKET,
+        )
+    assert PINCredential.objects.get(user=author).failures == 1
+    assert AuditEvent.objects.filter(action="signature.denied", actor=author).exists()
+    assert not Report.objects.exists()
