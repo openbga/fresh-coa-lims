@@ -1,8 +1,8 @@
 {% load reporting_tags ui %}
-{# Renders a frozen snapshot (or live evidence for a preview). Never reads live records. The cert-* classes are hooks for the PDF stylesheet (reporting/pdf/certificate.html) only. A certificate for one scope of the lot (scope, or the snapshot's report.scope) reports that scope's specification only (reporting.conformity.scope_view) and names no other scope. #}
-{% firstof scope snapshot.report.scope as cert_scope %}{% certificate_scope snapshot cert_scope as view %}
+{# Renders a frozen snapshot (or live evidence for a preview). Never reads live records. The cert-* classes are hooks for the PDF stylesheet (reporting/pdf/certificate.html) only. A certificate for one scope of the lot (scope, or the snapshot's report.scope) reports that scope's specification only (reporting.conformity.scope_view) and names no other scope. pdf (the issued PDF) starts its headings at h1, as a tagged document must. #}
+{% firstof scope snapshot.report.scope as cert_scope %}{% certificate_scope snapshot cert_scope as view %}{% certificate_headings pdf as h %}
 <article class="card mb-3" aria-labelledby="cert-title">
-  <div class="card-header"><h2 class="card-title" id="cert-title">Certificate of analysis{% if snapshot.report %} · <span class="cert-id vr-data">{{ snapshot.report.number }} version {{ snapshot.report.version }}</span>{% else %} · preview{% endif %}</h2></div>
+  <div class="card-header"><h{{ h.title }} class="card-title" id="cert-title">Certificate of analysis{% if snapshot.report %} · <span class="cert-id vr-data">{{ snapshot.report.number }} version {{ snapshot.report.version }}</span>{% else %} · preview{% endif %}</h{{ h.title }}></div>
   <div class="card-body">
     {% if snapshot.report.kind == "amendment" %}
     <div class="cert-amendment">
@@ -10,7 +10,7 @@
     <p>Reason for amendment: {{ snapshot.report.reason }}</p>
     </div>
     {% endif %}
-    <h3 class="h6 fw-bold mt-4">Material and lot</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Material and lot</h{{ h.section }}>
     <dl class="vr-facts cert-key">
       <div><dt>Lot number</dt><dd>{{ snapshot.lot.number }}</dd></div>
       <div><dt>Material</dt><dd>{{ snapshot.lot.material }}</dd></div>
@@ -21,14 +21,14 @@
       {% if snapshot.dates.retest_on %}<div><dt>Retest date</dt><dd><time datetime="{{ snapshot.dates.retest_on }}">{{ snapshot.dates.retest_on }}</time></dd></div>{% endif %}
       {% if snapshot.dates.reassessment %}<div><dt>Reassessed</dt><dd>{{ snapshot.dates.reassessment.label }}, <time datetime="{{ snapshot.dates.reassessment.concluded_on }}">{{ snapshot.dates.reassessment.concluded_on }}</time></dd></div>{% endif %}
     </dl>
-    <h3 class="h6 fw-bold mt-4">Decision</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Decision</h{{ h.section }}>
     {% if snapshot.disposition %}
     <p class="cert-decision">Laboratory QC disposition: <strong>approved</strong> (lot state {{ snapshot.lot.state }}), signed by {{ snapshot.disposition.signer_name }} on {{ snapshot.disposition.signed_at|stamp }}, binding lot record revision {{ snapshot.disposition.revision }}.</p>
     {% else %}
     <p class="cert-decision">No signed QC disposition is recorded.</p>
     {% endif %}
     <p class="vr-muted small">This certificate reports the laboratory QC disposition and test results only. It is not the manufacturer's batch release or qualified-person certification.</p>
-    <h3 class="h6 fw-bold mt-4">Applied rules, specification and methods</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Applied rules, specification and methods</h{{ h.section }}>
     <dl class="vr-facts">
       <div><dt>Rule set</dt><dd>{{ snapshot.rules.code }} version {{ snapshot.rules.version }} (record revision {{ snapshot.rules.revision }}), segment {{ snapshot.rules.segment }}</dd></div>
       <div><dt>Effective</dt><dd><time datetime="{{ snapshot.rules.effective_from }}">{{ snapshot.rules.effective_from|stamp }}</time> to {% if snapshot.rules.effective_until %}<time datetime="{{ snapshot.rules.effective_until }}">{{ snapshot.rules.effective_until|stamp }}</time>{% else %}open{% endif %}</dd></div>
@@ -43,7 +43,7 @@
     <p class="small mt-3">The specifications that apply to this lot state {{ snapshot.native.decisions|length|pluralize:"a test,tests" }} differently. The laboratory's quality unit decided with a signature which requirement applies, and the lot was tested against it:</p>
     <ul class="small">{% for item in snapshot.native.decisions %}<li>{{ item.code }}{% if item.differs %} (stated differently in {{ item.differs|join:", " }}){% endif %}: {{ item.applies.specification }} ({{ item.applies.scopes|join:", " }}) applies, {{ item.applies.requirement }}. Not applied: {% for alt in item.not_applied %}{{ alt.specification }} ({{ alt.scopes|join:", " }}), {{ alt.requirement }}{% if not forloop.last %}; {% endif %}{% endfor %}.{% if item.decided %} Decided by {{ item.decided.by }} on {{ item.decided.at|stamp }}{% if item.decided.with == "replacement" %}, with the replacement of the lot's requirements{% endif %}: {{ item.decided.reason }}{% if item.decided.carried %} Carried unchanged by the replacement of the lot's requirements signed by {{ item.decided.carried.by }} on {{ item.decided.carried.at|stamp }}.{% endif %}{% endif %}</li>{% endfor %}</ul>
     {% endif %}
-    <h3 class="h6 fw-bold mt-4">Results</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Results</h{{ h.section }}>
 {% if view %}
     {% if not view.results and view.supplier_results %}
     <p>No test of this certificate was performed by this laboratory.</p>
@@ -135,7 +135,7 @@
     </div>
     {% endif %}
     {% if snapshot.native.conformity %}
-    <h3 class="h6 fw-bold mt-4">Conformity with each specification</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Conformity with each specification</h{{ h.section }}>
     <p class="small">The lot is under more than one specification. Each result is stated against every one of them that states its test, including a statement that does not apply to the lot. {% decision_rule %}</p>
     <div class="vr-table-wrap mb-3" tabindex="0" role="region" aria-label="Conformity with each specification">
       <table class="table vr-table">
@@ -180,7 +180,7 @@
     <p>No samples are recorded for this lot.</p>
     {% endfor %}
     {% endif %}
-    <h3 class="h6 fw-bold mt-4">Holds and corrections</h3>
+    <h{{ h.section }} class="h6 fw-bold mt-4">Holds and corrections</h{{ h.section }}>
     {% if "holds" in snapshot.sections_supplied %}
       {% if snapshot.holds %}<ul>{% for hold in snapshot.holds %}<li>{{ hold.description|default:hold.id }} · {{ hold.status }}</li>{% endfor %}</ul>{% else %}<p>No holds in the hold snapshot.</p>{% endif %}
     {% else %}
@@ -189,8 +189,8 @@
     {% if view %}{% if view.investigations %}<p class="mb-1">Investigations of the tests on this certificate:</p><ul>{% for inv in view.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
     {% elif snapshot.native.analytical.investigations %}<p class="mb-1">Investigations linked to this lot:</p><ul>{% for inv in snapshot.native.analytical.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
     {% if snapshot.corrections %}<ul>{% for item in snapshot.corrections %}<li>Correction: {{ item.description }}</li>{% endfor %}</ul>{% endif %}
-    {% if snapshot.report.remarks %}<h3 class="h6 fw-bold mt-4">Remarks</h3><p>{{ snapshot.report.remarks|linebreaksbr }}</p>{% endif %}
-    <h3 class="h6 fw-bold mt-4">Electronic signatures</h3>
+    {% if snapshot.report.remarks %}<h{{ h.section }} class="h6 fw-bold mt-4">Remarks</h{{ h.section }}><p>{{ snapshot.report.remarks|linebreaksbr }}</p>{% endif %}
+    <h{{ h.section }} class="h6 fw-bold mt-4">Electronic signatures</h{{ h.section }}>
     <div class="vr-table-wrap" tabindex="0" role="region" aria-label="Signature manifestations">
       <table class="table vr-table">
         <thead><tr><th scope="col">Meaning</th><th scope="col">Signer</th><th scope="col">Date and time</th><th scope="col">Bound to</th></tr></thead>

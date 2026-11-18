@@ -121,7 +121,7 @@ Retain the target for inspection; no cleanup or drop is included here. Do not re
 | Schema | Expected migrations applied; restored columns, constraints, indexes, functions and enabled triggers match the source | `migrations`, `columns`, `constraints`, `indexes`, `triggers`, `functions`, `triggers enabled`, `application` |
 | Evidence | Every table's rows equal the manifest's; any intentionally older recovery point has a documented reconciliation | `tables`, `sequences` |
 | Signature binding | Stored content hashes recompute; signer, record type/ID/revision and linked audit event remain present | `signatures` |
-| Stored files | Issued certificates and raw-data files match their checksums | `certificates`, `raw data files` |
+| Stored files | Issued certificates, their certificate data and raw-data files match their checksums | `certificates`, `raw data files` |
 | Histories | Audit reviews retain selected events; approved rules, samples/results and signed disposition evidence remain retrievable | `tables`; retrieval by hand on a rehearsal server |
 | Application | Matching code passes check/readiness, authorized reads and stored export retrieval; access controls still apply | `application`; readiness, sign-in and a certificate download by hand |
 | Operations | Recovery time and lost-work interval measured against approved RTO/RPO; quality owner records acceptance before traffic switch | A rehearsal of recovery from backup with the restore check report attached and accepted by quality ([validation records](#validation-records-of-the-laboratory)) |

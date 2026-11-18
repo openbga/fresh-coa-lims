@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}One issued certificate version, shown from its frozen snapshot. Context: page_title, report, version, is_current, signature, snapshot, withdrawal (the certificate's withdrawal signature, or None).{% endcomment %}
+{% comment %}One issued certificate version, shown from its frozen snapshot, with its PDF and (for a version issued with it) its certificate data to download. Context: page_title, report, version, is_current, signature, snapshot, withdrawal (the certificate's withdrawal signature, or None).{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current="Version" %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% if report.state == "withdrawn" %}{% status label="Withdrawn" tone="danger" %}{% elif is_current %}{% status label="Current version" tone="success" %}{% else %}{% status label="Superseded" tone="neutral" %}{% endif %}</li><li>Issued {{ version.issued_at|when:"seconds" }}</li>{% endpage_meta %}{% endblock %}
-{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk version.number %}?inline=1" target="_blank" rel="noopener">Open PDF</a><a class="btn btn-primary" href="{% url 'reporting:pdf' report.pk version.number %}">{% icon name="download" %}Download PDF</a>{% endblock %}
+{% block page_actions %}<a class="btn btn-outline-secondary" href="{% url 'reporting:pdf' report.pk version.number %}?inline=1" target="_blank" rel="noopener">Open PDF</a>{% if version.has_data %}<a class="btn btn-outline-secondary" href="{% url 'reporting:data' report.pk version.number %}">{% icon name="download" %}Download data</a>{% endif %}<a class="btn btn-primary" href="{% url 'reporting:pdf' report.pk version.number %}">{% icon name="download" %}Download PDF</a>{% endblock %}
 {% block content %}
 {% if report.state == "withdrawn" %}
 {% notice tone="danger" label="Withdrawn" blocking=True %}Certificate {{ report.number }} was withdrawn on {{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}: this version is no longer valid. It stays on record, and its PDF stays downloadable exactly as issued, as evidence.{% endnotice %}
@@ -12,10 +12,13 @@
   <dl class="vr-facts">
     {% fact label="Signature" %}{% if signature %}{{ signature.signer_name }} · {{ signature.meaning|meaning }} · {{ signature.signed_at|when:"seconds" }} · certificate record revision {{ signature.revision }}{% else %}Signature record not found{% endif %}{% endfact %}
     {% fact label="Size" %}{{ version.pdf_size }} bytes{% endfact %}
+    {% fact label="PDF format" %}{% if version.pdf_format %}{{ version.pdf_format }}{% else %}Not declared (issued before certificates were written as archival PDF){% endif %}{% endfact %}
+    {% fact label="Certificate data" %}{% if version.has_data %}Attached to the PDF and downloadable beside it, as JSON ({{ version.data|length }} bytes){% else %}None: issued before certificate data was produced{% endif %}{% endfact %}
     {% if version.supersedes_id %}{% fact label="Amends" %}<a href="{% url 'reporting:version' report.pk version.supersedes.number %}">Version {{ version.supersedes.number }}</a>{% endfact %}{% endif %}
     {% if version.superseded_by %}{% fact label="Superseded by" critical="info" %}{% status label="Superseded" tone="info" %}<small><a href="{% url 'reporting:version' report.pk version.superseded_by.number %}">Version {{ version.superseded_by.number }}</a></small>{% endfact %}{% endif %}
   </dl>
   <p class="small mt-3 mb-1 text-break">PDF SHA-256 <span class="vr-id text-wrap text-break">{{ version.pdf_sha256 }}</span></p>
+  {% if version.has_data %}<p class="small mb-1 text-break">Certificate data SHA-256 <span class="vr-id text-wrap text-break">{{ version.data_sha256 }}</span></p>{% endif %}
   <p class="small mb-2 text-break">Evidence SHA-256 <span class="vr-id text-wrap text-break">{{ version.evidence_hash }}</span></p>
   <p class="vr-muted small mb-0">Shown from the frozen snapshot stored at issue, never from today's records.</p>
 {% endpanel %}

@@ -1,7 +1,9 @@
 """A quality person issues a certificate for the market scope of a lot under two specifications:
 the review page offers the scopes, shows the certificate for the one chosen with its limits and
-the conformity of each result, and the signed certificate names the scope, in Chromium."""
+the conformity of each result, and the signed certificate names the scope; its version page
+offers the certificate data beside the PDF, in Chromium."""
 
+import json
 import re
 
 import pytest
@@ -84,6 +86,16 @@ def test_quality_issues_a_certificate_for_a_customer_scope(live_server, world, a
             page.get_by_text("Scope eu-market: the tests its specification states")
         ).to_be_visible()
         page.screenshot(path=str(artifacts / "customer-certificate-issued.png"), full_page=True)
+
+        # The version page offers the certificate data beside the PDF.
+        page.get_by_role("link", name="Version 1", exact=True).click()
+        expect(page.get_by_text("PDF/A-3a, PDF/UA-1")).to_be_visible()
+        with page.expect_download() as download:
+            page.get_by_role("link", name="Download data", exact=True).click()
+        saved = artifacts / "customer-certificate-market-data.json"
+        download.value.save_as(saved)
+        assert download.value.suggested_filename.endswith("-v1.json")
+        page.screenshot(path=str(artifacts / "customer-certificate-version.png"), full_page=True)
         browser.close()
 
     with sync_playwright() as playwright:
@@ -104,6 +116,13 @@ def test_quality_issues_a_certificate_for_a_customer_scope(live_server, world, a
         "Synthetic customer EU",
         "issued",
     )
-    data = reporting.read_pdf(actor=world["people"]["author"], version=report.versions.get())
+    version = report.versions.get()
+    data = reporting.read_pdf(actor=world["people"]["author"], version=version)
     assert data.startswith(b"%PDF-")
     (artifacts / "customer-certificate-market.pdf").write_bytes(data)
+    downloaded = saved.read_bytes()
+    assert downloaded == bytes(version.data)
+    certificate = json.loads(downloaded)
+    assert certificate["schema"] == "oq.certificate-data/1"
+    assert certificate["certificate"]["scope"] == MARKET
+    assert [r["test"] for r in certificate["results"]] == ["assay", "water"]

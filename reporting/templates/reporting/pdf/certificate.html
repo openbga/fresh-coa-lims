@@ -17,12 +17,12 @@ reporting/_certificate.html and this file's existing lines; layout only.
 <style>
 {% include "reporting/pdf/_line.css" %}
   .card, .card-header, .card-body { margin: 0; padding: 0; border: 0; }
-  h2 { margin: 0; font-size: 17pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
+  h1 { margin: 0; font-size: 17pt; font-weight: 800; font-stretch: 112%; line-height: 1.15; }
   .cert-id { font-stretch: 100%; font-variant-numeric: tabular-nums slashed-zero; }
   .card-header { margin-bottom: 3mm; }
 
   /* Section titles: uppercase panel titles, no rules between things. */
-  h3, details > summary { display: block; margin: 4.5mm 0 1.5mm; font-size: 7.5pt; font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; text-transform: uppercase; color: #000; break-after: avoid; }
+  h2, details > summary { display: block; margin: 4.5mm 0 1.5mm; font-size: 7.5pt; font-weight: 800; font-stretch: 112%; letter-spacing: 0.06em; text-transform: uppercase; color: #000; break-after: avoid; }
   details > summary::marker { content: none; }
   details > summary { list-style: none; }
 
@@ -58,6 +58,6 @@ reporting/_certificate.html and this file's existing lines; layout only.
 <p class="brand">OpenBGA QM LIMS</p>
 <p class="ids"><span class="docid">{{ snapshot.report.number }} · version {{ snapshot.report.version }} · lot {{ snapshot.lot.number }}</span> · evidence {{ snapshot.evidence_hash|slice:":16" }}</p>
 {% if synthetic_notice %}<p class="notice">Synthetic demonstration data. This document has no regulatory or commercial standing.</p>{% endif %}
-{% include "reporting/_certificate.html" %}
+{% include "reporting/_certificate.html" with pdf=True %}
 </body>
 </html>

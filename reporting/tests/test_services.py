@@ -248,7 +248,8 @@ def test_renderer_refuses_external_resources(monkeypatch, tmp_path):
     page = render.render_to_string("reporting/pdf/certificate.html", {"snapshot": {}})
     page = page.replace("</body>", hostile + "</body>")
     monkeypatch.setattr(render, "render_to_string", lambda *args, **kwargs: page)
-    data = render.render_certificate({})
+    snapshot = {"report": {"issued_at": "2026-11-12T12:00:00Z"}}
+    data = render.render_certificate(snapshot, data=b"{}\n")
     assert data.startswith(b"%PDF-")
     assert opened == []
     # The PDF fetcher serves the font and glyphs by exact URL and nothing else; with an empty

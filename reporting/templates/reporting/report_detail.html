@@ -73,7 +73,7 @@
           <td>{{ v.issued_at|when:"seconds" }}</td>
           <td>{% if v.signature %}{{ v.signature.signer_name }} · {{ v.signature.meaning|meaning }}{% else %}{{ v.issued_by }}{% endif %}</td>
           <td class="vr-wrap"><span class="vr-clamp" title="{{ v.reason }}">{{ v.reason }}</span></td>
-          <td><a href="{% url 'reporting:pdf' report.pk v.number %}">Download PDF<span class="visually-hidden"> version {{ v.number }}</span></a></td>
+          <td><a href="{% url 'reporting:pdf' report.pk v.number %}">Download PDF<span class="visually-hidden"> version {{ v.number }}</span></a>{% if v.has_data %}<br><a href="{% url 'reporting:data' report.pk v.number %}">Download data<span class="visually-hidden"> version {{ v.number }}</span></a>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

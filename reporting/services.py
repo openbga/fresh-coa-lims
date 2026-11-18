@@ -13,6 +13,7 @@ append-only `RecipientNotification` evidence, which leaves the head's signed rev
 """
 
 import hashlib
+import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -27,10 +28,12 @@ from core.services import require_role, sign_transition, verify_pin
 from core.session_control import signing_context
 from quality.models import Lot
 
+from . import certificate_data
 from . import evidence as ev
 from .models import RecipientNotification, Report, ReportVersion
-from .render import RenderError, render_certificate
+from .render import PDF_FORMAT, RenderError, render_certificate
 
+logger = logging.getLogger(__name__)
 READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 ISSUE_ROLE = "quality"
 HISTORY_ROLES = ("quality", "auditor", "admin")
@@ -41,6 +44,9 @@ WITHDRAWN = (
 NOT_ISSUED = "Only an issued certificate can be withdrawn."
 ALREADY_WITHDRAWN = "This certificate is already withdrawn."
 NOT_WITHDRAWN = "A recipient notification is recorded only for a withdrawn certificate."
+NO_DATA = (
+    "This version was issued before certificate data was produced. Its PDF is the issued record."
+)
 
 
 def require_reader(actor):
@@ -179,12 +185,19 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
                 "lot_revision": lot.revision,
             },
         }
+        synthetic = getattr(settings, "REPORT_SYNTHETIC_DATA_NOTICE", True)
         try:
-            data = render_certificate(
-                snap, synthetic_notice=getattr(settings, "REPORT_SYNTHETIC_DATA_NOTICE", True)
-            )
+            # The certificate data states what the PDF prints; the PDF embeds these bytes.
+            content = certificate_data.encode(certificate_data.build(snap, synthetic=synthetic))
+            data = render_certificate(snap, data=content, synthetic_notice=synthetic)
         except RenderError as exc:
             raise ValidationError(f"The certificate could not be rendered: {exc}") from exc
+        except Exception as exc:  # building the data failed: nothing is issued
+            logger.exception("Certificate data could not be built")
+            raise ValidationError(
+                "The certificate could not be rendered: its data could not be built."
+            ) from exc
+        content_sha256 = hashlib.sha256(content).hexdigest()
         ReportVersion.objects.create(
             report=locked,
             number=number,
@@ -202,6 +215,9 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
             pdf=data,
             pdf_sha256=hashlib.sha256(data).hexdigest(),
             pdf_size=len(data),
+            pdf_format=PDF_FORMAT,
+            data=content,
+            data_sha256=content_sha256,
         )
         locked.state = "issued"
         locked.version_count = number
@@ -400,5 +416,25 @@ def read_pdf(*, actor, version):
             obj=version.report,
             after={"version": version.number, "pdf_sha256": version.pdf_sha256},
             reason="Authorized retrieval of the issued certificate.",
+        )
+    return data
+
+
+def read_data(*, actor, version):
+    """Authorized retrieval of the certificate data issued with a version (the bytes embedded
+    in its PDF), checksum-verified and audited."""
+    require_reader(actor)
+    if version.data is None:
+        raise ValidationError(NO_DATA)
+    data = bytes(version.data)
+    if hashlib.sha256(data).hexdigest() != version.data_sha256:
+        raise ValidationError("The stored certificate data failed its integrity check.")
+    with transaction.atomic():
+        record_event(
+            actor=actor,
+            action="report.data_downloaded",
+            obj=version.report,
+            after={"version": version.number, "data_sha256": version.data_sha256},
+            reason="Authorized retrieval of the issued certificate data.",
         )
     return data

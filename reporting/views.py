@@ -16,7 +16,7 @@ from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
 from quality.models import Lot
 
-from . import conformity, lot_record, services
+from . import certificate_data, conformity, lot_record, services
 from . import evidence as ev
 from .forms import (
     AmendForm,
@@ -510,6 +510,25 @@ def version_pdf(request, pk, number):
     disposition = "inline" if request.GET.get("inline") == "1" else "attachment"
     response = HttpResponse(data, content_type="application/pdf")
     response["Content-Disposition"] = f'{disposition}; filename="{name}"'
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+@require_GET
+def version_data(request, pk, number):
+    """The certificate data issued with a version: the bytes embedded in its PDF."""
+    services.require_reader(request.user)  # before the lookup: refusal must not reveal existence
+    report, version = _version(pk, number)
+    try:
+        data = services.read_data(actor=request.user, version=version)
+    except ValidationError as exc:
+        messages.error(request, failure(exc))
+        return redirect("reporting:version", pk=report.pk, number=version.number)
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{report.number}-v{version.number}") + ".json"
+    response = HttpResponse(data, content_type=f"{certificate_data.MEDIA_TYPE}; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
     response["Cache-Control"] = "no-store, private"
     response["X-Content-Type-Options"] = "nosniff"
     return response
