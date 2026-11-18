@@ -41,11 +41,11 @@ A version issued before certificate data existed has no data. Its PDF is the iss
 | `not_tested` | On a certificate for one scope: tests its specification states that the lot has no result for (such a certificate is not issued, so this is empty on an issued one) |
 | `conformity` | On a certificate of all of the lot's requirements, for a lot under more than one specification: each result against every specification that states its test |
 | `decision_rule` | How conformity is judged, as printed, or null when the certificate states no conformity |
+| `sample_results` | Only for a certificate of the development-only manual journey, which has no `results`: its samples, each with its results, limits and reviews |
 | `holds` | Whether hold status is `asserted`, and the holds: each `hold` as printed (its description, or its identifier when it has none) and its `status` |
 | `investigations`, `corrections` | As printed |
 | `signatures` | Each signature manifestation the certificate prints: `meaning`, `signer`, `signed_at`, `bound_to` |
 | `identifiers` | `evidence_sha256`, `assignment_sha256` and the `requirement_sources` the certificate prints, in order (a source repeated by the next result once) |
-| `sample_results` | Only for a certificate of the development-only manual journey, which has no `results`: its samples, each with its results, limits and reviews |
 
 On a certificate for one scope, each laboratory result and each supplier result carries `conformity`: the result as judged against that scope's specification, with its requirement and outcome. Its `reportable` and `limits` are null there, because the values the lot was released against may be another specification's, which that certificate does not name; for the same reason its `conformity` does not say whether that specification was the one applied to the lot. On the certificate of all of the lot's requirements, `conformity` lists every specification's statement and says which one was `applied`, as the printed table does.
 
