@@ -12,7 +12,7 @@
   {% elif report.state == "withdrawn" %}
   {% if awaiting_notification %}<a class="btn btn-primary" href="{% url 'reporting:notify' report.pk %}">Record notification</a>{% endif %}
   {% else %}
-  <a class="btn btn-primary" href="{% url 'reporting:issue_preview' report.lot_id %}">Review and issue</a>
+  <a class="btn btn-primary" href="{% url 'reporting:issue_preview' report.lot_id %}{% if report.scope %}?scope={{ report.scope|urlencode }}{% endif %}">Review and issue</a>
   {% endif %}
   {% endif %}
 {% endblock %}
@@ -27,6 +27,7 @@
 {% endif %}    {% fact label="Certificate" value=report.number class="vr-id text-wrap text-break" %}
     {% fact label="Lot" %}<a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a> · {{ report.lot.material }}{% endfact %}
     {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
+    {% if report.scope %}{% fact label="Certificate for" %}Scope {{ report.scope }}: the tests its specification states, with its limits{% endfact %}{% else %}{% fact label="Certificate for" value="All of the lot's requirements" %}{% endif %}
     {% fact label="Opened" %}{{ report.created_at|when }} by {{ report.created_by|person }}{% endfact %}
 {% if report.state == "withdrawn" %}    {% fact label="Withdrawn" %}{{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}{% endfact %}
     {% fact label="Withdrawal reference" value=report.withdrawal_reference empty="None given" %}

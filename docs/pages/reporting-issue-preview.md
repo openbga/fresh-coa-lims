@@ -2,10 +2,10 @@
 title: Review certificate
 urls: reporting:issue_preview
 views: reporting.views.issue_preview
-templates: reporting/preview.html, reporting/_certificate.html
+templates: reporting/preview.html, reporting/_certificate.html, reporting/_method.html
 models: quality.Lot, quality.LotDates, reporting.Report, core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-17
-summary: The certificate that would be issued for a lot, built from its current signed evidence, and anything that stops it. Nothing is issued here.
+reviewed: 2026-11-18
+summary: The certificate that would be issued for a lot, for all its requirements or for one scope, built from its current signed evidence, and anything that stops it. Nothing is issued here.
 ---
 
 ## Common tasks
@@ -13,14 +13,17 @@ summary: The certificate that would be issued for a lot, built from its current 
 1. Read the preview, from [[Material and lot]] to [[Electronic signatures]].
 2. Select [[Continue to signing]]. It shows only to the quality role when nothing blocks the certificate and you authored no records on the lot.
 3. Sign with your PIN on that page using [[Sign and issue certificate]].
+### Review a certificate for one customer or market
+1. Under [[Certificate for]], choose a scope in [[The certificate reports]] and select [[Show this certificate]].
+2. Read the limits and the conformity of each result, then select [[Continue to signing]].
 ### Find out why a certificate cannot be issued
 1. Read the reasons listed under [[Cannot issue]]. Resolve them on the lot, then open this page again.
 ### Open a certificate already opened for this lot
 1. Under [[Certificates already opened for this lot]], select a certificate number.
 ## Good to know
 - You cannot issue a certificate for a lot where you recorded the lot, a sample or a result, even with the quality role. Another quality user must sign.
+- The certificate uses the evidence frozen at QC disposition. Each result is judged against every specification of the lot; a scope's certificate needs every result within its limits.
 - An open hold blocks the certificate until the hold is closed, resolved, cleared or released.
-- A lot released through native testing is reported from the evidence frozen at its QC disposition, never from today's requirements.
 - If the evidence changes after you review it, signing is refused and you review it again.
 - The certificate reports the laboratory QC disposition. It is not the manufacturer's batch release.
 
@@ -36,17 +39,19 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 
 ## Layout
 
-- **Header**: breadcrumbs, title "Review certificate · lot number", status "Preview, not issued" and the first 16 characters of the evidence hash.
+- **Header**: breadcrumbs, title "Review certificate · lot number", status "Preview, not issued", "For scope X" when a scope is chosen, and the first 16 characters of the evidence hash.
+- **Certificate for** panel (only for a lot under more than one specification): the radio group **The certificate reports** with "All of the lot's requirements" and one choice per scope ("scope: SPEC version N"), and **Show this certificate**. It reloads the page for the choice; nothing is issued.
 - **Alerts** (only one shows, in this priority): "Cannot issue" with the list of reasons; "Not permitted" when you authored records on the lot; "Read only" for users without the quality role.
 - **Certificates already opened for this lot**: links with recipient and status, when any exist.
-- **Certificate preview**: Material and lot, Decision, Applied rules specification and methods (for a lot assigned under several scopes or with additional rule sets: every specification with its scope, each additional rule set, and under the facts each requirement that quality decided between specifications, with what the statements differ in and who decided it, when and why), Results (per sample, or per reportable result for native lots, followed by a separate table of results accepted from the supplier's certificate when the lot has any; when this laboratory performed no test of a native lot, the sentence "No requirement of this lot was tested by this laboratory." takes the place of the laboratory's table), Holds and corrections (including linked investigations for native lots), optional Remarks, Electronic signatures, a **Technical identifiers** block (specification, method and assignment hashes, requirement sources) and the full evidence SHA-256. Hashes wrap so they stay complete and copyable on narrow screens.
+- **Certificate preview**: Material and lot, Decision, Applied rules specification and methods (for a lot assigned under several scopes or with additional rule sets: every specification with its scope, each additional rule set, and under the facts each requirement that quality decided between specifications, with what the statements differ in and who decided it, when and why), Results (per sample, or per reportable result for native lots, followed by a separate table of results accepted from the supplier's certificate when the lot has any; when this laboratory performed no test of a native lot, the sentence "No requirement of this lot was tested by this laboratory." takes the place of the laboratory's table), Holds and corrections (including linked investigations for native lots), optional Remarks, Electronic signatures, a **Technical identifiers** block (specification, method and assignment hashes, requirement sources) and the full evidence SHA-256. A certificate for one scope prints a reduced version of these sections (see Rules). Hashes wrap so they stay complete and copyable on narrow screens.
 
 ## Actions
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
 | **Continue to signing** | Quality role, no blockers, no authorship conflict | Quality | Opens the signing page, carrying the evidence hash you reviewed |
-| Existing certificate links | Certificates exist for the lot | Any viewer | Open that certificate record |
+| **Show this certificate** | The lot is under more than one specification | Any viewer | Reloads the review for the chosen scope (`?scope=`); nothing is saved |
+| Existing certificate links | Certificates exist for the lot | Any viewer | Open that certificate record (the list also names a certificate's scope: "for scope X") |
 
 ## Fields
 
@@ -67,6 +72,10 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 | Status, Analyst, Independent review | `Result.conforms`, `Result.analyst`, review signature | Text | — | Conforms / Out of limits; who recorded; who reviewed and when |
 | Electronic signatures | `ElectronicSignature`; `Lot.disposition_evidence` | Meaning, Signer, Date and time, Bound to | — | One row per reviewed result, per accepted supplier result ("Supplier result assay accepted in place of a test", bound to "Acceptance SRA-n revision N"), the QC disposition and, once issued, the certificate |
 | Holds and corrections | — | Text | — | Each hold with description and status, or "No holds in the hold snapshot."; corrections when any. If no hold snapshot were supplied: "A hold snapshot was not available to this system; hold status is not asserted by this certificate." |
+| The certificate reports (`scope`) | — | Radio choice | No | "All of the lot's requirements" (default) or a scope of the lot. Help: "A certificate for a scope reports the tests its specification states, with its limits, and is issued only when every result meets them." Carried to signing as `scope` in the address |
+| Conformity with each specification | `Lot.disposition_evidence` (frozen requirement assignment), `SpecificationRevision.approved_content` | Test, Sample, Specification, Requirement, Result, Conformity | — | Only for a lot under more than one specification. One row per specification that states the result's test, for each laboratory result, each accepted supplier result and each required test without a result. Conformity is Conforms, Does not conform, Not judged (with the reason), For information or Not tested |
+| Certificate for (scope certificate) | `Report.scope` | Text | — | Printed under Material and lot as "Scope X" on a certificate for one scope |
+| Limits, Conformity (scope certificate) | — | Text | — | The scope's statement of each test with its limits, and whether the result meets it; a reason is printed under Not judged. The supplier table has Specification and Conformity instead |
 | Evidence hash | — | SHA-256 | — | Fingerprint of everything shown; signing is refused if it changes |
 
 ## Rules and hidden logic
@@ -76,9 +85,13 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 - **Native lots**: when the lot was released through approved native testing, the certificate uses the analytical evidence and the exact requirement assignment (identifier and hash) that the QC disposition was signed against, never today's requirements. Specification and methods come only from that assignment, which is looked up for this lot and checked against its hash. If it is missing, belongs to another lot or does not match, the page lists "The requirement assignment signed with the QC disposition could not be resolved and verified." and signing is not offered. It is also blocked if the analytical evidence was incomplete, holds neither a laboratory result nor an accepted supplier result ("No reportable native results are recorded for this lot."), a result lacks a signed review or replicates, an accepted supplier result lacks its signature ("The supplier result accepted for assay has no signed acceptance."), or the disposition was signed by an author of the results.
 - **Several scopes and rule sets**: the specifications of every scope, the additional rule sets and the decided requirements are read from the same frozen assignment, so they are those the QC disposition was signed against. They are part of the evidence and of its hash only for a lot whose requirements were assigned under several scopes or with an additional rule set; a lot under one specification and its own rule set keeps the evidence it always had. Under **Technical identifiers** such a lot has one line per specification, "Specification SPEC-TEST-EU v1 hash". A decided requirement names what its statements differ in, the specification whose statement applies and those not applied, and who decided it, when and why. These are read from what the frozen assignment keeps with each choice: the person, time and reason of the signed decision, or of the replacement that made the choice. When a later replacement carried the choice unchanged, the line also names who signed that replacement and when. The signature of the decision or replacement itself is not a row of the Electronic signatures table; it is shown on Lot requirements and sampling.
 - **Supplier results on the certificate**: a supplier result is printed only when it was accepted in place of a test and stood when the QC disposition was signed. It is never mixed into the laboratory's results table. Other results of a supplier certificate are not printed. Not enforced by this page: a supplier qualification revoked after the acceptance is not shown here and does not block the certificate.
+- **Conformity with each specification**: for a lot under more than one specification (and only then, so other evidence keeps its shape) each reportable result is judged against the statement of its test in every specification of the lot, including a statement that did not apply to the lot, which is marked "Applied to the lot" when it did. The judgement is repeated from the approved specification versions frozen with the assignment, in the way testing judges: the replicate mean is rounded half-up to the statement's reporting precision, limits may be inclusive or exclusive, a less-than reading conforms only to an upper limit it does not exceed, and a supplier's result is compared exactly as stated. Nothing is converted: a statement in another unit or result type, an outcome stated against another pair of outcomes or another criterion (such as another portion tested) and, for laboratory results, another replicate count, another method or fewer retests than the result's investigation used is shown as Not judged with the reason, and so is a specification version whose approved content cannot be verified against its hash. A supplier's result is one stated value, so replicates and method are not compared for it. A statement of a test for information only is For information; a required test with no result is Not tested. The section carries the sentence "How conformity is judged" (measurement uncertainty is not taken into account). The table is part of the evidence and its hash.
+- **Certificate for one scope**: for a lot under more than one specification, the page offers a choice of scope (below). The preview is then the certificate of that scope: the facts include **Certificate for** ("Scope X") and only that scope's specification and the methods of its results; **Required tests**, additional rule sets, decided requirements and the other scopes are not printed. The results table adds **Limits** (the scope's statement) and **Conformity**, supplier results get **Specification** and **Conformity** columns, "Not tested: …" lists required tests with no result, and "How conformity is judged" follows. Signatures list only the reviews and acceptances of the results shown, investigations only those of the tests shown ("Investigations of the tests on this certificate"), and the technical identifiers only that scope's specification and the methods shown. The QC disposition still covers all of the lot's requirements, and the page says so.
+- **Scope blockers**: a certificate for a scope is refused (listed under Cannot issue, rechecked at signing) unless every result meets the scope's statement. The reasons read: "The lot's requirements name no specification for scope X; a certificate for it cannot be issued." (an unknown scope, or a lot under one specification); "<sample> <test>: the result … does not meet <specification> (X), <requirement>."; "<sample> <test>: the result cannot be judged against <specification> (X): <reason>."; "<test>: <specification> (X) requires it and the lot has no result for it; …"; and "No result of the lot answers a test of the specification of X." The address is not trusted: any scope text is checked against the lot's frozen requirements.
+- **Methods**: each method version is listed once, even when several tests use it.
 - **Frozen once issued**: an issued version's snapshot, PDF and hashes never change. Later holds or requirement changes affect only new previews, not issued certificates.
 - **Authorship**: you cannot issue a certificate if you recorded the lot, a sample or a result, or (native lots) authored the frozen analytical records, even with the quality role. For an accepted supplier result the authors are the analyst who proposed it and everyone who recorded or corrected its supplier certificate. For a lot with expiry or retest dates, everyone who recorded or corrected them is an author too, and so is everyone who started, tested or investigated the reassessment that set the retest date in force. This page only hides **Continue to signing**; the server refuses at signing.
-- **No mutation**: viewing writes no audit event. The page works for any lot, so an unreleased lot simply lists its blockers. Unknown lot: 404. GET only.
+- **No mutation**: viewing writes no audit event; a scope in the address is only read. The page works for any lot, so an unreleased lot simply lists its blockers. Unknown lot: 404. GET only.
 
 ## Related pages
 

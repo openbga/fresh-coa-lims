@@ -22,6 +22,7 @@ ROOT = Path(settings.BASE_DIR)
 DOCUMENTS = (
     "reporting/templates/reporting/pdf/",
     "reporting/templates/reporting/_certificate.html",  # screen preview and PDF share it
+    "reporting/templates/reporting/_method.html",  # part of the certificate
 )
 # The components themselves, and the Django widget templates (controls).
 COMPONENT_DIRS = ("templates/includes/", "templates/django/forms/")

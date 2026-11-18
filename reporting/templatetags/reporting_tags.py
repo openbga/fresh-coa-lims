@@ -24,3 +24,51 @@ def section_items(value):
     if isinstance(value, list):
         return [("", str(item)) for item in value]
     return [("", str(value))]
+
+
+@register.simple_tag
+def certificate_scope(snapshot, scope=""):
+    """What a certificate for one scope of the lot reports (`conformity.scope_view`), from the
+    snapshot or the evidence alone; None for a certificate of all of the lot's requirements."""
+    from reporting.conformity import scope_view
+
+    return scope_view(snapshot, scope)
+
+
+@register.filter
+def outcome_label(outcome):
+    """The words of a conformity outcome (`reporting.conformity`)."""
+    from reporting.conformity import OUTCOME_LABELS
+
+    return OUTCOME_LABELS.get(outcome, outcome)
+
+
+@register.filter
+def outcome_tone(outcome):
+    from reporting.conformity import OUTCOME_TONES
+
+    return OUTCOME_TONES.get(outcome, "neutral")
+
+
+@register.simple_tag
+def decision_rule():
+    """How the certificate judges conformity, in words."""
+    from reporting.conformity import DECISION_RULE
+
+    return DECISION_RULE
+
+
+@register.filter
+def distinct_methods(methods):
+    """The methods a certificate names, each version once: the evidence lists the method of
+    every required test, so a method used by several tests appears once per test there."""
+    if not isinstance(methods, list):
+        return methods
+    seen, found = set(), []
+    for method in methods:
+        key = (method.get("code"), method.get("version")) if isinstance(method, dict) else method
+        key = repr(key)
+        if key not in seen:
+            seen.add(key)
+            found.append(method)
+    return found

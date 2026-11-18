@@ -47,14 +47,20 @@ def require_reader(actor):
     require_role(actor, *READ_ROLES)
 
 
+def scope_label(scope):
+    """How a certificate's scope reads in a sentence."""
+    return f"for scope {scope}" if scope else "for all of the lot's requirements"
+
+
 def display_name(user):
     return user.get_full_name() or user.get_username()
 
 
-def preview(lot):
-    """Current evidence, its hash and any blockers (no mutation, no authorization)."""
+def preview(lot, scope=""):
+    """Current evidence, its hash and any blockers (no mutation, no authorization); with a
+    scope, also what stops a certificate for that scope of the lot."""
     evidence = ev.collect_evidence(lot)
-    return evidence, ev.canonical_hash(evidence), ev.blockers(evidence)
+    return evidence, ev.canonical_hash(evidence), ev.blockers(evidence, scope)
 
 
 def lock_account(actor):
@@ -65,24 +71,51 @@ def lock_account(actor):
 
 
 @transaction.atomic
-def open_report(*, actor, lot, recipient):
-    """Create (or fetch) the CoA series head for a released lot and recipient."""
+def open_report(*, actor, lot, recipient, scope=""):
+    """Create (or fetch) the CoA series head for a released lot and recipient, for all of the
+    lot's requirements or for one scope of the lot. The scope is fixed with the head."""
     require_role(actor, ISSUE_ROLE)
     recipient = recipient.strip()
+    scope = (scope or "").strip()
     lock_account(actor)
     locked = Lot.objects.select_for_update().get(pk=lot.pk)
     if locked.state != "released":
         raise ValidationError("A certificate needs a lot with a signed QC disposition.")
     # The current series for this recipient; a withdrawn one is never reused.
     existing = (
-        Report.objects.filter(lot=locked, recipient=recipient).exclude(state="withdrawn").first()
+        Report.objects.select_for_update()
+        .filter(lot=locked, recipient=recipient)
+        .exclude(state="withdrawn")
+        .first()
     )
+    if existing and existing.scope != scope and existing.state == "draft":
+        # Opened but never issued (signing failed after the head was opened): it is opened
+        # again for this scope. Nothing was issued under it, so nothing else changes.
+        before = existing.scope
+        existing.scope = scope
+        existing.save(update_fields=["scope"])
+        record_event(
+            actor=actor,
+            action="report.scope_changed",
+            obj=existing,
+            before={"scope": before},
+            after={"scope": scope},
+            reason="Certificate record not yet issued, opened again for another scope.",
+        )
+        return existing
     if existing:
+        if existing.scope != scope:
+            raise ValidationError(
+                f"{existing.number} is already open for this recipient, "
+                f"{scope_label(existing.scope)}. Amend it, or withdraw it before issuing a "
+                f"certificate {scope_label(scope)}."
+            )
         return existing
     sequence = (Report.objects.filter(lot=locked).count()) + 1
     report = Report.objects.create(
         lot=locked,
         recipient=recipient,
+        scope=scope,
         sequence=sequence,
         number=f"CoA-{locked.number}-{sequence}",
         created_by=actor,
@@ -97,6 +130,7 @@ def open_report(*, actor, lot, recipient):
     return report
 
 
+@sensitive_variables("pin")
 def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, reason, remarks):
     meaning = "issued" if kind == "issue" else "amended"
     reason = reason.strip()
@@ -118,7 +152,7 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
         current_hash = ev.canonical_hash(evidence)
         if current_hash != evidence_hash:
             raise ValidationError("The evidence changed since you reviewed it. Review again.")
-        problems = ev.blockers(evidence)
+        problems = ev.blockers(evidence, locked.scope)
         if problems:
             raise ValidationError(["Certificate cannot be issued:", *problems])
         if ev.independence_conflict(evidence, actor):
@@ -135,6 +169,7 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
                 "version": number,
                 "kind": kind,
                 "recipient": locked.recipient,
+                "scope": locked.scope,
                 "remarks": remarks,
                 "reason": reason,
                 "amends_version": previous.number if previous else None,
@@ -185,7 +220,8 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
     )
 
 
-def _issue_preflight(*, actor, pin, lot, evidence_hash, reason):
+@sensitive_variables("pin")
+def _issue_preflight(*, actor, pin, lot, evidence_hash, reason, scope):
     """Every refusal that can be decided before a series head exists, so a refused issue does
     not leave a numbered head behind. All of it is rechecked under lock when signing; a failed
     PIN is recorded by `verify_pin` in its own transaction, as for any signing."""
@@ -193,7 +229,7 @@ def _issue_preflight(*, actor, pin, lot, evidence_hash, reason):
     if not reason.strip():
         raise ValidationError("A reason is required.")
     signing_context(actor)
-    evidence, current_hash, problems = preview(lot)
+    evidence, current_hash, problems = preview(lot, scope)
     if current_hash != evidence_hash:
         raise ValidationError("The evidence changed since you reviewed it. Review again.")
     if problems:
@@ -203,10 +239,16 @@ def _issue_preflight(*, actor, pin, lot, evidence_hash, reason):
     verify_pin(actor, pin)
 
 
-def issue_report(*, actor, pin, lot, recipient, evidence_hash, reason, remarks=""):
-    """Sign and issue version 1 for a released lot (creating the series head if needed)."""
-    _issue_preflight(actor=actor, pin=pin, lot=lot, evidence_hash=evidence_hash, reason=reason)
-    report = open_report(actor=actor, lot=lot, recipient=recipient)
+@sensitive_variables("pin")
+def issue_report(*, actor, pin, lot, recipient, evidence_hash, reason, remarks="", scope=""):
+    """Sign and issue version 1 for a released lot (creating the series head if needed), for
+    all of the lot's requirements or, with ``scope``, for one scope of the lot: its
+    specification's tests and limits, refused unless every result meets them."""
+    scope = (scope or "").strip()
+    _issue_preflight(
+        actor=actor, pin=pin, lot=lot, evidence_hash=evidence_hash, reason=reason, scope=scope
+    )
+    report = open_report(actor=actor, lot=lot, recipient=recipient, scope=scope)
     return _transition(
         actor=actor,
         pin=pin,
@@ -219,6 +261,7 @@ def issue_report(*, actor, pin, lot, recipient, evidence_hash, reason, remarks="
     )
 
 
+@sensitive_variables("pin")
 def amend_report(*, actor, pin, report, expected_version, evidence_hash, reason, remarks=""):
     """Sign an amendment: a new version that supersedes, and never alters, the issued one."""
     return _transition(

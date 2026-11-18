@@ -4,13 +4,13 @@ urls: reporting:list
 views: reporting.views.report_list
 templates: reporting/report_list.html, includes/grid_toolbar.html, includes/list_results.html, includes/pagination.html, includes/sort_header.html
 models: reporting.Report, reporting.RecipientNotification, quality.Lot
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: Every certificate of analysis in one list. Find a certificate, see whether it is issued, amended or withdrawn, or start a new one for a lot with a signed QC disposition.
 ---
 
 ## Common tasks
 ### Find a certificate
-1. Type a certificate number, lot number, material or recipient in [[Search]].
+1. Type a certificate number, lot number, material, recipient or scope in [[Search]].
 2. To see one status, choose it in [[Status]], then select [[Apply]].
 3. Select a certificate number to open its record.
 ### Start a new certificate
@@ -24,7 +24,7 @@ summary: Every certificate of analysis in one list. Find a certificate, see whet
 ## Good to know
 - A Not issued record holds no evidence. It stays when a signing attempt is refused after the record was opened.
 - Amended means the certificate has more than one version and is not withdrawn. Every earlier version stays on the certificate record.
-- A lot can have several certificates, one current for each recipient named in Issued to. One issued again after a withdrawal gets a new number.
+- A lot can have several certificates, one current for each recipient named in Issued to, for all of the lot's requirements or one scope. One issued again after a withdrawal gets a new number.
 - Withdrawn certificates show "Notification not recorded" under their status until a recipient notification is recorded.
 - The newest certificate record comes first, not the most recently issued or amended.
 
@@ -40,8 +40,8 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 ## Layout
 
 - **Header**: title, the line "Versioned, immutable certificates built from signed QC disposition evidence." and the **New certificate of analysis** button (quality only).
-- **Toolbar** (at the top of the table card): **Search** (placeholder "Number, lot, material or recipient"), **Status** (default "All statuses"), **Apply**, and **Clear all** (only while a filter is active).
-- **Table**: Certificate (with "version N", or "not issued", under it), Lot (links to the lot, with the material under it), Issued to, Status (a withdrawn certificate without a recorded notification shows "Notification not recorded" under Withdrawn). Certificate numbers link to the record; Certificate, Lot and Status headers sort. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
+- **Toolbar** (at the top of the table card): **Search** (placeholder "Number, lot, material, recipient or scope"), **Status** (default "All statuses"), **Apply**, and **Clear all** (only while a filter is active).
+- **Table**: Certificate (with "version N", or "not issued", under it), Lot (links to the lot, with the material under it), Issued to (a certificate for one scope adds "For scope X" under the recipient), Status (a withdrawn certificate without a recorded notification shows "Notification not recorded" under Withdrawn). Certificate numbers link to the record; Certificate, Lot and Status headers sort. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N certificates", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No certificates of analysis yet" ("A certificate can be issued once a lot has a signed QC disposition.", with **Start a certificate** for quality users) and, when filters are active, "No certificates match these filters" ("Change the search or clear the filters.") with **Clear filters**.
 
@@ -61,12 +61,12 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Search (`q`) | `Report.number`, `Lot.number`, `Lot.material`, `Report.recipient` | Text | No | Case-insensitive "contains" match on any of these; leading and trailing spaces ignored |
+| Search (`q`) | `Report.number`, `Lot.number`, `Lot.material`, `Report.recipient`, `Report.scope` | Text | No | Case-insensitive "contains" match on any of these; leading and trailing spaces ignored |
 | Status | `Report.state`, `Report.version_count`, `RecipientNotification` | Not issued, Issued, Amended, Withdrawn, Awaiting notification | No | Not issued = record opened, nothing signed; Issued = exactly one version, not withdrawn; Amended = more than one, not withdrawn; Withdrawn = withdrawal signed; Awaiting notification = withdrawn and no recipient notification recorded |
 | Certificate | `Report.number` | Text | — | Identifier, `CoA-<lot number>-<sequence>` |
 | Lot | `Report.lot` | Lot number | — | Lot the certificate covers |
 | Material | `Lot.material` | Text | — | Material on the lot |
-| Issued to | `Report.recipient` | Text | — | Named recipient, or "General" when blank |
+| Issued to | `Report.recipient`, `Report.scope` | Text | — | Named recipient, or "General" when blank; "For scope X" under it when the certificate is for one scope of the lot |
 | Version | `Report.version_count` | Integer | — | Number of issued versions; "—" when none |
 
 ## Rules and hidden logic

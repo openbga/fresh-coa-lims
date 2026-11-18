@@ -9,15 +9,24 @@ from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Value, Whe
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.decorators.http import require_GET, require_http_methods
 
 from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
 from quality.models import Lot
 
+from . import conformity, lot_record, services
 from . import evidence as ev
-from . import lot_record, services
-from .forms import AmendForm, IssueForm, LotPickForm, LotRecordForm, NotificationForm, WithdrawForm
+from .forms import (
+    AmendForm,
+    IssueForm,
+    LotPickForm,
+    LotRecordForm,
+    NotificationForm,
+    ScopeForm,
+    WithdrawForm,
+)
 from .models import RecipientNotification, Report
 from .render import RenderError
 
@@ -114,6 +123,7 @@ def report_list(request):
             | Q(lot__number__icontains=query)
             | Q(lot__material__icontains=query)
             | Q(recipient__icontains=query)
+            | Q(scope__icontains=query)
         )
     if status:
         reports = reports.filter(STATUS_FILTERS[status])
@@ -155,12 +165,20 @@ def report_new(request):
     )
 
 
-def _review_context(request, lot, evidence, digest, problems):
+def _scope(request):
+    """The scope a new certificate is reviewed or signed for, from the address ("" for all of
+    the lot's requirements). Validated by the evidence gates, never trusted."""
+    return request.GET.get("scope", "").strip()[:60]
+
+
+def _review_context(request, lot, evidence, digest, problems, scope=""):
     return {
         "lot": lot,
         "evidence": evidence,
         "snapshot": {**evidence, "evidence_hash": digest},
         "evidence_hash": digest,
+        "scope": scope,
+        "scope_text": services.scope_label(scope),
         "blockers": problems,
         "is_preview": True,
         "can_sign": has_role(request.user, services.ISSUE_ROLE),
@@ -168,16 +186,24 @@ def _review_context(request, lot, evidence, digest, problems):
     }
 
 
+def _preview_url(lot, scope):
+    url = reverse("reporting:issue_preview", args=[lot.pk])
+    return f"{url}?{urlencode({'scope': scope})}" if scope else url
+
+
 @login_required
 @require_GET
 def issue_preview(request, lot_pk):
     services.require_reader(request.user)
     lot = get_object_or_404(Lot, pk=lot_pk)
-    evidence, digest, problems = services.preview(lot)
-    context = _review_context(request, lot, evidence, digest, problems)
+    scope = _scope(request)
+    evidence, digest, problems = services.preview(lot, scope)
+    context = _review_context(request, lot, evidence, digest, problems, scope)
+    scopes = conformity.scopes(evidence)
     context.update(
         page_title=f"Review certificate · {lot.number}",
         reports=lot.reports.all(),
+        scope_form=ScopeForm({"scope": scope}, scopes=scopes) if scopes else None,
     )
     return render(request, "reporting/preview.html", context)
 
@@ -189,14 +215,16 @@ def issue_sign(request, lot_pk):
     lot = get_object_or_404(Lot, pk=lot_pk)
     status = 200
     if request.method == "GET":
-        evidence, digest, problems = services.preview(lot)
+        scope = _scope(request)
+        evidence, digest, problems = services.preview(lot, scope)
         refusal = preflight(request, evidence, digest, problems, "issued")
         if refusal:
             messages.warning(request, refusal)
-            return redirect("reporting:issue_preview", lot_pk=lot.pk)
-        form = IssueForm(initial={"evidence_hash": digest})
+            return redirect(_preview_url(lot, scope))
+        form = IssueForm(initial={"evidence_hash": digest, "scope": scope})
     else:
         form = IssueForm(request.POST)
+        scope = (form.data.get("scope") or "").strip()[:60]
         status = 422
         if form.is_valid():
             try:
@@ -219,8 +247,8 @@ def issue_sign(request, lot_pk):
             "heading": "Sign and issue certificate",
             "submit": "Sign and issue certificate",
             "meaning": "issued",
-            "target": f"CoA for lot {lot.number}, version 1",
-            "cancel_url": reverse("reporting:issue_preview", args=[lot.pk]),
+            "target": f"CoA for lot {lot.number}, version 1, {services.scope_label(scope)}",
+            "cancel_url": _preview_url(lot, scope),
             "evidence_short": form["evidence_hash"].value()[:16]
             if form["evidence_hash"].value()
             else "",
@@ -276,7 +304,7 @@ def _amendment_context(request, report):
     latest = report.versions.order_by("-number").first()
     if latest is None:
         raise ValidationError("Only an issued certificate can be amended.")
-    evidence, digest, problems = services.preview(report.lot)
+    evidence, digest, problems = services.preview(report.lot, report.scope)
     return latest, evidence, digest, problems
 
 
@@ -291,7 +319,7 @@ def amend_preview(request, pk):
         messages.error(request, failure(exc))
         return redirect("reporting:detail", pk=report.pk)
     previous = {k: v for k, v in latest.snapshot.items() if k not in {"report", "evidence_hash"}}
-    context = _review_context(request, report.lot, evidence, digest, problems)
+    context = _review_context(request, report.lot, evidence, digest, problems, report.scope)
     context.update(
         page_title=f"Amend certificate · {report.number}",
         report=report,
@@ -316,7 +344,7 @@ def amend_sign(request, pk):
         return redirect("reporting:detail", pk=report.pk)
     status = 200
     if request.method == "GET":
-        evidence, digest, problems = services.preview(report.lot)
+        evidence, digest, problems = services.preview(report.lot, report.scope)
         refusal = preflight(request, evidence, digest, problems, "amended")
         if refusal:
             messages.warning(request, refusal)
@@ -353,7 +381,8 @@ def amend_sign(request, pk):
             "heading": "Sign and amend certificate",
             "submit": "Sign and amend certificate",
             "meaning": "amended",
-            "target": f"{report.number}, new version {latest.number + 1}",
+            "target": f"{report.number}, new version {latest.number + 1}, "
+            f"{services.scope_label(report.scope)}",
             "cancel_url": reverse("reporting:amend_preview", args=[report.pk]),
             "evidence_short": (form["evidence_hash"].value() or "")[:16],
         },

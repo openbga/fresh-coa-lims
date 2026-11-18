@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}Review a certificate's evidence before signing its issue or amendment; nothing is issued here. Context: page_title, lot, report, latest, amending, changed, reports, snapshot, evidence_hash, blockers, conflict, can_sign.{% endcomment %}
+{% comment %}Review a certificate's evidence before signing its issue or amendment; nothing is issued here. Context: page_title, lot, report, latest, amending, changed, reports, snapshot, evidence_hash, scope (the scope the certificate is for, "" for all of the lot's requirements), scope_text, scope_form (ScopeForm, only for a lot under several specifications and a new certificate), blockers, conflict, can_sign.{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% if amending %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current="Amend" %}{% else %}{% breadcrumbs section="Certificates" section_url=list_url record=lot.number current="Review certificate" %}{% endif %}{% endblock %}
-{% block page_meta %}{% page_meta %}<li>{% status label="Preview, not issued" tone="info" %}</li><li>Evidence <span class="vr-id text-wrap text-break">{{ evidence_hash|slice:":16" }}</span></li>{% endpage_meta %}{% endblock %}
+{% block page_meta %}{% page_meta %}<li>{% status label="Preview, not issued" tone="info" %}</li>{% if scope %}<li>For scope {{ scope }}</li>{% endif %}<li>Evidence <span class="vr-id text-wrap text-break">{{ evidence_hash|slice:":16" }}</span></li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}
   {% if can_sign and not blockers and not conflict %}
     {% if amending %}<a class="btn btn-primary" href="{% url 'reporting:amend_sign' report.pk %}?evidence={{ evidence_hash }}">Continue to signing</a>
-    {% else %}<a class="btn btn-primary" href="{% url 'reporting:issue_sign' lot.pk %}?evidence={{ evidence_hash }}">Continue to signing</a>{% endif %}
+    {% else %}<a class="btn btn-primary" href="{% url 'reporting:issue_sign' lot.pk %}?evidence={{ evidence_hash }}{% if scope %}&amp;scope={{ scope|urlencode }}{% endif %}">Continue to signing</a>{% endif %}
   {% endif %}
 {% endblock %}
 {% block content %}
@@ -20,10 +20,19 @@
 {% if amending %}
 {% notice tone="info" label="Amendment" %}Replaces version {{ latest.number }}, which stays on record unchanged. {% if changed %}Evidence sections changed since then: {{ changed|join:", " }}.{% else %}The evidence is unchanged since version {{ latest.number }}; amend only to correct certificate remarks or wording.{% endif %}{% endnotice %}
 {% endif %}
-{% if not amending and reports %}
-{% panel title="Certificates already opened for this lot" heading_id="existing-heading" class="mb-3" %}
-  <ul class="mb-0">{% for r in reports %}<li><a href="{% url 'reporting:detail' r.pk %}">{{ r.number }}</a> · {{ r.recipient|default:"General" }} · {{ r.status_label }}</li>{% endfor %}</ul>
+{% if scope_form and not amending %}
+{% panel title="Certificate for" heading_id="scope-heading" class="mb-3" %}
+  <p>This lot is under more than one specification. Choose whether the certificate reports all of the lot's requirements or the specification of one of its scopes, such as a customer's.</p>
+  <form method="get" novalidate>
+    {% field field=scope_form.scope label="The certificate reports" %}
+    <button class="btn btn-outline-secondary" type="submit">Show this certificate</button>
+  </form>
 {% endpanel %}
 {% endif %}
-{% include "reporting/_certificate.html" with snapshot=snapshot only %}
+{% if not amending and reports %}
+{% panel title="Certificates already opened for this lot" heading_id="existing-heading" class="mb-3" %}
+  <ul class="mb-0">{% for r in reports %}<li><a href="{% url 'reporting:detail' r.pk %}">{{ r.number }}</a> · {{ r.recipient|default:"General" }}{% if r.scope %} · for scope {{ r.scope }}{% endif %} · {{ r.status_label }}</li>{% endfor %}</ul>
+{% endpanel %}
+{% endif %}
+{% include "reporting/_certificate.html" with snapshot=snapshot scope=scope only %}
 {% endblock %}
