@@ -21,7 +21,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - `CERTIFICATE_CHECK_RATE` (default 20, 1 to 600) bounds checks without an account per minute for the whole deployment, before the request body is read; past it the page answers 429 with `Retry-After`. Keep per-address rate limiting at the reverse proxy.
   > - Uploads are hashed as they arrive and never stored, within `RAW_DATA_MAX_BYTES`. Checks without an account are kept once a day for each version and answer, and a cross-site POST is refused with 403 before it is counted. The lot record export adds the section `report_checks`. The certificate prints nothing new.
 
-- **Added**: Import results from an instrument's export file · Testing · 2026-11-18
+- **Added**: Import results from an instrument's export file · Testing · 2026-11-18 · [#58](https://github.com/openbga/qm-lims/pull/58)
 
   Quality can give a draft method version a **File import** that states how its instrument's export is read: the file's format, the column naming the test and the column of each input. It is approved with the version. On a test of that version, **Import results** attaches the export to the test's raw data and shows the values read from it for checking, with a field for anything the file does not hold. **Record imported results** then records every row as a replicate, with the file and the row it came from. A cell that is not a plain number refuses the whole file. Submission and review read the stored file again.
 

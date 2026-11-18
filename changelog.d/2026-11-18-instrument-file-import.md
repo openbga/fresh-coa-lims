@@ -5,6 +5,7 @@ impact: high
 title: Import results from an instrument's export file
 area: Testing
 link: catalog:methods
+pr: 58
 ---
 Quality can give a draft method version a **File import** that states how its instrument's export is read: the file's format, the column naming the test and the column of each input. It is approved with the version. On a test of that version, **Import results** attaches the export to the test's raw data and shows the values read from it for checking, with a field for anything the file does not hold. **Record imported results** then records every row as a replicate, with the file and the row it came from. A cell that is not a plain number refuses the whole file. Submission and review read the stored file again.
 
