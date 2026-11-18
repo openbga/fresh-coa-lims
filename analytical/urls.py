@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import rawdata, views
+from . import imports, rawdata, views
 
 app_name = "analytical"
 urlpatterns = [
@@ -28,4 +28,6 @@ urlpatterns = [
     path("investigations/<int:pk>/conclude/", views.conclude, name="conclude"),
     path("tests/<int:pk>/raw-files/new/", rawdata.raw_file_new, name="raw_file_new"),
     path("raw-files/<int:pk>/download/", rawdata.raw_file_download, name="raw_file_download"),
+    path("tests/<int:pk>/import/", imports.import_new, name="import_new"),
+    path("tests/<int:pk>/import/<int:file_pk>/", imports.import_file, name="import_file"),
 ]

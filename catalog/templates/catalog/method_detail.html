@@ -24,6 +24,7 @@
   </dl>
   {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all editable=revision.is_draft can_edit=can_edit revision=revision only %}{% endif %}
   {% include "catalog/includes/calculation.html" with revision=revision can_edit=can_edit only %}
+  {% include "catalog/includes/file_import.html" with revision=revision can_edit=can_edit only %}
   {% signature_list signatures=revision.signature_list hash=True %}
 {% endpanel %}
 {% endwith %}{% endwith %}

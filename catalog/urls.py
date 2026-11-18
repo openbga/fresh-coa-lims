@@ -64,6 +64,16 @@ urlpatterns = [
         views.calculation_input_remove,
         name="calculation_input_remove",
     ),
+    path(
+        "method-versions/<int:pk>/file-import/",
+        views.file_import_set,
+        name="file_import_set",
+    ),
+    path(
+        "method-versions/<int:pk>/file-import/clear/",
+        views.file_import_clear,
+        name="file_import_clear",
+    ),
     path("method-versions/<int:pk>/withdraw/", views.method_withdraw, name="method_withdraw"),
     path("materials/", views.material_list, name="materials"),
     path("materials/new/", views.material_new, name="material_new"),

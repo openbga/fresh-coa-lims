@@ -4,8 +4,8 @@ urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
 models: catalog.Method, catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-17
-summary: One method and all its versions, newest first: procedure, suitability evidence, batch QC checks, calculation, signatures and history. Quality users build and approve drafts here.
+reviewed: 2026-11-18
+summary: One method and all its versions, newest first: procedure, suitability evidence, batch QC checks, calculation, file import, signatures and history. Quality users build and approve drafts here.
 ---
 
 ## Common tasks
@@ -13,11 +13,12 @@ summary: One method and all its versions, newest first: procedure, suitability e
 1. On the draft's card, select [[Review and approve]]. It shows only if you did not create or change that draft.
 2. Check the content and sign with your PIN on that page.
 ### Start a new version
-1. Select [[New version]]. The draft copies the latest version's calculation and inputs, and its QC checks when it runs in a QC batch.
-### Set up the calculation of a draft
+1. Select [[New version]]. The draft copies the latest version's calculation, inputs and file import, and its QC checks when it runs in a QC batch.
+### Set up the calculation and file import of a draft
 1. Select [[Set formula]], or [[Change formula]] once one is set, and enter the formula, result unit and decimals.
 2. Select [[Add input]] once for each name the formula uses.
 3. To start again, select [[Clear calculation]]. It removes the formula and every input.
+4. To let analysts import results from the instrument's export, select [[Set file import]].
 ### Add or remove batch QC checks
 1. On a draft that runs in a QC batch, select [[Add QC check]].
 2. To take a check or an input off, select [[Remove]] on its row.
@@ -47,6 +48,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Controlled procedure, Suitability, Effective, Summary (only when entered), QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Record revision, Author.
 - **Batch QC checks** (batch methods only): table Check, "Limits (inclusive)", with **Remove** on drafts for quality. Empty: "No QC checks yet. Approval requires at least one." **Add QC check** on drafts for quality.
 - **Calculation** (every version): formula, result unit and decimals, and a table Input, Unit with **Remove** on drafts for quality. Without a calculation: "No calculation. Results are entered directly." Without inputs: "No inputs yet. Approval requires one input for each name in the formula." On drafts for quality: **Set formula** (**Change formula** once set), **Add input** and, when there is a calculation, **Clear calculation**.
+- **File import** (every version): Export, Format ("<separator> separated, decimal mark <mark>, <encoding>"), Column names ("Row N") and Rows read, then a table Input, Column of the file ("Entered by the analyst for each row" for an input the file does not hold). Without one: "No file import. Analysts record each result by hand." On drafts for quality: **Set file import** (**Change file import** once set) and, when there is one, **Clear file import**.
 - **Signatures** under each version: signer, meaning, time, record revision, hash, or "Not signed."
 - **Empty state**: "No versions" ("Create the first version of this method.").
 - **History**: audit events for the method and all its versions (including QC check changes), oldest first.
@@ -65,6 +67,8 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 | **Add input** | Draft, quality | Quality | Opens the Add calculation input form |
 | **Remove** (input) | Draft, quality | Quality | Opens the Remove calculation input form |
 | **Clear calculation** | Draft with a calculation, quality | Quality | Opens the Clear calculation form |
+| **Set file import** / **Change file import** | Draft, quality | Quality | Opens the File import form |
+| **Clear file import** | Draft with a file import, quality | Quality | Opens the Clear file import form |
 
 ## Fields
 
@@ -81,6 +85,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 | Formula | `MethodRevision.calculation_formula` | Text, max 500 | — | Arithmetic over the input codes. |
 | Result | `MethodRevision.calculation_unit`, `calculation_decimals` | Unit, 0 to 8 decimals | — | Unit of the calculated value and the decimals it is rounded to. |
 | Input | `MethodCalculationInput.code`, `name`, `unit` | Code, name, unit | — | One value the analyst enters, in the order added. |
+| File import | `MethodRevision.file_import` | Format, rows and columns | — | How analysts import the version's results from its instrument's export; frozen with the approval and with each test assigned under the version. |
 | Record revision | `MethodRevision.revision` | Integer | — | Increases with QC check and calculation changes, approval and withdrawal. |
 | Author | `MethodRevision.author` | User | — | Who created the version. |
 | Check | `MethodQCCheck.code`, `name` | Text | — | QC check identifier and name. |
@@ -93,11 +98,11 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **Not shown here**: the reason for change appears only in the audit history.
 - **Effective intervals** are half-open. The version used is the approved one that applies now: inside its period and not superseded. Approving a later version whose period overlaps an approved one retires the earlier one from the later of the new version's start and the moment of approval (never retroactively); the earlier version keeps its approved content and signature. Approving a draft that overlaps an approved version numbered after it is refused. Lots keep the versions frozen for them.
 - **Independence**: author and anyone who changed the draft cannot approve it.
-- A new version starts with the calculation and inputs of the previous version. Approval checks the calculation (see Approve method version); a specification test of a calculated method must be numeric with the calculation's unit.
-- Audit actions are shown as stored, for example `method_revision.qc_check_added`, `method_revision.calculation_set`, `method_revision.calculation_cleared`, `method_revision.calculation_input_added`.
+- A new version starts with the calculation, inputs and file import of the previous version. Approval checks the calculation (see Approve method version); a specification test of a calculated method must be numeric with the calculation's unit.
+- Audit actions are shown as stored, for example `method_revision.qc_check_added`, `method_revision.calculation_set`, `method_revision.calculation_cleared`, `method_revision.calculation_input_added`, `method_revision.file_import_set`, `method_revision.file_import_cleared`.
 
 ## Related pages
 
 - [Methods](/catalog/methods/)
-- New version, Approve method, Withdraw draft, Add QC check, Remove QC check, Calculation, Add calculation input, Remove calculation input, Clear calculation.
+- New version, Approve method, Withdraw draft, Add QC check, Remove QC check, Calculation, Add calculation input, Remove calculation input, Clear calculation, File import of a method version, Clear file import.
 - Specification version pages list this method for each test.

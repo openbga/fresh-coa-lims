@@ -4,8 +4,8 @@ urls: catalog:method_version_new
 views: catalog.views.method_version_new
 templates: catalog/form.html
 models: catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput
-reviewed: 2026-11-17
-summary: Create the next draft version of a method. It starts with the calculation, inputs and resource options of the latest version, and its QC checks when it runs in a QC batch.
+reviewed: 2026-11-18
+summary: Create the next draft version of a method. It starts with the calculation, inputs, file import and resource options of the latest version, and its QC checks when it runs in a QC batch.
 ---
 
 ## Common tasks
@@ -33,7 +33,7 @@ Creates the next draft version of a method.
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code, New version. Title: "New version of" and the code.
-- **Intro**: "The new draft copies the QC checks (when it runs in a QC batch), the calculation and its inputs of the latest version. The resource options start as in that version."
+- **Intro**: "The new draft copies the QC checks (when it runs in a QC batch), the calculation and its inputs, and the file import of the latest version. The resource options start as in that version."
 - **Form sections**: Procedure, "Resources recorded with results", Suitability, Effective period, Change control.
 - **Buttons**: **Cancel** (back to the method) and **Create draft version**.
 
@@ -66,6 +66,7 @@ Creates the next draft version of a method.
 - **Numbering**: highest existing version number plus one. The form is not prefilled from earlier versions, except the two resource options, which start as in the latest version.
 - **QC checks**: if "Runs in a QC batch" is ticked and an earlier version exists, its QC checks (from the highest-numbered version) are copied into the draft. Otherwise none are copied.
 - **Calculation**: the latest version's formula, result unit, decimals and inputs are copied into the draft whatever its status, so a copy of an incomplete draft stays incomplete until fixed. Change them with the calculation pages on the method record.
+- **File import**: the latest version's file import, if any, is copied into the draft. Change or clear it on the method record.
 - **Interval**: "The effective end must be after the start." Overlap with approved versions is worked out only at approval, where this version retires an earlier approved version whose period it overlaps (see Approve method version).
 - **Audit**: `method_revision.created` with your reason.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.

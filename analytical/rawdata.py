@@ -1,8 +1,9 @@
 """Raw-data files attached to a test: service, form and views.
 
-A file is untrusted data. It is never parsed, rendered or executed: the bytes are stored as
-received with their SHA-256 checksum, and a download re-verifies that checksum and returns the
-bytes as an opaque attachment.
+A file is untrusted data. It is never rendered or executed: the bytes are stored as received
+with their SHA-256 checksum, and a download re-verifies that checksum and returns the bytes as an
+opaque attachment. Only ``analytical.imports`` reads one, as delimited text through the file
+import approved with the test's method version, when an analyst imports results from it.
 """
 
 import hashlib
@@ -128,7 +129,7 @@ class RawFileForm(forms.Form):
     file = forms.FileField(
         label="File",
         help_text=(
-            "Kept exactly as received and never opened by the system. "
+            "Kept exactly as received and never changed. "
             "Large files and duplicates of a file already attached are refused."
         ),
     )

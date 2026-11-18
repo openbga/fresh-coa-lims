@@ -4,7 +4,7 @@ urls: analytical:raw_file_new, analytical:raw_file_download
 views: analytical.rawdata.raw_file_new, analytical.rawdata.raw_file_download
 templates: analytical/raw_file_form.html, analytical/_summary.html, analytical/_raw_files.html, 413.html
 models: analytical.RawDataFile, analytical.AnalyticalTest, quality.Lot, core.AuditEvent
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: Attach a raw-data file, such as an instrument export or a notebook page, to an open test so a reviewer can check the original. The file is kept unchanged.
 ---
 
@@ -15,7 +15,7 @@ summary: Attach a raw-data file, such as an instrument export or a notebook page
 ### Download an attached file
 1. On the test record, select [[Download]] on the file's row under [[Raw data files]].
 ## Good to know
-- Files are never opened, changed or deleted. If you attached the wrong file, attach the right one and say so in its description.
+- Files are never changed or deleted. If you attached the wrong file, attach the right one and say so in its description.
 - Attaching makes you an author of the test's data: you cannot review the test or sign the lot's QC disposition.
 - The same file content cannot be attached twice to one test.
 - A test holding a raw-data file counts as tested here, so a supplier's result can no longer stand in for its requirement.
@@ -60,7 +60,7 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 
 ## Rules and hidden logic
 
-- **Never opened**: the system does not read, display or run the file content. It is only stored, checksummed and returned.
+- **Never changed**: the system does not display, convert or run the file content. It is stored, checksummed and returned. It is read only when an analyst imports results from it with the method's file import (Import results from a file); attaching it here imports nothing.
 - **File name**: only the base name is kept (folders in `/` or `\` form are dropped) and control characters are removed. A name that is empty afterwards, or longer than 200 characters, is refused.
 - **Refusals** (form error with status 422, nothing stored): "The file is empty."; "The file is larger than the limit of ..."; "A test holds at most 20 raw-data files."; "This file content is already attached to this test." (same checksum on the same test); "This deployment has reached its storage limit for files. The file was not stored." (only where the deployment sets a ceiling for all files together); "Describe what the file is."; "This test is not accepting raw data."; "Lot ... is no longer in quarantine."
 - **Wrong state** (opening or submitting): you are redirected to the test record with "This test is not accepting raw data." (test not Open, lot not in quarantine, or for a stability test its pull not open for testing, or for a reassessment test its reassessment not open) or "A supplier's result is proposed or accepted in place of this test (SRA-1). Withdraw it on the lot record before testing the requirement in the laboratory."
@@ -77,3 +77,4 @@ Attach a file of raw data (an instrument export, a chromatogram, a photographed 
 
 - Test record (return target, and the list of attached files).
 - Lot record and Supplier result acceptance record (when a supplier result stands in place of the test).
+- Import results, which attaches an instrument export and reads it with the method's file import.

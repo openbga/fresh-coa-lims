@@ -1,4 +1,4 @@
-{% load ui %}{% comment %}Raw-data files of a test. Include with test=... can_correct=... only (can_correct: analyst, open test, lot in quarantine or stability pull being tested).{% endcomment %}
+{% load ui %}{% comment %}Raw-data files of a test. Include with test=... can_correct=... can_import=... imported_files=... only (can_correct: analyst, open test, lot in quarantine or stability pull being tested; can_import: results can be imported from a file now; imported_files: ids of the files replicates were imported from).{% endcomment %}
 {% with files=test.raw_file_list %}
 {% panel title="Raw data files" heading_id="raw-heading" count=files|length table=True %}
   {% fill actions %}{% if can_correct %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'analytical:raw_file_new' test.pk %}">Attach raw data</a>{% endif %}{% endfill %}
@@ -14,7 +14,7 @@
           <td><span class="vr-id" title="{{ f.sha256 }}">{{ f.sha256|truncatechars:13 }}</span></td>
           <td class="vr-wrap">{{ f.description }}</td>
           <td class="vr-nowrap">{{ f.uploaded_by|person }}<div class="small vr-muted"><time datetime="{{ f.uploaded_at|date:'c' }}">{{ f.uploaded_at|date:"Y-m-d H:i T" }}</time></div></td>
-          <td><a href="{% url 'analytical:raw_file_download' f.pk %}">Download<span class="visually-hidden"> {{ f.filename }}</span></a></td>
+          <td class="vr-nowrap"><a href="{% url 'analytical:raw_file_download' f.pk %}">Download<span class="visually-hidden"> {{ f.filename }}</span></a>{% if f.pk in imported_files %}<div class="small vr-muted">Results imported</div>{% elif can_import %}<div><a href="{% url 'analytical:import_file' test.pk f.pk %}">Import results<span class="visually-hidden"> from {{ f.filename }}</span></a></div>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

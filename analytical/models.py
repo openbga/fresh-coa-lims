@@ -443,12 +443,34 @@ class Observation(models.Model):
         help_text="Calculation applied (method, revision, formula, unit, decimals); empty for an "
         "entered result",
     )
+    # An imported replicate: the raw-data file of the test it was read from, with the row and
+    # the cells as read (``imports.import_observations``). Empty for a replicate entered by hand.
+    source_file = models.ForeignKey(
+        "RawDataFile",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="imported_observations",
+    )
+    source = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Row of the instrument export and the cells read from it; empty when entered "
+        "by hand",
+    )
     recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     recorded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["replicate", "recorded_at", "pk"]
         constraints = [
+            # An imported replicate names its file and the row it was read from; one entered by
+            # hand names neither. A correction is always entered by hand.
+            models.CheckConstraint(
+                condition=(Q(source_file__isnull=True) & Q(source={}))
+                | (Q(source_file__isnull=False) & ~Q(source={}) & Q(supersedes__isnull=True)),
+                name="analytical_observation_source",
+            ),
             # A calculated value always keeps its inputs and the calculation applied, and is a
             # number as calculated (never reported as less than a value).
             models.CheckConstraint(
@@ -483,6 +505,10 @@ class Observation(models.Model):
     @property
     def is_calculated(self):
         return bool(self.calculation)
+
+    @property
+    def is_imported(self):
+        return self.source_file_id is not None
 
     @property
     def contract(self):

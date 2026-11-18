@@ -10,7 +10,10 @@ Tests freeze the validated payload and its hash; later specification revisions n
 ``oq.test-requirement/2`` adds counts, qualitative results from a controlled outcome pair and
 limits that exclude their boundary. ``oq.test-requirement/3`` has exactly the ``/2`` keys and rules
 with a seven-key method (resource requirements and an optional calculation); ``/1`` and ``/2``
-carry the four-key method they froze. Anything this contract cannot represent exactly (unknown or
+carry the four-key method they froze. ``oq.test-requirement/4`` is ``/3`` with an eight-key
+method: the seven keys and the approved mapping its instrument's export file is read with
+(``file_import``, see ``core.file_imports``), whose fields are the calculation's inputs or the
+directly entered value. Anything this contract cannot represent exactly (unknown or
 missing keys, unsupported result types, inconsistent limits, a qualitative line without an
 expected result, an invalid calculation or a calculated line that is not numeric in the
 calculation's unit) is a hold, never coerced. Batch QC checks stay numeric with inclusive limits;
@@ -54,11 +57,12 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.utils.module_loading import import_string
 
-from core import formulas
+from core import file_imports, formulas
 
 SCHEMA = "oq.test-requirement/1"
 SCHEMA_V2 = "oq.test-requirement/2"
 SCHEMA_V3 = "oq.test-requirement/3"
+SCHEMA_V4 = "oq.test-requirement/4"
 REQUIREMENT_KEYS = {
     "schema",
     "source",
@@ -83,6 +87,7 @@ REQUIREMENT_KEYS_V2 = (REQUIREMENT_KEYS - {"bounds"}) | {
 }
 METHOD_KEYS = {"code", "revision", "requires_batch", "qc_checks"}
 METHOD_KEYS_V3 = METHOD_KEYS | {"requires_equipment", "requires_reagent", "calculation"}
+METHOD_KEYS_V4 = METHOD_KEYS_V3 | {"file_import"}
 CALCULATION_KEYS = {"formula", "inputs", "unit", "decimals"}
 INPUT_KEYS = {"code", "name", "unit"}
 MAX_INPUTS = 12
@@ -175,6 +180,12 @@ def _input_value(value, label):
     if len(digits) > MAX_DIGITS or not _fits(number):
         raise ValidationError(f"{label} has more than {MAX_DIGITS} digits.")
     return number, text
+
+
+def entered_number(value, label):
+    """A number as entered or read from a file: (Decimal, text), refused unless it is exact,
+    finite and fits the stored columns (20 digits, 8 decimal places)."""
+    return _input_value(value, label)
 
 
 def _text(data, key, label, max_length=160):
@@ -312,6 +323,7 @@ class Method:
     requires_equipment: bool = False
     requires_reagent: bool = False
     calculation: Calculation | None = None
+    file_import: file_imports.FileImport | None = None
 
     def check(self, code):
         for check in self.qc_checks:
@@ -529,11 +541,21 @@ def _calculation(data):
     )
 
 
+def _file_import(data, calculation):
+    fields = [i.code for i in calculation.inputs] if calculation else [file_imports.VALUE]
+    problems = file_imports.problems(data, fields)
+    if problems:
+        raise ValidationError("Method file import is invalid: " + " ".join(problems))
+    return file_imports.parse(data)
+
+
 def parse_method(data):
-    """Parse a four-key method (as frozen before resource checks) or a seven-key method."""
+    """Parse a four-key method (as frozen before resource checks), a seven-key method or an
+    eight-key method (a seven-key method that reads an instrument file)."""
     if not isinstance(data, dict):
         raise ValidationError("Method snapshot is missing.")
-    extended = set(data) == METHOD_KEYS_V3
+    reads_file = set(data) == METHOD_KEYS_V4
+    extended = reads_file or set(data) == METHOD_KEYS_V3
     if not extended:
         _exact_keys(data, METHOD_KEYS, "Method")
     revision = data.get("revision")
@@ -569,6 +591,8 @@ def parse_method(data):
             "requires_reagent": _bool(data, "requires_reagent"),
             "calculation": _calculation(data["calculation"]),
         }
+    if reads_file:
+        extra["file_import"] = _file_import(data["file_import"], extra["calculation"])
     return Method(
         _text(data, "code", "Method code", 80),
         revision,
@@ -645,11 +669,11 @@ def parse_requirement(data):
     schema = data.get("schema") if isinstance(data, dict) else None
     if schema == SCHEMA:
         shape = _shape_v1(data)
-    elif schema in (SCHEMA_V2, SCHEMA_V3):
+    elif schema in (SCHEMA_V2, SCHEMA_V3, SCHEMA_V4):
         shape = _shape_v2(data)
     else:
         raise ValidationError("Unsupported test-requirement payload.")
-    method_keys = METHOD_KEYS_V3 if schema == SCHEMA_V3 else METHOD_KEYS
+    method_keys = {SCHEMA_V3: METHOD_KEYS_V3, SCHEMA_V4: METHOD_KEYS_V4}.get(schema, METHOD_KEYS)
     if isinstance(data.get("method"), dict):
         _exact_keys(data["method"], method_keys, f"Method of {schema}")
     integers = {}

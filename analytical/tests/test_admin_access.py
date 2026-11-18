@@ -59,6 +59,8 @@ MUTATION_PAGES = {
     "authorize",
     "conclude",
     "raw_file_new",
+    "import_new",
+    "import_file",
 }
 # Read pages that also accept a scientific POST (assign tests, submit results).
 POST_ON_READ = {"lot_testing", "test_detail"}
@@ -187,6 +189,14 @@ def world(people, assigned, batch, make_lot, django_user_model):
         "raw_file_new": (
             reverse("analytical:raw_file_new", args=[tests2["assay"].pk]),
             {"file": SimpleUploadedFile("again.csv", b"other"), "description": "Export"},
+        ),
+        "import_new": (
+            reverse("analytical:import_new", args=[tests2["assay"].pk]),
+            {"file": SimpleUploadedFile("run.csv", b"Sample ID,Area")},
+        ),
+        "import_file": (
+            reverse("analytical:import_file", args=[tests2["assay"].pk, raw.pk]),
+            {"raw_reference": "CDS-9", "expected_revision": tests2["assay"].revision},
         ),
         "batch_new": (
             reverse("analytical:batch_new"),

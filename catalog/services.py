@@ -17,7 +17,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from core import formulas
+from core import file_imports, formulas
 from core.audit import record_event, snapshot
 from core.models import AuditEvent
 from core.services import (
@@ -155,7 +155,8 @@ def new_method_revision(
     requires_equipment=None,
     requires_reagent=None,
 ):
-    """New draft version; QC checks and the calculation are copied from the latest prior version.
+    """New draft version; QC checks, the calculation and the file import are copied from the
+    latest prior version.
 
     The two resource flags are taken from the prior version when not given.
     """
@@ -182,6 +183,7 @@ def new_method_revision(
         calculation_formula=previous.calculation_formula if previous else "",
         calculation_unit=previous.calculation_unit if previous else "",
         calculation_decimals=previous.calculation_decimals if previous else None,
+        file_import=copy.deepcopy(previous.file_import) if previous else None,
         effective_from=effective_from,
         effective_until=effective_until,
         change_reason=reason,
@@ -413,6 +415,96 @@ def clear_calculation(*, actor, revision, reason):
     return locked
 
 
+@transaction.atomic
+def set_file_import(
+    *,
+    actor,
+    revision,
+    reason,
+    source,
+    delimiter,
+    decimal,
+    encoding,
+    header_row,
+    id_column,
+    columns,
+    filter_column="",
+    filter_value="",
+):
+    """Set or replace how the instrument's export file is read, on a draft.
+
+    ``columns`` maps each field (a calculation input code, or ``value`` for a result entered
+    directly) to the name of its column; a blank column leaves that input to the analyst. The
+    mapping's own shape is checked here; that its fields match the calculation is checked when
+    the version is approved, so the calculation can still change.
+    """
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    data = {
+        "schema": file_imports.SCHEMA,
+        "source": (source or "").strip(),
+        "delimiter": delimiter,
+        "decimal": decimal,
+        "encoding": encoding,
+        "header_row": header_row,
+        "id_column": (id_column or "").strip(),
+        "filter_column": (filter_column or "").strip(),
+        "filter_value": (filter_value or "").strip(),
+        "columns": [
+            {"field": field, "column": column.strip()}
+            for field, column in columns.items()
+            if (column or "").strip()
+        ],
+    }
+    try:
+        file_imports.parse(data)
+    except file_imports.FileImportError as exc:
+        raise ValidationError(str(exc)) from exc
+    before = locked.file_import
+    locked.file_import = data
+    locked.revision += 1
+    locked.save(update_fields=["file_import", "revision"])
+    record_event(
+        actor=actor,
+        action="method_revision.file_import_set",
+        obj=locked,
+        before=before or {},
+        after=data,
+        reason=reason,
+    )
+    return locked
+
+
+@transaction.atomic
+def clear_file_import(*, actor, revision, reason):
+    """Remove the file import from a draft: its results are then entered by hand."""
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    before = locked.file_import
+    if before is None:
+        raise ValidationError("This version has no file import.")
+    locked.file_import = None
+    locked.revision += 1
+    locked.save(update_fields=["file_import", "revision"])
+    record_event(
+        actor=actor,
+        action="method_revision.file_import_cleared",
+        obj=locked,
+        before=before,
+        reason=reason,
+    )
+    return locked
+
+
+def file_import_problems(revision):
+    """What to fix before a version's file import can be approved; empty when absent or valid."""
+    if revision.file_import is None:
+        return []
+    return file_imports.problems(revision.file_import, revision.import_fields)
+
+
 # Specifications --------------------------------------------------------------------------------
 
 
@@ -629,6 +721,8 @@ def _check_method_revision(revision):
         raise ValidationError("A method that runs in a QC batch needs at least one QC check.")
     if problems := calculation_problems(revision):
         raise ValidationError(["Calculation: " + problem for problem in problems])
+    if problems := file_import_problems(revision):
+        raise ValidationError(["File import: " + problem for problem in problems])
 
 
 def _check_specification_revision(revision):
@@ -780,7 +874,7 @@ def effective_revision(model, parent, at):
 
 
 def _method_payload(revision):
-    return {
+    payload = {
         "revision_id": revision.pk,
         "code": revision.method.code,
         "version": revision.version,
@@ -794,6 +888,11 @@ def _method_payload(revision):
         "calculation": revision.approved_content.get("calculation"),
         "approved_hash": revision.approved_hash,
     }
+    # Only a version with a file import carries the key, so the payloads (and the hashes of
+    # the lot assignments that freeze them) of every other version stay as they were.
+    if file_import := revision.approved_content.get("file_import"):
+        payload["file_import"] = file_import
+    return payload
 
 
 def effective_batch_methods(at=None):
@@ -1271,6 +1370,7 @@ def resolve_requirements(
 TEST_REQUIREMENT_SCHEMA = "oq.test-requirement/1"
 TEST_REQUIREMENT_SCHEMA_V2 = "oq.test-requirement/2"
 TEST_REQUIREMENT_SCHEMA_V3 = "oq.test-requirement/3"
+TEST_REQUIREMENT_SCHEMA_V4 = "oq.test-requirement/4"
 
 
 def method_requirement(method):
@@ -1278,7 +1378,8 @@ def method_requirement(method):
 
     A method without a calculation and without resource flags keeps exactly the four keys that
     tests in progress froze. Any other method adds ``requires_equipment``, ``requires_reagent``
-    and ``calculation``; payloads frozen earlier lack those keys and read as absent.
+    and ``calculation``; payloads frozen earlier lack those keys and read as absent. A method
+    with a file import adds ``file_import`` to those seven keys.
     """
     shape = {
         "code": method["code"],
@@ -1289,13 +1390,16 @@ def method_requirement(method):
     equipment = bool(method.get("requires_equipment", False))
     reagent = bool(method.get("requires_reagent", False))
     calculation = method.get("calculation")
-    if calculation is None and not equipment and not reagent:
+    file_import = method.get("file_import")
+    if calculation is None and not equipment and not reagent and file_import is None:
         return shape
     shape.update(
         requires_equipment=equipment,
         requires_reagent=reagent,
         calculation=copy.deepcopy(calculation),
     )
+    if file_import is not None:
+        shape["file_import"] = copy.deepcopy(file_import)
     return shape
 
 
@@ -1305,9 +1409,10 @@ def test_requirement(test, source):
     A numeric line with both bounds inclusive is emitted as ``oq.test-requirement/1``, byte for
     byte as before, because tests in progress froze that payload and its hash. Every other shape
     is ``oq.test-requirement/2``, or ``/3`` (the same keys) when the method adds the resource flags
-    or a calculation. Values pass through as frozen, so shapes the analytical parser
-    cannot execute (for example a qualitative line approved without an expected outcome, which
-    yields ``expected_result: None``) are held there, never repaired here.
+    or a calculation, or ``/4`` (the same keys again) when it also reads an instrument file.
+    Values pass through as frozen, so shapes the analytical parser cannot execute (for example
+    a qualitative line approved without an expected outcome, which yields
+    ``expected_result: None``) are held there, never repaired here.
     ``reporting_decimals: None`` passes through as exact comparison without rounding.
     """
     method = method_requirement(test["method"])
@@ -1335,7 +1440,13 @@ def test_requirement(test, source):
             "method": method,
         }
     return {
-        "schema": TEST_REQUIREMENT_SCHEMA_V3 if extended else TEST_REQUIREMENT_SCHEMA_V2,
+        "schema": (
+            TEST_REQUIREMENT_SCHEMA_V4
+            if "file_import" in method
+            else TEST_REQUIREMENT_SCHEMA_V3
+            if extended
+            else TEST_REQUIREMENT_SCHEMA_V2
+        ),
         "source": source,
         "test_code": test["code"],
         "name": test["name"],
