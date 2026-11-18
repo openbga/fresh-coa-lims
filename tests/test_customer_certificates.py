@@ -51,13 +51,14 @@ def world(django_user_model):
     return build_world(django_user_model, with_assay=True)
 
 
-def released(world, *lines, choice=MARKET, readings=None):
+def released(world, *lines, choice=MARKET, readings=None, choices=None):
     """The lot under the general scope and the market scope (whose specification states
-    ``lines``), decided for ``choice`` where they differ, tested and released."""
+    ``lines``), decided for ``choice`` (or ``choices`` by test) where they differ, tested and
+    released."""
     overlay(world, MARKET, *lines)
     held = assign(world, "general", MARKET)
     if held.status == "hold":
-        decide(world, choices={"assay": choice})
+        decide(world, choices=choices or {"assay": choice})
     merged = {**READINGS, **(readings or {})}
     for code, test in sample_and_tests(world).items():
         record(world, test, merged[code])
@@ -498,21 +499,126 @@ def test_a_suppliers_result_of_another_method_is_still_judged():
     assert judged["outcome"] == conformity.CONFORMS
 
 
+def _bench_test(**changes):
+    return SimpleNamespace(
+        **{"reportable_display": "99.01", "spec": None, "investigation_id": None, **changes}
+    )
+
+
 def test_laboratory_readings_are_evaluated_as_testing_evaluates_them():
     readings = [Reading(value=Decimal("98.96")), Reading(value=Decimal("99.06"))]
-    test = SimpleNamespace(
-        current_observations=lambda: [SimpleNamespace(reading=r) for r in readings],
-        reportable_display="99.01",
-        spec=None,
-    )
+    test = _bench_test()
     line = _line(replicates=2, replicate_limits=True)
     statement = conformity._statement(SPEC, line, applied=False)
-    judged = conformity._judge_test(test, FROZEN, statement, line, SPEC, applied=False)
+    judged = conformity._judge_test(test, readings, FROZEN, statement, line, SPEC, False)
     # The mean 99.01 rounds to 99.0 and meets 99 – 101, but one replicate does not.
     assert (judged["outcome"], judged["result"]) == (conformity.FAILS, "99.0 %")
     line = _line(replicates=2, replicate_limits=False)
-    judged = conformity._judge_test(test, FROZEN, statement, line, SPEC, applied=False)
+    judged = conformity._judge_test(test, readings, FROZEN, statement, line, SPEC, False)
     assert judged["outcome"] == conformity.CONFORMS
+
+
+@pytest.mark.parametrize(("allowed", "outcome"), [(0, "not_judged"), (1, "conforms")])
+def test_a_retests_result_is_not_judged_against_a_statement_allowing_fewer(
+    monkeypatch, allowed, outcome
+):
+    """The result of an authorized retest stands against a statement only when that statement
+    would have allowed the retests its investigation used."""
+    from analytical import services as analytical_services
+
+    monkeypatch.setattr(analytical_services, "retests_used", lambda investigation: 1)
+    test = _bench_test(investigation_id=7, investigation=object())
+    line = _line(max_retests=allowed)
+    statement = conformity._statement(SPEC, line, applied=False)
+    readings = [Reading(value=Decimal("100.0"))]
+    judged = conformity._judge_test(test, readings, FROZEN, statement, line, SPEC, False)
+    assert judged["outcome"] == outcome
+    if allowed == 0:
+        assert judged["reason"] == (
+            "it allows 0 retests; the result comes from an investigation that used 1"
+        )
+
+
+SALMONELLA = {
+    "code": "salmonella",
+    "name": "Salmonella",
+    "result_type": "qualitative",
+    "expected_result": "absent",
+    "expected_text": "Absent in 25 g",
+}
+
+
+@pytest.mark.parametrize(
+    ("change", "outcome", "reason"),
+    [
+        (
+            {"expected_text": "Absent in 10 g"},
+            conformity.NOT_JUDGED,
+            'it states the criterion "Absent in 10 g"; the result was obtained against '
+            '"Absent in 25 g"',
+        ),
+        (
+            {"expected_result": "conforms"},
+            conformity.NOT_JUDGED,
+            "it states the outcome as Conforms or Does not conform; the result is Absent or "
+            "Present",
+        ),
+        ({"expected_result": "present"}, conformity.FAILS, ""),
+    ],
+)
+def test_an_outcome_is_judged_only_against_the_same_criterion(world, change, outcome, reason):
+    lot = released(world, {**SALMONELLA, **change}, choices={"salmonella": "general"})
+    found = statements(reporting.preview(lot)[0], "salmonella")[MARKET]
+    assert (found["outcome"], found["reason"]) == (outcome, reason)
+    assert found["result"] == "Absent"
+
+
+def test_a_draft_left_for_a_recipient_is_opened_again_for_another_scope(world):
+    lot = released(world, TIGHT)
+    # Signing failed after the head was opened for the general scope: a draft remains.
+    draft = reporting.open_report(
+        actor=world["people"]["author"], lot=lot, recipient="Synthetic customer EU", scope="general"
+    )
+    assert (draft.state, draft.version_count) == ("draft", 0)
+    report = issue(world, lot_of(world), scope=MARKET)
+    assert report.pk == draft.pk and report.scope == MARKET and report.state == "issued"
+    changed = AuditEvent.objects.get(action="report.scope_changed", object_id=str(report.pk))
+    assert (changed.before, changed.after) == ({"scope": "general"}, {"scope": MARKET})
+    # The database lets a draft change its scope alone, and an issued certificate never.
+    other = reporting.open_report(
+        actor=world["people"]["author"], lot=lot, recipient="Synthetic draft", scope="general"
+    )
+    with pytest.raises(DatabaseError, match="immutable"), transaction.atomic():
+        Report.objects.filter(pk=other.pk).update(scope=MARKET, recipient="Another")
+    Report.objects.filter(pk=other.pk).update(scope=MARKET)
+    with pytest.raises(DatabaseError, match="scope of an issued certificate"):
+        with transaction.atomic():
+            Report.objects.filter(pk=report.pk).update(scope="general")
+
+
+def test_a_scope_certificate_lists_only_the_investigations_of_its_tests():
+    statement = {"scope": MARKET, "outcome": conformity.CONFORMS}
+    evidence = _evidence(
+        [
+            {"origin": "laboratory", "test_code": "assay", "test": 2, "statements": [statement]},
+        ]
+    )
+    analytical = evidence["native"]["analytical"]
+    analytical["results"] = [
+        {"test": 2, "test_code": "assay", "method": {"code": "m"}},
+        {"test": 3, "test_code": "water", "method": {"code": "m"}},
+    ]
+    analytical["excluded_tests"] = [
+        {"test": 1, "test_code": "assay"},
+        {"test": 4, "test_code": "water"},
+    ]
+    analytical["investigations"] = [
+        {"investigation": "INV-1", "test": 1},
+        {"investigation": "INV-2", "test": 4},
+        {"investigation": "INV-3", "test": 99},
+    ]
+    view = conformity.scope_view(evidence, MARKET)
+    assert [item["investigation"] for item in view["investigations"]] == ["INV-1", "INV-3"]
 
 
 def _evidence(rows, specs=None):

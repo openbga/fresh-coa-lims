@@ -186,7 +186,8 @@
     {% else %}
       <p class="vr-muted">A hold snapshot was not available to this system; hold status is not asserted by this certificate.</p>
     {% endif %}
-    {% if snapshot.native.analytical.investigations %}<p class="mb-1">Investigations linked to this lot:</p><ul>{% for inv in snapshot.native.analytical.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% if view %}{% if view.investigations %}<p class="mb-1">Investigations of the tests on this certificate:</p><ul>{% for inv in view.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+    {% elif snapshot.native.analytical.investigations %}<p class="mb-1">Investigations linked to this lot:</p><ul>{% for inv in snapshot.native.analytical.investigations %}<li>{{ inv.investigation }} · {{ inv.trigger }} · {{ inv.outcome|default:"outcome not recorded" }}{% if inv.conclusion %} · concluded by {{ inv.conclusion.signer }} {{ inv.conclusion.signed_at|stamp }}{% endif %}</li>{% endfor %}</ul>{% endif %}
     {% if snapshot.corrections %}<ul>{% for item in snapshot.corrections %}<li>Correction: {{ item.description }}</li>{% endfor %}</ul>{% endif %}
     {% if snapshot.report.remarks %}<h3 class="h6 fw-bold mt-4">Remarks</h3><p>{{ snapshot.report.remarks|linebreaksbr }}</p>{% endif %}
     <h3 class="h6 fw-bold mt-4">Electronic signatures</h3>

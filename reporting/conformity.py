@@ -15,11 +15,13 @@ the stated result of each accepted supplier result. A result is judged exactly a
 it: ``Requirement.evaluate`` on the readings for the laboratory's results (replicates, rounding
 half-up to the statement's reporting precision, inclusive or exclusive limits, less-than and
 qualitative readings), and ``Requirement.conforms`` on the stated value, exact and unrounded,
-for a supplier's. Nothing is converted: a statement in another unit, of another result type,
-with another number of replicates or, for the laboratory's results, of another method is not
-judged, and says why.
+for a supplier's. Nothing is converted: a statement in another unit or of another result type,
+an outcome stated against another criterion (such as another portion tested) and, for the
+laboratory's results, a statement with another number of replicates, of another method or
+allowing fewer retests than the result's investigation used, is not judged, and says why.
 """
 
+from collections import defaultdict
 from functools import partial
 
 from django.apps import apps
@@ -111,19 +113,57 @@ def _requirement(line, frozen, spec, *, any_method=False):
         return None, "its statement is in a form that cannot be evaluated"
 
 
+def _pair(line):
+    from analytical.contracts import OUTCOME_PAIRS, OUTCOMES
+
+    pair = OUTCOME_PAIRS.get(line.get("expected_result") or "")
+    return pair, " or ".join(OUTCOMES[code] for code in pair) if pair else ""
+
+
 def _kind_mismatch(line, frozen):
-    """Why a statement cannot be compared with a result of the lot's requirement, or ""."""
+    """Why a statement cannot be compared with a result of the lot's requirement, or "": another
+    result type or unit, or, for an outcome, another pair of outcomes or another criterion (the
+    criterion says what was examined, such as the portion tested)."""
     if line["result_type"] != frozen["result_type"]:
         return (
             f"it states the result as {RESULT_TYPES.get(line['result_type'], 'another type')}; "
             f"the result is {RESULT_TYPES.get(frozen['result_type'], 'another type')}"
         )
-    if line["result_type"] != "qualitative" and (line["unit"] or "") != (frozen["unit"] or ""):
+    if line["result_type"] != "qualitative":
+        if (line["unit"] or "") != (frozen["unit"] or ""):
+            return (
+                f"it states the result in {line['unit'] or 'no unit'}; the result is in "
+                f"{frozen['unit'] or 'no unit'}"
+            )
+        return ""
+    (stated, stated_words), (recorded, recorded_words) = _pair(line), _pair(frozen)
+    if stated is None:
+        return "its statement has no approved expected outcome"
+    if stated != recorded:
+        return f"it states the outcome as {stated_words}; the result is {recorded_words}"
+    criterion = (line.get("expected_text") or "").strip()
+    if criterion != (frozen.get("expected_text") or "").strip():
         return (
-            f"it states the result in {line['unit'] or 'no unit'}; the result is in "
-            f"{frozen['unit'] or 'no unit'}"
+            f'it states the criterion "{criterion}"; the result was obtained against '
+            f'"{(frozen.get("expected_text") or "").strip()}"'
         )
     return ""
+
+
+def _retest_mismatch(test, line):
+    """Why a result of an authorized retest or resample cannot be judged against a statement
+    that allows fewer retests than its investigation used, or ""."""
+    if test.investigation_id is None:
+        return ""
+    from analytical.services import retests_used
+
+    used, allowed = retests_used(test.investigation), line.get("max_retests", 0)
+    if used <= allowed:
+        return ""
+    return (
+        f"it allows {allowed} retest{'' if allowed == 1 else 's'}; the result comes from an "
+        f"investigation that used {used}"
+    )
 
 
 def _statement(spec, line, applied):
@@ -147,12 +187,11 @@ def _with_unit(text, unit):
     return f"{text} {unit}" if text and unit else text
 
 
-def _judge_test(test, frozen, statement, line, spec, applied):
-    """A laboratory result judged against one statement."""
+def _judge_test(test, readings, frozen, statement, line, spec, applied):
+    """A laboratory result (its current ``readings``) judged against one statement."""
     if not statement["required"]:
         result = _with_unit(test.reportable_display, frozen["unit"])
         return {**statement, "result": result, "outcome": INFORMATION, "reason": ""}
-    readings = [o.reading for o in test.current_observations()]
     if applied:
         requirement, reason = test.spec, ""
     else:
@@ -163,6 +202,7 @@ def _judge_test(test, frozen, statement, line, spec, applied):
                 f"it states {stated} replicate{'' if stated == 1 else 's'}; "
                 f"{len(readings)} {'was' if len(readings) == 1 else 'were'} recorded"
             )
+        reason = reason or _retest_mismatch(test, line)
         if not reason:
             requirement, reason = _requirement(line, frozen, spec)
     if requirement is not None:
@@ -186,7 +226,9 @@ def _judge_test(test, frozen, statement, line, spec, applied):
 
 
 def _judge_stated(stated, frozen, statement, line, spec, applied):
-    """A supplier's stated result judged against one statement, exactly as stated."""
+    """A supplier's stated result judged against one statement, exactly as stated. Like the
+    comparison recorded with it, it is one value: replicates, rounding and the supplier's own
+    method are not compared."""
     from analytical.contracts import Reading
 
     result = _with_unit(stated.value_text, frozen["unit"])
@@ -239,10 +281,17 @@ def judge(payload, analytical):
     approved = _approved_lines(specifications)
     frozen = {line["code"]: line for line in payload["tests"]}
     test_model = apps.get_model("analytical", "AnalyticalTest")
+    observation_model = apps.get_model("analytical", "Observation")
     acceptance_model = apps.get_model("quality", "SupplierResultAcceptance")
     results = analytical.get("results") or []
     supplier = analytical.get("supplier_results") or []
-    tests = test_model.objects.in_bulk([r["test"] for r in results])
+    tests = test_model.objects.select_related("investigation").in_bulk([r["test"] for r in results])
+    # The current readings of every test at once, in the order testing evaluates them.
+    readings = defaultdict(list)
+    for observation in observation_model.objects.filter(
+        test_id__in=list(tests), correction__isnull=True
+    ):
+        readings[observation.test_id].append(observation.reading)
     acceptances = acceptance_model.objects.select_related("result").in_bulk(
         [s["acceptance"] for s in supplier]
     )
@@ -289,7 +338,9 @@ def judge(payload, analytical):
                 "name": result.get("name") or code,
                 "sample": result["sample"],
                 "test": result["test"],
-                "statements": statements(code, partial(_judge_test, test, line_frozen)),
+                "statements": statements(
+                    code, partial(_judge_test, test, readings[test.pk], line_frozen)
+                ),
             }
         )
     for item in supplier:
@@ -373,6 +424,17 @@ def scope_view(evidence, scope):
         elif row["origin"] == "none" and statement["outcome"] == NOT_TESTED:
             untested.append({"test_code": row["test_code"], "statement": statement})
     methods = {r["result"]["method"]["code"] for r in lab_rows}
+    # The investigations of the tests this certificate reports (the test an investigation
+    # opened on is a reportable or an excluded one); one whose test cannot be told is kept.
+    codes = {r["result"]["test_code"] for r in lab_rows + supplier_rows}
+    codes |= {row["test_code"] for row in untested}
+    tested = {r["test"]: r["test_code"] for r in analytical.get("results") or []}
+    tested |= {r["test"]: r["test_code"] for r in analytical.get("excluded_tests") or []}
+    investigations = [
+        item
+        for item in analytical.get("investigations") or []
+        if tested.get(item.get("test")) in codes | {None}
+    ]
     return {
         "scope": scope,
         "specifications": available[scope],
@@ -388,6 +450,7 @@ def scope_view(evidence, scope):
         ),
         "reviewed_tests": {r["result"]["test"] for r in lab_rows},
         "accepted": {r["result"]["acceptance"] for r in supplier_rows},
+        "investigations": investigations,
     }
 
 

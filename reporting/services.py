@@ -83,8 +83,26 @@ def open_report(*, actor, lot, recipient, scope=""):
         raise ValidationError("A certificate needs a lot with a signed QC disposition.")
     # The current series for this recipient; a withdrawn one is never reused.
     existing = (
-        Report.objects.filter(lot=locked, recipient=recipient).exclude(state="withdrawn").first()
+        Report.objects.select_for_update()
+        .filter(lot=locked, recipient=recipient)
+        .exclude(state="withdrawn")
+        .first()
     )
+    if existing and existing.scope != scope and existing.state == "draft":
+        # Opened but never issued (signing failed after the head was opened): it is opened
+        # again for this scope. Nothing was issued under it, so nothing else changes.
+        before = existing.scope
+        existing.scope = scope
+        existing.save(update_fields=["scope"])
+        record_event(
+            actor=actor,
+            action="report.scope_changed",
+            obj=existing,
+            before={"scope": before},
+            after={"scope": scope},
+            reason="Certificate record not yet issued, opened again for another scope.",
+        )
+        return existing
     if existing:
         if existing.scope != scope:
             raise ValidationError(
