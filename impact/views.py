@@ -345,8 +345,8 @@ def assessment_detail(request, pk):
         if request.user.pk in services.author_ids(assessment, items):
             actions.append(
                 refused(
-                    "You started, added, decided, held or tested part of it: another quality "
-                    "person concludes it."
+                    "You took part in this assessment or in the work it assesses: another "
+                    "quality person concludes it."
                 )
             )
         elif not undecided and not found:

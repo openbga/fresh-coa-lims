@@ -27,7 +27,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - New app `impact` with migrations `impact.0001_initial` and `impact.0002_impact_guards` (the `Assessment` and `Item` tables and their database guards).
   > - Audit actions `impact.started`, `impact.records_found`, `impact.record_added`, `impact.record_decided` and `impact.hold_placed`; signature meanings `impact_assessed` and `withdrawn` on `impact.assessment`. The conclusion freezes `oq.impact-assessment/1`.
   > - A hold placed through an assessment is an ordinary `stability.Hold` of kind `quality` whose reference names the assessment. New remote lookups `equipment`, `reagent-lots` and `contract-laboratories`.
-  > - The lot record export gains the sections `impact_records` and `impact_assessments`; the dashboard gains the queue **Impact assessments open**.
+  > - The lot record export gains the section `impact_records` (the lot's records in assessments, not the assessments, which name other lots); the dashboard gains the queue **Impact assessments open**.
 
 - **Added**: Cancel a lot received in error with a signed record · Lots · 2026-11-17 · [#44](https://github.com/openbga/qm-lims/pull/44)
 

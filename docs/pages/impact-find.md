@@ -24,7 +24,7 @@ summary: Add the records the cause finds now that are not in the assessment yet,
 
 - The records are added without a decision. Each still needs one before the assessment can be concluded.
 - Only records found from the cause and the lots and certificates they lead to are added. A record already in the assessment is not proposed again.
-- The total cannot pass 500 records.
+- Finding is never refused for the number of records: a record the cause finds must be in the assessment before it is concluded.
 - If the assessment changed since the page opened, reload and review.
 
 ## Purpose
@@ -58,7 +58,6 @@ Brings an open assessment up to date with the cause. Work recorded after the ass
 
 - Found records are those of the New impact assessment page's rules for the cause, then their follow-through to lots, studies and certificates, including those of records quality added.
 - The assessment is locked, the revision is checked, and records are added under that lock. A stale page is refused with "The assessment changed since you opened it. Reload and review."
-- More than 500 records in total is refused with the same message as at the start.
 - Effect: the records are added with origin "Found from the cause" and no decision; the audit event `impact.records_found` is written and the revision rises. When nothing is added, nothing changes.
 - The assessment changes none of the records it names.
 

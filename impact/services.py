@@ -22,6 +22,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from core.audit import record_event
 from core.services import require_role, sign_transition
@@ -40,7 +41,7 @@ DECISION = Item.Decision
 NOT_OPEN = "This impact assessment is no longer open."
 SELF_CONCLUSION = (
     "You started this assessment, added or decided one of its records, placed one of its holds "
-    "or produced data of one of its tests. Another quality person concludes it."
+    "or took part in the work it assesses. Another quality person concludes it."
 )
 SOURCES = {
     CAUSE.EQUIPMENT: "equipment",
@@ -258,8 +259,10 @@ def find_records(*, actor, assessment, expected_revision):
     _lock_account(actor)
     locked = _lock(assessment, expected_revision)
     items = list(locked.items.all())
+    # No limit here: a record the cause finds must be in the assessment before it is concluded,
+    # so finding it again is never refused (the limit applies at the start and to records added
+    # by hand).
     found = scope.missing(locked, items)
-    _too_many(len(items) + len(found))
     created = _add_found(locked, actor, found)
     if created:
         _record_found(actor, locked, created)
@@ -432,12 +435,21 @@ def place_hold(*, actor, item, expected_revision, reason):
 # Conclusion ------------------------------------------------------------------------------------
 
 
+# The audit actions that make their actor an author of the assessment. A decision changed later
+# leaves its earlier decider an author: every decision ever recorded is read from the trail.
+AUTHORED = ("impact.record_added", "impact.record_decided", "impact.hold_placed")
+
+
 def author_ids(assessment, items=None):
-    """Who may not conclude the assessment: whoever started it, added a record to it (a record
-    found from the cause is not authored), decided one of its records or placed one of its
-    holds, and the data authors of its tests."""
-    from analytical.gates import tests_author_ids
-    from analytical.models import AnalyticalTest
+    """Who may not conclude the assessment: whoever started it, added a record to it by hand,
+    decided one of its records at any time or placed one of its holds; whoever used the failed
+    equipment or reagent lot in the period, or recorded a contract laboratory's reports in it;
+    and whoever produced or investigated the work assessed: the data and investigation authors
+    of its tests and of every test of its lots (the independence the lot's disposition needs).
+    A record found from the cause is not authored by whoever found it."""
+    from analytical.gates import investigation_author_ids, tests_author_ids
+    from analytical.models import AnalyticalTest, Investigation
+    from core.models import AuditEvent
 
     items = list(assessment.items.select_related("hold")) if items is None else items
     ids = {assessment.started_by_id}
@@ -448,8 +460,23 @@ def author_ids(assessment, items=None):
             ids.add(item.decided_by_id)
         if item.hold_id:
             ids.add(item.hold.placed_by_id)
-    tests = AnalyticalTest.objects.filter(pk__in=[i.test_id for i in items if i.test_id])
-    return ids | tests_author_ids(tests)
+    ids.update(
+        AuditEvent.objects.filter(
+            object_type=Item._meta.label_lower,
+            object_id__in=[str(item.pk) for item in items],
+            action__in=AUTHORED,
+        ).values_list("actor_id", flat=True)
+    )
+    ids.update(scope.users_of_cause(assessment))
+    test_ids = [i.test_id for i in items if i.test_id]
+    lot_ids = [i.lot_id for i in items if i.lot_id]
+    tests = AnalyticalTest.objects.filter(pk__in=test_ids) | AnalyticalTest.objects.filter(
+        lot_id__in=lot_ids
+    )
+    investigations = Investigation.objects.filter(
+        test_id__in=test_ids
+    ) | Investigation.objects.filter(lot_id__in=lot_ids)
+    return ids | tests_author_ids(tests) | investigation_author_ids(investigations)
 
 
 def record_label(item):
@@ -496,7 +523,8 @@ def review(assessment):
         ).order_by("pk")
     )
     undecided = [item for item in items if not item.decision]
-    found = scope.missing(assessment, items)
+    # A closed assessment takes no more records: the cause is not searched again.
+    found = scope.missing(assessment, items) if assessment.state == STATE.OPEN else []
     blockers = []
     if undecided:
         blockers.append(f"{len(undecided)} record(s) have no decision.")
@@ -550,6 +578,7 @@ def conclusion_refusal(assessment, actor, found=None):
     return " ".join(blockers)
 
 
+@sensitive_variables("pin")
 def conclude(*, actor, pin, assessment, expected_revision, reason):
     """Conclude the assessment with a signature on the records and decisions shown."""
 
@@ -602,6 +631,7 @@ def withdrawal_refusal(assessment):
     return ""
 
 
+@sensitive_variables("pin")
 def withdraw(*, actor, pin, assessment, expected_revision, reason):
     """Withdraw an assessment started in error, with a signature; its records are kept."""
 

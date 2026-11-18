@@ -133,8 +133,11 @@ def _chamber_studies(assessment, add):
     start, _ = window(assessment)
     pulls = (
         Pull.objects.filter(chamber_id=assessment.equipment_id)
-        # A study closed (completed or terminated) before the period began was not affected.
+        # A study closed (completed or terminated) before the period began, or started after it
+        # ended, was not in the chamber during it. A study with no pull recorded in the chamber
+        # yet is not linked to it and is added by hand.
         .exclude(study__closed_at__lt=start)
+        .exclude(study__start_date__gt=assessment.period_until)
         .select_related("study")
         .order_by("study_id", "pk")
     )
@@ -219,6 +222,7 @@ def candidates(assessment, items=None):
 
     items = list(assessment.items.all()) if items is None else items
     found = direct(assessment)
+    supplied = [pk for (kind, pk) in found if kind == KIND.LOT]
 
     def add(candidate):
         found.setdefault(candidate.key, candidate)
@@ -248,14 +252,32 @@ def candidates(assessment, items=None):
                 )
             )
     if assessment.cause == CAUSE.SUPPLIER:
-        supplied = [pk for (kind, pk) in direct(assessment) if kind == KIND.LOT]
-        for study in Study.objects.filter(lot_id__in=supplied).order_by("pk"):
+        studies = Study.objects.filter(lot_id__in=supplied).select_related("lot")
+        for study in studies.order_by("pk"):
             add(Candidate(KIND.STUDY, study.pk, f"A stability study of lot {study.lot.number}."))
     lot_ids = {pk for kind, pk in set(found) | present if kind == KIND.LOT}
     reports = Report.objects.filter(lot_id__in=lot_ids, version_count__gt=0).select_related("lot")
     for report in reports.order_by("lot_id", "sequence"):
         add(Candidate(KIND.CERTIFICATE, report.pk, f"Issued for lot {report.lot.number}."))
     return found
+
+
+def users_of_cause(assessment):
+    """Who used the failed equipment or reagent lot (and its preparations) in the period, or
+    recorded the contract laboratory's reports dated in it: their work is what is assessed."""
+    from laboratory.models import ContractUse
+
+    if assessment.cause in (CAUSE.EQUIPMENT, CAUSE.REAGENT):
+        return set(_uses(assessment).values_list("used_by_id", flat=True))
+    if assessment.cause == CAUSE.CONTRACT:
+        return set(
+            ContractUse.objects.filter(
+                approval__laboratory_id=assessment.contract_laboratory_id,
+                report_date__gte=assessment.period_from,
+                report_date__lte=assessment.period_until,
+            ).values_list("used_by_id", flat=True)
+        )
+    return set()
 
 
 def missing(assessment, items=None):

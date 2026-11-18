@@ -730,6 +730,18 @@ def test_a_chamber_finds_the_studies_with_pulls_stored_in_it(integrated):  # noq
     assert found[(KIND.STUDY, study.pk)] == "Pulls of this study were stored in SYN-CHAMBER-25-60."
     # A study names no lot record of its own here: the lot is not found through the chamber.
     assert (KIND.LOT, lot.pk) not in found
+    # A study started after the period ended was not in the chamber during it.
+    earlier = services.start(
+        actor=people["author"],
+        cause="equipment",
+        equipment=chamber,
+        title="An earlier excursion",
+        description="Synthetic: before the study started",
+        found_on=today() - timedelta(days=1),
+        period_from=today() - timedelta(days=5),
+        period_until=today() - timedelta(days=1),
+    )
+    assert kinds(earlier) == []
 
 
 def test_the_lot_record_export_includes_its_impact_assessments(world):
@@ -754,6 +766,84 @@ def test_the_lot_record_export_includes_its_impact_assessments(world):
     record = json.loads(members["record.json"])
     records = {r["id"] for r in section(record, "impact_records")["records"]}
     assert records == set(done.items.values_list("pk", flat=True))
-    assert [r["id"] for r in section(record, "impact_assessments")["records"]] == [done.pk]
+    # The assessment itself names other lots' records: it stays out of this lot's record.
+    assert section(record, "impact_assessments") is None
     holds = {r["id"] for r in section(record, "holds")["records"]}
     assert fresh(item).hold_id in holds
+
+
+def quality_person(django_user_model, username):
+    person = django_user_model.objects.create_user(username=username, password=PASSWORD)
+    person.groups.add(Group.objects.get_or_create(name="quality")[0])
+    set_pin(actor=person, pin=PIN, password=PASSWORD)
+    return person
+
+
+def test_an_earlier_decider_stays_an_author(world, django_user_model):
+    used(world, world["tests"]["impurity"], world["balance"])
+    assessment = begin(world)
+    decide_all(world, assessment, who="approver")
+    third = quality_person(django_user_model, "syn_ia_third")
+    world["people"]["third"] = third
+    item = assessment.items.get(kind=KIND.TEST)
+    decide(world, item, rationale="Synthetic: same reason", who="third")
+    assert fresh(item).decided_by == third
+    # The approver's decision on that record was replaced, yet the approver decided it.
+    with pytest.raises(PermissionDenied):
+        conclude(world, assessment, who="approver")
+    assert world["people"]["approver"].pk in services.author_ids(fresh(assessment))
+
+
+def test_whoever_did_the_work_assessed_cannot_conclude(world, django_user_model):
+    people = world["people"]
+    user_of_balance = quality_person(django_user_model, "syn_ia_balance_user")
+    ResourceUse.objects.create(
+        equipment=world["balance"],
+        context_type="quality.sample",
+        context_id=str(world["lot"].samples.get().pk),
+        activity="Synthetic weighing outside native testing",
+        used_by=user_of_balance,
+        eligibility={"synthetic": True},
+    )
+    assessment = begin(world)
+    assert kinds(assessment) == [(KIND.LOT, world["lot"].pk)]
+    decide_all(world, assessment, who="approver")
+    world["people"]["balance_user"] = user_of_balance
+    # The person who used the failed balance in the period did the work assessed.
+    with pytest.raises(PermissionDenied):
+        conclude(world, assessment, who="balance_user")
+    # So did the analyst (also quality) who produced the lot's tests, though no test is a record.
+    with pytest.raises(PermissionDenied):
+        conclude(world, assessment, who="analyst")
+    outsider = quality_person(django_user_model, "syn_ia_outsider")
+    world["people"]["outsider"] = outsider
+    done = conclude(world, assessment, who="outsider")
+    assert {people["analyst"].pk, user_of_balance.pk} <= set(done.evidence["author_ids"])
+
+
+def test_records_found_later_are_added_beyond_the_limit(world, monkeypatch):
+    used(world, world["tests"]["impurity"], world["balance"])
+    monkeypatch.setattr(scope, "MAX_RECORDS", 2)
+    assessment = begin(world)
+    assert len(kinds(assessment)) == 2
+    used(world, world["tests"]["tamc"], world["balance"])
+    created = services.find_records(
+        actor=world["people"]["author"],
+        assessment=fresh(assessment),
+        expected_revision=fresh(assessment).revision,
+    )
+    assert len(created) == 1 and len(kinds(assessment)) == 3
+    with pytest.raises(ValidationError, match="covers at most 2 records"):
+        services.add_record(
+            actor=world["people"]["author"],
+            assessment=fresh(assessment),
+            expected_revision=fresh(assessment).revision,
+            kind=KIND.TEST,
+            identifier=world["tests"]["identity"].label,
+            reason="Synthetic",
+        )
+    # A concluded assessment is not searched again: a later use is no new record of it.
+    decide_all(world, assessment)
+    done = conclude(world, assessment)
+    used(world, world["tests"]["identity"], world["balance"])
+    assert services.review(done)[2] == []

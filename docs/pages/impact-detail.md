@@ -35,7 +35,7 @@ summary: One impact assessment: the problem, the records it names (tests, lots, 
 - The assessment changes none of the records it names. Tests, lots, studies and certificates are acted on through their own pages and signatures.
 - A certificate is withdrawn on the certificate's own page, with a signature and the evidence that recipients were notified. Marking it Affected here does not withdraw it.
 - Conclude shows only when every record has a decision and no new record is found from the cause.
-- You cannot conclude an assessment you started, added or decided a record of, placed a hold in, or produced test data for.
+- You cannot conclude an assessment you started, decided or held part of, or whose assessed work you did.
 - Concluded and Withdrawn are final. Earlier decisions stay in the audit trail.
 
 ## Purpose
@@ -46,7 +46,7 @@ The record of an impact assessment: what failed, the period of concern, every re
 
 - Sign-in required. Analyst, Reviewer, Quality, Admin and Auditor roles can open it; others receive 403.
 - **Find affected records**, **Add record**, **Record decision**, **Change decision**, **Place hold**, **Conclude** and **Withdraw** show to quality users while the assessment is Open. The server checks the role again on each page.
-- A quality user who started the assessment, added or decided one of its records, placed one of its holds or produced data of one of its tests sees "You started, added, decided, held or tested part of it: another quality person concludes it." in place of **Conclude**.
+- A quality user who started the assessment, added or decided one of its records, placed one of its holds, used the failed resource in the period or produced or investigated the work it assesses sees "You took part in this assessment or in the work it assesses: another quality person concludes it." in place of **Conclude**.
 - Admin alone is read-only here.
 
 ## Layout

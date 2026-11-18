@@ -192,15 +192,10 @@ LOT_SECTIONS = (
         "reporting.RecipientNotification",
         _in("report", "reports"),
     ),
-    # The impact assessments that name the lot, one of its tests, a stability study of it or one
-    # of its certificates: those records of them, then the assessments themselves.
+    # The records of impact assessments that name the lot, one of its tests, a stability study of
+    # it or one of its certificates, with the decision on each. The assessments themselves also
+    # name other lots' records and are not part of this lot's record.
     Section("impact_records", "Records in impact assessments", "impact.Item", _impact_records),
-    Section(
-        "impact_assessments",
-        "Impact assessments",
-        "impact.Assessment",
-        lambda c: Q(pk__in={r.assessment_id for r in c.records("impact_records")}),
-    ),
     # Last: they name any of the records above as their context.
     Section(
         "resource_uses",

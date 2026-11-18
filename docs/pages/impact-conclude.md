@@ -5,7 +5,7 @@ views: impact.views.assessment_conclude
 templates: ops/sign.html
 models: impact.Assessment, impact.Item, stability.Hold, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
-summary: Sign the conclusion of an impact assessment on the records and decisions shown. Quality only, never someone who took part in the assessment or produced data of its tests.
+summary: Sign the conclusion of an impact assessment on the records and decisions shown. Quality only, never someone who took part in the assessment or in the work it assesses.
 ---
 
 ## Common tasks
@@ -34,7 +34,7 @@ Signs the conclusion with meaning **impact_assessed**. The records and decisions
 ## Who can use it
 
 - Sign-in required. **quality** role only; others, and an account holding only Admin, receive 403.
-- Refused with a reason and no PIN control (403): "You started this assessment, added or decided one of its records, placed one of its holds or produced data of one of its tests. Another quality person concludes it."; "This impact assessment is no longer open."; or the blockers below.
+- Refused with a reason and no PIN control (403): "You started this assessment, added or decided one of its records, placed one of its holds or took part in the work it assesses. Another quality person concludes it."; "This impact assessment is no longer open."; or the blockers below.
 
 ## Layout
 
@@ -62,7 +62,7 @@ Signs the conclusion with meaning **impact_assessed**. The records and decisions
 ## Rules and hidden logic
 
 - Meaning text: "You conclude the impact assessment on the records and decisions shown. They are frozen with your signature. Holds placed through it stay until released on their own pages; withdrawing or amending a certificate, retesting and the manufacturer's decisions on released material are separate."
-- **Authors** who cannot conclude: whoever started it; whoever added a record by hand (a record found from the cause has no author); whoever decided a record; whoever placed a hold through it; and the data authors of its tests (observations including corrected originals, submission and QC batch records).
+- **Authors** who cannot conclude: whoever started it; whoever added a record by hand (a record found from the cause has no author); whoever recorded a decision on a record at any time, also one changed later (read from the audit trail); whoever placed a hold through it; whoever used the failed equipment or reagent lot in the period, or recorded the contract laboratory's reports dated in it; and the data and investigation authors of its tests and of every test of its lots (observations including corrected originals, submission, QC batch records and investigation entries).
 - **Blockers**, checked again under the lock when signing: "N record(s) have no decision." and "The cause finds N record(s) that are not in the assessment: find affected records again." A change to any record since the page opened raises the revision and the signing fails as stale: "Record changed. Reload and review before signing."
 - **Identity, session and PIN**: you type your own username and re-enter the PIN for every signature. A wrong username or PIN, an expired session or a locked PIN is refused inline and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected.
 - **Effect**: one transaction sets the state to Concluded with the time and the reason, freezes the evidence `oq.impact-assessment/1` (every record with its label, current status, origin, basis, decision, reason, follow-up, who decided and when, its hold and the hold's state; the counts affected and not affected; the author identifiers), raises the revision, and writes the audit event `signed.impact_assessed` and an immutable signature bound to the new revision.

@@ -75,7 +75,7 @@ Starts an impact assessment. It records the problem, the period of concern and t
 - **Only the chosen cause names a record**: "Choose the record that failed." when the field for the cause is empty; "Only the record of the cause chosen is named." when another is filled.
 - **Date messages**: "Enter a date."; "The date found cannot be in the future."; "The period of concern cannot end in the future."; "The period of concern ends on or after the day it begins."; "The period of concern begins on or before the date found."; "Name the problem."; "Describe what happened and how it was found."
 - **Records found from the cause** (read-only, in the laboratory's time zone, the period counted from the first day's start to the end of the last day):
-  - Equipment: tests the equipment was recorded as used for in the period; the tests of any QC batch it was used for; the lots of samples it was used for outside native testing. For a stability chamber also the studies with pulls stored in it, unless the study closed before the period began.
+  - Equipment: tests the equipment was recorded as used for in the period; the tests of any QC batch it was used for; the lots of samples it was used for outside native testing. For a stability chamber also the studies with pulls stored in it, unless the study closed before the period began or started after it ended; a study with no pull recorded in the chamber yet is added by hand.
   - Reagent or standard lot: the same uses, for the lot and every solution prepared from it at any depth.
   - Supplier: the lots whose receipt in force (not corrected) names the supplier and was received in the period.
   - Contract laboratory: tests whose results it reported with a report date in the period.
