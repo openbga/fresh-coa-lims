@@ -445,7 +445,8 @@ def summarize(lot):
             "signatures": ElectronicSignature.objects.filter(
                 _by_type(c.refs_by_label(everything=True))
             ).count(),
-            "files": len(c.records("raw_files")) + len(c.records("report_versions")),
+            "files": len(c.records("raw_files"))
+            + sum(1 + bool(v.data_sha256) for v in c.records("report_versions")),
         }
 
 
@@ -503,7 +504,9 @@ def _binary_path(obj, f, c):
         number = next(
             (r.number for r in c.records("reports") if r.pk == obj.report_id), str(obj.report_id)
         )
-        return f"files/certificates/{safe_name(number, 'certificate')}-v{obj.number}.pdf"
+        name = f"files/certificates/{safe_name(number, 'certificate')}-v{obj.number}"
+        # The PDF, and the certificate data issued with it (embedded in it too).
+        return f"{name}-data.json" if f.name == "data" else f"{name}.pdf"
     return f"files/{label.replace('.', '-')}/{obj.pk}-{f.name}.bin"
 
 
@@ -525,7 +528,9 @@ def _write_files(c, archive, folder, stamp):
     for obj in list(c.all_records()):
         for f in _binary_fields(type(obj)):
             data = type(obj).objects.filter(pk=obj.pk).values_list(f.name, flat=True).get()
-            data = bytes(data) if data is not None else b""
+            if data is None:  # no file (a certificate issued before its data was produced)
+                continue
+            data = bytes(data)
             entry = {**_entry(_binary_path(obj, f, c), data), "record": ref(obj)}
             c.binary[(ref(obj), f.name)] = entry
             c.files.append(entry)
@@ -580,9 +585,19 @@ def _checks(c, signatures):
                 ref(version),
                 str(version),
                 f"{version.pdf_sha256} ({version.pdf_size} bytes)",
-                _file_text(stored.get(ref(version), {})),
+                _file_text(c.binary.get((ref(version), "pdf"), {})),
             )
         )
+        if version.data_sha256:
+            results.append(
+                _check(
+                    "certificate data file",
+                    ref(version),
+                    str(version),
+                    version.data_sha256,
+                    c.binary.get((ref(version), "data"), {}).get("sha256"),
+                )
+            )
         results.append(
             _check(
                 "certificate content",

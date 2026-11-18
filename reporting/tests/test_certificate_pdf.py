@@ -17,7 +17,7 @@ import pytest
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-from reporting import render, services
+from reporting import certificate_data, render, services
 from reporting.tests.test_services import flat, issue, normalized
 
 H = {"spec": "b" * 64, "spec2": "d" * 64, "method": "c" * 64, "assign": "a" * 64, "ev": "e" * 64}
@@ -362,8 +362,14 @@ def pdf_text(data):
     return out.stdout.decode()
 
 
+def certificate(payload, synthetic_notice=True):
+    """The issued PDF of a payload, with its certificate data embedded, as issuance renders it."""
+    data = certificate_data.encode(certificate_data.build(payload, synthetic=synthetic_notice))
+    return render.render_certificate(payload, data=data, synthetic_notice=synthetic_notice)
+
+
 def rendered(payload, synthetic_notice=True):
-    return pdf_text(render.render_certificate(payload, synthetic_notice=synthetic_notice))
+    return pdf_text(certificate(payload, synthetic_notice=synthetic_notice))
 
 
 @pytest.mark.parametrize(
@@ -431,7 +437,7 @@ def test_status_prints_text_and_glyph():
 def test_missing_font_fails_the_render(monkeypatch, tmp_path):
     monkeypatch.setattr(render, "_font_path", lambda: tmp_path / "absent.woff2")
     with pytest.raises(render.RenderError, match="font"):
-        render.render_certificate(foundation_full())
+        certificate(foundation_full())
 
 
 @pytest.mark.django_db(transaction=True)
@@ -450,6 +456,7 @@ def test_issued_bytes_are_served_unchanged_after_restyle(people, lot, client, mo
     monkeypatch.setattr(services, "render_certificate", refuse)
     monkeypatch.setattr(render, "render_certificate", refuse)
     monkeypatch.setattr(render, "write_pdf", refuse)
+    monkeypatch.setattr(render, "write_archival_pdf", refuse)
     client.force_login(people["auditor"])
     response = client.get(reverse("reporting:pdf", args=[report.pk, version.number]))
     assert response.status_code == 200
@@ -469,4 +476,4 @@ def test_write_certificate_review_pdfs():
     if not out:
         pytest.skip("OQ_PDF_OUT not set")
     for name, payload in (("native-full", native_full), ("foundation-full", foundation_full)):
-        pathlib.Path(out, f"{name}.pdf").write_bytes(render.render_certificate(payload()))
+        pathlib.Path(out, f"{name}.pdf").write_bytes(certificate(payload()))

@@ -5,7 +5,7 @@ views: reporting.views.report_detail
 templates: reporting/report_detail.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, reporting.RecipientNotification, quality.Lot, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-18
-summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, the PDFs, and for a withdrawn certificate its withdrawal and recipient notifications.
+summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, the PDFs and their data, and for a withdrawn certificate its withdrawal and recipient notifications.
 ---
 
 ## Common tasks
@@ -13,6 +13,7 @@ summary: One certificate of analysis: its status, every issued version with its 
 1. Select [[Download PDF]] at the top of the page.
 ### Open or download an earlier version
 1. In [[Versions]], select a version to open it, or [[Download PDF]] on its row.
+2. For the certificate's content as a JSON file, select [[Download data]] on its row.
 ### Amend an issued certificate
 1. Select [[Amend certificate]]. It shows only to the quality role while the certificate is issued.
 2. Review the changes on that page, then sign the amendment with your PIN.
@@ -27,7 +28,7 @@ summary: One certificate of analysis: its status, every issued version with its 
 - A withdrawn certificate keeps every version and its PDF as issued, and is never amended. A new certificate for the lot gets a new number.
 - "Recipient notification not recorded" shows until a notification is recorded for a withdrawn certificate.
 - The certificate shown is the stored version as issued, never rebuilt from today's records. One for a scope reports only that scope's specification.
-- History shows only to the quality, auditor and admin roles. Every PDF download is recorded there.
+- History shows only to the quality, auditor and admin roles. Every PDF and data download is recorded there.
 
 ## Purpose
 
@@ -63,6 +64,7 @@ One certificate of analysis series: its status, every issued version with who si
 | **Review and issue** | No version yet | Quality | Opens the review page for the lot, for this record's scope when it has one |
 | Version link | Always, per version | Any viewer | Opens that version |
 | **Download PDF** (table) | Always, per version | Any viewer | Downloads that version |
+| **Download data** (table) | The version was issued with certificate data | Any viewer | Downloads that version's certificate data as JSON (see Certificate version) |
 
 ## Fields
 
@@ -93,7 +95,7 @@ One certificate of analysis series: its status, every issued version with who si
 - **Withdrawal** is a signed, final transition (meaning withdrawn): the versions, their PDFs and checksums are unchanged and stay downloadable, and the amendment pages refuse the certificate ("This certificate was withdrawn; it is not amended. A new certificate for the lot is issued as a new numbered certificate.").
 - **Recipient notifications** are append-only evidence; recording one does not change the certificate's revision or signatures.
 - **Footer line**: the certificate number, view time and viewer.
-- **Audit events** shown include `report.opened`, `signed.issued`, `signed.amended`, `signed.withdrawn`, `report.recipient_notified` and `report.downloaded`.
+- **Audit events** shown include `report.opened`, `signed.issued`, `signed.amended`, `signed.withdrawn`, `report.recipient_notified`, `report.downloaded` and `report.data_downloaded`.
 
 ## Related pages
 

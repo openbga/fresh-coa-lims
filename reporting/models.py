@@ -120,6 +120,13 @@ class ReportVersion(models.Model):
     pdf = models.BinaryField()
     pdf_sha256 = models.CharField(max_length=64)
     pdf_size = models.PositiveIntegerField()
+    # What the PDF declares itself to be ("PDF/A-3a, PDF/UA-1"); blank for a version issued
+    # before certificates were written as archival PDF.
+    pdf_format = models.CharField(max_length=40, blank=True)
+    # The certificate data (reporting/certificate_data.py): the exact bytes embedded in the PDF
+    # and offered beside it. Null for a version issued before certificate data was produced.
+    data = models.BinaryField(null=True, blank=True)
+    data_sha256 = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["report_id", "number"]
@@ -127,6 +134,13 @@ class ReportVersion(models.Model):
             models.UniqueConstraint(fields=["report", "number"], name="reportversion_number"),
             models.UniqueConstraint(
                 fields=["report", "report_revision"], name="reportversion_revision"
+            ),
+            # Certificate data, its checksum and the archival format exist together: a version
+            # issued before has none of them, and one issued since has all three.
+            models.CheckConstraint(
+                condition=Q(data__isnull=True, data_sha256="", pdf_format="")
+                | (Q(data__isnull=False) & ~Q(data_sha256="") & ~Q(pdf_format="")),
+                name="reportversion_data",
             ),
         ]
 
@@ -136,6 +150,10 @@ class ReportVersion(models.Model):
     @property
     def is_current(self):
         return self.number == self.report.version_count
+
+    @property
+    def has_data(self):
+        return bool(self.data_sha256)
 
 
 class RecipientNotification(models.Model):

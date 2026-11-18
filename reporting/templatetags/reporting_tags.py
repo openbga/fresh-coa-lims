@@ -35,6 +35,13 @@ def certificate_scope(snapshot, scope=""):
     return scope_view(snapshot, scope)
 
 
+@register.simple_tag
+def certificate_headings(pdf=False):
+    """Heading levels of the certificate: under the page's own h1 on screen, and from h1 in the
+    issued PDF, whose tagged structure must start at h1 and skip no level (PDF/UA-1, 7.4.2)."""
+    return {"title": 1, "section": 2} if pdf else {"title": 2, "section": 3}
+
+
 @register.filter
 def outcome_label(outcome):
     """The words of a conformity outcome (`reporting.conformity`)."""

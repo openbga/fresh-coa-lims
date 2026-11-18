@@ -205,12 +205,16 @@ def test_altered_certificate_and_raw_file_bytes_are_found(integrated):
     report = released_with_certificate(integrated)
     version = report.versions.get()
     with triggers_disabled("reporting_reportversion", "analytical_rawdatafile"):
-        ReportVersion.objects.filter(pk=version.pk).update(pdf=bytes(version.pdf) + b"%")
+        ReportVersion.objects.filter(pk=version.pk).update(
+            pdf=bytes(version.pdf) + b"%", data=bytes(version.data).replace(b"{", b"[", 1)
+        )
         RawDataFile.objects.update(content=RAW.replace(b"0.512", b"0.612"))
     checks = recovery.evidence_checks(state_now())
     assert problems(checks, "certificates") == [
         f"Certificate {report.number} version 1: the stored PDF does not match its checksum and "
-        "size"
+        "size",
+        f"Certificate {report.number} version 1: the stored certificate data does not match its "
+        "checksum",
     ]
     assert "do not match their checksum" in problems(checks, "raw data files")[0]
 

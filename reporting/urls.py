@@ -15,4 +15,5 @@ urlpatterns = [
     path("reports/<int:pk>/notifications/new/", views.notify, name="notify"),
     path("reports/<int:pk>/versions/<int:number>/", views.version_detail, name="version"),
     path("reports/<int:pk>/versions/<int:number>/pdf/", views.version_pdf, name="pdf"),
+    path("reports/<int:pk>/versions/<int:number>/data/", views.version_data, name="data"),
 ]

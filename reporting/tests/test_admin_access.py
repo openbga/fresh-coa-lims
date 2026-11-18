@@ -13,7 +13,7 @@ from reporting.tests.conftest import PASSWORD, PIN, make_user
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
-READ_ROUTES = {"list", "issue_preview", "detail", "amend_preview", "version", "pdf"}
+READ_ROUTES = {"list", "issue_preview", "detail", "amend_preview", "version", "pdf", "data"}
 MUTATION_ROUTES = {"new", "issue_sign", "amend_sign", "withdraw", "notify"}
 
 
@@ -51,7 +51,9 @@ def state():
         Report.objects.count(),
         ReportVersion.objects.count(),
         ElectronicSignature.objects.count(),
-        AuditEvent.objects.exclude(action="report.downloaded").count(),
+        AuditEvent.objects.exclude(
+            action__in=["report.downloaded", "report.data_downloaded"]
+        ).count(),
     )
 
 
@@ -63,6 +65,7 @@ def read_urls(report):
         "amend_preview": reverse("reporting:amend_preview", args=[report.pk]),
         "version": reverse("reporting:version", args=[report.pk, 1]),
         "pdf": reverse("reporting:pdf", args=[report.pk, 1]),
+        "data": reverse("reporting:data", args=[report.pk, 1]),
     }
 
 
@@ -91,6 +94,9 @@ def test_admin_can_read_every_page_and_download(login, admins, report):
     assert pdf.content.startswith(b"%PDF-")
     assert AuditEvent.objects.filter(
         action="report.downloaded", actor=admins["admin"], object_id=str(report.pk)
+    ).exists()
+    assert AuditEvent.objects.filter(
+        action="report.data_downloaded", actor=admins["admin"], object_id=str(report.pk)
     ).exists()
 
 

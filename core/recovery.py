@@ -311,8 +311,9 @@ def check_signatures():
 
 
 def check_certificates():
-    """Each issued certificate's stored PDF matches its checksum and size and its evidence
-    snapshot its hash, and each report's head names its current version's checksums."""
+    """Each issued certificate's stored PDF matches its checksum and size, its certificate data
+    (when it was issued with data) its checksum and its evidence snapshot its hash, and each
+    report's head names its current version's checksums."""
     from reporting.evidence import canonical_hash
     from reporting.models import Report, ReportVersion
 
@@ -325,6 +326,11 @@ def check_certificates():
         pdf = bytes(version.pdf)
         if hashlib.sha256(pdf).hexdigest() != version.pdf_sha256 or len(pdf) != version.pdf_size:
             problems.append(f"{label}: the stored PDF does not match its checksum and size")
+        if (version.data_sha256 or version.pdf_format) and (
+            version.data is None
+            or hashlib.sha256(bytes(version.data)).hexdigest() != version.data_sha256
+        ):
+            problems.append(f"{label}: the stored certificate data does not match its checksum")
         if canonical_hash(version.snapshot) != version.snapshot_hash:
             problems.append(f"{label}: the evidence snapshot does not match its hash")
     for report in Report.objects.filter(version_count__gt=0).order_by("pk").iterator():

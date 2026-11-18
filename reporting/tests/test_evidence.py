@@ -159,7 +159,7 @@ def test_native_evidence_passes_and_blocks(good):
 
 
 def test_native_certificate_renders(people, good):
-    from reporting.render import render_certificate
+    from reporting.tests.test_certificate_pdf import certificate as render_certificate
     from reporting.tests.test_services import flat, normalized, pdf_text
 
     payload = native_payload(good)
@@ -287,7 +287,7 @@ def test_certificate_renders_frozen_and_new_evidence(good):
 
 
 def test_certificate_pdf_renders_new_evidence(good):
-    from reporting.render import render_certificate
+    from reporting.tests.test_certificate_pdf import certificate as render_certificate
     from reporting.tests.test_services import normalized, pdf_text
 
     payload = result_types_payload(good)
