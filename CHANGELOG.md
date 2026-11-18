@@ -46,7 +46,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - The certificate evidence of a lot whose frozen requirements name more than one specification gains `native.conformity` (each reportable result and accepted supplier result with one statement per specification: `conforms`, `does_not_conform`, `not_judged` with a reason, `information` or `not_tested`); the issued snapshot keeps the scope under `report.scope`. Evidence of a lot under one specification is unchanged.
   > - The judgement uses the testing rules on the recorded readings, with no conversion of unit, result type, outcome criterion, replicate count, method or retest allowance, and no measurement uncertainty (simple acceptance).
 
-- **Added**: Read values from balances and meters connected to the analyst's computer · Testing · 2026-11-18
+- **Added**: Read values from balances and meters connected to the analyst's computer · Testing · 2026-11-18 · [#59](https://github.com/openbga/qm-lims/pull/59)
 
   Quality can give a balance or meter a **data connection** on its equipment record (**More**, **Set data connection**): the format it answers in, its serial settings and the serial number it reports. METTLER TOLEDO balances (MT-SICS), A&D balances (A&D standard format) and Orion Star A-series meters are supported. On **Record observation** and **Correct observation**, in Chrome or Edge, **Read from** fills a value with the instrument's reading. A weight the balance did not report as stable, another unit or another device is refused. Every reading is kept on the test as the device sent it, whether or not a replicate records it, and the test record and the review show which values were read and which were typed.
 

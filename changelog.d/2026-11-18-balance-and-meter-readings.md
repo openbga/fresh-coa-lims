@@ -5,6 +5,7 @@ impact: high
 title: Read values from balances and meters connected to the analyst's computer
 area: Testing
 link: laboratory:equipment_list
+pr: 59
 ---
 Quality can give a balance or meter a **data connection** on its equipment record (**More**, **Set data connection**): the format it answers in, its serial settings and the serial number it reports. METTLER TOLEDO balances (MT-SICS), A&D balances (A&D standard format) and Orion Star A-series meters are supported. On **Record observation** and **Correct observation**, in Chrome or Edge, **Read from** fills a value with the instrument's reading. A weight the balance did not report as stable, another unit or another device is refused. Every reading is kept on the test as the device sent it, whether or not a replicate records it, and the test record and the review show which values were read and which were typed.
 
