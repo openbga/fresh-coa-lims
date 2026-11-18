@@ -3,7 +3,7 @@
 {% comment %}A supplier's record: who it is, its signed qualifications, the lots received from it and its history. Context: page_title, supplier, crumbs, qualifications, page_obj, history, can_qualify.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{{ supplier.name }}</li>{% endpage_meta %}{% endblock %}
-{% block page_actions %}{% if can_qualify %}<a class="btn btn-outline-secondary" href="{% url 'suppliers:qualification_new' supplier.pk %}">Record qualification</a>{% endif %}{% endblock %}
+{% block page_actions %}{% if can_qualify %}<a class="btn btn-outline-secondary" href="{% url 'suppliers:qualification_new' supplier.pk %}">Record qualification</a>{% endif %}{% if can_assess %}{% more_actions %}<li><a class="dropdown-item" href="{% url 'impact:new' %}?supplier={{ supplier.pk }}">Assess impact</a></li>{% endmore_actions %}{% endif %}{% endblock %}
 {% block content %}
 {% panel title="Supplier" class="mb-3" %}
   <dl class="vr-facts mb-0">

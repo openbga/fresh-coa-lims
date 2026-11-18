@@ -5,7 +5,7 @@ views: reporting.views.version_detail, reporting.views.version_pdf
 templates: reporting/version.html, reporting/_certificate.html, reporting/pdf/certificate.html
 models: reporting.ReportVersion, reporting.Report, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-17
-summary: One issued version of a certificate, shown exactly as stored, with its signature, checksums and the stored PDF to open or download.
+summary: One issued version of a certificate, shown exactly as stored, with its signature, checksums and the stored PDF to open or download, also after the certificate is withdrawn.
 ---
 
 ## Common tasks
@@ -20,6 +20,7 @@ summary: One issued version of a certificate, shown exactly as stored, with its 
 - Each download or opening of the PDF is recorded in the certificate's history.
 - If the stored PDF fails its integrity check, nothing is sent and you return here with the error.
 - A superseded version stays available. Only the newest version is current.
+- A withdrawn certificate's versions show Withdrawn and stay downloadable exactly as issued, as evidence.
 
 ## Purpose
 
@@ -32,7 +33,8 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 ## Layout
 
-- **Header**: breadcrumbs, "Report number version N", status "Current version" or "Superseded" (a superseded version also shows the fact **Superseded by** as a blue **Superseded** label with the link to the newer version under it), issue time, **Open PDF** and then **Download PDF** (the primary button, last).
+- **Withdrawn** (red notice, when the certificate is withdrawn): "Certificate … was withdrawn on … by …: this version is no longer valid. It stays on record, and its PDF stays downloadable exactly as issued, as evidence."
+- **Header**: breadcrumbs, "Report number version N", status "Withdrawn" (any version of a withdrawn certificate), "Current version" or "Superseded" (a superseded version also shows the fact **Superseded by** as a blue **Superseded** label with the link to the newer version under it), issue time, **Open PDF** and then **Download PDF** (the primary button, last).
 - **Issued record**: Signature, Size, links to the version it amends or is superseded by, PDF SHA-256, Evidence SHA-256, and a note that content comes from the frozen snapshot.
 - **Certificate**: the stored certificate content, including the signature table.
 
@@ -62,7 +64,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 - **PDF endpoint**: GET only (other methods receive 405). Before serving, the bytes are checked against the stored checksum and size; on mismatch you are returned here with "The stored certificate failed its integrity check." and nothing is sent.
 - **Failed or unauthorised**: a user without a viewing role receives 403 for the PDF; the PDF accepts `?inline=1` to open in the browser, otherwise it downloads. The file name keeps only letters, digits, dot, underscore and hyphen.
 - **Audit**: each successful download writes `report.downloaded` with the actor, version and checksum. Responses are marked no-store and private.
-- **Immutable**: versions cannot be edited or deleted; an amendment is a new version.
+- **Immutable**: versions cannot be edited or deleted; an amendment is a new version. A withdrawal changes no version: the page and the PDF stay as issued and the download is still recorded.
 - Not enforced by this page: any restriction on who may share a downloaded copy.
 
 ## Related pages

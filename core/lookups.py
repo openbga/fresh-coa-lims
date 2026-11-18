@@ -139,6 +139,33 @@ register(
 register(Lookup("lots", _lots(state="cancelled"), LOT_SEARCH, ("number", "pk")))
 register(
     Lookup(
+        "equipment",
+        lambda: _model("laboratory.Equipment").objects.all(),
+        ("asset_id", "description", "category"),
+        ("asset_id", "pk"),
+        label=lambda item: f"{item.asset_id} · {item.description}",
+    )
+)
+register(
+    Lookup(
+        "reagent-lots",
+        lambda: _model("laboratory.ReagentLot").objects.all(),
+        ("identifier", "name", "lot_number"),
+        ("identifier", "pk"),
+        label=lambda item: f"{item.identifier} · {item.name}",
+    )
+)
+register(
+    Lookup(
+        "contract-laboratories",
+        lambda: _model("laboratory.ContractLaboratory").objects.all(),
+        ("code", "name"),
+        ("code", "pk"),
+        label=lambda item: f"{item.code} · {item.name}",
+    )
+)
+register(
+    Lookup(
         "study-lots",
         lambda: _model("quality.Lot").objects.exclude(state__in=["rejected", "cancelled"]),
         LOT_SEARCH,

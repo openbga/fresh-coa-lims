@@ -299,7 +299,14 @@ def contract_laboratory_detail(request, pk):
                 True,
             )
             if _keeper(request.user)
-            else None
+            else None,
+            action(
+                "Assess impact",
+                reverse("impact:new") + f"?contract_laboratory={laboratory.pk}",
+                more=True,
+            )
+            if "quality" in set(request.user.groups.values_list("name", flat=True))
+            else None,
         ],
         sections=[
             section(

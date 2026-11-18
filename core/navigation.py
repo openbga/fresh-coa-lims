@@ -68,6 +68,7 @@ SECTIONS = (
         "Records",
         (
             NavItem("Certificates", "reporting:list", "file-earmark-check", ("reporting",)),
+            NavItem("Impact assessments", "impact:list", "exclamation-octagon", ("impact",)),
             NavItem("Validation", "validation:use_list", "ui-checks", ("validation",)),
             NavItem(
                 "Audit trail",

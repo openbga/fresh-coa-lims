@@ -23,6 +23,7 @@ WORKSPACE_PATHS = {
     "/rules/",
     "/reports/",
     "/validation/",
+    "/impact/",
 }
 ACCOUNT_PATHS = {"/signature-pin/", "/accounts/access/"}
 ADMIN_PATHS = {"/accounts/users/", "/accounts/announcement/"}

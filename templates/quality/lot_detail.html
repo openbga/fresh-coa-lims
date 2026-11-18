@@ -62,7 +62,7 @@
 {% elif lot.state == 'released' %}
 {% panel title="Certificates of analysis" heading_id="reports-heading" count=reports|length %}
   <p>{% if issued %}{% status label="Issued" tone="success" %}{% else %}{% status label="Not issued" tone="neutral" %}{% endif %}</p>
-  {% if reports %}<ul class="mb-0 ps-3">{% for report in reports %}<li><a class="vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a></li>{% endfor %}</ul>{% else %}{% empty_state title="No certificate issued yet" %}{% endif %}
+  {% if reports %}<ul class="mb-0 ps-3">{% for report in reports %}<li><a class="vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a> {% status label=report.status_label tone=report.tone plain=True %}</li>{% endfor %}</ul>{% else %}{% empty_state title="No certificate issued yet" %}{% endif %}
 {% endpanel %}
 {% endif %}
 {% endfill %}
@@ -129,6 +129,26 @@
   </div>
   {% endif %}
   <p class="{% if reassessments %}mt-3 {% endif %}mb-0">A released lot with a retest date is examined again on a sample taken for the purpose; its tests belong to the reassessment and this record does not change. Quality concludes it: the material is suitable until a later retest date, never after the expiry date, or its use ends.{% if reassess_refusal %} {{ reassess_refusal }}{% endif %}</p>
+{% endpanel %}
+{% endif %}
+{% if impact_assessments %}
+{% panel title="Impact assessments" heading_id="impact-heading" count=impact_assessments|length table=True %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table mb-0" aria-labelledby="impact-heading">
+      <thead><tr><th scope="col">Assessment</th><th scope="col">Status</th><th scope="col">This lot</th><th scope="col">Hold</th></tr></thead>
+      <tbody>
+        {% for entry in impact_assessments %}
+        <tr>
+          <th scope="row"><a href="{% url 'impact:detail' entry.assessment.pk %}">{{ entry.assessment.label }}</a><small class="d-block vr-muted">{{ entry.assessment.title }}</small></th>
+          <td>{% status label=entry.status_label tone=entry.status_tone plain=True %}</td>
+          <td>{% status label=entry.decision tone=entry.decision_tone plain=True %}</td>
+          <td>{% if entry.hold %}<a class="vr-id" href="{% url 'stability:hold_detail' entry.hold.pk %}">{{ entry.hold.identifier }}</a> <span class="vr-muted">{{ entry.hold.get_state_display }}</span>{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="mt-3 mb-0">An impact assessment records what a failure affected and the decision on each record; it changes nothing on this lot. A hold placed through it is this lot's quality hold.</p>
 {% endpanel %}
 {% endif %}
 {% panel title="Supplier certificates" heading_id="certificates-heading" %}

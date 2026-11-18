@@ -124,6 +124,7 @@ def lot_queues():
 def lanes():
     from analytical.models import AnalyticalTest, Investigation
     from analytical.views import TEST_FILTERS
+    from reporting.models import RecipientNotification, Report
     from sampling.views import deviation_to_assess
 
     lots = lot_queues()
@@ -220,7 +221,20 @@ def lanes():
             "certificates",
             "Certificates",
             "file-earmark-check",
-            [lot_queue("certificate", tone="neutral", status="Not issued")],
+            [
+                lot_queue("certificate", tone="neutral", status="Not issued"),
+                # The certificate list's own "Awaiting notification" filter, over the same base.
+                queue(
+                    "Withdrawn, recipients not notified",
+                    Report.objects.filter(state="withdrawn").filter(
+                        ~Exists(RecipientNotification.objects.filter(report=OuterRef("pk")))
+                    ),
+                    "withdrawn_at",
+                    tone="warning",
+                    status="Awaiting notification",
+                    url=reverse("reporting:list") + "?status=awaiting_notification",
+                ),
+            ],
         ),
     ]
 
@@ -228,6 +242,7 @@ def lanes():
 def gates():
     """Retest, stability and laboratory queues, from the same base and filters as the lists
     they link to."""
+    from impact.models import Assessment
     from laboratory.eligibility import equipment_filter, equipment_queryset
     from laboratory.models import ReagentLot
     from stability.models import Hold, Pull
@@ -258,6 +273,14 @@ def gates():
             tone="progress",
             status="Reassessment open",
             url=f"{lot_list}?dates={dates.REASSESSING}",
+        ),
+        queue(
+            "Impact assessments open",
+            Assessment.objects.filter(state=Assessment.State.OPEN),
+            "started_at",
+            tone="progress",
+            status="Open",
+            url=reverse("impact:list") + "?status=open",
         ),
         queue(
             "Pulls overdue",

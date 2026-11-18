@@ -94,6 +94,15 @@ def _batches(c):
     return Q(pk__in={r.batch_id for r in tests if r.batch_id})
 
 
+def _impact_records(c):
+    return (
+        Q(lot=c.lot.pk)
+        | Q(test__in=_all_tests(c))
+        | Q(study__in=c.ids("studies"))
+        | Q(report__in=c.ids("reports"))
+    )
+
+
 def _contexts(c):
     """Records that name one of the collected records as their context (label and id)."""
     query = Q(pk__in=[])
@@ -177,6 +186,16 @@ LOT_SECTIONS = (
         "reporting.ReportVersion",
         _in("report", "reports"),
     ),
+    Section(
+        "report_notifications",
+        "Notifications of withdrawn certificates",
+        "reporting.RecipientNotification",
+        _in("report", "reports"),
+    ),
+    # The records of impact assessments that name the lot, one of its tests, a stability study of
+    # it or one of its certificates, with the decision on each. The assessments themselves also
+    # name other lots' records and are not part of this lot's record.
+    Section("impact_records", "Records in impact assessments", "impact.Item", _impact_records),
     # Last: they name any of the records above as their context.
     Section(
         "resource_uses",

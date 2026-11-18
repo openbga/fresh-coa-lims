@@ -3,7 +3,7 @@ title: Dashboard
 urls: quality:dashboard
 views: quality.dashboard.dashboard
 templates: quality/dashboard.html, quality/includes/queue.html
-models: stability.Hold, quality.Lot, quality.LotDates, quality.Reassessment, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
+models: reporting.RecipientNotification, stability.Hold, quality.Lot, quality.LotDates, quality.Reassessment, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
 reviewed: 2026-11-17
 summary: The home page. See what waits at each step from a received lot to its certificate of analysis, open a queue's list, and find recently received lots.
 ---
@@ -22,7 +22,7 @@ summary: The home page. See what waits at each step from a received lot to its c
 
 ### See lots due for a retest
 
-1. Under [[Retest, stability and laboratory]], select [[Retest due]] or [[Reassessments open]] to open the lots.
+1. Under [[Retest, stability and laboratory]], select [[Retest due]] or [[Reassessments open]] to open the lots, or [[Impact assessments open]] to open the assessments.
 
 ### Start a new lot
 
@@ -51,7 +51,7 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 - **Header**: title "Dashboard" with today's date and week (laboratory time zone), and **New material lot** for analysts.
 - **Work in progress** card, with the total of every queue: a band of six steps (Lots, Samples, Results, Review, Disposition, Certificates), each with its count and a link to its lane; then the six lanes, left to right. Each lane lists its queues in a fixed order; each queue shows its name (a link when a list shows it), its count and, when something waits, a status label and the date of the oldest item ("Oldest YYYY-MM-DD").
 - **Recently received lots** card: the eight newest lot records with Lot, Status, Material and Where it is, and **Material lots** to open the full list. Empty: "No material lots yet" with "Receive a lot to start the quality journey." and, for analysts, **New material lot**.
-- **Retest, stability and laboratory** card beside it: Retest due, Reassessments open, Pulls overdue, Pulls due now, Pulls awaiting acceptance, Active holds, Calibration overdue, Reagent lots awaiting release.
+- **Retest, stability and laboratory** card beside it: Retest due, Reassessments open, Impact assessments open, Pulls overdue, Pulls due now, Pulls awaiting acceptance, Active holds, Calibration overdue, Reagent lots awaiting release.
 
 ## Actions
 
@@ -80,10 +80,12 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 | Supplier results awaiting acceptance | `SupplierResultAcceptance.state` | Count of lots | — | Quarantine lots with a supplier result proposed in place of a test and not yet accepted. Opens Material lots filtered to this queue |
 | All results reviewed | `LotAssignment.status`, `AnalyticalTest.state`, `Investigation.phase` | Count | — | Shown as "Complete". Quarantine lots with requirements assigned, at least one reviewed test, no test Open or Awaiting review and no open investigation. Opens Material lots filtered to this queue. It does not check every disposition gate |
 | Blocked by an investigation | `Investigation.phase`, `outcome` | Count | — | Shown as "Blocked". Quarantine lots with an open investigation or one that confirmed an out-of-specification result. Opens Material lots filtered to this queue |
-| Certificates to issue | `Lot.state`, `Report.state`, `LotDates`, `Reassessment` | Count | — | Released lots with no issued certificate of analysis that can take one: not expired, retest date (in force) not reached, use not ended. Opens Material lots filtered to this queue |
+| Certificates to issue | `Lot.state`, `Report.state`, `LotDates`, `Reassessment` | Count | — | Released lots with no issued certificate of analysis that can take one: not expired, retest date (in force) not reached, use not ended. A lot whose certificates were all withdrawn counts again. Opens Material lots filtered to this queue |
+| Withdrawn, recipients not notified | `Report.state`, `RecipientNotification` | Count of certificates; oldest `withdrawn_at` | — | Shown with the status "Awaiting notification". Withdrawn certificates with no recipient notification recorded. Opens Certificates filtered to Awaiting notification |
 | Active holds | `Hold.state` | Count; oldest `placed_at` | — | Active stability holds of any lot or reserve; an active hold on a lot blocks its QC disposition. Opens Holds filtered to active ones |
 | Retest due | `Lot`, `LotDates.retest_on`, `Reassessment` | Count of lots; oldest retest date in force | — | Shown with the status "Retest due". Lots in Quarantine or Released whose retest date in force is today or earlier, whose expiry date is not past and whose use has not ended. A suitable reassessment moves the date later. Opens Material lots with the Dates filter Retest due |
 | Reassessments open | `Reassessment.state` | Count of lots; oldest lot record date | — | Shown with the status "Reassessment open". Lots in Quarantine or Released with a reassessment open. Opens Material lots with the Dates filter Reassessment open |
+| Impact assessments open | `Assessment.state` | Count of assessments; oldest `started_at` | — | Shown with the status "Open". Impact assessments not yet concluded or withdrawn. Opens Impact assessments filtered to Open |
 | Pull and laboratory queues | `Pull`, `Equipment`, `ReagentLot` | Counts | — | Each the filter of the list it opens (Stability pulls, Equipment, Reagent lots), over every pull, item or reagent lot that list shows. Pulls of a closed (terminated) study are never due or awaiting acceptance |
 
 ## Rules and hidden logic

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Record that a recipient was told that a certificate is withdrawn; append-only evidence. Context: page_title, report, withdrawal (its signature), form, cancel_url.{% endcomment %}
+{% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=cancel_url current=page_title %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Record that a recipient was told the certificate is withdrawn, and where the notice and any acknowledgement are kept. A notification cannot be changed or removed once recorded.</p>{% endblock %}
+{% block content %}
+{% panel title="Certificate" heading_id="facts-heading" class="mb-3" %}
+  <dl class="vr-facts">
+    {% fact label="Certificate" value=report.number class="vr-id" %}
+    {% fact label="Status" %}{% status label=report.status_label tone=report.tone %}{% endfact %}
+    {% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}
+    {% fact label="Withdrawn" %}{{ report.withdrawn_at|when }}{% if withdrawal %} by {{ withdrawal.signer_name }}{% endif %}{% endfact %}
+  </dl>
+{% endpanel %}
+{% form_page form=form cancel_url=cancel_url submit_label="Record notification" note="The notification is recorded in the certificate's audit trail with your name." %}{% endform_page %}
+{% endblock %}

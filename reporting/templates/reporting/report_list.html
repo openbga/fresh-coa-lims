@@ -15,7 +15,7 @@
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a><span class="vr-sub">{% if report.version_count %}version {{ report.version_count }}{% else %}not issued{% endif %}</span></th>
           <td><a href="{% url 'quality:lot_detail' report.lot_id %}">{{ report.lot.number }}</a><span class="vr-sub">{{ report.lot.material }}</span></td>
           <td>{{ report.recipient|default:"General" }}</td>
-          <td class="vr-nowrap">{% status label=report.status_label tone=report.tone %}</td>
+          <td class="vr-nowrap">{% status label=report.status_label tone=report.tone %}{% if report.awaiting_notification %}<span class="vr-sub">Notification not recorded</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

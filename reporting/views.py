@@ -5,20 +5,20 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Case, IntegerField, Q, Value, When
+from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Value, When
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from core.grids import Column, paginate
-from core.models import AuditEvent
+from core.models import AuditEvent, ElectronicSignature
 from quality.models import Lot
 
 from . import evidence as ev
 from . import lot_record, services
-from .forms import AmendForm, IssueForm, LotPickForm, LotRecordForm
-from .models import Report
+from .forms import AmendForm, IssueForm, LotPickForm, LotRecordForm, NotificationForm, WithdrawForm
+from .models import RecipientNotification, Report
 from .render import RenderError
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,7 @@ SORTS = {
     "created": "created_at",
 }
 STATUS_RANK = Case(
+    When(state="withdrawn", then=Value(3)),
     When(~Q(state="issued"), then=Value(0)),
     When(version_count=1, then=Value(1)),
     default=Value(2),
@@ -41,6 +42,8 @@ STATUS_FILTERS = {
     "draft": Q(state="draft"),
     "issued": Q(state="issued", version_count=1),
     "amended": Q(state="issued", version_count__gt=1),
+    "withdrawn": Q(state="withdrawn"),
+    "awaiting_notification": Q(state="withdrawn", notified=False),
 }
 
 
@@ -54,6 +57,8 @@ class ReportFilterForm(forms.Form):
             ("draft", "Not issued"),
             ("issued", "Issued"),
             ("amended", "Amended"),
+            ("withdrawn", "Withdrawn"),
+            ("awaiting_notification", "Awaiting notification"),
         ],
         required=False,
     )
@@ -95,7 +100,9 @@ CERTIFICATE_COLUMNS = (
 @require_GET
 def report_list(request):
     services.require_reader(request.user)
-    reports = Report.objects.select_related("lot")
+    reports = Report.objects.select_related("lot").annotate(
+        notified=Exists(RecipientNotification.objects.filter(report=OuterRef("pk")))
+    )
     query = request.GET.get("q", "").strip()
     filters = ReportFilterForm(request.GET)
     if not filters.is_valid():  # an unknown status lists every certificate
@@ -112,7 +119,8 @@ def report_list(request):
         reports = reports.filter(STATUS_FILTERS[status])
     sort = request.GET.get("sort", "-created")
     key = SORTS.get(sort.lstrip("-"), "created_at")
-    # Status sorts by the label shown (Not issued, Issued, Amended), newest first within each.
+    # Status sorts by the label shown (Not issued, Issued, Amended, Withdrawn), newest first
+    # within each.
     reports = reports.annotate(status_rank=STATUS_RANK).order_by(
         ("-" if sort.startswith("-") else "") + key, "-created_at", "-id"
     )
@@ -230,6 +238,12 @@ def report_detail(request, pk):
     for version in versions:
         version.signature = services.signature_for(version)
     latest = versions[0] if versions else None
+    notifications = list(report.notifications.select_related("recorded_by"))
+    signatures = list(
+        ElectronicSignature.objects.filter(
+            object_type="reporting.report", object_id=str(report.pk)
+        ).order_by("signed_at", "id")
+    )
     history = []
     can_audit = has_role(request.user, *services.HISTORY_ROLES)
     if can_audit:
@@ -245,6 +259,10 @@ def report_detail(request, pk):
             "versions": versions,
             "latest": latest,
             "snapshot": latest.snapshot if latest else None,
+            "withdrawal": next((s for s in signatures if s.meaning == "withdrawn"), None),
+            "notifications": notifications,
+            "awaiting_notification": report.state == "withdrawn" and not notifications,
+            "signatures": signatures,
             "history": history,
             "can_issue": has_role(request.user, services.ISSUE_ROLE),
             "can_audit": can_audit,
@@ -253,6 +271,8 @@ def report_detail(request, pk):
 
 
 def _amendment_context(request, report):
+    if report.state == "withdrawn":
+        raise ValidationError(services.WITHDRAWN)
     latest = report.versions.order_by("-number").first()
     if latest is None:
         raise ValidationError("Only an issued certificate can be amended.")
@@ -288,6 +308,9 @@ def amend_sign(request, pk):
     services.require_role(request.user, services.ISSUE_ROLE)
     report = get_object_or_404(Report.objects.select_related("lot"), pk=pk)
     latest = report.versions.order_by("-number").first()
+    if report.state == "withdrawn":
+        messages.error(request, services.WITHDRAWN)
+        return redirect("reporting:detail", pk=report.pk)
     if latest is None:
         messages.error(request, "Only an issued certificate can be amended.")
         return redirect("reporting:detail", pk=report.pk)
@@ -338,6 +361,85 @@ def amend_sign(request, pk):
     )
 
 
+@login_required
+@require_http_methods(["GET", "POST"])
+def withdraw(request, pk):
+    """Sign the withdrawal of an issued certificate. Opening the page never signs."""
+    services.require_role(request.user, services.ISSUE_ROLE)
+    report = get_object_or_404(Report.objects.select_related("lot"), pk=pk)
+    detail = reverse("reporting:detail", args=[report.pk])
+    form = WithdrawForm(request.POST or None, initial={"expected_revision": report.revision})
+    context = {
+        "page_title": f"Withdraw certificate · {report.number}",
+        "report": report,
+        "latest": report.versions.select_related("issued_by").order_by("-number").first(),
+        "form": form,
+        "cancel_url": detail,
+        "denial": services.withdraw_refusal(report),
+    }
+    if context["denial"]:
+        return render(request, "reporting/withdraw.html", context, status=403)
+    status = 200
+    if request.method == "POST":
+        status = 422
+        if form.is_valid():
+            try:
+                services.withdraw_report(
+                    actor=request.user,
+                    pin=form.cleaned_data["pin"],
+                    report=report,
+                    expected_revision=form.cleaned_data["expected_revision"],
+                    reason=form.cleaned_data["reason"],
+                    reference=form.cleaned_data["reference"],
+                )
+            except PermissionDenied as exc:
+                context["denial"] = str(exc) or "This action is not permitted for you."
+                return render(request, "reporting/withdraw.html", context, status=403)
+            except ValidationError as exc:
+                form.add_error(None, failure(exc))
+            else:
+                messages.success(
+                    request,
+                    f"{report.number} withdrawn; every issued version is kept. Record the "
+                    "notification of its recipient.",
+                )
+                return redirect(detail)
+    return render(request, "reporting/withdraw.html", context, status=status)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def notify(request, pk):
+    """Record that a recipient was told that the certificate is withdrawn."""
+    services.require_role(request.user, services.ISSUE_ROLE)
+    report = get_object_or_404(Report.objects.select_related("lot"), pk=pk)
+    detail = reverse("reporting:detail", args=[report.pk])
+    if request.method != "POST" and report.state != "withdrawn":
+        messages.error(request, services.NOT_WITHDRAWN)
+        return redirect(detail)
+    form = NotificationForm(request.POST or None, initial={"recipient": report.recipient})
+    if request.method == "POST" and form.is_valid():
+        try:
+            services.record_notification(actor=request.user, report=report, **form.cleaned_data)
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(request, f"Notification of {form.cleaned_data['recipient']} recorded.")
+            return redirect(detail)
+    return render(
+        request,
+        "reporting/notify.html",
+        {
+            "page_title": "Record notification",
+            "report": report,
+            "withdrawal": services.withdrawal_signature(report),
+            "form": form,
+            "cancel_url": detail,
+        },
+        status=422 if request.method == "POST" and form.errors else 200,
+    )
+
+
 def _version(pk, number):
     report = get_object_or_404(Report.objects.select_related("lot"), pk=pk)
     version = get_object_or_404(report.versions.select_related("issued_by"), number=number)
@@ -360,6 +462,7 @@ def version_detail(request, pk, number):
             "snapshot": version.snapshot,
             "signature": services.signature_for(version),
             "is_current": version.is_current,
+            "withdrawal": services.withdrawal_signature(report),
         },
     )
 
