@@ -3144,6 +3144,35 @@ fieldset.vr-field > legend {
   font-size: var(--vr-font-size-3);
 }
 
+/* Reading a value from a connected balance or meter (static/js/device-readings.js): the read
+   control and what was read or why it was refused, under the field. */
+.vr-reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vr-space-1) var(--vr-space-3);
+  margin-top: var(--vr-space-2);
+}
+
+.vr-reading-status {
+  color: var(--vr-text-muted);
+  font-size: var(--vr-font-size-3);
+}
+
+.vr-reading-status.vr-reading-error {
+  color: var(--vr-danger-text);
+}
+
+/* What the device sent is evidence: shown whole, wrapping, never cut to fit a table cell. */
+.vr-code.vr-reading-raw,
+.vr-table .vr-code.vr-reading-raw {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* One container row of a receipt formset: a well. */
 .vr-container {
   margin: 0 0 var(--vr-space-2);

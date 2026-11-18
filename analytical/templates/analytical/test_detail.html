@@ -52,6 +52,9 @@
 {% if import_problems %}
 {% notice tone="danger" label="Imported values" blocking=True class="text-break" %}<p class="mb-1">Read again from the stored files, these imported replicates no longer agree with them. The test cannot be submitted or reviewed until they are corrected.</p><ul class="mb-0">{% for problem in import_problems %}<li>{{ problem }}</li>{% endfor %}</ul>{% endnotice %}
 {% endif %}
+{% if reading_problems %}
+{% notice tone="danger" label="Instrument readings" blocking=True class="text-break" %}<p class="mb-1">Read again, these instrument readings no longer agree with the replicates that record them. The test cannot be submitted or reviewed until they are corrected.</p><ul class="mb-0">{% for problem in reading_problems %}<li>{{ problem }}</li>{% endfor %}</ul>{% endnotice %}
+{% endif %}
 {% record_layout aside_label="Specification and result" %}
 {% fill lead %}
 {% panel title="Observations" heading_id="obs-heading" table=True %}
@@ -75,6 +78,7 @@
               {% if o.contract %}<div><span class="vr-muted">Reported by:</span> <span class="vr-id">{{ o.contract.laboratory.code }}</span> {{ o.contract.laboratory.name }}, report <span class="vr-id">{{ o.contract.report.number }}</span> dated {{ o.contract.report.date }}</div><div><span class="vr-muted">Approval relied on:</span> <span class="vr-id">CLA-{{ o.contract.approval.id }}</span> for method {{ o.contract.approval.method_code }}, valid {{ o.contract.approval.valid_from }} to {{ o.contract.approval.valid_until }}; evidence {{ o.contract.approval.evidence_ref }}{% if o.contract.approval.scope %}; scope: {{ o.contract.approval.scope }}{% endif %}</div>{% else %}
               {% if o.is_imported %}<div><span class="vr-muted">Imported from:</span> <a href="{% url 'analytical:raw_file_download' o.source_file_id %}">{{ o.source_file.filename }}</a>, row {{ o.source.row }}: {% for column, cell in o.imported_cells %}<span class="vr-nowrap">{{ column }} {{ cell }}</span>{% if not forloop.last %}; {% endif %}{% endfor %}</div>{% endif %}
               {% if spec.calculation %}<div><span class="vr-muted">How it was calculated:</span> {% if o.is_calculated %}{% for i in o.inputs %}{{ i.name }}: <span class="vr-nowrap">{{ i.value }} {{ i.unit }}</span>; {% endfor %}<code>{{ o.calculation.formula }}</code>; {{ o.calculation.method }} revision {{ o.calculation.revision }}; rounded half-up to {{ o.calculation.decimals }} decimal place{{ o.calculation.decimals|pluralize }} in {{ o.calculation.unit }}{% else %}Entered directly{% endif %}</div>{% endif %}
+              {% if o.readings %}<div><span class="vr-muted">Read from instruments:</span> {% for r in o.readings %}{{ r.label }} <span class="vr-nowrap">{{ r.value_text }} {{ r.unit }}</span> from <span class="vr-id">{{ r.asset_id }}</span>{% if r.serial_number %} (serial number {{ r.serial_number }}){% endif %}, as sent: <code class="vr-code vr-reading-raw">{{ r.response_text }}</code>{% if not forloop.last %}; {% endif %}{% endfor %}{% if o.typed %}. Typed: {{ o.typed|join:", " }}{% endif %}</div>{% endif %}
               <div><span class="vr-muted">Equipment and lots:</span> {% with equipment=o.equipment_used reagents=o.reagents_used %}{% if equipment or reagents %}{% if equipment %}equipment {% for e in equipment %}<span class="vr-id">{{ e }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% if equipment and reagents %}; {% endif %}{% if reagents %}lots {% for r in reagents %}<span class="vr-id">{{ r }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% else %}Not recorded{% endif %}{% endwith %}</div>{% endif %}
             </td>
           </tr>
@@ -120,6 +124,27 @@
 {% endpanel %}
 {% endfill %}
 {% include "analytical/_raw_files.html" with test=test can_correct=can_correct can_import=can_import imported_files=imported_files only %}
+{% if instrument_readings %}
+{% panel title="Instrument readings" heading_id="readings-heading" count=instrument_readings|length table=True %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="readings-heading">
+      <thead><tr><th scope="col">Read</th><th scope="col">Value</th><th scope="col">Instrument</th><th scope="col">As the device sent it</th><th scope="col">Recorded in</th></tr></thead>
+      <tbody>
+        {% for r in instrument_readings %}
+        <tr>
+          <td class="vr-nowrap">{{ r.read_by|person }}<div class="small vr-muted"><time datetime="{{ r.read_at|date:'c' }}">{{ r.read_at|date:"Y-m-d H:i:s T" }}</time></div></td>
+          <td>{{ r.label }}<div class="vr-nowrap">{{ r.value_text }} {{ r.unit }}</div></td>
+          <td><span class="vr-id">{{ r.asset_id }}</span>{% if r.serial_number %}<div class="small vr-muted">Serial number {{ r.serial_number }}</div>{% endif %}</td>
+          <td><code class="vr-code vr-reading-raw">{{ r.response_text }}</code></td>
+          <td>{% if r.observation %}Replicate {{ r.observation.replicate }}{% if r.observation.supersedes_id %} (correction){% endif %}{% else %}<span class="vr-muted">Not recorded</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="vr-form-note mt-2 mb-0">Every reading taken for this test is kept, whether or not a replicate records it. The time is the server's when the reading arrived.</p>
+{% endpanel %}
+{% endif %}
 {% panel title="Electronic signatures" heading_id="signatures-heading" count=signatures|length %}{% signature_list signatures=signatures hash=True empty="No signatures yet. Signed reviews, authorizations and conclusions appear here with signer, meaning, time and revision." %}{% endpanel %}
 {% history_panel events=history empty_title="No history recorded" %}{% endhistory_panel %}
 {% endrecord_layout %}

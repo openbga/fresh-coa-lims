@@ -403,7 +403,8 @@ def _reading(spec, value, qualifier, outcome, observed_text):
                 "Describe what was observed; the outcome alone is not a complete record."
             )
         return reading, dict(spec.outcomes)[reading.outcome]
-    return reading, f"{reading.qualifier}{value}"
+    # As written, never in exponent form (0.0000001, not 1E-7).
+    return reading, f"{reading.qualifier}{format(value, 'f')}"
 
 
 def _entry(spec, *, value, qualifier, outcome, observed_text, inputs):
@@ -461,6 +462,37 @@ def _recheck_imports(test, observations, refusal):
     from .imports import recheck_imports
 
     recheck_imports(test, observations, refusal)
+
+
+def _recheck_readings(test, observations, refusal):
+    """Read each recorded instrument reading again; refuse when it no longer agrees."""
+    from .readings import recheck
+
+    recheck(test, observations, refusal)
+
+
+def _claim_readings(desk, *, actor, test, readings, fields, equipment_ids):
+    """Lock and check the instrument readings an entry records (``readings``: target -> id)."""
+    from .readings import VALUE, claim
+
+    if not readings:
+        return []
+    entered = {i["code"]: i["value"] for i in fields["inputs"]} or {VALUE: fields["value_text"]}
+    return claim(
+        desk,
+        actor=actor,
+        test=test,
+        readings=readings,
+        entered=entered,
+        equipment_ids=equipment_ids,
+    )
+
+
+def _link_readings(claimed, observation):
+    from .readings import evidence, link
+
+    link(claimed, observation)
+    return {"readings": evidence(claimed)} if claimed else {}
 
 
 def _bench_observations(observations):
@@ -563,9 +595,13 @@ def record_observation(
     equipment_ids=(),
     reagent_ids=(),
     reason="",
+    readings=None,
 ):
     """Record the next replicate: a number (optionally reported as less than it), an outcome,
-    or, when the method has a calculation, the inputs the value is calculated from."""
+    or, when the method has a calculation, the inputs the value is calculated from.
+
+    ``readings`` maps a value (``value`` or an input code) to the instrument reading it was read
+    from (``analytical.readings``); every other value was typed."""
     require_role(actor, ANALYST)
     if not raw_reference.strip():
         raise ValidationError("Record where the original observation is kept.")
@@ -605,6 +641,14 @@ def record_observation(
             reagent_ids=reagent_ids,
             reason=reason or f"Replicate {count + 1} of {locked.label} {locked.test_code}",
         )
+        claimed = _claim_readings(
+            desk,
+            actor=actor,
+            test=locked,
+            readings=readings,
+            fields=fields,
+            equipment_ids=equipment_ids,
+        )
         observation = Observation(
             test=locked,
             replicate=count + 1,
@@ -617,6 +661,7 @@ def record_observation(
         )
         observation.full_clean()
         observation.save()
+        read = _link_readings(claimed, observation)
         _touch(locked)
         _bump(*subjects)
         record_event(
@@ -630,6 +675,7 @@ def record_observation(
                 "unit": spec.unit,
                 "raw_reference": raw_reference,
                 "eligibility": eligibility,
+                **read,
             },
             reason=reason or "Observation recorded.",
         )
@@ -651,8 +697,10 @@ def correct_observation(
     inputs=None,
     equipment_ids=(),
     reagent_ids=(),
+    readings=None,
 ):
-    """Add a linked correction; the original row (and its inputs) is preserved and visible."""
+    """Add a linked correction; the original row (and its inputs) is preserved and visible.
+    ``readings`` as for ``record_observation``."""
     require_role(actor, ANALYST)
     _require_reason(reason)
     equipment_ids = _resource_ids(equipment_ids, "equipment")
@@ -690,6 +738,14 @@ def correct_observation(
             reagent_ids=reagent_ids,
             reason=reason,
         )
+        claimed = _claim_readings(
+            desk,
+            actor=actor,
+            test=test,
+            readings=readings,
+            fields=fields,
+            equipment_ids=equipment_ids,
+        )
         correction = Observation(
             test=test,
             replicate=original.replicate,
@@ -703,6 +759,7 @@ def correct_observation(
         )
         correction.full_clean()
         correction.save()
+        read = _link_readings(claimed, correction)
         _touch(test)
         _bump(*subjects)
         record_event(
@@ -719,6 +776,7 @@ def correct_observation(
                 **_reading_record(correction),
                 "raw_reference": raw_reference,
                 "eligibility": eligibility,
+                **read,
             },
             reason=reason,
         )
@@ -1036,6 +1094,12 @@ def submit_test(*, actor, test, expected_revision, reason):
             "An imported replicate no longer agrees with the file it was read from; correct "
             "it before submitting.",
         )
+        _recheck_readings(
+            test,
+            current,
+            "An instrument reading no longer agrees with what the device sent; correct the "
+            "replicate before submitting.",
+        )
         readings = [o.reading for o in current]
         test.mean_value, test.reportable_value, test.reportable_text, test.conforms = spec.evaluate(
             readings
@@ -1174,6 +1238,12 @@ def review_test(*, actor, pin, test, expected_revision, reason):
             current,
             "An imported replicate no longer agrees with the file it was read from; return "
             "the test for correction.",
+        )
+        _recheck_readings(
+            locked,
+            current,
+            "An instrument reading no longer agrees with what the device sent; return the test "
+            "for correction.",
         )
         readings = [o.reading for o in current]
         _, reportable, text, conforms = locked.spec.evaluate(readings)

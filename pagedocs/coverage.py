@@ -24,6 +24,8 @@ EXEMPT_NAMES = {
     "pagedocs:doc": "The documentation endpoint itself.",
     "core:lookup": "JSON options of the remote select (core/lookups.py); renders no page.",
     "core:preference": "POST-only save of a presentation preference (core/preferences.py).",
+    "analytical:instrument_read": "POST-only JSON: keeps a reading a connected balance or meter "
+    "sent (analytical/readings.py); documented with the result pages that take readings.",
 }
 
 # Transitional backlog: namespaces where not every page is documented yet. Docs that do exist in

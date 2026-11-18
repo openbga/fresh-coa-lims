@@ -17,7 +17,7 @@ from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 from quality.models import Lot, Sample
 
-from . import gates, imports, services
+from . import gates, imports, readings, services
 from .contracts import (
     WorkRefused,
     batch_methods,
@@ -166,9 +166,21 @@ def unavailable(request, message, url):
 
 
 def action_page(
-    request, form, *, title, submit, crumbs, cancel_url, record=None, summary=None, held=""
+    request,
+    form,
+    *,
+    title,
+    submit,
+    crumbs,
+    cancel_url,
+    record=None,
+    summary=None,
+    held="",
+    reading_options=None,
 ):
-    """An action form; `held` is why the action cannot be taken now (shown instead of the form)."""
+    """An action form; `held` is why the action cannot be taken now (shown instead of the form).
+    ``reading_options`` lets the page read values from connected instruments
+    (``readings.form_options``)."""
     return render(
         request,
         "analytical/form.html",
@@ -181,6 +193,7 @@ def action_page(
             "record": record,
             "summary": summary or [],
             "held": held,
+            "reading_options": reading_options,
         },
         status=422 if request.method == "POST" else 200,
     )
@@ -604,6 +617,40 @@ def imported_summary(test):
     return [("Imported", rows + check, True)]
 
 
+def readings_summary(test):
+    """Which values were read from instruments, which readings no replicate records, and whether
+    the recorded ones still agree with what the devices sent: for the review page."""
+    taken = list(test.instrument_readings.select_related("observation").order_by("read_at", "pk"))
+    if not taken:
+        return []
+    current = list(test.current_observations())
+    in_current = {o.pk: o for o in current}
+    recorded = [r for r in taken if r.observation_id in in_current]
+    unrecorded = [r for r in taken if r.observation_id is None]
+    parts = [
+        "; ".join(
+            f"replicate {in_current[r.observation_id].replicate} {r.label} {r.value_text} "
+            f"{r.unit} from {r.asset_id}"
+            for r in recorded
+        )
+        or "none recorded in the current replicates"
+    ]
+    if unrecorded:
+        parts.append(
+            f"{len(unrecorded)} reading{'s' if len(unrecorded) != 1 else ''} not recorded: "
+            + "; ".join(f"{r.label} {r.value_text} {r.unit} from {r.asset_id}" for r in unrecorded)
+        )
+    problems = readings.reading_problems(test, current)
+    check = (
+        " · DOES NOT AGREE WITH WHAT THE DEVICE SENT: " + " ".join(problems)
+        if problems
+        else " · read again: agrees"
+        if recorded
+        else ""
+    )
+    return [("Instrument readings", " · ".join(parts) + check, True)]
+
+
 def limits_text(spec):
     """Inclusive QC check limits (batch QC checks stay numeric and inclusive)."""
     if spec.lower is not None and spec.upper is not None:
@@ -662,9 +709,22 @@ def test_detail(request, pk):
     children = list(test.children.order_by("pk"))
     subject_closed = services.subject_refusal(test)
     is_open = test.state == "open" and subject_closed is None
+    instrument_readings = list(
+        test.instrument_readings.select_related("read_by", "observation").order_by("read_at", "pk")
+    )
+    targets = readings.targets(spec)
+    for obs in observations:
+        obs.readings = [r for r in instrument_readings if r.observation_id == obs.pk]
+        read = {r.target for r in obs.readings}
+        obs.typed = (
+            [label for target, (label, _, _) in targets.items() if target not in read]
+            if obs.readings
+            else []
+        )
     current = [o for o in observations if o.is_current]
     current_count = len(current)
     import_problems = imports.import_problems(test, current)
+    reading_problems = readings.reading_problems(test, current)
     # Reported by a contract laboratory: every current replicate carries its evidence.
     contract = reported_source(current)
     batch_status = test.batch.qc_status()[0] if test.batch else None
@@ -761,6 +821,8 @@ def test_detail(request, pk):
             else [],
             "import_problems": import_problems,
             "imported_files": {o.source_file_id for o in observations if o.is_imported},
+            "instrument_readings": instrument_readings,
+            "reading_problems": reading_problems,
             "contract": contract,
             "contract_notice": contract_notice(contract),
             "supplier_result": supplier_label,
@@ -948,6 +1010,7 @@ def observation_new(request, pk):
         ):
             messages.success(request, "Observation recorded.")
             return redirect("analytical:test_detail", pk=test.pk)
+        readings.drop_refused(form, test.spec)
     replicate = test.current_observations().count() + 1
     return action_page(
         request,
@@ -961,6 +1024,7 @@ def observation_new(request, pk):
             *([("Unit", test.spec.unit)] if test.spec.unit else []),
             *calculation_summary(test.spec),
         ],
+        reading_options=readings.form_options(test, form),
     )
 
 
@@ -1000,6 +1064,7 @@ def observation_correct(request, pk):
         ):
             messages.success(request, "Correction recorded; the original value is preserved.")
             return redirect("analytical:test_detail", pk=test.pk)
+        readings.drop_refused(form, test.spec)
     return action_page(
         request,
         form,
@@ -1022,6 +1087,7 @@ def observation_correct(request, pk):
             ("Original record", observation.raw_reference),
             *calculation_summary(test.spec),
         ],
+        reading_options=readings.form_options(test, form),
     )
 
 
@@ -1262,6 +1328,7 @@ def test_review(request, pk):
             *test_summary(test),
             ("Replicates", readings_text(test)),
             *imported_summary(test),
+            *readings_summary(test),
             *(
                 [
                     ("Reported by contract laboratory", contract_text(source)),

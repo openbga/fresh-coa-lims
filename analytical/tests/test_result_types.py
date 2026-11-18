@@ -547,3 +547,12 @@ def test_criterion_is_escaped_in_the_observation_form(client, people, make_lot, 
     login(client, people["analyst"])
     body = client.get(reverse("analytical:observation_new", args=[test.pk])).content.decode()
     assert "<b>bold</b>" not in body and "&lt;b&gt;bold&lt;/b&gt;" in body
+
+
+def test_a_tiny_value_is_kept_as_written_never_in_exponent_form(people, v2):
+    """0.0000001 is stored as written: Decimal would print it as 1E-7, and a reading from an
+    instrument, which writes it plainly, would then never match it."""
+    _, _, tests = v2
+    test = read(people, tests["impurity"], "0.0000001")
+    observation = test.current_observations().get()
+    assert (observation.value, observation.value_text) == (Decimal("1E-7"), "0.0000001")

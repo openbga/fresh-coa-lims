@@ -134,6 +134,8 @@ FORM_SURFACES = {
     "laboratory:calibration_new": ("md", ("analyst", "quality")),
     "laboratory:equipment_out_of_service": ("md", ("analyst", "quality", "reviewer")),
     "laboratory:equipment_return": ("md", ("quality",)),
+    "laboratory:equipment_connection_new": ("md", ("quality",)),
+    "laboratory:equipment_connection_end": ("sm", ("quality",)),
     "laboratory:equipment_qualification_new": ("md", ("analyst", "quality", "reviewer")),
     "laboratory:calibration_accept": ("md", ("reviewer",)),
     "laboratory:qualification_approve": ("md", ("quality",)),
@@ -175,6 +177,8 @@ FORM_SURFACES = {
 
 # Routes whose view takes a form but whose page is not a form page, with the reason.
 NOT_FORM_PAGES = {
+    "analytical:instrument_read": "POST-only JSON: the result form's script passes on what a "
+    "connected balance or meter sent; it renders no page",
     "login_verify": "a sign-in step: there is no session and no workspace page to open it over",
     "login_passkey": "a sign-in step: there is no session and no workspace page to open it over",
     "accounts:two_factor": "the account's two-factor page, its factors listed; its confirmation "

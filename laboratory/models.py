@@ -11,6 +11,8 @@ from django.core.validators import MinValueValidator, URLValidator
 from django.db import models
 from django.utils import timezone
 
+from core import device_formats
+
 http_url = URLValidator(schemes=["http", "https"])
 
 
@@ -49,6 +51,144 @@ class Equipment(models.Model):
 
     def __str__(self):
         return self.asset_id
+
+    @property
+    def connection(self):
+        """The current data connection, or None (from a prefetch of ``connections`` when made)."""
+        return next((c for c in self.connections.all() if c.ended_at is None), None)
+
+
+class DeviceConnection(models.Model):
+    """How readings are taken from a balance or meter connected to the analyst's computer.
+
+    The device's output format and serial settings, and the serial number the device reports when
+    its format reports one. Recorded by quality; append-only. Setting a new connection ends the
+    current one, and an ended connection stays in the record with the readings taken through it.
+    Only ``ended_at``, ``ended_by`` and ``revision`` change, once (migration 0005).
+    """
+
+    equipment = models.ForeignKey(Equipment, on_delete=models.PROTECT, related_name="connections")
+    device_format = models.CharField(
+        "Output format", max_length=20, choices=device_formats.FORMAT_CHOICES
+    )
+    baud_rate = models.PositiveIntegerField(
+        choices=[(rate, str(rate)) for rate in device_formats.BAUD_RATES]
+    )
+    data_bits = models.PositiveSmallIntegerField(choices=[(7, "7"), (8, "8")])
+    parity = models.CharField(
+        max_length=4, choices=[(p, p.title()) for p in device_formats.PARITIES]
+    )
+    stop_bits = models.PositiveSmallIntegerField(choices=[(1, "1"), (2, "2")])
+    flow_control = models.CharField(
+        max_length=8,
+        choices=[("none", "None"), ("hardware", "Hardware (RTS/CTS)")],
+        default="none",
+    )
+    serial_number = models.CharField(
+        max_length=device_formats.MAX_SERIAL,
+        blank=True,
+        help_text="As the device reports it. Required for a format that reports one: a reading "
+        "from a device with another serial number is refused.",
+    )
+    verification_ref = models.CharField(
+        "Verification record",
+        max_length=200,
+        help_text="Where the check that readings arrive unchanged through this connection is "
+        "recorded, with its revision.",
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    ended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    ended_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-recorded_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["equipment"],
+                condition=models.Q(ended_at__isnull=True),
+                name="device_connection_one_current",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ended_at__isnull=True, ended_by__isnull=True)
+                | models.Q(ended_at__isnull=False, ended_by__isnull=False),
+                name="device_connection_ended_by",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(verification_ref__regex=r"^\s*$"),
+                name="device_connection_verified",
+            ),
+        ]
+
+    @property
+    def format(self):
+        return device_formats.get(self.device_format)
+
+    @property
+    def settings_text(self):
+        """Serial settings in the usual short form, e.g. "9600 baud, 8N1, no flow control"."""
+        flow = "hardware flow control" if self.flow_control == "hardware" else "no flow control"
+        frame = f"{self.data_bits}{self.parity[0].upper()}{self.stop_bits}"
+        return f"{self.baud_rate} baud, {frame}, {flow}"
+
+    def clean(self):
+        if not self.device_format:
+            return
+        identifies = self.format.identifies
+        if identifies and not self.serial_number.strip():
+            raise ValidationError(
+                {
+                    "serial_number": "Enter the serial number the device reports; this format "
+                    "reports it with every reading."
+                }
+            )
+        if not identifies and self.serial_number:
+            raise ValidationError(
+                {"serial_number": "This format does not report a serial number; leave it empty."}
+            )
+        if self.serial_number != self.serial_number.strip():
+            raise ValidationError(
+                {"serial_number": "Enter the serial number without spaces around it."}
+            )
+
+    def evidence(self):
+        """What a reading keeps of the connection it was taken through."""
+        return {
+            "id": self.pk,
+            "equipment": self.equipment_id,
+            "asset_id": self.equipment.asset_id,
+            "format": self.device_format,
+            "settings": self.settings_text,
+            "serial_number": self.serial_number,
+            "verification_ref": self.verification_ref,
+        }
+
+    def browser(self):
+        """What the analyst's browser needs to take a reading through this connection."""
+        return {
+            "equipment": self.equipment_id,
+            "asset_id": self.equipment.asset_id,
+            "description": self.equipment.description,
+            "connection": self.pk,
+            "format": self.device_format,
+            "kind": self.format.kind,
+            "open": {
+                "baudRate": self.baud_rate,
+                "dataBits": self.data_bits,
+                "parity": self.parity,
+                "stopBits": self.stop_bits,
+                "flowControl": self.flow_control,
+            },
+            "steps": self.format.browser(),
+        }
+
+    def __str__(self):
+        return f"{self.equipment.asset_id} · {self.format.label}"
 
 
 class Calibration(models.Model):

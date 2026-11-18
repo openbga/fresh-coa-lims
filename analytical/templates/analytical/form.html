@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% load ui %}
-{% comment %}Action form page. Context: page_title, form, submit_label, crumbs, cancel_url, summary; held: why the action cannot be taken now (a blocking notice instead of the form).{% endcomment %}
+{% load static ui %}
+{% comment %}Action form page. Context: page_title, form, submit_label, crumbs, cancel_url, summary; held: why the action cannot be taken now (a blocking notice instead of the form); reading_options: the connected instruments static/js/device-readings.js offers beside the values they can supply (analytical/readings.py form_options).{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block content %}
 {% if summary %}{% panel title="Record" heading_id="record-heading" class="mb-3" %}{% include "analytical/_summary.html" with summary=summary only %}{% endpanel %}{% endif %}
@@ -11,3 +11,4 @@
 {% form_page form=form cancel_url=cancel_url submit_label=submit_label note="The server records the time and your identity." %}{% endform_page %}
 {% endif %}
 {% endblock %}
+{% block extra_js %}{% if reading_options and not held %}{{ reading_options|json_script:"vr-reading-options" }}<script src="{% static 'js/device-readings.js' %}" defer></script>{% endif %}{% endblock %}

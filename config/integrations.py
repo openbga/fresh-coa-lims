@@ -110,6 +110,34 @@ class LaboratoryBench:
                 ]
             ) from exc
 
+    # Readings from balances and meters are taken through the equipment's data connection.
+
+    def connections(self):
+        """What the analyst's browser needs to read each connected instrument, by equipment."""
+        from laboratory.services import current_connections
+
+        return {pk: c.browser() for pk, c in current_connections().items()}
+
+    def connection(self, connection_id):
+        """The evidence of the data connection ``connection_id`` while it is current, else None.
+        Locks it, so ending it waits for the reading being taken."""
+        from laboratory.models import DeviceConnection
+
+        connection = (
+            DeviceConnection.objects.select_for_update(of=("self",))
+            .select_related("equipment")
+            .filter(pk=connection_id, ended_at__isnull=True)
+            .first()
+        )
+        return connection.evidence() if connection else None
+
+    def current_connections(self, equipment_ids):
+        """{equipment id: id of its current data connection}. Called once the result entry
+        holds the equipment locks, so no connection changes before the entry commits."""
+        from laboratory.services import current_connections
+
+        return {pk: c.pk for pk, c in current_connections(equipment_ids).items()}
+
     def record_refusal(
         self, *, actor, method_code, test_code, context_type, context_id, refusals, reason
     ):

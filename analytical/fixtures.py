@@ -463,6 +463,17 @@ class SyntheticBench:
             ],
         }
 
+    # No synthetic instrument has a data connection: every value is typed.
+
+    def connections(self):
+        return {}
+
+    def connection(self, connection_id):
+        return None
+
+    def current_connections(self, equipment_ids):
+        return {}
+
     def record_refusal(
         self, *, actor, method_code, test_code, context_type, context_id, refusals, reason
     ):
