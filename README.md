@@ -1,8 +1,8 @@
-# OpenBGA QM LIMS
+# OpenBGA QM LIMS: free, open-source LIMS for manufacturing quality control
 
 [![checks](https://github.com/openbga/qm-lims/actions/workflows/checks.yml/badge.svg?branch=main)](https://github.com/openbga/qm-lims/actions/workflows/checks.yml)
 
-OpenBGA QM LIMS (QM for quality management) is an open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/qm-lims/>.
+OpenBGA QM LIMS (QM for quality management) is a free, open-source laboratory information management system for manufacturing quality-control laboratories in pharma/biotech, supplements, food, chemicals and devices. One shared workflow uses versioned configuration, independent review, PIN signatures and audit history. It is built with Django, PostgreSQL and locally served Bootstrap/HTMX assets, and is an [OpenBGA](https://github.com/openbga) project. Presentation: <https://openbga.github.io/qm-lims/>.
 
 > **Status: early development (version 0.1.0).** This is not a completed MVP and has not been validated for production or regulated use. Use synthetic data only. No regulatory compliance is claimed.
 
@@ -151,9 +151,9 @@ Issues and pull requests are welcome; pull requests target the `develop` branch 
 
 OpenBGA QM LIMS is an open-source project of [BGASoft](https://bgasoft.com), a laboratory software company, and part of [OpenBGA](https://github.com/openbga).
 
-**Community use.** The software is free under the AGPL-3.0-only licence and is provided as is. The project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
+**Community use.** The software is free to use: there is no licence fee and no per-user or per-module pricing. The source is published under the AGPL-3.0-only licence, so anyone may use, study, change and share it under that licence. It is provided as is, and the project does not include a support commitment: issues and pull requests are welcome and are answered on a best-effort basis.
 
-**Enterprise support.** BGASoft offers paid support and services for organizations that run this software. Are you looking for support? Contact [bgasoft.com](https://bgasoft.com). Details are available on the [open-source support page](https://bgasoft.com/services/open-source-support/). Please do not use GitHub issues for support requests of that kind.
+**Enterprise support.** BGASoft offers optional paid hosting, support, implementation and validation services for organizations that run this software; see [OpenBGA at BGASoft](https://bgasoft.com/openbga/). Are you looking for support? Contact [bgasoft.com](https://bgasoft.com). Details are available on the [open-source support page](https://bgasoft.com/services/open-source-support/). Please do not use GitHub issues for support requests of that kind.
 
 ## Licence and provenance
 
