@@ -1,0 +1,25 @@
+{% load ui %}{% comment %}
+What a certificate check found (reporting/checks.py Result), for the signed-in check and the check
+without an account. It names only what the certificate prints (number, version, issue time, lot
+and material) and its status; staff also get the links. Included with `only`.
+Context: result, staff (truthy on the signed-in page).
+{% endcomment %}{% with version=result.version report=result.report %}{% if not result.found %}
+{% notice tone="warning" label="Not found" blocking=True %}<p class="mb-1">No certificate issued by this laboratory matches this file.</p><p class="mb-0">It may have been changed or saved again by a program after it was issued, it may be a copy made from paper, or it was not issued here. Ask the laboratory for a copy of the certificate.</p>{% endnotice %}
+{% else %}
+{% if result.current %}
+{% notice tone="success" label="Genuine and current" %}<p class="mb-0">This file is {% if result.matched_data %}the certificate data of {% endif %}certificate {{ report.number }}, version {{ version.number }}, issued on {{ version.issued_at|when }}. It is the current version.</p>{% endnotice %}
+{% elif result.superseded %}
+{% notice tone="warning" label="Replaced" blocking=True %}<p class="mb-0">This file is {% if result.matched_data %}the certificate data of {% endif %}certificate {{ report.number }}, version {{ version.number }}, issued on {{ version.issued_at|when }}. Version {{ result.latest.number }}, issued on {{ result.latest.issued_at|when }}, replaces it. {% if staff %}Send the recipient the current version.{% else %}Ask the laboratory for the current version.{% endif %}</p>{% endnotice %}
+{% else %}
+{% notice tone="danger" label="Withdrawn" blocking=True %}<p class="mb-0">This file is {% if result.matched_data %}the certificate data of {% endif %}certificate {{ report.number }}, version {{ version.number }}, issued on {{ version.issued_at|when }}. The laboratory withdrew this certificate on {{ report.withdrawn_at|when }}. {% if staff %}Whoever holds it should be told; record each notification on the certificate.{% else %}Do not rely on it; contact the laboratory.{% endif %}</p>{% endnotice %}
+{% endif %}
+<dl class="vr-facts">
+  {% fact label="Certificate" value=report.number class="vr-id text-wrap text-break" %}
+  {% fact label="Version" %}{{ version.number }}{% if result.superseded %} of {{ result.latest.number }}{% endif %}{% endfact %}
+  {% fact label="Issued" %}{{ version.issued_at|when }}{% endfact %}
+  {% fact label="Lot" %}{{ report.lot.number }} · {{ report.lot.material }}{% endfact %}
+  {% fact label="File checked" %}{% if result.matched_data %}Certificate data (JSON){% else %}Certificate PDF{% endif %}{% endfact %}
+  {% if staff %}{% fact label="Issued to" value=report.recipient|default:"General certificate (no named recipient)" %}{% endif %}
+</dl>
+{% if staff %}<p class="mb-0"><a href="{% url 'reporting:version' report.pk version.number %}">Open version {{ version.number }}</a> · <a href="{% url 'reporting:detail' report.pk %}">Open certificate {{ report.number }}</a></p>{% endif %}
+{% endif %}{% endwith %}

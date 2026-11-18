@@ -91,6 +91,7 @@ class SignIn(LoginView):
         )
         if settings.SINGLE_SIGN_ON:
             context["single_sign_on"] = settings.OIDC_PROVIDER_NAME
+        context["certificate_check"] = settings.CERTIFICATE_CHECK
         notice = published_announcement()
         if notice is not None:
             context["announcement"] = notice

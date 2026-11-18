@@ -8,6 +8,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### High impact
 
+- **Added**: Check whether a certificate someone holds was issued here and is still current · Certificates · 2026-11-18
+
+  **Check a certificate** on the certificate list compares a certificate file, or its SHA-256, with every version issued and answers whether it is genuine and current, replaced by a later version, or withdrawn. The file is never kept. A laboratory can also let its customers make the same check without an account, at an address it gives them. Each check that found a certificate is listed under **Checks** on its page, which warns when a recipient still checks a withdrawn certificate.
+
+  In the application: **Check a certificate**
+
+  > **Technical notes**
+  >
+  > - Migration `reporting.0006_certificate_checks`: append-only `CertificateCheck` (its insert trigger refuses an answer the certificate does not give), the one-row `CheckWindow`, and indexes on `ReportVersion.pdf_sha256` and `data_sha256`.
+  > - New page `reports/check/` (URL name `reporting:check`, every reading role, in the form dialog) and, only with `CERTIFICATE_CHECK=true`, `check/` (URL name `certificate_check`) without an account, linked from the sign-in page. Off by default; it starts no session and sends `Cache-Control: no-store` and `X-Robots-Tag: noindex`.
+  > - `CERTIFICATE_CHECK_RATE` (default 20, 1 to 600) bounds checks without an account per minute for the whole deployment, before the request body is read; past it the page answers 429 with `Retry-After`. Keep per-address rate limiting at the reverse proxy.
+  > - Uploads are hashed as they arrive and never stored, within `RAW_DATA_MAX_BYTES`. Checks without an account are kept once a day for each version and answer, and a cross-site POST is refused with 403 before it is counted. The lot record export adds the section `report_checks`. The certificate prints nothing new.
+
 - **Added**: Issue a certificate for a customer or a market of the lot, with each result judged against every specification · Certificates · 2026-11-18 · [#55](https://github.com/openbga/qm-lims/pull/55)
 
   For a lot under more than one specification, such as the general one and a customer's, the certificate now states for every result whether it conforms to each specification that states the test, including one the lot was not tested against, and says how conformity is judged. On **Review certificate**, **Certificate for** lets quality issue a certificate for one customer or market of the lot instead: it lists the tests that specification states, with its limits, names no other customer or market, and is refused while a result does not meet them. The certificate list, record and versions show the scope, and each method is now listed once on a certificate.

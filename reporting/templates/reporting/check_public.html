@@ -1,0 +1,12 @@
+{% extends "layouts/entrance.html" %}
+{% load ui %}
+{% comment %}The certificate check without an account (reporting.views.public_check), offered only where the deployment sets CERTIFICATE_CHECK. Outside the staff shell; it names only what the certificate prints and its status. Context: form (CheckForm), result (reporting.checks.Result, None before a check), wait (seconds to wait when the minute's checks are used up).{% endcomment %}
+{% block title %}Check a certificate · OpenBGA QM LIMS{% endblock %}
+{% block panel %}
+        <h1>Check a certificate</h1>
+        <p class="vr-entrance-lead">Find out whether this laboratory issued a certificate of analysis you received, and whether it is the current version.</p>
+        {% if wait %}{% notice tone="warning" label="Try again shortly" blocking=True %}Many certificates were checked in the last minute. Try again in {{ wait }} second{{ wait|pluralize }}.{% endnotice %}{% endif %}
+        {% if result %}<section class="vr-check-answer" aria-labelledby="answer-heading"><h2 class="visually-hidden" id="answer-heading">Answer</h2>{% include "reporting/_check_answer.html" with result=result staff=False only %}</section>{% endif %}
+        {% form_page form=form multipart=True no_required_note=True submit_label="Check certificate" submit_icon="patch-check" %}{% endform_page %}
+{% endblock %}
+{% block after_panel %}<p class="vr-login-help">The check compares the SHA-256 of the file with the certificates this laboratory issued; the file is not kept. It finds the PDF exactly as you received it, or the certificate data file attached to it. A printed or scanned copy, or a PDF saved again by a program, has other bytes and is not found: ask the laboratory. <a href="{% url 'login' %}">Laboratory staff sign in</a>.</p>{% endblock %}

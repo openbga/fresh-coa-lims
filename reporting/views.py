@@ -2,24 +2,27 @@ import logging
 import re
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Value, When
-from django.http import FileResponse, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
+from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_GET, require_http_methods
 
 from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
 from quality.models import Lot
 
-from . import certificate_data, conformity, lot_record, services
+from . import certificate_data, checks, conformity, lot_record, services
 from . import evidence as ev
 from .forms import (
     AmendForm,
+    CheckForm,
     IssueForm,
     LotPickForm,
     LotRecordForm,
@@ -27,7 +30,7 @@ from .forms import (
     ScopeForm,
     WithdrawForm,
 )
-from .models import RecipientNotification, Report
+from .models import CertificateCheck, RecipientNotification, Report
 from .render import RenderError
 
 logger = logging.getLogger(__name__)
@@ -47,6 +50,8 @@ STATUS_RANK = Case(
     default=Value(2),
     output_field=IntegerField(),
 )
+# The certificate page lists this many of the newest checks of its versions.
+CHECKS_SHOWN = 20
 STATUS_FILTERS = {
     "draft": Q(state="draft"),
     "issued": Q(state="issued", version_count=1),
@@ -278,6 +283,12 @@ def report_detail(request, pk):
         history = AuditEvent.objects.filter(
             object_type="reporting.report", object_id=str(report.pk)
         ).select_related("actor")
+    checked = CertificateCheck.objects.filter(version__report=report).select_related(
+        "version", "checked_by"
+    )
+    # The rows name their version; its stored files are never needed here.
+    checked = checked.defer("version__pdf", "version__data", "version__snapshot")
+    recent_checks = list(checked[:CHECKS_SHOWN])
     return render(
         request,
         "reporting/report_detail.html",
@@ -294,6 +305,15 @@ def report_detail(request, pk):
             "history": history,
             "can_issue": has_role(request.user, services.ISSUE_ROLE),
             "can_audit": can_audit,
+            "checks": recent_checks,
+            "check_count": checked.count(),
+            # A recipient still holds the withdrawn certificate: the newest check without an
+            # account that found it so (staff checks show in the table).
+            "checked_withdrawn": checked.filter(
+                answer=CertificateCheck.Answer.WITHDRAWN, checked_by__isnull=True
+            ).first()
+            if report.state == "withdrawn"
+            else None,
         },
     )
 
@@ -577,3 +597,113 @@ def lot_record_export(request, pk):
         },
         status=422 if form.errors else 200,
     )
+
+
+def _hash_uploads(request):
+    """Receive the files of this request as their SHA-256 only (reporting.checks). Must run
+    before anything reads the body, so the views that call it are exempt from the CSRF
+    middleware and check the token themselves, after it (Django's documented pattern)."""
+    if request.method == "POST":
+        request.upload_handlers = [checks.HashingUploadHandler(request)]
+
+
+def _checked(request, actor):
+    """The bound or unbound check form and, once it is valid, what the check found."""
+    from core.uploads import size_text
+
+    if request.method != "POST":
+        return CheckForm(), None
+    # Reading the files receives them; HashingUploadHandler stops one over the limit.
+    files = request.FILES
+    refused = (
+        f"The file is larger than the limit of {size_text(checks.max_bytes())}. "
+        "No issued certificate is that large."
+        if getattr(request, "upload_too_large", False)
+        else ""
+    )
+    form = CheckForm(request.POST, files, refused_file=refused)
+    if not form.is_valid():
+        return form, None
+    return form, checks.check(form.cleaned_data["digest"], actor=actor)
+
+
+@csrf_exempt  # the token is checked by _check_page, once the upload handlers are in place
+@login_required
+@require_http_methods(["GET", "POST"])
+def check(request):
+    """Check a certificate file, or its SHA-256, against every issued version (signed in)."""
+    services.require_reader(request.user)
+    _hash_uploads(request)
+    return _check_page(request)
+
+
+@csrf_protect
+def _check_page(request):
+    form, result = _checked(request, request.user)
+    response = render(
+        request,
+        "reporting/check.html",
+        {
+            "page_title": "Check a certificate",
+            "form": form,
+            "result": result,
+            "public_check": settings.CERTIFICATE_CHECK,
+            "public_url": request.build_absolute_uri(reverse("certificate_check")),
+        },
+        status=422 if form.errors else 200,
+    )
+    response["Cache-Control"] = "no-store, private"
+    return response
+
+
+@csrf_exempt  # the token is checked by _public_check_page, after the rate limit
+@require_http_methods(["GET", "POST"])
+def public_check(request):
+    """The check without an account, where the deployment offers it (CERTIFICATE_CHECK).
+
+    A POST takes one of the deployment's checks of the minute before its body is read; past the
+    limit it is answered 429 with the time to wait. No session is started: the page reads and
+    writes nothing of the visitor apart from the CSRF cookie."""
+    if not settings.CERTIFICATE_CHECK:
+        raise Http404
+    if request.method == "POST" and _cross_site(request):
+        # Another site's page cannot make its visitors' browsers use up the minute's checks.
+        raise PermissionDenied("A certificate is checked from this site's own page.")
+    if request.method == "POST" and (wait := checks.take_slot()):
+        response = _public_response(request, CheckForm(), None, status=429, wait=wait)
+        response["Retry-After"] = str(wait)
+        return response
+    _hash_uploads(request)
+    return _public_check_page(request)
+
+
+def _cross_site(request):
+    """A POST another site's page sent: the browser says so, or names another origin."""
+    if request.headers.get("Sec-Fetch-Site") == "cross-site":
+        return True
+    origin = request.headers.get("Origin")
+    if origin is None:
+        return False
+    own = f"{request.scheme}://{request.get_host()}"
+    return origin != own and origin not in settings.CSRF_TRUSTED_ORIGINS
+
+
+@csrf_protect
+def _public_check_page(request):
+    # Someone signed in who reads certificates is named on the check, as on the staff page.
+    user = request.user
+    reader = user.is_authenticated and has_role(user, *services.READ_ROLES) and user.is_active
+    form, result = _checked(request, user if reader else None)
+    return _public_response(request, form, result, status=422 if form.errors else 200)
+
+
+def _public_response(request, form, result, *, status, wait=0):
+    response = render(
+        request,
+        "reporting/check_public.html",
+        {"form": form, "result": result, "wait": wait},
+        status=status,
+    )
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex"
+    return response

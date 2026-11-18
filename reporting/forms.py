@@ -178,3 +178,64 @@ class LotRecordForm(forms.Form):
             "complaint. It is printed in the record and kept with the export in the audit trail."
         ),
     )
+
+
+class CheckForm(forms.Form):
+    """A certificate to check: its file, or the SHA-256 of its file (reporting/checks.py)."""
+
+    file = forms.FileField(
+        label="Certificate file",
+        required=False,
+        help_text=(
+            "The PDF of the certificate, or the certificate data file attached to it, exactly as "
+            "received. The file is not kept: only its SHA-256 is calculated."
+        ),
+    )
+    sha256 = forms.CharField(
+        label="Or its SHA-256",
+        required=False,
+        max_length=200,
+        help_text="The 64 characters (0-9 and a-f) a checksum tool shows for the file.",
+    )
+
+    def __init__(self, *args, refused_file="", **kwargs):
+        from analytical.rawdata import max_bytes
+        from core.uploads import size_text
+
+        super().__init__(*args, **kwargs)
+        # Why the file that was sent did not arrive (it was stopped while it arrived).
+        self.refused_file = refused_file
+        # static/js/app.js refuses a larger file in the browser, so it is never sent.
+        self.fields["file"].widget.attrs.update(
+            {
+                "accept": ".pdf,.json",
+                "data-vr-max-bytes": max_bytes(),
+                "data-vr-max-label": size_text(max_bytes()),
+            }
+        )
+        self.fields["sha256"].widget.attrs.update(
+            {"autocomplete": "off", "spellcheck": "false", "class": "form-control vr-id"}
+        )
+
+    def clean(self):
+        from .checks import digest_of, parse_digest
+
+        cleaned = super().clean()
+        upload, text = cleaned.get("file"), (cleaned.get("sha256") or "").strip()
+        if self.refused_file:
+            self.add_error("file", self.refused_file)
+        if self.errors:
+            return cleaned
+        if upload and text:
+            raise forms.ValidationError("Give the file or its SHA-256, not both.")
+        if not upload and not text:
+            raise forms.ValidationError("Choose the certificate file, or enter its SHA-256.")
+        if text:
+            digest = parse_digest(text)
+            if digest is None:
+                self.add_error("sha256", "A SHA-256 is 64 characters, 0-9 and a-f.")
+                return cleaned
+        else:
+            digest = digest_of(upload)
+        cleaned["digest"] = digest
+        return cleaned

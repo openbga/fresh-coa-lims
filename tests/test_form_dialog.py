@@ -145,6 +145,8 @@ INLINE_FORMS = {
     "layouts/document.html": "the top bar's Sign out button",
     "core/audit.html": "the review records the events ticked in the list itself",
     "analytical/lot_testing.html": "a one-button action without fields",
+    "reporting/check_public.html": "the check without an account: no session and no workspace "
+    "page under it",
 }
 
 

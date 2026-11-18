@@ -5,7 +5,7 @@ views: reporting.views.report_list
 templates: reporting/report_list.html, includes/grid_toolbar.html, includes/list_results.html, includes/pagination.html, includes/sort_header.html
 models: reporting.Report, reporting.RecipientNotification, quality.Lot
 reviewed: 2026-11-18
-summary: Every certificate of analysis in one list. Find a certificate, see whether it is issued, amended or withdrawn, or start a new one for a lot with a signed QC disposition.
+summary: Every certificate of analysis in one list. Find a certificate, see whether it is issued, amended or withdrawn, check a certificate file someone holds, or start a new one for a released lot.
 ---
 
 ## Common tasks
@@ -16,6 +16,8 @@ summary: Every certificate of analysis in one list. Find a certificate, see whet
 ### Start a new certificate
 1. Select [[New certificate of analysis]]. It shows only to the quality role.
 2. Choose the released lot and select [[Review certificate]] on that page.
+### Check a certificate someone sent you
+1. Select [[Check a certificate]] and give the file or its SHA-256 in the dialog.
 ### Find withdrawn certificates whose recipients are not yet recorded as told
 1. Choose [[Awaiting notification]] in [[Status]], then select [[Apply]].
 2. Open each certificate and record the notification there.
@@ -39,7 +41,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 ## Layout
 
-- **Header**: title, the line "Versioned, immutable certificates built from signed QC disposition evidence." and the **New certificate of analysis** button (quality only).
+- **Header**: title, the line "Versioned, immutable certificates built from signed QC disposition evidence.", the **Check a certificate** button and the **New certificate of analysis** button (quality only).
 - **Toolbar** (at the top of the table card): **Search** (placeholder "Number, lot, material, recipient or scope"), **Status** (default "All statuses"), **Apply**, and **Clear all** (only while a filter is active).
 - **Table**: Certificate (with "version N", or "not issued", under it), Lot (links to the lot, with the material under it), Issued to (a certificate for one scope adds "For scope X" under the recipient), Status (a withdrawn certificate without a recorded notification shows "Notification not recorded" under Withdrawn). Certificate numbers link to the record; Certificate, Lot and Status headers sort. **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N certificates", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
@@ -49,6 +51,7 @@ Lists every certificate of analysis (CoA) record so you can find one, check whet
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
+| **Check a certificate** | Always | Any viewer | Opens [Check a certificate](/reports/check/) in the form dialog |
 | **New certificate of analysis** | Viewer has the quality role | Quality | Opens [New certificate of analysis](/reports/new/) |
 | **Apply** | Always | Any viewer | Reloads the list with the search and status |
 | **Clear all** / **Clear filters** | A search or status is set | Any viewer | Returns to the unfiltered list |

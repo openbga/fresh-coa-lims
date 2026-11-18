@@ -13,8 +13,18 @@ from reporting.tests.conftest import PASSWORD, PIN, make_user
 
 pytestmark = pytest.mark.django_db(transaction=True)
 
-READ_ROUTES = {"list", "issue_preview", "detail", "amend_preview", "version", "pdf", "data"}
+READ_ROUTES = {
+    "list",
+    "issue_preview",
+    "detail",
+    "amend_preview",
+    "version",
+    "pdf",
+    "data",
+}
 MUTATION_ROUTES = {"new", "issue_sign", "amend_sign", "withdraw", "notify"}
+# Takes a POST (the file to check) and changes no certificate; every reader may use it.
+LOOKUP_ROUTES = {"check"}
 
 
 @pytest.fixture
@@ -82,7 +92,7 @@ def mutation_urls(report):
 
 def test_every_reporting_route_is_classified():
     names = {p.name for p in urls.urlpatterns}
-    assert names == READ_ROUTES | MUTATION_ROUTES
+    assert names == READ_ROUTES | MUTATION_ROUTES | LOOKUP_ROUTES
 
 
 def test_admin_can_read_every_page_and_download(login, admins, report):
@@ -98,6 +108,12 @@ def test_admin_can_read_every_page_and_download(login, admins, report):
     assert AuditEvent.objects.filter(
         action="report.data_downloaded", actor=admins["admin"], object_id=str(report.pk)
     ).exists()
+    # The check is a read: an administrator checks a certificate like any reader.
+    version = report.versions.get(number=1)
+    answer = client.post(reverse("reporting:check"), {"sha256": version.pdf_sha256})
+    assert answer.status_code == 200
+    assert "Genuine and current" in answer.content.decode()
+    assert version.checks.get().checked_by == admins["admin"]
 
 
 def test_admin_sees_history_and_no_quality_actions(login, admins, report):

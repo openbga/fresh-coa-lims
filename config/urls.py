@@ -4,6 +4,7 @@ from django.urls import include, path
 
 from accounts.views import SignIn, login_passkey, login_sso, login_sso_callback, login_verify
 from config import views
+from reporting.views import public_check
 
 handler403 = "accounts.views.permission_denied"
 
@@ -16,6 +17,8 @@ urlpatterns = [
     path("accounts/login/sso/", login_sso, name="login_sso"),
     path("accounts/login/sso/callback/", login_sso_callback, name="login_sso_callback"),
     path("accounts/logout/", LogoutView.as_view(), name="logout"),
+    # Without an account, and only where the deployment offers it (CERTIFICATE_CHECK).
+    path("check/", public_check, name="certificate_check"),
     path("accounts/", include("accounts.urls")),
     path("admin/", admin.site.urls),
     path("page-docs/", include("pagedocs.urls")),

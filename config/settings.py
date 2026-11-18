@@ -253,6 +253,14 @@ SOURCE_CODE_URL = os.environ.get("SOURCE_CODE_URL", "https://github.com/openbga/
 REPORT_SYNTHETIC_DATA_NOTICE = (
     os.environ.get("REPORT_SYNTHETIC_DATA_NOTICE", "true").lower() == "true"
 )
+# The certificate check without an account (reporting.checks, /check/): a recipient submits a
+# certificate file, or its SHA-256, and learns whether the laboratory issued it and whether it
+# is current. Off unless the laboratory offers it; the signed-in check is always available.
+CERTIFICATE_CHECK = os.environ.get("CERTIFICATE_CHECK", "false").lower() == "true"
+# Checks without an account accepted per minute, all recipients together.
+CERTIFICATE_CHECK_RATE = int(os.environ.get("CERTIFICATE_CHECK_RATE", "20"))
+if not 1 <= CERTIFICATE_CHECK_RATE <= 600:
+    raise RuntimeError("CERTIFICATE_CHECK_RATE must be from 1 to 600 checks a minute.")
 
 # Product defaults; deployers validate these against their controlled-access procedures.
 SESSION_IDLE_SECONDS = int(os.environ.get("SESSION_IDLE_SECONDS", "900"))

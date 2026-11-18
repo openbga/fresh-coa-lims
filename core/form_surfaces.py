@@ -161,6 +161,8 @@ FORM_SURFACES = {
     "impact:withdraw": ("md", ("quality",)),
     # Certificates of analysis
     "reporting:new": ("lg", ("quality",)),
+    # A lookup: the answer shows in the dialog above the form, which stays open for the next file.
+    "reporting:check": ("md", EVERYONE),
     "reporting:issue_sign": ("lg", ("quality",)),
     "reporting:amend_sign": ("lg", ("quality",)),
     "reporting:withdraw": ("md", ("quality",)),
@@ -181,6 +183,8 @@ NOT_FORM_PAGES = {
     "analytical:test_detail": "a record; its Submit for review form opens in the dialog from the "
     "page (form_page dialog=)",
     "analytical:lot_testing": "a record; its only form is a one-button action without fields",
+    "certificate_check": "the check without an account: there is no session and no workspace "
+    "page to open it over",
 }
 
 FORM_HEADER = "X-VR-Form"

@@ -130,6 +130,11 @@ class ReportVersion(models.Model):
 
     class Meta:
         ordering = ["report_id", "number"]
+        # A certificate check finds the version by either checksum (reporting/checks.py).
+        indexes = [
+            models.Index(fields=["pdf_sha256"], name="reportversion_pdf_sha256"),
+            models.Index(fields=["data_sha256"], name="reportversion_data_sha256"),
+        ]
         constraints = [
             models.UniqueConstraint(fields=["report", "number"], name="reportversion_number"),
             models.UniqueConstraint(
@@ -197,3 +202,65 @@ class RecipientNotification(models.Model):
 
     def __str__(self):
         return f"Notification of {self.recipient} on {self.notified_on.isoformat()}"
+
+
+class CertificateCheck(models.Model):
+    """A check that found an issued version (reporting/checks.py): when, how it was made, which
+    file matched and what the check answered. ``checked_by`` is the signed-in person, or null for
+    a recipient without an account, of whom nothing is kept. Append-only (database-guarded,
+    migrations/0006). A check that found nothing names no certificate and is not kept, and checks
+    without an account are kept once a day for each version and answer (reporting/checks.py)."""
+
+    class Matched(models.TextChoices):
+        PDF = "pdf", "Certificate PDF"
+        DATA = "data", "Certificate data"
+
+    class Answer(models.TextChoices):
+        CURRENT = "current", "Current"
+        SUPERSEDED = "superseded", "Superseded"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    version = models.ForeignKey(ReportVersion, on_delete=models.PROTECT, related_name="checks")
+    checked_at = models.DateTimeField()
+    checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    matched = models.CharField(max_length=8, choices=Matched.choices)
+    answer = models.CharField(max_length=16, choices=Answer.choices)
+
+    class Meta:
+        ordering = ["-checked_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(matched__in=["pdf", "data"]), name="certificatecheck_matched"
+            ),
+            models.CheckConstraint(
+                condition=Q(answer__in=["current", "superseded", "withdrawn"]),
+                name="certificatecheck_answer",
+            ),
+        ]
+
+    def __str__(self):
+        # Its own fields only: the lot record names every record, and a version is large.
+        return f"Check of certificate version {self.version_id} at {self.checked_at.isoformat()}"
+
+    @property
+    def without_account(self):
+        return self.checked_by_id is None
+
+
+class CheckWindow(models.Model):
+    """The one-minute window that bounds the checks made without an account
+    (``CERTIFICATE_CHECK_RATE``). A single row, id 1, created on first use and reset when its
+    minute has passed; it holds a count and a time, nothing about who checked."""
+
+    id = models.PositiveSmallIntegerField(primary_key=True)
+    started_at = models.DateTimeField()
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(id=1), name="checkwindow_single")]
