@@ -4,7 +4,7 @@ urls: reporting:version, reporting:pdf
 views: reporting.views.version_detail, reporting.views.version_pdf
 templates: reporting/version.html, reporting/_certificate.html, reporting/pdf/certificate.html
 models: reporting.ReportVersion, reporting.Report, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: One issued version of a certificate, shown exactly as stored, with its signature, checksums and the stored PDF to open or download, also after the certificate is withdrawn.
 ---
 
@@ -16,7 +16,7 @@ summary: One issued version of a certificate, shown exactly as stored, with its 
 ### Go to the version it amends or that replaced it
 1. Select the version under [[Amends]] or [[Superseded by]].
 ## Good to know
-- The page and the PDF come from what was stored at issue. Later changes to other records never alter them.
+- The page and the PDF come from what was stored at issue; a scope certificate reports only its scope. Later changes to other records never alter them.
 - Each download or opening of the PDF is recorded in the certificate's history.
 - If the stored PDF fails its integrity check, nothing is sent and you return here with the error.
 - A superseded version stays available. Only the newest version is current.
@@ -36,7 +36,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 - **Withdrawn** (red notice, when the certificate is withdrawn): "Certificate … was withdrawn on … by …: this version is no longer valid. It stays on record, and its PDF stays downloadable exactly as issued, as evidence."
 - **Header**: breadcrumbs, "Report number version N", status "Withdrawn" (any version of a withdrawn certificate), "Current version" or "Superseded" (a superseded version also shows the fact **Superseded by** as a blue **Superseded** label with the link to the newer version under it), issue time, **Open PDF** and then **Download PDF** (the primary button, last).
 - **Issued record**: Signature, Size, links to the version it amends or is superseded by, PDF SHA-256, Evidence SHA-256, and a note that content comes from the frozen snapshot.
-- **Certificate**: the stored certificate content, including the signature table.
+- **Certificate**: the stored certificate content, including the signature table. A certificate for one scope shows "Certificate for: Scope X" under the lot facts, only that scope's specification and methods, results with Limits and Conformity, and "How conformity is judged"; a general certificate of a lot under several specifications has the section "Conformity with each specification". Each method is listed once.
 
 ## Actions
 
@@ -59,6 +59,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 ## Rules and hidden logic
 
+- **Scope**: the content of a certificate for one scope follows the scope stored with the certificate (`Report.scope`); it never names the lot's other scopes, additional rule sets or decided requirements. Signature rows are limited to the results shown.
 - **Stored, not regenerated**: both the page and the PDF come from stored data and bytes; later changes to other records cannot alter them.
 - **Product name**: newly issued PDFs display OpenBGA QM LIMS. PDFs issued before the rebrand keep their original name and bytes.
 - **PDF endpoint**: GET only (other methods receive 405). Before serving, the bytes are checked against the stored checksum and size; on mismatch you are returned here with "The stored certificate failed its integrity check." and nothing is sent.

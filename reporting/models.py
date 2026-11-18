@@ -14,6 +14,16 @@ class Report(models.Model):
 
     lot = models.ForeignKey("quality.Lot", on_delete=models.PROTECT, related_name="reports")
     recipient = models.CharField(max_length=160, blank=True)
+    # The scope (a customer or a market) whose specification the certificate reports, or ""
+    # for all of the lot's requirements. Set when the series is opened and never changed (the
+    # head guard keeps every identity column).
+    scope = models.CharField(
+        "certificate for",
+        max_length=60,
+        blank=True,
+        help_text="The scope of the lot whose specification the certificate reports; blank for "
+        "all of the lot's requirements.",
+    )
     sequence = models.PositiveIntegerField()
     number = models.CharField(max_length=100, unique=True)
     state = models.CharField(max_length=16, default="draft")

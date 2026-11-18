@@ -4,7 +4,7 @@ urls: reporting:amend_preview
 views: reporting.views.amend_preview
 templates: reporting/preview.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, quality.Lot, quality.LotDates, quality.Reassessment
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: What an amended certificate would contain, built from the lot's current evidence, and which evidence sections changed since the latest version. Nothing is issued here.
 ---
 
@@ -14,7 +14,7 @@ summary: What an amended certificate would contain, built from the lot's current
 2. Check the preview, then select [[Continue to signing]]. It shows only to the quality role when nothing blocks it and you authored no records on the lot.
 3. Sign with your PIN on that page using [[Sign and amend certificate]].
 ### Find out why an amendment cannot be signed
-1. Read the reasons under [[Cannot issue]]. An amendment is blocked by the same reasons as a first issue.
+1. Read the reasons under [[Cannot issue]]. An amendment is blocked by the same reasons as a first issue, including a result that no longer meets the certificate's scope.
 ## Good to know
 - The version being replaced stays on record unchanged.
 - When the evidence is unchanged since the latest version, amend only to correct the certificate's remarks or wording.
@@ -33,9 +33,9 @@ Shows what an amended certificate would contain, built from the lot's current ev
 
 ## Layout
 
-- **Header**: breadcrumbs, title "Amend certificate · number", status "Preview, not issued", evidence hash prefix.
+- **Header**: breadcrumbs, title "Amend certificate · number", status "Preview, not issued", "For scope X" when the certificate is for one scope, evidence hash prefix.
 - **Alerts**: "Cannot issue" reasons, "Not permitted", or "Read only" as on Review certificate (only one of the three shows); plus an "Amendment" note: it replaces version N, which stays on record, and either lists the evidence sections changed or says the evidence is unchanged since that version.
-- **Certificate preview** of the evidence as it would now be issued.
+- **Certificate preview** of the evidence as it would now be issued, for the certificate's own scope (no scope chooser here). A certificate for one scope previews as on Review certificate: only that scope's specification, limits and conformity.
 
 ## Actions
 
@@ -52,6 +52,7 @@ Shows what an amended certificate would contain, built from the lot's current ev
 
 ## Rules and hidden logic
 
+- The scope of an amendment is the scope of the certificate and cannot be changed. The scope's blockers apply as on a first issue: an amendment is refused while a result does not meet, or cannot be judged against, the scope's specification, or a required test has no result.
 - Amendments are held to the same blockers as a first issue, so an open hold prevents amending. So do the date blockers: after the lot's expiry date ("The lot expired after 2026-11-01; no certificate is issued for it."), from its retest date on ("The lot's retest date, 2026-11-01, has been reached; no certificate is issued for a lot due for retest.") and when the dates are not those the release froze ("The lot's expiry and retest dates are not those its release froze."). The same applies when the lot's use ended with a reassessment ("The lot's use ended with reassessment RA-n; no certificate is issued for it."); a lot whose retest date was reached can be amended again once a reassessment concluded as suitable gave a later retest date in force. The preview prints the lot's Expiry date and Retest date (the date in force) when it has them, with a "Reassessed" line when a reassessment gave it, and "dates" is listed among the changed sections when they differ from the latest version. Withdrawal is signed from the certificate record (Withdraw certificate), not here.
 - Viewing writes no audit event.
 - Native lots use the frozen assignment bound to the QC disposition, as described on [Review certificate](/reports/); an unverifiable assignment blocks the amendment. Unknown certificate: 404. GET only.

@@ -45,14 +45,46 @@ class SignReportForm(SignatureIdentityForm):
     )
 
 
+class ScopeForm(forms.Form):
+    """What a certificate is issued for: all of the lot's requirements or the specification of
+    one scope of the lot (a customer or a market). Read from the address; nothing is issued."""
+
+    scope = forms.ChoiceField(
+        label="Certificate for",
+        required=False,
+        widget=forms.RadioSelect,
+        help_text="A certificate for a scope reports the tests its specification states, with "
+        "its limits, and is issued only when every result meets them.",
+    )
+
+    def __init__(self, *args, scopes=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["scope"].choices = [("", "All of the lot's requirements")] + [
+            (
+                name,
+                f"{name}: " + ", ".join(f"{s['code']} version {s['version']}" for s in specs),
+            )
+            for name, specs in (scopes or {}).items()
+        ]
+
+
 class IssueForm(SignReportForm):
+    scope = forms.CharField(widget=forms.HiddenInput, required=False, max_length=60)
     recipient = forms.CharField(
         max_length=160,
         required=False,
         label="Issued to",
         help_text="Customer or consignee named on the certificate. Leave blank for a general one.",
     )
-    field_order = ["recipient", "remarks", "reason", "evidence_hash", "signature_username", "pin"]
+    field_order = [
+        "recipient",
+        "remarks",
+        "reason",
+        "evidence_hash",
+        "scope",
+        "signature_username",
+        "pin",
+    ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

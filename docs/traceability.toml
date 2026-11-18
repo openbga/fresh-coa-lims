@@ -14,6 +14,7 @@
     "sampling/tests/test_requirement_translation.py",
     "sampling/tests/test_services.py",
     "tests/test_core.py",
+    "tests/test_customer_certificates.py",
     "tests/test_report_binding.py",
     "tests/test_requirement_applicability.py",
     "tests/test_requirement_applicability_views.py",
@@ -192,6 +193,7 @@
 "OQ-010" = [
     "e2e/test_certificate_withdrawal_journey.py",
     "e2e/test_contract_laboratory_journey.py",
+    "e2e/test_customer_certificate_journey.py",
     "e2e/test_impact_assessment_journey.py",
     "e2e/test_journey.py",
     "e2e/test_native_journey.py",
@@ -205,6 +207,8 @@
     "reporting/tests/test_views.py",
     "tests/test_certificate_withdrawal.py",
     "tests/test_certificate_withdrawal_views.py",
+    "tests/test_customer_certificate_views.py",
+    "tests/test_customer_certificates.py",
     "tests/test_integrated_journey.py",
     "tests/test_lot_dates.py",
     "tests/test_reassessment.py",
@@ -243,7 +247,10 @@
     "tests/test_impact_assessment_views.py",
 ]
 "OQ-015" = [
+    "e2e/test_customer_certificate_journey.py",
     "e2e/test_requirement_applicability_journey.py",
+    "tests/test_customer_certificate_views.py",
+    "tests/test_customer_certificates.py",
     "tests/test_requirement_applicability.py",
     "tests/test_requirement_applicability_views.py",
 ]

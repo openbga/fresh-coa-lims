@@ -17,6 +17,8 @@ from django.utils import timezone
 from core.models import ElectronicSignature
 from quality.models import Lot
 
+from . import conformity
+
 SCHEMA = "oq.coa/1"
 # Hold states that do not block. Any other state, including an unknown one, blocks.
 CLEARED_HOLD_STATES = frozenset({"closed", "resolved", "cleared", "released"})
@@ -126,18 +128,24 @@ def _native(lot):
     methods = (
         [test["method"] for test in payload["tests"] if test.get("required")] if payload else None
     )
-    return {
+    analytical = stored.get("analytical") or {}
+    native = {
         "assignment_id": stored.get("assignment_id"),
         "assignment_hash": stored.get("assignment_hash"),
-        "assignment_verified": payload is not None and bool(stored.get("analytical")),
+        "assignment_verified": payload is not None and bool(analytical),
         "specification": {
             k: spec[k] for k in ("code", "version", "revision_id", "approved_hash") if k in spec
         }
         or None,
         **_applicability(lot, payload),
         "methods": methods,
-        "analytical": stored.get("analytical") or {},
+        "analytical": analytical,
     }
+    # A lot under several specifications: each result judged against every one of them (only
+    # then, so the evidence of a lot under one specification keeps its shape).
+    if native["assignment_verified"] and len(payload.get("specifications") or []) > 1:
+        native["conformity"] = conformity.judge(payload, analytical)
+    return native
 
 
 def _applicability(lot, payload):
@@ -379,8 +387,10 @@ def collect_evidence(lot):
     return evidence
 
 
-def blockers(evidence):
-    """Reasons this evidence cannot support an issued certificate (empty when complete)."""
+def blockers(evidence, scope=""):
+    """Reasons this evidence cannot support an issued certificate (empty when complete); for a
+    certificate of one scope of the lot, also why its results cannot be certified against that
+    scope's specification (`conformity.scope_blockers`)."""
     problems = []
     lot = evidence["lot"]
     disposition = evidence.get("disposition")
@@ -445,6 +455,7 @@ def blockers(evidence):
         if hold.get("status") not in CLEARED_HOLD_STATES:
             problems.append(f"Open hold: {hold.get('description') or hold.get('id')}.")
     problems += date_blockers(evidence.get("dates"), timezone.localdate())
+    problems += conformity.scope_blockers(evidence, scope)
     return problems
 
 

@@ -4,7 +4,7 @@ urls: reporting:amend_sign
 views: reporting.views.amend_sign
 templates: reporting/sign.html
 models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: Sign an amendment of an issued certificate with your PIN. It adds a new version that supersedes the earlier one, which stays unchanged.
 ---
 
@@ -19,7 +19,7 @@ summary: Sign an amendment of an issued certificate with your PIN. It adds a new
 - If another version was issued or the evidence changed after you reviewed it, signing is refused. Review it again.
 - You cannot amend a certificate for a lot where you recorded the lot, a sample or a result.
 - The earlier version's PDF and content never change. The new version links to it.
-- An amendment cannot change Issued to. A certificate for another recipient is a new certificate.
+- An amendment cannot change Issued to or the scope it is for. A certificate for another recipient is a new certificate.
 
 ## Purpose
 
@@ -32,7 +32,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 
 ## Layout
 
-- **Dialog** (full page without JavaScript): heading "Sign and amend certificate", what your signature records ("amended", the new version number), signer, PIN enrolment link, errors, form, **Sign and amend certificate** / **Cancel**. Behaves as Sign and issue certificate.
+- **Dialog** (full page without JavaScript): heading "Sign and amend certificate", what your signature records ("amended", the new version number; the certificate is named "NUMBER, new version N, for all of the lot's requirements" or "..., for scope X"), signer, PIN enrolment link, errors, form, **Sign and amend certificate** / **Cancel**. Behaves as Sign and issue certificate.
 
 ## Actions
 
@@ -58,6 +58,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 - **Withdrawn meanwhile**: a certificate withdrawn after you opened the page is refused when you submit, with the same message; nothing is signed.
 - **Stale checks**: if another version was issued since you opened the page: "The certificate changed since you reviewed it. Review again."; if the evidence changed: "The evidence changed since you reviewed it. Review again."
 - **Dates**: the date blockers apply as on a first issue: an expired lot, a lot whose use ended with a reassessment, a lot whose retest date in force was reached (a later date given by a suitable reassessment lifts this), or dates that are not those the release froze refuse the amendment ("Certificate cannot be issued:" plus reasons).
+- **Scope**: the amendment keeps the certificate's scope, stored again in the new version's snapshot, and is judged against that scope's blockers as on a first issue.
 - **Gates and authorship**: same blockers and authorship rule as a first issue, including that a native lot's signed requirement assignment must still resolve and verify; later assignments do not replace it ("Certificate cannot be issued:" plus reasons).
 - **Atomic and audited**: version, PDF, signature (meaning `amended`) and audit event `signed.amended` commit together or not at all; failed PIN attempts are audited and survive the rejection.
 - **Preserved original**: the earlier version's bytes and snapshot are untouched; the new version links to it as superseding.

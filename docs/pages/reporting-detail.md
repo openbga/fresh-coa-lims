@@ -4,7 +4,7 @@ urls: reporting:detail
 views: reporting.views.report_detail
 templates: reporting/report_detail.html, reporting/_certificate.html
 models: reporting.Report, reporting.ReportVersion, reporting.RecipientNotification, quality.Lot, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-17
+reviewed: 2026-11-18
 summary: One certificate of analysis: its status, every issued version with its signer, the current version as issued, the PDFs, and for a withdrawn certificate its withdrawal and recipient notifications.
 ---
 
@@ -21,12 +21,12 @@ summary: One certificate of analysis: its status, every issued version with its 
 2. Sign the withdrawal with your PIN on that page.
 3. Tell the recipient, then select [[Record notification]] and record who was told, when, how and where the evidence is kept.
 ### Issue a certificate that was not issued
-1. Select [[Review and issue]]. It shows to the quality role while no version is issued.
+1. Select [[Review and issue]]. It shows to the quality role while no version is issued, and reviews the certificate for this record's scope.
 ## Good to know
 - An amendment adds a new version. The earlier one stays unchanged and is marked Superseded.
 - A withdrawn certificate keeps every version and its PDF as issued, and is never amended. A new certificate for the lot gets a new number.
 - "Recipient notification not recorded" shows until a notification is recorded for a withdrawn certificate.
-- The certificate shown is the stored version as issued, never rebuilt from today's records.
+- The certificate shown is the stored version as issued, never rebuilt from today's records. One for a scope reports only that scope's specification.
 - History shows only to the quality, auditor and admin roles. Every PDF download is recorded there.
 
 ## Purpose
@@ -43,7 +43,7 @@ One certificate of analysis series: its status, every issued version with who si
 
 - **Header**: breadcrumbs, certificate number, status (Not issued, Issued, Amended, Withdrawn), "Current: version N" ("Last version N" once withdrawn), and actions. An amended certificate also opens the Record panel with the fact **Amended** (blue) and "Current version N; earlier versions stay on record unchanged" under it.
 - **Withdrawn** (red notice, withdrawn certificates only): "This certificate was withdrawn on … by …. It is no longer valid and cannot be amended; every issued version and its PDF stay on record exactly as issued." with the reason and, when given, the reference. While no notification is recorded, a second notice **Notification not recorded**: "Recipient notification not recorded. Tell <Issued to, or each recipient of this certificate> that it is withdrawn, then record the notification here."
-- **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Opened; once withdrawn also Withdrawn (time and signer), Withdrawal reference ("None given" when blank) and Reason for withdrawal; and the current PDF SHA-256 ("Last issued PDF SHA-256" once withdrawn).
+- **Record**: Certificate, Lot (link, with material), Issued to ("General certificate (no named recipient)" when blank), Certificate for ("All of the lot's requirements", or "Scope X: the tests its specification states, with its limits"), Opened; once withdrawn also Withdrawn (time and signer), Withdrawal reference ("None given" when blank) and Reason for withdrawal; and the current PDF SHA-256 ("Last issued PDF SHA-256" once withdrawn).
 - **Recipient notifications** (withdrawn certificates only): Recipient, Notified on, Means (with the note under it), Evidence, Recorded (time, with who recorded it under it), oldest first; empty state "No notification recorded yet".
 - **Versions** (once issued): Version, Kind, Status (Current, Superseded, or Withdrawn for the last version of a withdrawn certificate), Issued, Signed by, Reason, Files.
 - **Certificate**: the current version as issued, from its stored snapshot (same content as Review certificate).
@@ -60,7 +60,7 @@ One certificate of analysis series: its status, every issued version with who si
 | **More** > **Withdraw certificate** | Issued | Quality | Opens Withdraw certificate |
 | **Record notification** (primary) | Withdrawn, no notification recorded yet | Quality | Opens Record notification |
 | **Record notification** (Recipient notifications panel) | Withdrawn, at least one notification recorded | Quality | Opens Record notification for a further one |
-| **Review and issue** | No version yet | Quality | Opens the review page for the lot |
+| **Review and issue** | No version yet | Quality | Opens the review page for the lot, for this record's scope when it has one |
 | Version link | Always, per version | Any viewer | Opens that version |
 | **Download PDF** (table) | Always, per version | Any viewer | Downloads that version |
 
@@ -71,6 +71,7 @@ One certificate of analysis series: its status, every issued version with who si
 | Certificate | `Report.number` | Text | — | `CoA-<lot number>-<sequence>` |
 | Lot | `Report.lot` | Lot | — | Links to the lot record |
 | Issued to | `Report.recipient` | Text | — | Recipient or general certificate |
+| Certificate for | `Report.scope` | Text | — | The scope whose specification the certificate reports, or all of the lot's requirements when blank. Fixed when the record is opened |
 | Opened | `Report.created_at`, `created_by` | Date and time, user | — | When and by whom the record was opened |
 | Withdrawn | `Report.withdrawn_at`, withdrawal signature signer | Date and time, user | — | Server time of the withdrawal signature |
 | Withdrawal reference | `Report.withdrawal_reference` | Text | — | The quality-system record behind the withdrawal, e.g. "IA-3" |
@@ -85,7 +86,8 @@ One certificate of analysis series: its status, every issued version with who si
 
 ## Rules and hidden logic
 
-- **One current series per lot and recipient**: further certificates for the same lot to a different recipient get their own record; the same recipient is amended, not reissued. Once a certificate is withdrawn, a certificate issued again for the same lot and recipient is a new record with the next number.
+- **One current series per lot and recipient**: further certificates for the same lot to a different recipient get their own record; the same recipient is amended, not reissued, even for another scope: a certificate for a different scope of the same recipient is refused until the open one is withdrawn. Once a certificate is withdrawn, a certificate issued again for the same lot and recipient is a new record with the next number.
+- **Scope**: a certificate for one scope reports only that scope's specification and results, each with its limits and conformity; it is stored and shown that way, including after the lot's other requirements change.
 - **Frozen content**: the certificate shown is the stored snapshot, never regenerated from today's records.
 - **Amendments** add a version that supersedes the previous one; earlier versions stay available.
 - **Withdrawal** is a signed, final transition (meaning withdrawn): the versions, their PDFs and checksums are unchanged and stay downloadable, and the amendment pages refuse the certificate ("This certificate was withdrawn; it is not amended. A new certificate for the lot is issued as a new numbered certificate.").
