@@ -4,6 +4,7 @@ from django.utils.html import escape
 from core.forms import SignatureIdentityForm
 
 from .models import AnalyticalTest, Investigation, InvestigationEntry
+from .readings import targets
 
 VALUE = {"max_digits": 20, "decimal_places": 8}
 
@@ -176,6 +177,12 @@ class ReadingForm(BenchForm):
                 help_text="For a result below the reporting or detection limit (shown as &lt;10). "
                 "It is stored as recorded and never converted to zero or to the number.",
             )
+        # The instrument reading each value was read from, filled by the page's script; empty
+        # for a typed value (analytical.readings).
+        for _, _, name in targets(spec).values():
+            fields[f"reading_{name}"] = forms.CharField(
+                required=False, max_length=20, widget=forms.HiddenInput
+            )
         reason = self.fields.pop("reason", None)
         self.fields = {**fields, **self.fields}
         if reason is not None:
@@ -183,6 +190,11 @@ class ReadingForm(BenchForm):
 
     def clean(self):
         data = super().clean()
+        readings = {}
+        for target, (_, _, name) in targets(self.spec).items():
+            if pk := data.pop(f"reading_{name}", ""):
+                readings[target] = pk
+        data["readings"] = readings
         calculation = self.spec.calculation
         if calculation is not None:
             data["inputs"] = {i.code: data.pop(f"input_{i.code}", None) for i in calculation.inputs}

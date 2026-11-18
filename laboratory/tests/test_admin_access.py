@@ -10,6 +10,7 @@ from laboratory.models import (
     ContractApproval,
     ContractLaboratory,
     ContractUse,
+    DeviceConnection,
     Equipment,
     Qualification,
     ReagentLot,
@@ -47,6 +48,8 @@ MUTATION_ROUTES = {
     "laboratory:calibration_new",
     "laboratory:equipment_out_of_service",
     "laboratory:equipment_return",
+    "laboratory:equipment_connection_new",
+    "laboratory:equipment_connection_end",
     "laboratory:equipment_qualification_new",
     "laboratory:calibration_accept",
     "laboratory:qualification_new",
@@ -63,6 +66,7 @@ MUTATION_ROUTES = {
 }
 TRACKED = [
     Equipment,
+    DeviceConnection,
     Calibration,
     Qualification,
     ReagentLot,
@@ -83,6 +87,18 @@ def test_every_laboratory_route_is_classified_exactly_once():
 def world(people, django_user_model):
     """Real records so every parameterised route resolves for an authorized user."""
     ready = make_equipment(people, "E-READY")
+    services.set_connection(
+        actor=people["quality"],
+        equipment=ready,
+        reason="Balance connected",
+        replacing=None,
+        device_format="and_standard",
+        baud_rate=2400,
+        data_bits=7,
+        parity="even",
+        stop_bits=1,
+        verification_ref="VER-E-READY",
+    )
     stopped = make_equipment(people, "E-OOS")
     services.take_out_of_service(actor=people["analyst"], equipment=stopped, reason="Drift")
     awaiting = make_equipment(people, "E-CAL", ready=False)
@@ -149,6 +165,8 @@ def routes(world):
         ("laboratory:calibration_new", [ready.pk], "analyst"),
         ("laboratory:equipment_out_of_service", [ready.pk], "reviewer"),
         ("laboratory:equipment_return", [stopped.pk], "quality"),
+        ("laboratory:equipment_connection_new", [ready.pk], "quality"),
+        ("laboratory:equipment_connection_end", [ready.pk], "quality"),
         ("laboratory:equipment_qualification_new", [ready.pk], "analyst"),
         ("laboratory:calibration_accept", [world["calibration"].pk], "reviewer"),
         ("laboratory:qualification_new", [], "reviewer"),

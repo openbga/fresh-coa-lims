@@ -16,6 +16,16 @@ urlpatterns = [
     ),
     path("equipment/<int:pk>/return-to-service/", views.equipment_return, name="equipment_return"),
     path(
+        "equipment/<int:pk>/connection/new/",
+        views.equipment_connection_new,
+        name="equipment_connection_new",
+    ),
+    path(
+        "equipment/<int:pk>/connection/end/",
+        views.equipment_connection_end,
+        name="equipment_connection_end",
+    ),
+    path(
         "equipment/<int:equipment_pk>/qualifications/new/",
         views.qualification_new,
         name="equipment_qualification_new",

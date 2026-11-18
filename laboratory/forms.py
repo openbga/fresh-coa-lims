@@ -1,11 +1,12 @@
 from django import forms
 
+from core import device_formats
 from core.forms import SignatureIdentityForm
 from core.lookups import RemoteSelect
 from quality.models import Sample
 
 from .eligibility import users_with_roles
-from .models import Calibration, Equipment, ReagentLot
+from .models import Calibration, DeviceConnection, Equipment, ReagentLot
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -78,6 +79,48 @@ class EquipmentForm(forms.ModelForm):
     class Meta:
         model = Equipment
         fields = ["asset_id", "description", "category", "location", "requires_qualification"]
+
+
+def _factory_settings():
+    return "; ".join(
+        f"{f.label}: {f.baud_rate} baud, {f.data_bits}{f.parity[0].upper()}{f.stop_bits}"
+        for f in device_formats.FORMATS.values()
+    )
+
+
+class DeviceConnectionForm(forms.ModelForm):
+    """How readings are taken from a balance or meter; ``replacing`` is the connection shown as
+    current when the page opened."""
+
+    replacing = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    reason = reason_field(max_length=2000)
+
+    class Meta:
+        model = DeviceConnection
+        fields = [
+            "device_format",
+            "baud_rate",
+            "data_bits",
+            "parity",
+            "stop_bits",
+            "flow_control",
+            "serial_number",
+            "verification_ref",
+        ]
+        help_texts = {
+            "device_format": "The format the instrument answers in. Set the instrument to "
+            "answer requests only, without automatic or continuous output.",
+            "baud_rate": "As set on the instrument. Factory settings: " + _factory_settings() + ".",
+            "flow_control": "Software flow control (XON/XOFF) is not available: set the "
+            "instrument's handshake to none or hardware.",
+        }
+
+
+class EndConnectionForm(forms.Form):
+    """Ends the data connection shown when the page opened (``connection``)."""
+
+    connection = forms.IntegerField(widget=forms.HiddenInput)
+    reason = reason_field(max_length=2000)
 
 
 class CalibrationForm(forms.ModelForm):

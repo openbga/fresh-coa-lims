@@ -3,8 +3,8 @@ title: Record observation
 urls: analytical:observation_new
 views: analytical.views.observation_new
 templates: analytical/form.html, analytical/_summary.html
-models: analytical.AnalyticalTest, analytical.Observation, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-17
+models: analytical.AnalyticalTest, analytical.Observation, analytical.InstrumentReading, quality.Lot, quality.Sample, laboratory.Qualification, laboratory.DeviceConnection
+reviewed: 2026-11-18
 summary: Record the next replicate of an open test, with the equipment and lots used and where the original observation is kept.
 ---
 
@@ -19,7 +19,12 @@ summary: Record the next replicate of an open test, with the equipment and lots 
 ### Record a calculated result
 1. Enter each input the form asks for. The server calculates the value with the approved formula.
 2. Fill in [[Original record]] and select [[Record observation]].
+### Read a value from a connected balance or meter
+1. Under the value, select [[Read from]] and the instrument. The first time, choose the serial port it is on.
+2. Check the value and what the device sent, shown under the field. Select [[Type instead]] to type it.
+3. Fill in the rest and select [[Record observation]]. The instrument is ticked under [[Equipment used]].
 ## Good to know
+- Every reading is kept on the test as the device sent it, even one you do not record.
 - Never enter a nondetect as zero. A less-than result is stored as recorded and never converted to zero or to the number.
 - The bench checks your qualification for the method and every instrument and lot you tick. A refusal saves nothing.
 - When the method runs in a QC batch, the test must be added to a batch before you can record.
@@ -43,6 +48,7 @@ Record the next replicate observation of a test, with the location of its origin
 - Form, qualitative tests: **Observed result** (radio pair), **What was observed**, **Original record**.
 - Form, calculated methods: one field per approved input (labelled with its name and unit), **Original record**. No value or less-than field.
 - Every form: **Equipment used** and **Reagent and standard lots used** checkboxes before **Original record** (see Fields).
+- With the page's script, in Chrome or Edge on a computer over HTTPS, and when an instrument has a data connection: under each value a balance or meter can supply (each input of a calculated method, or the value of a numeric result with a unit), a **Read from ASSET** button (one connected instrument) or a **Read <value> from** menu of the connected instruments. Under it, what was read: "Read from ASSET at hh:mm:ss:", what the device sent with its line endings shown (␍␊), and **Type instead**; or why the reading was refused. In another browser the line reads "Reading from an instrument needs Chrome or Edge on a computer, over HTTPS. Type the value as read."
 - Summary adds **Calculation** for calculated methods.
 - **Cancel**, **Record observation**.
 
@@ -52,6 +58,8 @@ Record the next replicate observation of a test, with the location of its origin
 |---|---|---|---|
 | **Record observation** | Always | Analyst | Adds the observation; "Observation recorded."; returns to the test |
 | **Cancel** | Always | Analyst | Returns to the test without saving |
+| **Read from ASSET** / **Read <value> from** | An instrument has a current data connection, the value can be read and the browser offers the Web Serial API | Analyst | Asks for the instrument's serial port (once per instrument and page), sends the requests of its format and passes the answer to the server, which keeps the reading on the test. The value fills the field, which becomes read-only, and the instrument is ticked under **Equipment used**. Each read keeps a new reading |
+| **Type instead** | After a reading | Analyst | Clears the field and the reading it names; the value is then typed. The reading stays on the test, not recorded |
 
 ## Fields
 
@@ -67,6 +75,7 @@ Record the next replicate observation of a test, with the location of its origin
 | Reagent and standard lots used | `Observation.eligibility` (reagents) | Checkboxes from the bench | When the method requires a lot | As for equipment, for reagent or standard lots |
 | Calculation (summary) | `AnalyticalTest.requirement` method calculation | Text | — | Formula, result unit, decimals and method revision; shown for calculated methods |
 | Original record | `Observation.raw_reference` | Text, max 200 | Yes | "Notebook page, instrument file or worksheet holding the original observation." |
+| Reading of a value | `InstrumentReading.observation` (hidden `reading_<field>`) | Id of a reading | No | Set by **Read from**; empty for a typed value |
 | Test (summary) | `AnalyticalTest.id` (shown as T-n), `AnalyticalTest.requirement` name, `AnalyticalTest.test_code` | Text | — | "T-n · name (code)": the test being recorded |
 | Lot and sample (summary) | `Lot.number`, `Sample.reference` | Text | — | "lot / sample" the test belongs to; for a stability test the row reads "Lot and stability pull" with "lot / stability pull <pull>" |
 | Specification (summary) | `AnalyticalTest.requirement` (source, acceptance) | Text | — | Frozen approved requirement: "source · acceptance", e.g. "95.0 to 105.0 unit", "at least L unit", "more than L and at most U unit", "less than U unit" or, for a qualitative test, "Absent in 25 g (expected: Absent)" |
@@ -84,6 +93,8 @@ Record the next replicate observation of a test, with the location of its origin
 - **Form by result type** (from the frozen requirement): numeric and count tests show the value and the less-than checkbox; qualitative tests show the outcome radio pair and **What was observed**, with no numeric field.
 - **Reading validation** (form errors, status 422, nothing saved): "A count must be a whole number of zero or more."; "A less-than result needs a value greater than zero."; "A qualitative result cannot be reported as less than a value."; "Choose the observed result: Absent or Present." (or Conforms or Does not conform); "Describe what was observed; the outcome alone is not a complete record."
 - **As recorded**: the result text is stored exactly as entered ("99.80", "<10") or as the outcome label ("Absent"). A less-than result is never treated as zero or as its number.
+- **Readings from instruments**: a reading is taken through the instrument's current data connection. The server reads what the device sent with the connection's format and refuses, storing nothing: a weight the balance did not report as stable, an overload or underload, an error answer, a value that is not a plain number or has more than 8 decimals, anything besides the expected answer (set the instrument to answer requests only), a serial number other than the connection's ("The device reported serial number … names …"), and a unit other than the value's ("ASSET reported its reading in g; this value is in mg. Set the instrument to mg, or type the value."). An accepted reading is kept at once with the server's time, the connection and what the device sent, and `instrument.read` is audited on the test; the test's revision and its lot's (or pull's) rise by 1. The Orion Star format does not say whether the reading was stable: read once the meter shows a stable reading.
+- **Recording a reading**: when you record, each reading named is checked under the record's locks. Refusals, on the field, store nothing: "This reading was not taken for this value of this test."; "A reading is recorded by the person who took it."; "This reading is already recorded in a replicate. Read again."; "This value was read from ASSET; select ASSET under Equipment used."; "The data connection of ASSET changed after this reading. Read again."; "The value differs from the reading … taken from ASSET. Read again, or clear the reading and type the value." After any of these but the equipment refusal, the form shows again with that value and its reading emptied: read it again or type it. The value recorded is the device's number as it wrote it. `observation.recorded` lists the readings recorded.
 - **Blank record**: "Record where the original observation is kept." when the original record is only spaces.
 - **Effect**: in one transaction the observation is stored with the next replicate number, the test revision and the revision of the lot (or, for a stability test, of the pull) rise by 1, and `observation.recorded` is audited with your identity, the reading as recorded (value text, qualifier, outcome, what was observed, inputs and calculation) and the bench evidence. The server sets time and recorder.
 - **Validation errors** show on the form with status 422; nothing is saved.

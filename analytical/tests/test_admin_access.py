@@ -64,6 +64,8 @@ MUTATION_PAGES = {
 }
 # Read pages that also accept a scientific POST (assign tests, submit results).
 POST_ON_READ = {"lot_testing", "test_detail"}
+# POST-only endpoints that answer JSON (a reading from a connected instrument).
+POST_ONLY = {"instrument_read"}
 
 
 def _user(django_user_model, name, *roles, superuser=False):
@@ -268,8 +270,9 @@ def _state():
 
 def test_route_lists_cover_every_analytical_url():
     names = {p.name for p in urls.urlpatterns}
-    assert names == READ | MUTATION_PAGES
+    assert names == READ | MUTATION_PAGES | POST_ONLY
     assert not READ & MUTATION_PAGES and POST_ON_READ <= READ
+    assert not POST_ONLY & (READ | MUTATION_PAGES)
 
 
 def test_admin_reads_every_page_and_sees_no_scientific_actions(client, world):
@@ -367,6 +370,9 @@ def test_admin_cannot_open_or_post_any_scientific_mutation(client, world, django
             assert client.post(url, data).status_code == 403, (actor, name)
         for name, (url, data) in world["read_posts"].items():
             assert client.post(url, data).status_code == 403, (actor, name)
+        read_url = world["mutations"]["import_new"][0].replace("/import/", "/readings/")
+        assert client.get(read_url).status_code == 405, actor
+        assert client.post(read_url, {"target": "value", "connection": "1"}).status_code == 403
         assert _state() == before, actor
     assert not AnalyticalTest.objects.filter(sample=world["spare"]).exists()
 

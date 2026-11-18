@@ -133,12 +133,15 @@
     "catalog/tests/test_file_import.py",
     "e2e/test_calculation_bench_journey.py",
     "e2e/test_instrument_import_journey.py",
+    "e2e/test_instrument_reading_journey.py",
     "e2e/test_native_journey.py",
     "e2e/test_result_types_journey.py",
     "tests/test_calculation_bench_journey.py",
+    "tests/test_device_formats.py",
     "tests/test_file_imports.py",
     "tests/test_formulas.py",
     "tests/test_instrument_import_journey.py",
+    "tests/test_instrument_readings.py",
     "tests/test_integrated_journey.py",
     "tests/test_result_types_journey.py",
     "tests/test_uploads.py",
@@ -232,6 +235,7 @@
     "laboratory/tests/test_views.py",
     "tests/test_calculation_bench_journey.py",
     "tests/test_impact_assessment.py",
+    "tests/test_instrument_readings.py",
 ]
 "OQ-012" = [
     "e2e/test_stability_testing_journey.py",

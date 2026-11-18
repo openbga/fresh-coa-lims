@@ -29,7 +29,14 @@ from .eligibility import (
     reagent_status,
     unassessed_failures,
 )
-from .models import Calibration, Equipment, Qualification, ReagentLot, ResourceUse
+from .models import (
+    Calibration,
+    DeviceConnection,
+    Equipment,
+    Qualification,
+    ReagentLot,
+    ResourceUse,
+)
 
 RECORDERS = ("analyst", "quality")
 ANY_SCIENTIFIC = ("analyst", "reviewer", "quality")
@@ -198,6 +205,94 @@ def return_to_service(
         permission="quality",
         apply=apply,
     )
+
+
+# --- Data connections ------------------------------------------------------------------------
+
+CONNECTION_CHANGED = (
+    "The data connection of this equipment changed while you were editing. Reload the page and "
+    "check the current connection."
+)
+
+
+def _current_connection(equipment):
+    return (
+        DeviceConnection.objects.select_for_update()
+        .filter(equipment=equipment, ended_at__isnull=True)
+        .first()
+    )
+
+
+def _connection_record(connection):
+    return {"connection": connection.pk, **snapshot(connection)}
+
+
+def _end(connection, actor):
+    before = _connection_record(connection)
+    _bump(connection, ended_at=timezone.now(), ended_by=actor)
+    return before
+
+
+@transaction.atomic
+def set_connection(*, actor, equipment, reason, replacing, **values):
+    """Record how readings are taken from ``equipment``; ends its current connection.
+
+    ``replacing`` is the id of the connection the person saw as current (None when there was
+    none): a connection set or ended meanwhile refuses the change.
+    """
+    require_role(actor, "quality")
+    if not reason.strip():
+        raise ValidationError("State why the data connection is set.")
+    lock_account(actor)
+    equipment = _lock(Equipment, equipment)
+    current = _current_connection(equipment)
+    if (current.pk if current else None) != replacing:
+        raise ValidationError(CONNECTION_CHANGED)
+    before = _end(current, actor) if current else None
+    connection = DeviceConnection(equipment=equipment, recorded_by=actor, **values)
+    connection.full_clean()
+    connection.save()
+    record_event(
+        actor=actor,
+        action="equipment.connection_set",
+        obj=equipment,
+        before=before,
+        after=_connection_record(connection),
+        reason=reason,
+    )
+    return connection
+
+
+@transaction.atomic
+def end_connection(*, actor, equipment, reason, connection_id):
+    """End the current data connection: no further reading is taken or recorded through it."""
+    require_role(actor, "quality")
+    if not reason.strip():
+        raise ValidationError("State why the data connection ends.")
+    lock_account(actor)
+    equipment = _lock(Equipment, equipment)
+    current = _current_connection(equipment)
+    if current is None or current.pk != connection_id:
+        raise ValidationError(CONNECTION_CHANGED)
+    before = _end(current, actor)
+    record_event(
+        actor=actor,
+        action="equipment.connection_ended",
+        obj=equipment,
+        before=before,
+        after=_connection_record(current),
+        reason=reason,
+    )
+    return current
+
+
+def current_connections(equipment_ids=None):
+    """{equipment id: current DeviceConnection}, for the given equipment or all of it. Reads
+    without locking; recording a reading rechecks under the equipment locks."""
+    query = DeviceConnection.objects.filter(ended_at__isnull=True).select_related("equipment")
+    if equipment_ids is not None:
+        query = query.filter(equipment_id__in=list(equipment_ids))
+    return {c.equipment_id: c for c in query}
 
 
 # --- Calibration -----------------------------------------------------------------------------

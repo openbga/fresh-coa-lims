@@ -3,14 +3,14 @@ title: Correct observation
 urls: analytical:observation_correct
 views: analytical.views.observation_correct
 templates: analytical/form.html, analytical/_summary.html
-models: analytical.Observation, analytical.AnalyticalTest, quality.Lot, quality.Sample, laboratory.Qualification
-reviewed: 2026-11-17
+models: analytical.Observation, analytical.AnalyticalTest, analytical.InstrumentReading, quality.Lot, quality.Sample, laboratory.Qualification, laboratory.DeviceConnection
+reviewed: 2026-11-18
 summary: Correct one replicate of an open test by adding a linked correction with your reason. The original result stays visible in the record.
 ---
 
 ## Common tasks
 ### Correct a replicate
-1. Enter the corrected reading as on Record observation, for example in [[Observed value]] or [[Observed result]].
+1. Enter the corrected reading as on Record observation, for example in [[Observed value]] or [[Observed result]]. A value can also be read again from a connected balance or meter.
 2. Check [[Original record]], which starts with the earlier location, and tick the equipment and lots used.
 3. Enter the [[Reason for correction]] and select [[Correct observation]].
 ### Correct a submitted result
@@ -85,6 +85,7 @@ Correct one replicate result by adding a linked correction. The original result 
 - **Form by result type** (from the frozen requirement): numeric and count tests show the value and the less-than checkbox; qualitative tests show the outcome radio pair and **What was observed**, with no numeric field.
 - **Reading validation** (form errors, status 422, nothing saved): "A count must be a whole number of zero or more."; "A less-than result needs a value greater than zero."; "A qualitative result cannot be reported as less than a value."; "Choose the observed result: Absent or Present." (or Conforms or Does not conform); "Describe what was observed; the outcome alone is not a complete record."
 - **As recorded**: the result text is stored exactly as entered ("99.80", "<10") or as the outcome label ("Absent"). A less-than result is never treated as zero or as its number.
+- **Readings from instruments**: as on Record observation, a value of the correction can be read from an instrument with a current data connection (**Read from ASSET**, **Type instead**); the same checks apply when you record, and `observation.corrected` lists the readings the correction records. The readings of the corrected row stay with it.
 - **Effect**: a new row with the same replicate number supersedes the old one; the test revision and the revision of the lot (or, for a stability test, the pull) rise by 1; `observation.corrected` is audited with the before and after readings as recorded (value text, qualifier, outcome, what was observed, inputs and calculation), the bench evidence and your reason.
 - **Display**: the old value is struck through and marked "superseded"; the new row is marked "correction".
 - **Independence**: a corrected original still counts as that user's data, so a superseded author cannot review the test.

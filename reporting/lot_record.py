@@ -170,6 +170,12 @@ LOT_SECTIONS = (
     ),
     Section("observations", "Observations", "analytical.Observation", _of_tests("test")),
     Section("raw_files", "Raw-data files", "analytical.RawDataFile", _of_tests("test")),
+    Section(
+        "instrument_readings",
+        "Instrument readings",
+        "analytical.InstrumentReading",
+        _of_tests("test"),
+    ),
     Section("investigations", "Investigations", "analytical.Investigation", _investigations),
     Section(
         "investigation_entries",

@@ -9,7 +9,9 @@ from django.db.models.functions import Cast
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 
+from core import device_formats
 from core.services import require_role
 from quality.models import Sample
 
@@ -25,6 +27,8 @@ from .eligibility import (
 )
 from .forms import (
     CalibrationForm,
+    DeviceConnectionForm,
+    EndConnectionForm,
     EquipmentForm,
     ImpactSigningForm,
     QualificationForm,
@@ -317,6 +321,8 @@ def equipment_detail(request, pk):
     user = request.user
     calibrations = list(item.calibrations.select_related("recorded_by"))
     qualifications = list(item.qualifications.select_related("recorded_by"))
+    connections = list(item.connections.select_related("recorded_by", "ended_by"))
+    connection = next((c for c in connections if c.ended_at is None), None)
     uses = list(item.uses.select_related("used_by")[:25])
     today = timezone.localdate()
     out_of_service = item.state != Equipment.State.IN_SERVICE
@@ -384,6 +390,36 @@ def equipment_detail(request, pk):
             else "Qualification is not required for this equipment.",
         ),
     ]
+    sections.append(
+        section(
+            "Data connections",
+            [
+                ("Output format", False),
+                ("Serial settings", False),
+                ("Serial number", False),
+                ("Verification record", False),
+                ("Recorded", False),
+                ("Ended", False),
+            ],
+            [
+                [
+                    c.format.label,
+                    c.settings_text,
+                    c.serial_number or "Not reported by this format",
+                    c.verification_ref,
+                    f"{when(c.recorded_at)} · {person(c.recorded_by)}",
+                    f"{when(c.ended_at)} · {person(c.ended_by)}"
+                    if c.ended_at
+                    else status("Current", "success"),
+                ]
+                for c in connections
+            ],
+            "No data connection. Values read from this instrument are typed.",
+            note="Results can take readings from this instrument through its current data "
+            "connection, in Chrome or Edge on the analyst's computer. Each reading keeps what "
+            "the device sent.",
+        )
+    )
     if out_of_service:
         impacted = list(affected_uses(item).select_related("used_by")[:IMPACT_SHOWN])
         impacted_work = work_labels([(u.context_type, u.context_id) for u in impacted])
@@ -447,6 +483,21 @@ def equipment_detail(request, pk):
         )
         if out_of_service and can(user, "quality")
         else None,
+        action(
+            "Set data connection",
+            reverse("laboratory:equipment_connection_new", args=[item.pk]),
+            more=True,
+        )
+        if can(user, "quality")
+        else None,
+        action(
+            "End data connection",
+            reverse("laboratory:equipment_connection_end", args=[item.pk]),
+            danger=True,
+            more=True,
+        )
+        if connection is not None and can(user, "quality")
+        else None,
         # The impact of a failure on work already done is assessed in its own record.
         action(
             "Assess impact",
@@ -473,6 +524,10 @@ def equipment_detail(request, pk):
             ("Category", item.category),
             ("Location", item.location),
             ("Qualification required", "Yes" if item.requires_qualification else "No"),
+            (
+                "Data connection",
+                f"{connection.format.label} · {connection.settings_text}" if connection else "None",
+            ),
             ("Service state", status(item.get_state_display(), _tone(not out_of_service))),
             ("Last status change", when(item.status_changed_at)),
             ("Changed by", person(item.status_changed_by)),
@@ -532,6 +587,108 @@ def equipment_out_of_service(request, pk):
         submit="Take out of service",
         cancel_url=reverse("laboratory:equipment_detail", args=[item.pk]),
         intro="Use only when the equipment is unfit. Returning it needs a signed approval.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def equipment_connection_new(request, pk):
+    """Record how readings are taken from the instrument; replaces its current connection."""
+    require_role(request.user, "quality")
+    item = get_object_or_404(Equipment, pk=pk)
+    current = item.connections.filter(ended_at__isnull=True).first()
+    initial = {"replacing": current.pk if current else None}
+    if current:
+        initial.update(
+            {
+                field: getattr(current, field)
+                for field in DeviceConnectionForm.Meta.fields
+                if field != "verification_ref"
+            }
+        )
+    else:
+        fmt = next(iter(device_formats.FORMATS.values()))
+        initial.update(
+            device_format=fmt.code,
+            baud_rate=fmt.baud_rate,
+            data_bits=fmt.data_bits,
+            parity=fmt.parity,
+            stop_bits=fmt.stop_bits,
+            flow_control=fmt.flow_control,
+        )
+    form = DeviceConnectionForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        values = {k: v for k, v in form.cleaned_data.items() if k not in ("reason", "replacing")}
+        done, _ = run_form(
+            request,
+            form,
+            lambda: services.set_connection(
+                actor=request.user,
+                equipment=item,
+                reason=form.cleaned_data["reason"],
+                replacing=form.cleaned_data["replacing"],
+                **values,
+            ),
+        )
+        if done:
+            messages.success(request, "Data connection set.")
+            return redirect("laboratory:equipment_detail", pk=item.pk)
+    return form_page(
+        request,
+        form,
+        title=f"Set the data connection of {item.asset_id}",
+        crumbs=_equipment_crumbs(item, "Set data connection"),
+        submit="Set data connection",
+        cancel_url=reverse("laboratory:equipment_detail", args=[item.pk]),
+        intro=(
+            f"This replaces the current connection ({current.format.label}, recorded "
+            f"{when(current.recorded_at)}), which stays in the record with the readings taken "
+            "through it. "
+            if current
+            else ""
+        )
+        + "Readings are taken in Chrome or Edge on the analyst's computer, through the serial "
+        "port (USB or RS-232) the instrument is on. Check that readings arrive unchanged before "
+        "results rely on them, and name where that check is recorded.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def equipment_connection_end(request, pk):
+    """End the current data connection: values from the instrument are then typed."""
+    require_role(request.user, "quality")
+    item = get_object_or_404(Equipment, pk=pk)
+    current = item.connections.filter(ended_at__isnull=True).first()
+    back = reverse("laboratory:equipment_detail", args=[item.pk])
+    if current is None:
+        messages.warning(request, "This equipment has no data connection.")
+        return redirect(back)
+    form = EndConnectionForm(request.POST or None, initial={"connection": current.pk})
+    if request.method == "POST" and form.is_valid():
+        done, _ = run_form(
+            request,
+            form,
+            lambda: services.end_connection(
+                actor=request.user,
+                equipment=item,
+                reason=form.cleaned_data["reason"],
+                connection_id=form.cleaned_data["connection"],
+            ),
+        )
+        if done:
+            messages.success(request, "Data connection ended.")
+            return redirect(back)
+    return form_page(
+        request,
+        form,
+        title=f"End the data connection of {item.asset_id}",
+        crumbs=_equipment_crumbs(item, "End data connection"),
+        submit="End data connection",
+        cancel_url=back,
+        intro=f"{current.format.label}, {current.settings_text}, recorded "
+        f"{when(current.recorded_at)}. No further reading is taken or recorded through it; "
+        "readings taken already stay with their tests.",
     )
 
 

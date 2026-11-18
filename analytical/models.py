@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+from core.device_formats import visible
+
 from .contracts import (
     LESS_THAN,
     OUTCOMES,
@@ -625,3 +627,66 @@ class RawDataFile(models.Model):
 
     def __str__(self):
         return self.filename
+
+
+class InstrumentReading(models.Model):
+    """One reading taken for a test from a balance or meter connected to the analyst's computer,
+    kept exactly as the device sent it.
+
+    Every reading is kept, whether or not a replicate records it. ``connection`` is the data
+    connection the reading was taken through, as it stood (laboratory ``DeviceConnection``
+    evidence). ``target`` is what the reading was taken for: ``value`` for a result entered
+    directly, otherwise the code of a calculation input. Rows are append-only; only
+    ``observation`` is set, once, by the replicate that records the reading (migration 0012).
+    """
+
+    test = models.ForeignKey(
+        AnalyticalTest, on_delete=models.PROTECT, related_name="instrument_readings"
+    )
+    target = models.CharField(max_length=40)
+    label = models.CharField(max_length=160, help_text="What was read, as the form named it")
+    connection = models.JSONField(help_text="Data connection relied on, as it stood")
+    request = models.CharField(max_length=200, help_text="What the browser sent to the device")
+    response = models.TextField(help_text="What the device sent, exactly as received")
+    value = models.DecimalField(**DECIMAL)
+    value_text = models.CharField(max_length=40, help_text="The number as the device wrote it")
+    unit = models.CharField(max_length=40)
+    serial_number = models.CharField(
+        max_length=40, blank=True, help_text="Serial number the device reported, if its format does"
+    )
+    read_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    read_at = models.DateTimeField(auto_now_add=True)
+    observation = models.ForeignKey(
+        Observation,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="instrument_readings",
+    )
+
+    class Meta:
+        ordering = ["read_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(response="") & ~Q(request="") & ~Q(unit="") & ~Q(target=""),
+                name="analytical_reading_stated",
+            ),
+            # A replicate records a reading once, for one of its values.
+            models.UniqueConstraint(
+                fields=["observation", "target"],
+                condition=Q(observation__isnull=False),
+                name="analytical_reading_once_per_value",
+            ),
+        ]
+
+    @property
+    def asset_id(self):
+        return self.connection.get("asset_id", "")
+
+    @property
+    def response_text(self):
+        """What the device sent, with its line endings shown."""
+        return visible(self.response)
+
+    def __str__(self):
+        return f"{self.label} {self.value_text} {self.unit} from {self.asset_id}"
