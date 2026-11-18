@@ -190,6 +190,10 @@ class MethodRevision(ControlledRevision):
     calculation_formula = models.CharField(max_length=formulas.MAX_LENGTH, blank=True)
     calculation_unit = models.CharField(max_length=40, blank=True, choices=RESULT_UNITS)
     calculation_decimals = models.PositiveSmallIntegerField(null=True, blank=True)
+    # One optional instrument file import (``core.file_imports``): how the export of the
+    # method's instrument is read into results. Changed on a draft by services, like the
+    # calculation; frozen with the approved content.
+    file_import = models.JSONField(null=True, blank=True)
 
     class Meta(ControlledRevision.Meta):
         constraints = ControlledRevision.Meta.constraints + [
@@ -219,6 +223,7 @@ class MethodRevision(ControlledRevision):
             "requires_reagent": self.requires_reagent,
             "qc_checks": [check.content() for check in self.qc_checks.all()],
             "calculation": self.calculation(),
+            "file_import": self.file_import,
             "effective_from": self.effective_from.isoformat(),
             "effective_until": self.effective_until.isoformat(),
         }
@@ -231,6 +236,46 @@ class MethodRevision(ControlledRevision):
             or self.calculation_decimals is not None
             or (self.pk and self.calculation_inputs.exists())
         )
+
+    @property
+    def import_fields(self):
+        """The fields a file import fills: the calculation's input codes in entry order, or
+        ``value`` when the result is entered directly."""
+        from core.file_imports import VALUE
+
+        if self.has_calculation:
+            return [item.code for item in self.calculation_inputs.all()]
+        return [VALUE]
+
+    def file_import_view(self):
+        """The file import for the pages: {"facts": [(label, text)], "columns": [(field,
+        column)]}, or None when there is none. Shows a draft as entered, valid or not."""
+        from core import file_imports
+
+        data = self.file_import
+        if not data:
+            return None
+        delimiter = dict(file_imports.DELIMITER_CHOICES).get(data.get("delimiter"), "?")
+        decimal = dict(file_imports.DECIMAL_CHOICES).get(data.get("decimal"), "?")
+        encoding = dict(file_imports.ENCODING_CHOICES).get(data.get("encoding"), "?")
+        rows = f"rows whose “{data.get('id_column', '')}” is the test number"
+        if data.get("filter_column"):
+            rows += f" and whose “{data['filter_column']}” is “{data.get('filter_value', '')}”"
+        names = {item.code: item.name for item in self.calculation_inputs.all()}
+        names.setdefault(file_imports.VALUE, "Result")
+        mapped = {c.get("field"): c.get("column") for c in data.get("columns", [])}
+        fields = self.import_fields
+        columns = [(names.get(f, f), f, mapped.get(f, "")) for f in fields]
+        columns += [(f, f, column) for f, column in mapped.items() if f not in fields]
+        return {
+            "facts": [
+                ("Export", data.get("source", "")),
+                ("Format", f"{delimiter} separated, decimal mark {decimal}, {encoding}"),
+                ("Column names", f"Row {data.get('header_row', '?')}"),
+                ("Rows read", rows),
+            ],
+            "columns": columns,
+        }
 
     def calculation(self):
         """The calculation as frozen in the approved content, or None when there is none."""

@@ -456,6 +456,13 @@ def _recheck_calculations(spec, observations, refusal):
             raise ValidationError(refusal)
 
 
+def _recheck_imports(test, observations, refusal):
+    """Read each stored export again; refuse when an imported replicate differs from it."""
+    from .imports import recheck_imports
+
+    recheck_imports(test, observations, refusal)
+
+
 def _bench_observations(observations):
     """Observations made at this bench. A value reported by a contract laboratory is entered as
     reported and has no stored inputs to recalculate from."""
@@ -1023,6 +1030,12 @@ def submit_test(*, actor, test, expected_revision, reason):
             _bench_observations(current),
             "Calculated result changed; correct the observation before submitting.",
         )
+        _recheck_imports(
+            test,
+            current,
+            "An imported replicate no longer agrees with the file it was read from; correct "
+            "it before submitting.",
+        )
         readings = [o.reading for o in current]
         test.mean_value, test.reportable_value, test.reportable_text, test.conforms = spec.evaluate(
             readings
@@ -1155,6 +1168,12 @@ def review_test(*, actor, pin, test, expected_revision, reason):
             locked.spec,
             _bench_observations(current),
             "Calculated result changed; return the test for resubmission.",
+        )
+        _recheck_imports(
+            locked,
+            current,
+            "An imported replicate no longer agrees with the file it was read from; return "
+            "the test for correction.",
         )
         readings = [o.reading for o in current]
         _, reportable, text, conforms = locked.spec.evaluate(readings)

@@ -67,6 +67,8 @@ MUTATIONS = {
     "catalog:calculation_clear": (("method_draft",), "approver"),
     "catalog:calculation_input_new": (("method_draft",), "approver"),
     "catalog:calculation_input_remove": (("method_draft", "calc_input"), "approver"),
+    "catalog:file_import_set": (("method_draft",), "approver"),
+    "catalog:file_import_clear": (("method_draft",), "approver"),
     "catalog:method_withdraw": (("method_draft",), "approver"),
     "catalog:material_new": ((), "approver"),
     "sampling:assign": (("lot",), "analyst"),

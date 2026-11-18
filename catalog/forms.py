@@ -1,7 +1,7 @@
 from django import forms
 from django.conf import settings
 
-from core import formulas
+from core import file_imports, formulas
 from core.forms import LocalDateTimeInput, SignatureIdentityForm
 from core.lookups import RemoteSelect
 
@@ -352,6 +352,117 @@ class CalculationForm(GroupedForm):
         ("Calculation", ["formula", "unit", "decimals"]),
         ("Change control", ["reason"]),
     ]
+
+
+class FileImportForm(GroupedForm):
+    """How the instrument's export file is read. One column field per calculation input (blank:
+    the analyst enters that input), or one for the result when there is no calculation."""
+
+    source = forms.CharField(
+        label="Export",
+        max_length=file_imports.MAX_SOURCE,
+        help_text="What produces the file, for example the spectrometer's result table "
+        "export. Analysts see it when they import.",
+    )
+    delimiter = forms.ChoiceField(label="Column separator", choices=file_imports.DELIMITER_CHOICES)
+    decimal = forms.ChoiceField(label="Decimal mark", choices=file_imports.DECIMAL_CHOICES)
+    encoding = forms.ChoiceField(label="Text encoding", choices=file_imports.ENCODING_CHOICES)
+    header_row = forms.IntegerField(
+        label="Row of the column names",
+        min_value=1,
+        max_value=file_imports.MAX_HEADER_ROW,
+        initial=1,
+        help_text="1 when the first row names the columns. Rows above it are not read.",
+    )
+    id_column = forms.CharField(
+        label="Column naming the test",
+        max_length=file_imports.MAX_COLUMN,
+        help_text="The column that holds the test number (for example T-12) on each row, as "
+        "the analyst enters it as the sample name on the instrument.",
+    )
+    filter_column = forms.CharField(
+        label="Column selecting rows",
+        max_length=file_imports.MAX_COLUMN,
+        required=False,
+        help_text="Optional: for a file with several rows per sample, such as one per peak or "
+        "wavelength.",
+    )
+    filter_value = forms.CharField(
+        label="Value selecting rows",
+        max_length=file_imports.MAX_COLUMN,
+        required=False,
+        help_text="Only rows with this value in the column above are read.",
+    )
+    reason = reason_field()
+
+    def __init__(self, *args, revision, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mapped = []
+        if revision.has_calculation:
+            for item in revision.calculation_inputs.all():
+                name = f"column_{item.code}"
+                self.fields[name] = forms.CharField(
+                    label=f"Column for {item.name} ({item.code}, {item.unit})",
+                    max_length=file_imports.MAX_COLUMN,
+                    required=False,
+                    help_text="Leave blank when the analyst enters this input for each row.",
+                )
+                self.mapped.append((item.code, name))
+        else:
+            self.fields["column_value"] = forms.CharField(
+                label="Column holding the result",
+                max_length=file_imports.MAX_COLUMN,
+                help_text="One row of the file is one replicate.",
+            )
+            self.mapped.append((file_imports.VALUE, "column_value"))
+        self.groups = [
+            ("Export", ["source", "delimiter", "decimal", "encoding", "header_row"]),
+            ("Rows of the test", ["id_column", "filter_column", "filter_value"]),
+            ("Columns", [name for _, name in self.mapped]),
+            ("Change control", ["reason"]),
+        ]
+        current = revision.file_import
+        if current and not self.is_bound:
+            columns = {c["field"]: c["column"] for c in current.get("columns", [])}
+            for key in (
+                "source",
+                "delimiter",
+                "decimal",
+                "encoding",
+                "header_row",
+                "id_column",
+                "filter_column",
+                "filter_value",
+            ):
+                self.initial.setdefault(key, current.get(key))
+            for field, name in self.mapped:
+                self.initial.setdefault(name, columns.get(field, ""))
+
+    def clean(self):
+        data = super().clean()
+        if self.mapped and not any((data.get(name) or "").strip() for _, name in self.mapped):
+            self.add_error(None, "Name the column of at least one input.")
+        if bool((data.get("filter_column") or "").strip()) != bool(
+            (data.get("filter_value") or "").strip()
+        ):
+            self.add_error("filter_value", "Give both the column and the value, or neither.")
+        return data
+
+    def import_data(self):
+        """The service's keyword arguments."""
+        data = self.cleaned_data
+        return {
+            "source": data["source"],
+            "delimiter": data["delimiter"],
+            "decimal": data["decimal"],
+            "encoding": data["encoding"],
+            "header_row": data["header_row"],
+            "id_column": data["id_column"],
+            "filter_column": data["filter_column"],
+            "filter_value": data["filter_value"],
+            "columns": {field: data.get(name) or "" for field, name in self.mapped},
+            "reason": data["reason"],
+        }
 
 
 class ReasonForm(forms.Form):

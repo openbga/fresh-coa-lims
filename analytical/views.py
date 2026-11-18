@@ -17,7 +17,7 @@ from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 from quality.models import Lot, Sample
 
-from . import gates, services
+from . import gates, imports, services
 from .contracts import (
     WorkRefused,
     batch_methods,
@@ -584,6 +584,26 @@ def inputs_text(observation):
     )
 
 
+def imported_summary(test):
+    """Which replicates were imported, from which file and row, and whether they still agree
+    with the stored file: for the review page."""
+    current = list(test.current_observations().select_related("source_file"))
+    imported = [o for o in current if o.is_imported]
+    if not imported:
+        return []
+    rows = "; ".join(
+        f"replicate {o.replicate} from {o.source_file.filename} row {o.source.get('row')}"
+        for o in imported
+    )
+    problems = imports.import_problems(test, current)
+    check = (
+        " · DOES NOT AGREE WITH THE STORED FILE: " + " ".join(problems)
+        if problems
+        else " · read again from the stored file: agrees"
+    )
+    return [("Imported", rows + check, True)]
+
+
 def limits_text(spec):
     """Inclusive QC check limits (batch QC checks stay numeric and inclusive)."""
     if spec.lower is not None and spec.upper is not None:
@@ -621,17 +641,30 @@ def test_detail(request, pk):
     if request.method == "POST":
         return test_submit(request, test)
     spec = test.spec
-    observations = list(test.observations.select_related("recorded_by", "supersedes"))
+    observations = list(
+        test.observations.select_related("recorded_by", "supersedes", "source_file").defer(
+            "source_file__content"
+        )
+    )
     superseded = {o.supersedes_id for o in observations if o.supersedes_id}
+    mapping = spec.method.file_import
     for obs in observations:
         obs.is_current = obs.pk not in superseded
         obs.in_limits = spec.conforms(obs.reading)
+        # The cells read, under the names of the file's columns.
+        cells = obs.source.get("cells", {})
+        order = [f for f in (mapping.fields if mapping else ()) if f in cells]
+        obs.imported_cells = [
+            ((mapping.column_of(field) if mapping else "") or field, cells[field])
+            for field in order + [f for f in cells if f not in order]
+        ]
     user_roles = roles(request.user)
     children = list(test.children.order_by("pk"))
     subject_closed = services.subject_refusal(test)
     is_open = test.state == "open" and subject_closed is None
     current = [o for o in observations if o.is_current]
     current_count = len(current)
+    import_problems = imports.import_problems(test, current)
     # Reported by a contract laboratory: every current replicate carries its evidence.
     contract = reported_source(current)
     batch_status = test.batch.qc_status()[0] if test.batch else None
@@ -719,6 +752,15 @@ def test_detail(request, pk):
             and current_count < spec.replicates
             and (test.batch_id or not spec.method.requires_batch),
             "can_correct": "analyst" in user_roles and is_open,
+            "can_import": "analyst" in user_roles
+            and is_open
+            and imports.import_refusal(test) is None,
+            "file_import": spec.method.file_import,
+            "import_facts": imports.mapping_facts(spec.method.file_import)
+            if spec.method.file_import
+            else [],
+            "import_problems": import_problems,
+            "imported_files": {o.source_file_id for o in observations if o.is_imported},
             "contract": contract,
             "contract_notice": contract_notice(contract),
             "supplier_result": supplier_label,
@@ -1219,6 +1261,7 @@ def test_review(request, pk):
         summary=[
             *test_summary(test),
             ("Replicates", readings_text(test)),
+            *imported_summary(test),
             *(
                 [
                     ("Reported by contract laboratory", contract_text(source)),

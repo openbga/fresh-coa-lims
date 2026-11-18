@@ -73,6 +73,8 @@ FORM_SURFACES = {
     "analytical:authorize": ("md", ("quality",)),
     "analytical:conclude": ("md", ("quality",)),
     "analytical:raw_file_new": ("md", ("analyst",)),
+    "analytical:import_new": ("md", ("analyst",)),
+    "analytical:import_file": ("lg", ("analyst",)),
     # Stability and retention
     "stability:protocol_new": ("md", ("analyst", "quality")),
     "stability:condition_new": ("md", ("analyst", "quality")),
@@ -119,6 +121,8 @@ FORM_SURFACES = {
     "catalog:calculation_clear": ("sm", ("quality",)),
     "catalog:calculation_input_new": ("md", ("quality",)),
     "catalog:calculation_input_remove": ("sm", ("quality",)),
+    "catalog:file_import_set": ("lg", ("quality",)),
+    "catalog:file_import_clear": ("sm", ("quality",)),
     "catalog:material_new": ("md", ("quality",)),
     # Suppliers
     "suppliers:new": ("md", ("quality",)),

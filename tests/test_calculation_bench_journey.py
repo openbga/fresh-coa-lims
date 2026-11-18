@@ -49,7 +49,9 @@ REPLICATES = [
 ]
 
 
-def build_world(django_user_model):
+def build_world(django_user_model, file_import=None):
+    """The approved configuration, people and lot; ``file_import`` (the keyword arguments of
+    ``catalog.set_file_import``) gives the calculated method a file import before approval."""
     people = {}
     for name, roles in {
         "author": ["quality"],
@@ -125,6 +127,10 @@ def build_world(django_user_model):
         decimals=2,
         reason="Synthetic calculation",
     )
+    if file_import:
+        catalog.set_file_import(
+            actor=author, revision=method_revision, reason="Synthetic export", **file_import
+        )
     approve(method_revision, approver)
     batch_method, batch_revision = catalog.create_method(
         actor=author,

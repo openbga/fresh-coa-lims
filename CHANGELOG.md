@@ -21,6 +21,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - `CERTIFICATE_CHECK_RATE` (default 20, 1 to 600) bounds checks without an account per minute for the whole deployment, before the request body is read; past it the page answers 429 with `Retry-After`. Keep per-address rate limiting at the reverse proxy.
   > - Uploads are hashed as they arrive and never stored, within `RAW_DATA_MAX_BYTES`. Checks without an account are kept once a day for each version and answer, and a cross-site POST is refused with 403 before it is counted. The lot record export adds the section `report_checks`. The certificate prints nothing new.
 
+- **Added**: Import results from an instrument's export file · Testing · 2026-11-18
+
+  Quality can give a draft method version a **File import** that states how its instrument's export is read: the file's format, the column naming the test and the column of each input. It is approved with the version. On a test of that version, **Import results** attaches the export to the test's raw data and shows the values read from it for checking, with a field for anything the file does not hold. **Record imported results** then records every row as a replicate, with the file and the row it came from. A cell that is not a plain number refuses the whole file. Submission and review read the stored file again.
+
+  In the application: **Specifications and methods: Methods**
+
+  > **Technical notes**
+  >
+  > - Migrations `catalog.0007_file_import` (the method version's `file_import`, changed on a draft like the calculation; the revision guard leaves it out of its comparison) and `analytical.0011_imported_observations` (`Observation.source_file` and `source`; a check constraint ties them together and an insert trigger requires a file of the same test).
+  > - The file import is frozen in the method's approved content and in new test requirements as `oq.test-requirement/4` (the `/3` keys with an eight-key method whose `file_import` follows `oq.file-import/1`). Methods without one keep their earlier payloads and hashes.
+  > - Delimited text only: comma, semicolon or tab; point or comma decimal; UTF-8, UTF-16 or Windows-1252; at most 100,000 rows of 500 columns, within `RAW_DATA_MAX_BYTES`. An export that cannot be imported is refused before it is stored.
+  > - New pages `catalog:file_import_set`, `catalog:file_import_clear`, `analytical:import_new` and `analytical:import_file`; audit actions `method_revision.file_import_set`, `method_revision.file_import_cleared` and `observation.imported`.
+
 - **Added**: Issue a certificate for a customer or a market of the lot, with each result judged against every specification · Certificates · 2026-11-18 · [#55](https://github.com/openbga/qm-lims/pull/55)
 
   For a lot under more than one specification, such as the general one and a customer's, the certificate now states for every result whether it conforms to each specification that states the test, including one the lot was not tested against, and says how conformity is judged. On **Review certificate**, **Certificate for** lets quality issue a certificate for one customer or market of the lot instead: it lists the tests that specification states, with its limits, names no other customer or market, and is refused while a result does not meet them. The certificate list, record and versions show the scope, and each method is now listed once on a certificate.

@@ -14,6 +14,7 @@ from . import services
 from .forms import (
     CalculationForm,
     CalculationInputForm,
+    FileImportForm,
     MaterialForm,
     MethodForm,
     MethodRevisionForm,
@@ -525,7 +526,8 @@ def method_version_new(request, pk):
         cancel_url=detail,
         submit_label="Create draft version",
         intro="The new draft copies the QC checks (when it runs in a QC batch), the calculation "
-        "and its inputs of the latest version. The resource options start as in that version.",
+        "and its inputs, and the file import of the latest version. The resource options start "
+        "as in that version.",
     )
 
 
@@ -790,6 +792,73 @@ def calculation_input_remove(request, pk, input_pk):
         submit_label="Remove input",
         intro="Removal from a draft is recorded in its history with your reason.",
         facts=[("Input", str(item)), ("Unit", item.unit)],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def file_import_set(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "File import", only="The file import"
+    )
+    if refused:
+        return refused
+    form = FileImportForm(request.POST or None, revision=revision)
+    if request.method == "POST" and form.is_valid():
+        if run(
+            form,
+            lambda: services.set_file_import(
+                actor=request.user, revision=revision, **form.import_data()
+            ),
+        ):
+            messages.success(request, f"File import set on {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"File import · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Save file import",
+        intro="Analysts can then import results from the instrument's export instead of typing "
+        "them. Each row that names the test is one replicate. Approval checks that the columns "
+        "match the calculation.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def file_import_clear(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "Clear file import", only="The file import"
+    )
+    if refused:
+        return refused
+    form = ReasonForm(request.POST or None, initial={"expected_revision": revision.revision})
+    if request.method == "POST" and form.is_valid():
+        if form.cleaned_data["expected_revision"] != revision.revision:
+            form.add_error(None, "Record changed. Reload before clearing the file import.")
+        elif run(
+            form,
+            lambda: services.clear_file_import(
+                actor=request.user, revision=revision, reason=form.cleaned_data["reason"]
+            ),
+        ):
+            messages.success(request, f"File import cleared from draft {revision}.")
+            return redirect(detail)
+    current = revision.file_import or {}
+    return form_page(
+        request,
+        form,
+        title=f"Clear file import · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Clear file import",
+        intro="Analysts then record the results of this version by hand. Clearing is recorded "
+        "in the history with your reason.",
+        facts=[("Export", current.get("source") or "None")],
     )
 
 

@@ -1,0 +1,16 @@
+{% load ui %}{% comment %}File import of a method version: how its instrument's export is read into results. Include with revision=... can_edit=... only; actions show on a draft when can_edit is set.{% endcomment %}
+<h3 class="h6 mt-3">File import</h3>
+{% with view=revision.file_import_view %}
+{% if view %}
+<dl class="vr-facts">{% for label, text in view.facts %}{% fact label=label value=text %}{% endfor %}</dl>
+<div class="vr-table-wrap"><table class="table vr-table">
+  <caption class="visually-hidden">Columns read by the file import of {{ revision }}</caption>
+  <thead><tr><th scope="col">Input</th><th scope="col">Column of the file</th></tr></thead>
+  <tbody>{% for name, code, column in view.columns %}<tr><th scope="row">{% if code != name %}<span class="vr-id">{{ code }}</span> {% endif %}{{ name }}</th><td>{% if column %}{{ column }}{% else %}<span class="vr-muted">Entered by the analyst for each row</span>{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>No file import. Analysts record each result by hand.</p>{% endif %}
+{% endwith %}
+{% if revision.is_draft and can_edit %}<p class="d-flex flex-wrap gap-2">
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:file_import_set' revision.pk %}">{% if revision.file_import %}Change file import{% else %}Set file import{% endif %}<span class="visually-hidden"> of version {{ revision.version }}</span></a>
+  {% if revision.file_import %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:file_import_clear' revision.pk %}">Clear file import<span class="visually-hidden"> of version {{ revision.version }}</span></a>{% endif %}
+</p>{% endif %}

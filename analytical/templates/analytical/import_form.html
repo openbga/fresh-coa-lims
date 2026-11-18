@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Check and record the results read from a stored instrument export (analytical.imports.import_file). Context: page_title, crumbs, cancel_url, summary, stored, columns [(field, column)], rows [{number, replicate, cells}], extract, form (None when held), held: why nothing can be imported from this file now.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block content %}
+{% panel title="Record" heading_id="record-heading" class="mb-3" %}{% include "analytical/_summary.html" with summary=summary only %}{% endpanel %}
+{% if held %}
+{% notice tone="hold" label="Nothing imported" blocking=True class="text-break" %}{{ held }} The file stays attached to the test as raw data.{% endnotice %}
+<p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to the test</a></p>
+{% else %}
+{% panel title="Values read from the file" heading_id="rows-heading" table=True class="mb-3" %}
+  {% fill count %}{{ rows|length }} row{{ rows|length|pluralize }}{% endfill %}
+  <div class="vr-table-wrap">
+    <table class="table vr-table" aria-labelledby="rows-heading">
+      <thead><tr><th scope="col">Replicate</th><th scope="col">Row of the file</th>{% for field, column in columns %}<th scope="col" class="text-end">{{ column }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr><th scope="row">{{ row.replicate }}</th><td>{{ row.number }}</td>{% for cell in row.cells %}<td class="text-end vr-nowrap vr-data">{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% fill footer %}The file has {{ extract.data_rows }} row{{ extract.data_rows|pluralize }} below the column names, of which {{ extract.named }} name{{ extract.named|pluralize:"s," }} this test. Check each value against the instrument's record before recording it.{% endfill %}
+{% endpanel %}
+{% form_page form=form cancel_url=cancel_url submit_label="Record imported results" note="The server reads the stored file again, records each row as the next replicate and records the time and your identity." %}{% endform_page %}
+{% endif %}
+{% endblock %}

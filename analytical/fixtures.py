@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection
 from django.utils import timezone
 
-from .contracts import SCHEMA, SCHEMA_V2, SCHEMA_V3, WorkRefused
+from .contracts import SCHEMA, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, WorkRefused
 
 UNIT = "% label claim"
 METHODS = {
@@ -87,6 +87,62 @@ METHODS = {
         "requires_equipment": True,
         "requires_reagent": True,
         "calculation": None,
+    },
+    # Eight-key methods: a seven-key method that reads its instrument's export file.
+    "SYN-UV-FILE": {
+        "code": "SYN-UV-FILE",
+        "revision": 1,
+        "requires_batch": False,
+        "qc_checks": [],
+        "requires_equipment": True,
+        "requires_reagent": False,
+        "calculation": {
+            "formula": "sample_abs / standard_abs * standard_conc / sample_conc * 100",
+            "inputs": [
+                {"code": "sample_abs", "name": "Sample absorbance", "unit": "AU"},
+                {"code": "standard_abs", "name": "Standard absorbance", "unit": "AU"},
+                {"code": "standard_conc", "name": "Standard concentration", "unit": "mg/mL"},
+                {"code": "sample_conc", "name": "Sample concentration", "unit": "mg/mL"},
+            ],
+            "unit": UNIT,
+            "decimals": 2,
+        },
+        "file_import": {
+            "schema": "oq.file-import/1",
+            "source": "Synthetic UV spectrometer result export",
+            "delimiter": "comma",
+            "decimal": "point",
+            "encoding": "utf-8",
+            "header_row": 2,
+            "id_column": "Sample ID",
+            "filter_column": "Wavelength",
+            "filter_value": "254 nm",
+            "columns": [
+                {"field": "sample_abs", "column": "Sample Abs"},
+                {"field": "standard_abs", "column": "Std Abs"},
+            ],
+        },
+    },
+    "SYN-KF-FILE": {
+        "code": "SYN-KF-FILE",
+        "revision": 1,
+        "requires_batch": False,
+        "qc_checks": [],
+        "requires_equipment": False,
+        "requires_reagent": False,
+        "calculation": None,
+        "file_import": {
+            "schema": "oq.file-import/1",
+            "source": "Synthetic titrator determination export",
+            "delimiter": "semicolon",
+            "decimal": "comma",
+            "encoding": "windows-1252",
+            "header_row": 1,
+            "id_column": "Probe",
+            "filter_column": "",
+            "filter_value": "",
+            "columns": [{"field": "value", "column": "Wasser %"}],
+        },
     },
 }
 SPECIFICATIONS = {
@@ -250,8 +306,31 @@ SPECIFICATIONS_V3 = {
 }
 
 
+# oq.test-requirement/4 shapes: the /2 keys with an eight-key method.
+SPECIFICATIONS_V4 = {
+    "uv_file": {
+        **SPECIFICATIONS_V3["uv_assay"],
+        "source": "fixture:SYN-SPEC-UV-FILE@1",
+        "test_code": "uv_file",
+        "name": "Assay by UV, imported",
+        "method": "SYN-UV-FILE",
+    },
+    "kf_file": {
+        **SPECIFICATIONS_V3["kf_water"],
+        "source": "fixture:SYN-SPEC-KF-FILE@1",
+        "test_code": "kf_file",
+        "name": "Water content, imported",
+        "replicates": 2,
+        "method": "SYN-KF-FILE",
+    },
+}
+
+
 def requirement_payload(code):
-    if code in SPECIFICATIONS_V3:
+    if code in SPECIFICATIONS_V4:
+        spec = SPECIFICATIONS_V4[code]
+        payload = {**copy.deepcopy(spec), "schema": SCHEMA_V4}
+    elif code in SPECIFICATIONS_V3:
         spec = SPECIFICATIONS_V3[code]
         payload = {**copy.deepcopy(spec), "schema": SCHEMA_V3}
     elif code in SPECIFICATIONS_V2:
