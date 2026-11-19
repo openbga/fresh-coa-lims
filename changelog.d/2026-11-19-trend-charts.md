@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 68
 type: added
 impact: high
 title: Trend charts of release results with approved limits and out-of-trend alerts
