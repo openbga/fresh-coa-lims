@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A method and its versions, newest first, then its evidence records. Context: page_title, method, revisions, in_force (the approved version in force now), evidence (the method's evidence records), history, crumbs, can_edit, can_record (may record evidence).{% endcomment %}
+{% comment %}A method and its versions, newest first, then its evidence records. Context: page_title, method, revisions, in_force (the approved version in force now), evidence (the method's evidence records), participations (its latest proficiency testing participations, each with shown_state (label, tone) and outcome_tone), participation_total, history, crumbs, can_edit, can_record (may record evidence), can_plan (may plan a participation).{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ method.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_version_new' method.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
@@ -40,6 +40,16 @@
   <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="evidence-heading">
     <thead><tr><th scope="col">Record</th><th scope="col">Kind</th><th scope="col">Completed on</th><th scope="col">Conclusion</th><th scope="col">State</th></tr></thead>
     <tbody>{% for item in evidence %}<tr><th scope="row" class="vr-wrap"><a href="{% url 'catalog:evidence_detail' item.pk %}">{{ item.identifier }}</a><small class="d-block vr-muted">{{ item.title }}</small></th><td>{{ item.get_kind_display }}</td><td>{{ item.completed_on|when:"date" }}</td><td>{% if item.conclusion == "suitable" %}{% status label=item.get_conclusion_display tone="success" %}{% else %}{% status label=item.get_conclusion_display tone="warning" %}{% endif %}</td><td>{% if item.state == "approved" %}{% status label=item.get_state_display tone="success" %}{% elif item.state == "draft" %}{% status label=item.get_state_display tone="progress" %}{% else %}{% status label=item.get_state_display tone="neutral" %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endlist_results %}
+{% endpanel %}
+{% panel title="Proficiency testing" heading_id="proficiency-heading" table=True class="mb-3" %}
+  {% fill actions %}{% if participation_total %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:proficiency_list' %}?method={{ method.pk }}">All participations<span class="visually-hidden"> for {{ method.code }}</span></a>{% endif %}{% if can_plan %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:proficiency_new' %}?method={{ method.pk }}">New participation<span class="visually-hidden"> for {{ method.code }}</span></a>{% endif %}{% endfill %}
+  {% if participation_total > participations|length %}<p class="vr-muted mb-2">Showing the latest {{ participations|length }} of {{ participation_total }}.</p>{% endif %}
+  {% list_results items=participations empty_title="No participations" empty_body="Proficiency testing rounds and other interlaboratory comparisons planned for this method appear here." %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="proficiency-heading">
+    <thead><tr><th scope="col">Participation</th><th scope="col">Provider</th><th scope="col">Results due</th><th scope="col">Outcome</th><th scope="col">State</th></tr></thead>
+    <tbody>{% for item in participations %}<tr><th scope="row" class="vr-wrap"><a href="{% url 'catalog:proficiency_detail' item.pk %}">{{ item.identifier }}</a><small class="d-block vr-muted">{{ item.round_ref }}</small></th><td>{{ item.provider }}</td><td>{{ item.results_due|when:"date" }}</td><td>{% if item.outcome %}{% status label=item.get_outcome_display tone=item.outcome_tone %}{% endif %}</td><td>{% status label=item.shown_state.0 tone=item.shown_state.1 %}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% endlist_results %}
 {% endpanel %}

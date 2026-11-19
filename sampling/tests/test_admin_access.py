@@ -14,7 +14,7 @@ from django.core.exceptions import PermissionDenied
 from django.urls import get_resolver, reverse
 from django.utils import timezone
 
-from catalog import evidence
+from catalog import evidence, proficiency
 from catalog import services as catalog
 from catalog.models import Method
 from catalog.tests.factories import (
@@ -46,6 +46,8 @@ READ = {
     "catalog:materials": (),
     "catalog:evidence_list": (),
     "catalog:evidence_detail": ("evidence_draft",),
+    "catalog:proficiency_list": (),
+    "catalog:proficiency_detail": ("pt_open",),
     "sampling:lots": (),
     "sampling:lot": ("lot",),
     "sampling:plans": (),
@@ -55,6 +57,8 @@ EXTRA_READS = [  # approved versions render differently from drafts
     ("catalog:specification_revision", ("spec_approved",)),
     ("catalog:method", ("method_approved",)),
     ("catalog:evidence_detail", ("evidence_approved",)),
+    ("catalog:proficiency_detail", ("pt_follow_up",)),
+    ("catalog:proficiency_detail", ("pt_planned",)),
     ("sampling:plan", ("plan_approved",)),
 ]
 MUTATIONS = {
@@ -86,6 +90,15 @@ MUTATIONS = {
     "catalog:evidence_characteristic_remove": (("evidence_draft", "characteristic"), "analyst"),
     "catalog:evidence_approve": (("evidence_draft",), "approver"),
     "catalog:evidence_withdraw": (("evidence_draft",), "analyst"),
+    "catalog:proficiency_new": ((), "approver"),
+    "catalog:proficiency_edit": (("pt_open",), "author"),
+    "catalog:proficiency_cancel": (("pt_planned",), "author"),
+    "catalog:proficiency_report": (("pt_open",), "analyst"),
+    "catalog:proficiency_result_new": (("pt_open",), "analyst"),
+    "catalog:proficiency_result_remove": (("pt_open", "pt_result"), "analyst"),
+    "catalog:proficiency_review": (("pt_open",), "approver"),
+    "catalog:proficiency_follow_up": (("pt_follow_up",), "approver"),
+    "catalog:proficiency_close": (("pt_follow_up",), "author"),
     "sampling:assign": (("lot",), "analyst"),
     "sampling:replace": (("lot_testing",), "approver"),
     "sampling:decide": (("lot_conflict",), "approver"),
@@ -197,6 +210,81 @@ def method_evidence(people, method):
     return item, line
 
 
+def participations(people, method):
+    """A participation planned only, one ready for review and one under corrective follow-up
+    recorded by the approver, so that the author can close it."""
+    today = timezone.localdate()
+
+    def planned():
+        return proficiency.plan_participation(
+            actor=people["author"],
+            method=method,
+            reason="Synthetic plan",
+            kind="proficiency_test",
+            provider="Synthetic PT Provider",
+            round_ref="Round 1",
+            test_item="Synthetic item",
+            results_due=today + timedelta(days=10),
+        )
+
+    def recorded(score):
+        item = planned()
+        line = proficiency.add_result(
+            actor=people["analyst"],
+            participation=item,
+            expected_revision=item.revision,
+            reason="Synthetic result",
+            measurand="Synthetic analyte",
+            reported_value="1.0",
+            score_kind="z",
+            score=Decimal(score),
+            performed_by=people["analyst"],
+        )
+        item.refresh_from_db()
+        proficiency.record_report(
+            actor=people["analyst"],
+            participation=item,
+            expected_revision=item.revision,
+            reason="Synthetic report",
+            received_on=today,
+            reported_on=today,
+            data_ref="WS-SYN-1",
+            report_ref="SYN-PT report",
+            report_on=today,
+        )
+        item.refresh_from_db()
+        return item, line
+
+    pt_open, pt_result = recorded("0.5")
+    pt_follow_up, _ = recorded("3.5")
+    proficiency.review_participation(
+        actor=people["approver"],
+        pin=PIN,
+        participation=pt_follow_up,
+        expected_revision=pt_follow_up.revision,
+        reason="Synthetic review",
+        conclusion="Bias",
+        follow_up=True,
+    )
+    pt_follow_up.refresh_from_db()
+    proficiency.record_follow_up(
+        actor=people["approver"],
+        participation=pt_follow_up,
+        expected_revision=pt_follow_up.revision,
+        reason="Synthetic follow-up",
+        cause="Synthetic cause",
+        actions="Synthetic actions",
+        reported_results="None affected",
+        effectiveness="Repeat passed",
+    )
+    return {
+        "pt_planned": planned().pk,
+        "pt_open": pt_open.pk,
+        "pt_result": pt_result.pk,
+        "pt_follow_up": pt_follow_up.pk,
+    }
+
+
 @pytest.fixture
 def world(people, ready):  # noqa: F811
     """Approved and draft versions of every controlled record, and a lot with a deviation."""
@@ -282,6 +370,7 @@ def world(people, ready):  # noqa: F811
         "evidence_draft": evidence_draft.pk,
         "evidence_approved": evidence_approved.pk,
         "characteristic": characteristic.pk,
+        **participations(people, method_draft.method),
     }
 
 

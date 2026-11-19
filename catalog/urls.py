@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import evidence_views, views
+from . import evidence_views, proficiency_views, views
 
 app_name = "catalog"
 urlpatterns = [
@@ -113,6 +113,43 @@ urlpatterns = [
         "method-evidence/<int:pk>/withdraw/",
         evidence_views.evidence_withdraw,
         name="evidence_withdraw",
+    ),
+    path("proficiency/", proficiency_views.proficiency_list, name="proficiency_list"),
+    path("proficiency/new/", proficiency_views.proficiency_new, name="proficiency_new"),
+    path("proficiency/<int:pk>/", proficiency_views.proficiency_detail, name="proficiency_detail"),
+    path("proficiency/<int:pk>/plan/", proficiency_views.proficiency_edit, name="proficiency_edit"),
+    path(
+        "proficiency/<int:pk>/report/",
+        proficiency_views.proficiency_report,
+        name="proficiency_report",
+    ),
+    path(
+        "proficiency/<int:pk>/results/new/",
+        proficiency_views.proficiency_result_new,
+        name="proficiency_result_new",
+    ),
+    path(
+        "proficiency/<int:pk>/results/<int:result_pk>/remove/",
+        proficiency_views.proficiency_result_remove,
+        name="proficiency_result_remove",
+    ),
+    path(
+        "proficiency/<int:pk>/review/",
+        proficiency_views.proficiency_review,
+        name="proficiency_review",
+    ),
+    path(
+        "proficiency/<int:pk>/follow-up/",
+        proficiency_views.proficiency_follow_up,
+        name="proficiency_follow_up",
+    ),
+    path(
+        "proficiency/<int:pk>/close/", proficiency_views.proficiency_close, name="proficiency_close"
+    ),
+    path(
+        "proficiency/<int:pk>/cancel/",
+        proficiency_views.proficiency_cancel,
+        name="proficiency_cancel",
     ),
     path("materials/", views.material_list, name="materials"),
     path("materials/new/", views.material_new, name="material_new"),

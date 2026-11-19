@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods
 from core.grids import Column
 from core.services import require_role
 
-from . import services
+from . import proficiency, services
 from .evidence import RECORDERS
 from .forms import (
     CalculationForm,
@@ -33,6 +33,8 @@ from .models import (
     MethodQCCheck,
     MethodResource,
     MethodRevision,
+    ProficiencyOutcome,
+    ProficiencyParticipation,
     RevisionStatus,
     Specification,
     SpecificationRevision,
@@ -62,6 +64,7 @@ def tabs(request, current):
         ("Specifications", reverse("catalog:specifications")),
         ("Methods", reverse("catalog:methods")),
         ("Method evidence", reverse("catalog:evidence_list")),
+        ("Proficiency testing", reverse("catalog:proficiency_list")),
         ("Materials", reverse("catalog:materials")),
     ]
     return [{"label": label, "url": url, "current": label == current} for label, url in items]
@@ -406,25 +409,43 @@ def specification_withdraw(request, pk):
 # Methods ---------------------------------------------------------------------------------------
 
 
+PARTICIPATIONS_SHOWN = 10
+
 METHOD_COLUMNS = (
     Column("method", "Method", asc="code", desc="-code", locked=True),
     Column("versions", "Versions", css="text-end", priority="low"),
     Column("status", "Status"),
+    Column("proficiency", "Proficiency testing"),
 )
 
 
 @login_required
 def method_list(request):
     read_access(request)
+    participations = ProficiencyParticipation.objects.filter(method=OuterRef("pk"))
+    reviewed = participations.filter(reviewed_at__isnull=False).order_by("-reviewed_at", "-pk")
+    planned = participations.filter(state="open", reported_on__isnull=True)
     methods = Method.objects.annotate(
         versions=Count("revisions"),
         approved=Count("revisions", filter=Q(revisions__status="approved")),
         drafts=Count("revisions", filter=Q(revisions__status="draft")),
+        pt_outcome=Subquery(reviewed.values("outcome")[:1]),
+        pt_reviewed=Subquery(reviewed.values("reviewed_at")[:1]),
+        pt_next_due=Subquery(planned.order_by("results_due").values("results_due")[:1]),
+        pt_follow_up=Exists(participations.filter(state="follow_up")),
     )
     query = request.GET.get("q", "").strip()
     if query:
         methods = methods.filter(Q(code__icontains=query) | Q(title__icontains=query))
     methods, sort = sorted_by(request, methods, {"code": ["code"], "-code": ["-code"]}, "code")
+    page_obj = page(request, methods)
+    today = timezone.localdate()
+    for method in page_obj:
+        method.pt_tone = proficiency.OUTCOME_TONES.get(method.pt_outcome, "neutral")
+        method.pt_outcome_label = (
+            ProficiencyOutcome(method.pt_outcome).label if method.pt_outcome else ""
+        )
+        method.pt_overdue = bool(method.pt_next_due and method.pt_next_due < today)
     return render(
         request,
         "catalog/method_list.html",
@@ -432,7 +453,7 @@ def method_list(request):
             "page_title": SECTION,
             "tabs": tabs(request, "Methods"),
             "columns": METHOD_COLUMNS,
-            "page_obj": page(request, methods),
+            "page_obj": page_obj,
             "query": query,
             "sort": sort,
             "filtered": bool(query),
@@ -481,6 +502,12 @@ def method_detail(request, pk):
             approval_offer(request.user, revision) if can_edit else (False, "")
         )
     _resource_rows(method, revisions, now)
+    shown = method.participations.order_by("-results_due", "-pk")
+    participations = list(shown[:PARTICIPATIONS_SHOWN])
+    for item in participations:
+        item.shown_state = proficiency.display_state(item)
+        item.outcome_tone = proficiency.OUTCOME_TONES.get(item.outcome, "neutral")
+    participation_total = shown.count()
     return render(
         request,
         "catalog/method_detail.html",
@@ -494,6 +521,9 @@ def method_detail(request, pk):
             "can_edit": can_edit,
             "evidence": list(method.evidence.order_by("-completed_on", "-pk")),
             "can_record": can(request.user, *RECORDERS),
+            "participations": participations,
+            "participation_total": participation_total,
+            "can_plan": can(request.user, proficiency.PLANNER),
         },
     )
 

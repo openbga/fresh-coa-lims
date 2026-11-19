@@ -3,8 +3,10 @@ from django.conf import settings
 
 from core import file_imports, formulas
 from core.forms import LocalDateTimeInput, SignatureIdentityForm
-from core.lookups import RemoteSelect
+from core.lookups import RemoteSelect, user_label
+from laboratory.forms import SigningForm
 
+from . import proficiency
 from .models import (
     ExpectedResult,
     Material,
@@ -13,6 +15,10 @@ from .models import (
     MethodEvidence,
     MethodEvidenceCharacteristic,
     MethodResource,
+    MethodRevision,
+    ProficiencyOutcome,
+    ProficiencyParticipation,
+    ProficiencyResult,
     ResultType,
     Specification,
     Stage,
@@ -740,3 +746,263 @@ class ApprovalForm(SignatureIdentityForm):
             "expected_revision": self.cleaned_data["expected_revision"],
             "reason": self.cleaned_data["reason"],
         }
+
+
+# Proficiency testing and interlaboratory comparisons --------------------------------------
+
+
+def _date(label, help_text="", required=True):
+    return forms.DateField(
+        label=label,
+        required=required,
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text=help_text,
+    )
+
+
+def _participation_help(name):
+    return ProficiencyParticipation._meta.get_field(name).help_text
+
+
+def _result_help(name):
+    return ProficiencyResult._meta.get_field(name).help_text
+
+
+class AnalystChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return user_label(obj)
+
+
+class AssessmentChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"{obj.label} · {obj.title}"
+
+
+class ParticipationPlanForm(GroupedForm):
+    """The plan of a participation, as quality changes it while it is open."""
+
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    kind = forms.ChoiceField(choices=ProficiencyParticipation.Kind.choices)
+    provider = forms.CharField(
+        label="Provider or organizer", max_length=160, help_text=_participation_help("provider")
+    )
+    provider_accreditation = forms.CharField(
+        label="Provider's accreditation",
+        max_length=200,
+        required=False,
+        help_text=_participation_help("provider_accreditation"),
+    )
+    scheme = forms.CharField(
+        max_length=160, required=False, help_text=_participation_help("scheme")
+    )
+    round_ref = forms.CharField(
+        label="Round", max_length=80, help_text=_participation_help("round_ref")
+    )
+    test_item = forms.CharField(
+        label="Test item", max_length=200, help_text=_participation_help("test_item")
+    )
+    results_due = _date("Results due", _participation_help("results_due"))
+    reason = reason_field()
+
+    groups = [
+        ("Comparison", ["kind", "provider", "provider_accreditation", "scheme", "round_ref"]),
+        ("Plan", ["test_item", "results_due"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def values(self):
+        return {name: self.cleaned_data[name] for name in proficiency.PLAN_FIELDS}
+
+
+class ParticipationForm(ParticipationPlanForm):
+    """A new participation: also the method it is for."""
+
+    method = forms.ModelChoiceField(
+        queryset=Method.objects.all(),
+        widget=RemoteSelect("methods"),
+        help_text="The method whose results are compared.",
+    )
+    groups = [
+        ("Comparison", ["method", "kind", "provider", "provider_accreditation", "scheme"]),
+        ("Plan", ["round_ref", "test_item", "results_due"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.fields["expected_revision"]
+        self.fields["reason"].label = "Reason"
+
+
+class ParticipationReportForm(GroupedForm):
+    """The laboratory's report of an open participation."""
+
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    method_version = forms.ModelChoiceField(
+        label="Method version used",
+        queryset=MethodRevision.objects.none(),
+        required=False,
+        empty_label="Not stated",
+        help_text="An approved version of the method.",
+    )
+    received_on = _date("Item received", required=False)
+    reported_on = _date(
+        "Results reported", _participation_help("reported_on") + " Not in the future.", False
+    )
+    data_ref = forms.CharField(
+        label="Laboratory records",
+        max_length=200,
+        required=False,
+        help_text=_participation_help("data_ref"),
+    )
+    report_ref = forms.CharField(
+        label="Provider's report",
+        max_length=200,
+        required=False,
+        help_text=_participation_help("report_ref"),
+    )
+    report_on = _date("Report dated", "Not in the future.", False)
+    report_url = forms.URLField(
+        label="Report link",
+        max_length=500,
+        required=False,
+        help_text="Optional http or https link to the report.",
+    )
+    reason = reason_field()
+
+    groups = [
+        ("Laboratory", ["method_version", "received_on", "reported_on", "data_ref"]),
+        ("Provider's evaluation", ["report_ref", "report_on", "report_url"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def __init__(self, *args, method, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["method_version"].queryset = proficiency.version_choices(method)
+
+    def values(self):
+        return {name: self.cleaned_data[name] for name in proficiency.REPORT_FIELDS}
+
+
+class ProficiencyResultForm(GroupedForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    measurand = forms.CharField(max_length=120, help_text=_result_help("measurand"))
+    unit = forms.CharField(max_length=40, required=False)
+    reported_value = forms.CharField(
+        label="Laboratory's result", max_length=60, help_text=_result_help("reported_value")
+    )
+    assigned_value = forms.CharField(
+        label="Assigned value",
+        max_length=60,
+        required=False,
+        help_text=_result_help("assigned_value"),
+    )
+    score_kind = forms.ChoiceField(
+        label="Score",
+        choices=ProficiencyResult.ScoreKind.choices,
+        help_text="The kind of score the provider's report gives.",
+    )
+    score = forms.DecimalField(
+        label="Score value",
+        max_digits=12,
+        decimal_places=4,
+        required=False,
+        help_text="As the report states it. The outcome follows from it: a z, z′ or ζ score is "
+        "satisfactory up to 2 in absolute value, questionable below 3, unsatisfactory from 3; "
+        "an En number is satisfactory up to 1.",
+    )
+    outcome = forms.ChoiceField(
+        label="Provider's evaluation",
+        choices=[("", "—"), *ProficiencyOutcome.choices],
+        required=False,
+        help_text="Only for a result without a score: the provider's evaluation as stated.",
+    )
+    performed_by = AnalystChoice(
+        label="Analyst",
+        queryset=proficiency.performers(),
+        widget=RemoteSelect("analysts"),
+        help_text="Who performed the analysis: an active analyst.",
+    )
+    note = _text("Note", rows=2, required=False, help_text=_result_help("note"))
+    reason = reason_field("Reason")
+
+    groups = [
+        ("Result", ["measurand", "unit", "reported_value", "assigned_value", "performed_by"]),
+        ("Provider's score", ["score_kind", "score", "outcome", "note"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def clean(self):
+        data = super().clean()
+        kind, score = data.get("score_kind"), data.get("score")
+        if kind == ProficiencyResult.ScoreKind.NONE:
+            if score is not None:
+                self.add_error("score", "A result without a score has no score value.")
+            if not data.get("outcome"):
+                self.add_error("outcome", "Choose the provider's evaluation.")
+        elif kind:
+            if score is None:
+                self.add_error("score", "Enter the score the provider gave.")
+            if data.get("outcome"):
+                self.add_error("outcome", "The outcome follows from the score: leave this empty.")
+        return data
+
+
+class ReviewForm(SigningForm):
+    """The review of a participation's outcome, signed."""
+
+    conclusion = _text(
+        "Review of the outcome",
+        rows=4,
+        help_text="How the laboratory performed, compared with its earlier rounds, and whether "
+        "anything calls for action.",
+    )
+    follow_up = forms.BooleanField(
+        label="Corrective follow-up",
+        required=False,
+        help_text="Required when a result is unsatisfactory. The participation then stays open "
+        "until another quality person closes the follow-up.",
+    )
+
+
+class FollowUpForm(GroupedForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    cause = _text("Cause", help_text=_participation_help("cause"), required=False)
+    actions = _text("Corrective actions", help_text=_participation_help("actions"), required=False)
+    reported_results = _text(
+        "Results already reported",
+        help_text=_participation_help("reported_results"),
+        required=False,
+    )
+    impact_assessment = AssessmentChoice(
+        label="Impact assessment",
+        queryset=None,
+        required=False,
+        widget=RemoteSelect("impact-assessments"),
+        help_text="Optional: the impact assessment of the results already reported. It must be "
+        "concluded before the follow-up is closed.",
+    )
+    quality_reference = forms.CharField(
+        label="Quality-system reference",
+        max_length=200,
+        required=False,
+        help_text=_participation_help("quality_reference"),
+    )
+    effectiveness = _text(
+        "Effectiveness check", help_text=_participation_help("effectiveness"), required=False
+    )
+    reason = reason_field()
+
+    groups = [
+        ("Investigation", ["cause", "actions"]),
+        ("Results already reported", ["reported_results", "impact_assessment"]),
+        ("Effectiveness", ["effectiveness", "quality_reference"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["impact_assessment"].queryset = proficiency.assessment_choices()
+
+    def values(self):
+        return {name: self.cleaned_data[name] for name in proficiency.FOLLOW_UP_FIELDS}

@@ -3,9 +3,9 @@ title: Method record
 urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
-models: catalog.Method, catalog.MethodRevision, catalog.MethodEvidence, catalog.MethodQCCheck, catalog.MethodResource, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
+models: catalog.ProficiencyParticipation, catalog.Method, catalog.MethodRevision, catalog.MethodEvidence, catalog.MethodQCCheck, catalog.MethodResource, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
 reviewed: 2026-11-19
-summary: One method and all its versions, newest first: procedure, suitability evidence, QC checks, suitable resources, calculation, file import, signatures and history, then evidence records. Quality users build and approve drafts here.
+summary: One method and its versions, newest first: procedure, evidence, QC checks, suitable resources, calculation, file import, signatures and history, then evidence records and proficiency testing. Quality users manage drafts.
 ---
 
 ## Common tasks
@@ -41,6 +41,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **admin** without a laboratory role can view everything here but sees no create, edit, approval or signing controls. An administrator who also holds the lab role an action needs gets that action, under the same independence rules.
 - **New version**, **Withdraw draft**, **Suitability evidence**, **Add QC check**, QC check **Remove**, **Add suitable resource**, suitable resource **Remove**: **quality** role only (drafts only for all but the first).
 - **New evidence record**: analyst, reviewer or quality.
+- **New participation**: quality. **All participations** shows to every viewer once the method has a participation.
 - **Review and approve**: quality, draft, and only when you did not author or edit that version. Otherwise the text "Another quality approver must sign this draft." is shown instead, or, when a later version is already approved for the same dates, that reason.
 
 ## Layout
@@ -52,6 +53,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 - **Calculation** (every version): formula, result unit and decimals, and a table Input, Unit with **Remove** on drafts for quality. Without a calculation: "No calculation. Results are entered directly." Without inputs: "No inputs yet. Approval requires one input for each name in the formula." On drafts for quality: **Set formula** (**Change formula** once set), **Add input** and, when there is a calculation, **Clear calculation**.
 - **File import** (every version): Export, Format ("<separator> separated, decimal mark <mark>, <encoding>"), Column names ("Row N") and Rows read, then a table Input, Column of the file ("Entered by the analyst for each row" for an input the file does not hold). Without one: "No file import. Analysts record each result by hand." On drafts for quality: **Set file import** (**Change file import** once set) and, when there is one, **Clear file import**.
 - **Evidence records** (after the versions): table Record (link with title below), Kind, Completed on, Conclusion, State, for every evidence record of this method, newest completion first. Empty: "No evidence records" ("Records of the validation, verification or transfer of this method appear here."). **New evidence record** opens the form with this method chosen.
+- **Proficiency testing** (after Evidence records): table Participation (PT-n link with the round beneath), Provider, Results due, Outcome (empty until reviewed), State (Planned, Results overdue, Results reported, Follow-up open, Closed or Cancelled), newest due day first, at most 10. When there are more: "Showing the latest N of M." Empty: "No participations" ("Proficiency testing rounds and other interlaboratory comparisons planned for this method appear here."). Buttons **All participations** and **New participation**.
 - **Signatures** under each version: signer, meaning, time, record revision, hash, or "Not signed."
 - **Empty state**: "No versions" ("Create the first version of this method.").
 - **History**: audit events for the method and all its versions (including QC check changes), oldest first.
@@ -65,6 +67,9 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 | **Withdraw draft** | Version is Draft, quality role | Quality | Opens the Withdraw page |
 | **Suitability evidence** | Version is Draft, quality role | Quality | Opens the Suitability evidence page |
 | **New evidence record** | Analyst, reviewer or quality | Same roles | Opens the New method evidence record form for this method |
+| **All participations** | The method has at least one participation | Any viewer | Opens Proficiency testing listing this method's participations only |
+| **New participation** | Quality role | Quality | Opens the New participation form with this method chosen |
+| Record number (Proficiency testing) | Each row | Any viewer | Opens the participation |
 | Record number (Evidence records) | Each row | Any viewer | Opens the evidence record |
 | **Review and approve** | Draft, quality, independent of author and editors, and no later version is already approved for the same dates (otherwise the card says why in its place) | Quality | Opens the Approve page |
 | **Add QC check** | Draft batch version, quality | Quality | Opens the Add QC check form |
@@ -117,4 +122,5 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 
 - [Methods](/catalog/methods/)
 - New version, Approve method, Withdraw draft, Add QC check, Remove QC check, Add suitable resource, Remove suitable resource, Calculation, Add calculation input, Remove calculation input, Clear calculation, File import of a method version, Clear file import.
+- [Proficiency testing](/catalog/proficiency/) and New participation.
 - Specification version pages list this method for each test.

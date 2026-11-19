@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}Methods. Context: page_title, tabs, page_obj, query, sort, filtered, can_edit.{% endcomment %}
+{% comment %}Methods. Context: page_title, tabs, page_obj (each method with pt_outcome, pt_outcome_label, pt_tone and pt_reviewed of its last reviewed participation, pt_next_due of its next planned one, pt_overdue and pt_follow_up), query, sort, filtered, can_edit.{% endcomment %}
 {% block page_intro %}<p class="vr-page-intro">Methods link each test to a controlled procedure and evidence that it is suitable for its intended use.</p>{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_new' %}">{% icon name="plus-lg" %}New method</a>{% endif %}{% endblock %}
 {% block content %}
@@ -15,6 +15,7 @@
           <th scope="row"><a class="vr-row-link vr-id" href="{% url 'catalog:method' method.pk %}">{{ method.code }}</a><span class="vr-sub">{{ method.title }}</span></th>
           <td class="text-end vr-data">{{ method.versions }}</td>
           <td>{% if method.approved %}{% status label="Has approved version" tone="success" plain=True %}{% else %}{% status label="No approved version" tone="warning" plain=True %}{% endif %}{% if method.drafts %}<br>{% status label="Draft pending" tone="progress" plain=True %}{% endif %}</td>
+          <td>{% if method.pt_outcome %}{% status label=method.pt_outcome_label tone=method.pt_tone plain=True %}<span class="vr-sub">Reviewed {{ method.pt_reviewed|when:"date" }}</span>{% endif %}{% if method.pt_follow_up %}{% status label="Follow-up open" tone="warning" plain=True %}{% endif %}{% if method.pt_next_due %}{% if method.pt_overdue %}{% status label="Results overdue" tone="danger" plain=True %}<span class="vr-sub">Due {{ method.pt_next_due|when:"date" }}</span>{% else %}<span class="vr-sub">Next due {{ method.pt_next_due|when:"date" }}</span>{% endif %}{% endif %}{% if not method.pt_outcome and not method.pt_next_due and not method.pt_follow_up %}<span class="vr-muted">None recorded</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

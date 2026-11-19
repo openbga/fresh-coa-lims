@@ -3,9 +3,9 @@ title: Specifications and methods: Methods
 urls: catalog:methods
 views: catalog.views.method_list
 templates: catalog/method_list.html
-models: catalog.Method, catalog.MethodRevision
+models: catalog.Method, catalog.MethodRevision, catalog.ProficiencyParticipation
 reviewed: 2026-11-19
-summary: Every analytical method, linked to its controlled procedure and suitability evidence. Find a method, see whether it has an approved version, or start a new one.
+summary: Every analytical method, linked to its controlled procedure and suitability evidence. Find a method, see whether it has an approved version and how its proficiency testing stands, or start a new one.
 ---
 
 ## Common tasks
@@ -22,6 +22,7 @@ summary: Every analytical method, linked to its controlled procedure and suitabi
 - Draft pending means at least one draft is waiting to be approved or withdrawn.
 - Versions counts every version, including withdrawn ones.
 - Search covers method codes and titles only.
+- Proficiency testing shows the outcome of the latest reviewed participation, not of the latest planned one.
 
 ## Purpose
 
@@ -35,11 +36,11 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 
 ## Layout
 
-- **Section tabs**: Specifications, Methods, Method evidence, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Section tabs**: Specifications, Methods, Method evidence, Proficiency testing, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
 - **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear all** when filtered.
-- **Table**: Method (code link with the title under it, sortable), Versions, Status ("Has approved version" or "No approved version", plus "Draft pending"). **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
+- **Table**: Method (code link with the title under it, sortable), Versions, Status ("Has approved version" or "No approved version", plus "Draft pending"), Proficiency testing (see Fields). **Columns** (beside Rows per page) chooses which columns show and their order, saved for your account; the less important columns give way first when the table does not fit.
 - **Footer**: "Showing X–Y of N methods", with "matching filters" when filtered; **Rows per page** (25, 50 or 100) with **Show**; and, when there is more than one page, first, previous, "Page N of M", next and last page buttons.
 - **Empty states**: "No methods yet" ("Add the first method and link its controlled procedure and suitability evidence.") with **New method** for quality; "No methods match these filters" ("Change or clear the filters.") with **Clear filters**.
 
@@ -60,9 +61,11 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 | Title | `Method.title` | Text | — | Method title. |
 | Versions | — | Count | — | All versions, any status. |
 | Status | `MethodRevision.status` | Computed | — | Whether an approved or draft version exists. |
+| Proficiency testing | `ProficiencyParticipation` | Computed | — | The outcome of the latest reviewed participation with "Reviewed <date>"; "Follow-up open" when a participation awaits corrective follow-up; the earliest open participation without a report as "Next due <date>", or "Results overdue" with "Due <date>" once that day has passed; "None recorded" when there is none of these. |
 
 ## Rules and hidden logic
 
+- **Proficiency testing**: the outcome comes from the participation reviewed most recently (any later state: follow-up open or closed). The due day is the earliest results due day among open participations with no report recorded. Cancelled participations count for none of it.
 - **Order**: code ascending by default; `sort` accepts code or -code.
 - **Paging**: 25 rows per page by default; **Rows per page** (or `per_page`) chooses 25, 50 or 100; other values fall back to 25.
 - **Permissions**: read roles checked on the server; New method also enforced on its own page.
@@ -72,4 +75,5 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 
 - [Specifications](/catalog/)
 - [Materials](/catalog/materials/)
+- [Proficiency testing](/catalog/proficiency/)
 - New method, Method (record page).

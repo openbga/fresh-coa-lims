@@ -175,6 +175,7 @@ class ReminderFilterForm(forms.Form):
             ("pull", "Stability pulls"),
             ("reagent", "Reagents and standards"),
             ("qualification", "Qualifications"),
+            ("proficiency", "Proficiency testing"),
         ],
     )
 
