@@ -24,6 +24,10 @@ READ_ROLES = ("analyst", "reviewer", "quality", "admin", "auditor")
 PLANNERS = ("reviewer", "quality")
 TAKERS = ("analyst",)
 TARGET_SETTERS = ("quality",)
+# Who reads the turnaround and right-first-time figures: they name each analyst, so they are
+# for the people who review and oversee the work, and admins, who read every laboratory area
+# (a product choice; see docs/product.md). Analysts do not see their colleagues' figures.
+FIGURE_READERS = ("reviewer", "quality", "auditor", "admin")
 # A test takes work until it is reviewed, invalidated, superseded or recorded as not completed.
 PLANNABLE = (AnalyticalTest.State.OPEN, AnalyticalTest.State.SUBMITTED)
 MAX_SELECTED = 100  # tests planned at once: one page of the work list at its largest

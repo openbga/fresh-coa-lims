@@ -36,7 +36,7 @@ Shows the laboratory's turnaround targets, the number of calendar days after ass
 
 ## Layout
 
-- **Section tabs**, title, the introduction and, for quality, **Change targets**.
+- **Section tabs** (Work list, Workload, Reminders, Figures and Reviewed tests (these two not for analysts), Turnaround targets), title, the introduction and, for quality, **Change targets**.
 - **Targets in force**: Work (Lot testing, Stability testing, Reassessment testing), Target ("N days" or "No target"), Since, Set by.
 - **Changes**: every target set, newest first: Set, Work, Target, Set by, Reason. Empty: "No target set yet".
 
@@ -65,4 +65,5 @@ Shows the laboratory's turnaround targets, the number of calendar days after ass
 ## Related pages
 
 - [Work list](/planning/): the due dates the targets give.
+- [Figures](/planning/figures/): how reviewed tests kept the due dates.
 - Change targets: reached with **Change targets**.

@@ -41,7 +41,7 @@ An overview of the laboratory's open work: how much is overdue or due soon, how 
 
 ## Layout
 
-- **Section tabs** (Work list, Workload, Reminders, Turnaround targets), title, today's date and the introduction.
+- **Section tabs** (Work list, Workload, Reminders, Figures and Reviewed tests (these two not for analysts), Turnaround targets), title, today's date and the introduction.
 - **Open work**: Queue, Tests and Attention ("Needs attention" in the queue's tone, or "Clear"). Queues: Overdue; Due today; Due in the next 7 days; No due date; Open, no analyst assigned; Awaiting review.
 - **By analyst**: one row per active analyst (and anyone an open test is still assigned to), then **Not assigned**. Columns: Analyst, Open tests, Overdue, Due today, Due in the next 7 days, No due date.
 - **By instrument**: one row per instrument some open test is planned on. Columns: Instrument (asset and description), Fitness, Calibration valid until, Open tests, Overdue, Latest due date, Check. Empty: "No test is planned on an instrument".

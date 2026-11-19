@@ -1,10 +1,13 @@
+from datetime import date, timedelta
+
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
 from catalog.forms import GroupedForm
 from core.lookups import RemoteSelect, user_label
 
-from . import services
+from . import figures, services
 from .models import MAX_TARGET_DAYS, Work
 
 
@@ -209,4 +212,104 @@ class WorkFilterForm(forms.Form):
             ("", "Any instrument"),
             ("none", "No instrument planned"),
             *((str(item.pk), f"{item.asset_id} · {item.description}") for item in instruments),
+        ]
+
+
+# --- Figures ---------------------------------------------------------------------------------
+
+
+# Days a period may name: far enough from the calendar's ends that a period's bounds and its
+# default 30 days never leave it.
+EARLIEST, LATEST = date(1900, 1, 1), date(9998, 12, 31)
+
+
+class PeriodForm(forms.Form):
+    """A period of review days: From and To (both optional: the last 30 days by default), at
+    most a year. GET-bound so the address is the whole state."""
+
+    start = _date("From", "")
+    end = _date("To", "")
+
+    def _within(self, name):
+        value = self.cleaned_data.get(name)
+        if value and not EARLIEST <= value <= LATEST:
+            raise ValidationError(f"Enter a date from {EARLIEST} to {LATEST}.")
+        return value
+
+    def clean_start(self):
+        return self._within("start")
+
+    def clean_end(self):
+        return self._within("end")
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("start"), cleaned.get("end")
+        if start and end:
+            if start > end:
+                self.add_error("end", "The period ends before it starts.")
+            elif (end - start).days >= figures.MAX_PERIOD_DAYS:
+                self.add_error("end", f"Choose a period of at most {figures.MAX_PERIOD_DAYS} days.")
+        return cleaned
+
+    def period(self, today):
+        """(start, end) of the period asked for, or the default one when it is invalid or
+        names none. From alone: 30 days from it, at most to today; To alone: 30 days to it."""
+        data = self.cleaned_data if self.is_bound and self.is_valid() else {}
+        start, end = data.get("start"), data.get("end")
+        span = timedelta(days=figures.DEFAULT_PERIOD_DAYS - 1)
+        if start and not end:
+            end = max(start, min(today, start + span))
+        end = end or today
+        return start or end - span, end
+
+
+WORK_CHOICES = [("", "All work"), *Work.choices]
+
+
+class FigureFilterForm(PeriodForm):
+    by = forms.ChoiceField(label="Figures by", required=False, choices=figures.GROUPS)
+    work = forms.ChoiceField(label="Work", required=False, choices=WORK_CHOICES)
+
+
+class ReviewedFilterForm(PeriodForm):
+    q = forms.CharField(required=False, label="Search", max_length=100)
+    first_time = forms.ChoiceField(
+        label="First time",
+        required=False,
+        choices=[("", "Any"), *figures.FIRST_TIME_CHOICES],
+    )
+    timeliness = forms.ChoiceField(
+        label="Due date", required=False, choices=[("", "Any"), *figures.TIMELINESS]
+    )
+    work = forms.ChoiceField(label="Work", required=False, choices=WORK_CHOICES)
+    material = forms.ChoiceField(label="Material", required=False)
+    method = forms.ChoiceField(label="Method", required=False)
+    analyst = forms.ChoiceField(label="Analyst", required=False)
+    result = forms.ChoiceField(
+        label="Result", required=False, choices=[("", "Any result"), *figures.RESULTS]
+    )
+
+    def __init__(self, *args, options=None, **kwargs):
+        """``options``: figures.filter_options of the period. A value the address names that
+        the period does not hold stays a choice (it lists no test) rather than an error."""
+        super().__init__(*args, **kwargs)
+        options = options or {"material": [], "method": [], "analyst": set()}
+        asked = self.data if self.is_bound else {}
+        for name in ("material", "method"):
+            values = list(options[name])
+            if asked.get(name) and asked[name] not in values:
+                values.append(asked[name])
+            self.fields[name].choices = [
+                ("", f"Any {name}"),
+                *((value, value) for value in values),
+            ]
+        ids = set(options["analyst"])
+        if str(asked.get("analyst", "")).isdigit():
+            ids.add(int(asked["analyst"]))
+        people = get_user_model().objects.filter(pk__in=ids).order_by("username")
+        self.fields["analyst"].choices = [
+            ("", "Anyone"),
+            *((str(user.pk), user_label(user)) for user in people),
+            ("none", "No analyst recorded"),
         ]

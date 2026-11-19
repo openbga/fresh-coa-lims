@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Turnaround and right-first-time figures of the tests reviewed in a period. Context from planning.views.figures: page_title, tabs, filters, inline_fields, more_fields, active, invalid, start, end, totals (planning.figures measures, or None when the filters are invalid), summary ({label, count, href, share}), on_time_share and first_time_share (whole percentages as text), group_label, group_title, group_rows ({name, median, ninth, on_time_share, first_time_share, and each count as a (number, Reviewed tests URL) pair}), list_url.{% endcomment %}
+{% block page_dateline %}{% dateline %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">The tests reviewed from {{ start|date:"Y-m-d" }} to {{ end|date:"Y-m-d" }}: how long each took from assignment to review, whether it kept its due date, and whether it was right first time, with no return, corrected reading or repeat. Each count opens the reviewed tests behind it.</p>{% endblock %}
+{% block content %}
+{% panel title="In the period" heading_id="period-heading" table=True %}
+  {% grid_toolbar label="Choose the period" no_search=True inline=inline_fields more=more_fields more_open=filters.work.value invalid=invalid active=active submit_label="Show figures" note="Dates are the days the reviews were signed, in the deployment time zone; a period is at most 366 days." %}
+  {% if invalid %}
+  {% empty_state kind="error" title="The figures cannot be shown" body="Correct the field marked above, or select Clear all for the last 30 days." %}
+  {% elif not totals.reviewed %}
+  {% empty_state kind="empty" title="No test was reviewed in this period" body="Figures count the tests whose review was signed in the period. Choose a longer or earlier period." %}
+  {% else %}
+  {% panel_section %}<dl class="vr-facts">
+    {% fact label="Reviewed tests" %}<span class="vr-data">{{ totals.reviewed }}</span>{% endfact %}
+    {% fact label="Median turnaround" %}<span class="vr-data">{{ totals.median }}</span> <span class="vr-unit">days</span>{% endfact %}
+    {% fact label="9 in 10 reviewed within" %}<span class="vr-data">{{ totals.ninth }}</span> <span class="vr-unit">days</span>{% endfact %}
+    {% fact label="Reviewed on time" value=on_time_share empty="No due dates" %}
+    {% fact label="Right first time" value=first_time_share %}
+  </dl>{% endpanel_section %}
+  <div class="vr-table-wrap"><table class="table table-hover vr-table vr-queue-table" aria-labelledby="period-heading">
+    <caption class="visually-hidden">Counts of the tests reviewed in the period; each opens those tests</caption>
+    <thead><tr><th scope="col">Figure</th><th scope="col" class="text-end">Tests</th><th scope="col">Share</th></tr></thead>
+    <tbody>{% for row in summary %}<tr><th scope="row" class="vr-wrap"><a class="vr-row-link" href="{{ row.href }}">{{ row.label }}</a></th><td class="text-end">{{ row.count }}</td><td>{% if row.share %}{{ row.share }}{% else %}<span class="vr-muted">—</span>{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+{% endpanel %}
+{% if group_rows %}
+{% panel title=group_title heading_id="group-heading" table=True %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="group-heading">
+    <caption class="visually-hidden">Turnaround and right-first-time figures for each {{ group_label|lower }}</caption>
+    <thead><tr><th scope="col">{{ group_label }}</th><th scope="col" class="text-end">Reviewed</th><th scope="col" class="text-end">Median <span class="vr-unit">days</span></th><th scope="col" class="text-end">9 in 10 within <span class="vr-unit">days</span></th><th scope="col" class="text-end">On time</th><th scope="col" class="text-end">Late</th><th scope="col" class="text-end">Right first time</th><th scope="col" class="text-end">Returned</th><th scope="col" class="text-end">Corrected</th><th scope="col" class="text-end">Repeat</th></tr></thead>
+    <tbody>{% for row in group_rows %}<tr>
+      <th scope="row" class="vr-wrap">{{ row.name }}</th>
+      <td class="text-end"><a href="{{ row.reviewed.1 }}">{{ row.reviewed.0 }}</a></td>
+      <td class="text-end"><span class="vr-data">{{ row.median }}</span></td>
+      <td class="text-end"><span class="vr-data">{{ row.ninth }}</span></td>
+      <td class="text-end">{% if row.on_time.0 %}<a href="{{ row.on_time.1 }}">{{ row.on_time.0 }}</a>{% else %}0{% endif %}{% if row.on_time_share %}<span class="vr-sub">{{ row.on_time_share }}</span>{% endif %}</td>
+      <td class="text-end">{% if row.late.0 %}<a href="{{ row.late.1 }}">{% status label=row.late.0|stringformat:"s" tone="danger" plain=True %}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.first_time.0 %}<a href="{{ row.first_time.1 }}">{{ row.first_time.0 }}</a>{% else %}0{% endif %}<span class="vr-sub">{{ row.first_time_share }}</span></td>
+      <td class="text-end">{% if row.returned.0 %}<a href="{{ row.returned.1 }}">{{ row.returned.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.corrected.0 %}<a href="{{ row.corrected.1 }}">{{ row.corrected.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.repeat.0 %}<a href="{{ row.repeat.1 }}">{{ row.repeat.0 }}</a>{% else %}0{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% endif %}
+{% endblock %}
