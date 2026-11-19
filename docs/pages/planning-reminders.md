@@ -36,7 +36,7 @@ A dated list of laboratory work that falls due: calibrations of equipment in ser
 
 ## Layout
 
-- **Section tabs**, title, today's date and the introduction, which names the last day shown.
+- **Section tabs** (Work list, Workload, Reminders, Figures and Reviewed tests (these two not for analysts), Turnaround targets), title, today's date and the introduction, which names the last day shown.
 - A red notice when released reagent or standard lots are already past their last day of use, with **Open the lots past expiry** (shown for All reminders and Reagents and standards).
 - The toolbar: **Within** and **Kind**, **Apply**, and **Clear all** when a filter differs from the default.
 - The table: **Reminder** (the equipment, pull or lot, with a detail line), **Date**, **Kind**, **Status**. Empty: "Nothing falls due in this window".

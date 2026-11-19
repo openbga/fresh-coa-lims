@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}The tests reviewed in a period, with their turnaround, due date and what kept them from being right first time. Context from planning.views.reviewed: page_title, tabs, columns, sort, page_obj, rows ({test, timeliness, tone, from_target, reasons, turnaround}), filters, query, inline_fields, more_fields, more_open, filtered, invalid, start, end, figures_url.{% endcomment %}
+{% block page_intro %}<p class="vr-page-intro">The tests reviewed from {{ start|date:"Y-m-d" }} to {{ end|date:"Y-m-d" }}, newest review first. A test is right first time when it was never returned, none of its readings was corrected, and it is neither a repeat of an earlier test nor followed by one. <a href="{{ figures_url }}">Figures for this period</a>.</p>{% endblock %}
+{% block content %}
+{% panel title="Reviewed tests" heading_id="reviewed-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter the reviewed tests" q=query search_label="Find" placeholder="Lot, sample, study, material or test code" inline=inline_fields more=more_fields more_open=more_open active=filtered invalid=invalid sort=sort grid="planning.reviewed" note="Dates are the days the reviews were signed, in the deployment time zone; a period is at most 366 days." extra_name="export" extra_value="csv" extra_label="Export filtered CSV" %}
+  {% list_results items=page_obj grid="planning.reviewed" noun="tests" filtered=filtered invalid=invalid sizes=True clear_url=request.path empty_title="No test was reviewed in this period" empty_body="Tests appear here once their review is signed. Choose a longer or earlier period." no_results_body="Search covers lot numbers, sample references, stability study identifiers, materials and test codes." %}
+  {% grid_table grid="planning.reviewed" columns=columns sort=sort label="reviewed-heading" %}
+      <tbody>
+        {% for row in rows %}{% with t=row.test %}
+        <tr>
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}<span class="vr-sub">{{ t.spec.name }}</span></th>
+          <td class="vr-nowrap">{{ t.reviewed_on|date:"Y-m-d" }}</td>
+          <td class="vr-nowrap"><span class="vr-data">{{ row.turnaround }}</span><span class="vr-sub">assigned {{ t.assigned_on|date:"Y-m-d" }}</span></td>
+          <td class="vr-nowrap">{% if t.due %}{{ t.due|date:"Y-m-d" }} {% endif %}{% status label=row.timeliness tone=row.tone plain=True %}{% if row.from_target %}<span class="vr-sub">From the target</span>{% endif %}</td>
+          <td>{% if row.reasons %}{% status label="Not right first time" tone="warning" plain=True %}{% for reason in row.reasons %}<span class="vr-sub">{{ reason }}</span>{% endfor %}{% else %}{% status label="Right first time" tone="success" plain=True %}{% endif %}</td>
+          {% if t.pull_id %}
+          <td><a href="{% url 'stability:pull_detail' t.pull_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">stability pull {{ t.pull.label }}</span></td>
+          {% elif t.reassessment_id %}
+          <td><a href="{% url 'quality:reassessment_detail' t.reassessment_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">reassessment {{ t.reassessment.label }}</span></td>
+          {% else %}
+          <td><a href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a><span class="vr-sub">sample {{ t.sample.reference }}</span></td>
+          {% endif %}
+          <td class="vr-wrap">{{ t.material }}</td>
+          <td>{% code value=t.method %}</td>
+          <td>{% if t.submitted_by %}{{ t.submitted_by|person }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td>{% if t.conforms is False %}{% status label="Out of specification" tone="danger" plain=True %}{% else %}{% status label="Conforms" tone="neutral" plain=True %}{% endif %}{% if t.invalidated %}<span class="vr-sub">Invalidated after investigation</span>{% endif %}</td>
+        </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+  {% endgrid_table %}
+  {% endlist_results %}
+{% endpanel %}
+{% endblock %}

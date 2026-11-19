@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.formats import date_format
 from django.views.decorators.http import require_http_methods
 
+from .exports import csv_cell
 from .forms import PINForm, RuleForm, SignForm
 from .grids import Column
 from .models import AuditEvent, ElectronicSignature, RuleSet
@@ -329,12 +330,7 @@ def audit(request):
                 str(event.after),
                 event.reason,
             ]
-            writer.writerow(
-                [
-                    "'" + value if value.startswith(("=", "+", "-", "@", "\t", "\r")) else value
-                    for value in row
-                ]
-            )
+            writer.writerow([csv_cell(value) for value in row])
         return response
     from .audit import choice_labels
 

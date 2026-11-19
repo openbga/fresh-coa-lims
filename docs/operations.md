@@ -459,6 +459,8 @@ After an upgrade that brings Planning no turnaround target exists, so open tests
 
 Reminders are worked out when the page is opened from the equipment, reagent lot and stability pull records; nothing is sent and no scheduled job runs. The work list, the workload and the dashboard's overdue count compute each test's due date in the database query, so their cost follows the number of open tests, not of all tests.
 
+The figures (Planning, Figures and Reviewed tests) are worked out from the review signatures, the audit trail and the test records each time the page is opened; nothing is stored or scheduled. Each page reads the review signatures once to find the period's tests, then the records of those tests only, so its cost follows the number of signatures kept and of tests reviewed in the period (at most 366 days); the CSV export is sent row by row. Reviewers, quality, auditors and admins read them; analysts do not, because the figures name each analyst; whether that suits the laboratory's own rules on staff data, and what the figures are used for, is the laboratory's decision. No target level is set by the software.
+
 ## Accounts, sessions and signing
 
 | Operation | Procedure and boundary |

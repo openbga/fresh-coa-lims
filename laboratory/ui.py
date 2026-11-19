@@ -46,6 +46,8 @@ SECTION_TABS = {
         ("Work list", "work_list"),
         ("Workload", "workload"),
         ("Reminders", "reminders"),
+        ("Figures", "figures"),
+        ("Reviewed tests", "reviewed"),
         ("Turnaround targets", "targets"),
     ],
     "validation": [

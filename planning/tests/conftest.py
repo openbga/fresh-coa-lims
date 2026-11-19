@@ -60,7 +60,13 @@ def people(django_user_model):
     return users
 
 
-def lot_tests(people, number="SYN-PLAN-1", codes=("identity", "water"), assigned_at=None):
+def lot_tests(
+    people,
+    number="SYN-PLAN-1",
+    codes=("identity", "water"),
+    assigned_at=None,
+    material="Synthetic powder",
+):
     """A lot with one sample and its tests assigned (at ``assigned_at`` when given): {test code:
     test}."""
     rules = RuleSet.objects.create(
@@ -68,7 +74,7 @@ def lot_tests(people, number="SYN-PLAN-1", codes=("identity", "water"), assigned
         segment="chemical",
         author=people["quality"],
         status="approved",
-        effective_from=timezone.now() - timedelta(days=1),
+        effective_from=(assigned_at or timezone.now()) - timedelta(days=1),
         effective_until=timezone.now() + timedelta(days=365),
         policy={
             "required_tests": list(codes),
@@ -79,7 +85,7 @@ def lot_tests(people, number="SYN-PLAN-1", codes=("identity", "water"), assigned
     lot = receive_lot(
         actor=people["analyst"],
         number=number,
-        material="Synthetic powder",
+        material=material,
         rules=rules,
         reason="Synthetic receipt",
         receipt=on_site_receipt(),

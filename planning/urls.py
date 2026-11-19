@@ -9,6 +9,8 @@ urlpatterns = [
     path("tests/<int:pk>/take/", views.take, name="take"),
     path("workload/", views.workload, name="workload"),
     path("reminders/", views.reminders, name="reminders"),
+    path("figures/", views.figures, name="figures"),
+    path("figures/tests/", views.reviewed, name="reviewed"),
     path("targets/", views.targets, name="targets"),
     path("targets/change/", views.targets_change, name="targets_change"),
 ]

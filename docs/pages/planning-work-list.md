@@ -51,7 +51,7 @@ The laboratory's open work in one list: every test that is open or awaiting revi
 
 ## Layout
 
-- **Section tabs**: Work list, Workload, Reminders, Turnaround targets.
+- **Section tabs**: Work list, Workload, Reminders, Figures and Reviewed tests (these two not for analysts), Turnaround targets.
 - Title "Work list", the introduction and, for planners, **Plan selected tests** at the right of the title.
 - The toolbar: **Find**, **Due**, **Analyst** and **Status**, then **More filters** (**Instrument**, **Work**), **Apply** and **Clear all** when a filter is active.
 - For planners, a line under the toolbar: "Tick the tests to plan on this page, then select Plan selected tests." with the count selected.
