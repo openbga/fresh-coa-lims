@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "laboratory",
     "stability",
     "impact",
+    "planning",
     "validation",
     "whatsnew",
 ]

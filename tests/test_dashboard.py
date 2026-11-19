@@ -93,7 +93,7 @@ def test_queues_count_lots_where_they_wait(client, django_user_model, rules):
     assert shown["Requirements not assigned"] == 3  # quarantine lots only
     assert shown["Certificates to issue"] == 2  # released, no issued certificate
     assert shown["Tests open"] == 0 and shown["Awaiting review"] == 0
-    assert len(shown) == 24  # zero queues stay visible
+    assert len(shown) == 25  # zero queues stay visible
 
 
 def test_cost_does_not_grow_with_the_number_of_lots(client, django_user_model, rules):

@@ -16,6 +16,7 @@ from core.lookups import LOOKUPS, RemoteSelect
 from core.models import RuleSet
 from impact.forms import StartForm
 from laboratory.forms import QualificationForm
+from planning import forms as planning_forms
 from quality.forms import LotForm
 from quality.models import Lot
 from reporting.forms import LotPickForm
@@ -196,6 +197,8 @@ REMOTE_FIELDS = [
     (lambda: StartForm(), "reagent_lot"),
     (lambda: StartForm(), "supplier"),
     (lambda: StartForm(), "contract_laboratory"),
+    (lambda: planning_forms.PlanForm(), "analyst"),
+    (lambda: planning_forms.PlanForm(), "equipment"),
 ]
 
 

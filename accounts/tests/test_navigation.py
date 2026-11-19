@@ -16,6 +16,7 @@ WORKSPACE_PATHS = {
     "/lots/",
     "/sampling/",
     "/testing/",
+    "/planning/",
     "/stability/",
     "/laboratory/",
     "/catalog/",

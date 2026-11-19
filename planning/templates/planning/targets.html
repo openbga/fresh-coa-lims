@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Turnaround targets. Context from planning.views.targets: page_title, tabs, current ([(work label, Target or None)]), columns, page_obj (every target set, newest first), can_change.{% endcomment %}
+{% block page_intro %}<p class="vr-page-intro">How many calendar days a test of each kind of work is due after it is assigned, unless a planner sets its date. A test keeps the target in force when it was assigned: a change applies to tests assigned after it.</p>{% endblock %}
+{% block page_actions %}{% if can_change %}<a class="btn btn-primary" href="{% url 'planning:targets_change' %}">{% icon name="pencil-square" %}Change targets</a>{% endif %}{% endblock %}
+{% block content %}
+{% panel title="Targets in force" heading_id="current-heading" table=True %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="current-heading">
+    <thead><tr><th scope="col">Work</th><th scope="col" class="text-end">Target</th><th scope="col">Since</th><th scope="col">Set by</th></tr></thead>
+    <tbody>{% for label, target in current %}<tr>
+      <th scope="row">{{ label }}</th>
+      <td class="text-end">{% if target.days %}<span class="vr-data">{{ target.days }}</span> <span class="vr-unit">days</span>{% else %}<span class="vr-muted">No target</span>{% endif %}</td>
+      <td class="vr-nowrap">{% if target %}{{ target.set_at|when }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+      <td>{% if target %}{{ target.set_by|person }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% panel title="Changes" heading_id="changes-heading" table=True %}
+  {% list_results items=page_obj grid="planning.targets" noun="changes" sizes=True empty_title="No target set yet" empty_body="Without a target a test has no due date until a planner sets one." %}
+  {% grid_table grid="planning.targets" columns=columns label="changes-heading" %}
+      <tbody>
+        {% for target in page_obj %}<tr>
+          <th scope="row" class="vr-nowrap">{{ target.set_at|when }}</th>
+          <td>{{ target.get_work_display }}</td>
+          <td>{% if target.days %}{{ target.days }} days{% else %}<span class="vr-muted">No target</span>{% endif %}</td>
+          <td>{{ target.set_by|person }}</td>
+          <td class="vr-wrap">{{ target.reason|default:"—" }}</td>
+        </tr>{% endfor %}
+      </tbody>
+  {% endgrid_table %}
+  {% endlist_results %}
+{% endpanel %}
+{% endblock %}

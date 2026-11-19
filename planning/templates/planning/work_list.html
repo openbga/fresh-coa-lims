@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Open work: every test open or awaiting review with its due date, analyst and planned instrument. Context from planning.views.work_list: page_title, tabs, columns, sort, page_obj, rows ({test, due, due_label, due_tone, from_target, analyst, equipment, take}), filters, query, inline_fields, more_fields, filtered, invalid, can_plan.{% endcomment %}
+{% block page_intro %}<p class="vr-page-intro">Every test still open or awaiting review, earliest due first. A test is due by the date a planner set or by the turnaround target in force when it was assigned. Planning never authorizes work: recording a result still checks the analyst's qualification, the instrument and every lot used.</p>{% endblock %}
+{% block page_actions %}{% if can_plan %}<button class="btn btn-primary" type="submit" form="plan-selection">{% icon name="calendar3" %}Plan selected tests</button>{% endif %}{% endblock %}
+{% block content %}
+{% if can_plan %}<form id="plan-selection" method="get" action="{% url 'planning:plan' %}" aria-label="Plan the selected tests"></form>{% endif %}
+{% panel title="Open work" heading_id="work-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter the work list" q=query search_label="Find" placeholder="Lot, sample, study or test code" inline=inline_fields more=more_fields more_open=filters.equipment.value|default:filters.work.value active=filtered invalid=invalid sort=sort %}
+  {% if can_plan and page_obj.paginator.count %}{% panel_section %}<p class="mb-0">Tick the tests to plan on this page, then select <strong>Plan selected tests</strong>. <span data-vr-select-count="test"></span></p>{% endpanel_section %}{% endif %}
+  {% url 'planning:targets' as targets_url %}
+  {% list_results items=page_obj grid="planning.work" noun="tests" filtered=filtered invalid=invalid sizes=True clear_url=request.path empty_title="No open work" empty_body="Every test is reviewed, or none is assigned yet. Tests appear here when they are assigned to a sample, a stability pull or a reassessment." no_results_body="Search covers lot numbers, sample references, stability study identifiers and test codes." %}
+  {% grid_table grid="planning.work" columns=columns sort=sort label="work-heading" %}
+      <tbody>
+        {% for row in rows %}{% with t=row.test %}
+        <tr>
+          {% if can_plan %}<td>{% with pk=t.pk|stringformat:'s' %}{% row_select name="test" value=pk form_id="plan-selection" label="Select "|add:t.label %}{% endwith %}</td>{% endif %}
+          <th scope="row"><a class="vr-row-link vr-id" href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a>{% if t.kind != "original" %} {% kind_tag label=t.get_kind_display %}{% endif %}<span class="vr-sub">{{ t.spec.name }}</span></th>
+          <td class="vr-nowrap">{% if row.due %}{{ row.due|date:"Y-m-d" }} {% endif %}{% status label=row.due_label tone=row.due_tone plain=True %}{% if row.from_target %}<span class="vr-sub">From the target</span>{% endif %}</td>
+          <td class="vr-nowrap">{% include "analytical/_test_status.html" with test=t only %}</td>
+          {% if t.pull_id %}
+          <td><a href="{% url 'stability:pull_detail' t.pull_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">stability pull {{ t.pull.label }}</span></td>
+          {% elif t.reassessment_id %}
+          <td><a href="{% url 'quality:reassessment_detail' t.reassessment_id %}">{{ t.source_lot.number }}</a><span class="vr-sub">reassessment {{ t.reassessment.label }}</span></td>
+          {% else %}
+          <td><a href="{% url 'analytical:lot_testing' t.lot_id %}">{{ t.lot.number }}</a><span class="vr-sub">sample {{ t.sample.reference }}</span></td>
+          {% endif %}
+          <td>{% code value=t.test_code %}</td>
+          <td>{% if row.analyst %}{{ row.analyst|person }}{% else %}<span class="vr-muted">Not assigned</span>{% endif %}{% if row.take %}{% url 'planning:take' t.pk as take_url %}<span class="d-block">{% post_button action=take_url label="Assign to me" small=True fields=row.take %}</span>{% endif %}</td>
+          <td>{% if row.equipment %}{% url 'laboratory:equipment_detail' row.equipment.pk as equipment_url %}{% code value=row.equipment.asset_id href=equipment_url %}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+          <td class="vr-nowrap">{{ t.created_at|date:"Y-m-d" }}</td>
+        </tr>
+        {% endwith %}{% endfor %}
+      </tbody>
+  {% endgrid_table %}
+  {% endlist_results %}
+{% endpanel %}
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Plan the tests selected on the work list. Context from planning.views.plan: page_title, crumbs, form (PlanForm, grouped), rows (the selected tests as they are planned now), count, refusal (why nothing can be planned), cancel_url.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">What you enter applies to every selected test; a field left blank keeps each test's own value. Planning never authorizes work.</p>{% endblock %}
+{% block content %}
+{% if refusal %}
+{% notice tone="warning" blocking=True %}{{ refusal }}{% endnotice %}
+<p><a class="btn btn-outline-secondary" href="{{ cancel_url }}">Back to the work list</a></p>
+{% else %}
+{% panel title="Selected tests" heading_id="selected-heading" table=True %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="selected-heading">
+    <thead><tr><th scope="col">Test</th><th scope="col">Due</th><th scope="col">Lot</th><th scope="col">Analyst</th><th scope="col">Instrument</th></tr></thead>
+    <tbody>{% for row in rows %}{% with t=row.test %}<tr>
+      <th scope="row"><a href="{% url 'analytical:test_detail' t.pk %}">{{ t.label }}</a> {% code value=t.test_code %}</th>
+      <td class="vr-nowrap">{% if row.due %}{{ row.due|date:"Y-m-d" }} {% endif %}{% status label=row.due_label tone=row.due_tone plain=True %}</td>
+      <td>{{ t.source_lot.number }}<span class="vr-sub">{{ t.material_text }}</span></td>
+      <td>{% if row.analyst %}{{ row.analyst|person }}{% else %}<span class="vr-muted">Not assigned</span>{% endif %}</td>
+      <td>{% if row.equipment %}{{ row.equipment.asset_id }}{% else %}<span class="vr-muted">—</span>{% endif %}</td>
+    </tr>{% endwith %}{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% form_page form=form cancel_url=cancel_url submit_label="Save plan" no_required_note=True note="Each change is recorded in the audit trail." %}
+  {% for legend, fields in form.grouped %}
+  <fieldset class="vr-form-section">
+    <legend>{{ legend }}</legend>
+    {% for field in fields %}{{ field.as_field_group }}{% endfor %}
+  </fieldset>
+  {% endfor %}
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% endform_page %}
+{% endif %}
+{% endblock %}

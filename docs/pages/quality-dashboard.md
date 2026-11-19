@@ -3,8 +3,8 @@ title: Dashboard
 urls: quality:dashboard
 views: quality.dashboard.dashboard
 templates: quality/dashboard.html, quality/includes/queue.html
-models: reporting.RecipientNotification, stability.Hold, quality.Lot, quality.LotDates, quality.Reassessment, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
-reviewed: 2026-11-17
+models: planning.Plan, planning.Target, reporting.RecipientNotification, stability.Hold, quality.Lot, quality.LotDates, quality.Reassessment, quality.Sample, quality.LotReceipt, quality.SupplierCertificate, quality.SupplierResultAcceptance, sampling.LotAssignment, sampling.SamplingRecord, sampling.DeviationReview, analytical.AnalyticalTest, analytical.Investigation, reporting.Report, stability.Pull, laboratory.ReagentLot
+reviewed: 2026-11-19
 summary: The home page. See what waits at each step from a received lot to its certificate of analysis, open a queue's list, and find recently received lots.
 ---
 
@@ -23,6 +23,10 @@ summary: The home page. See what waits at each step from a received lot to its c
 ### See lots due for a retest
 
 1. Under [[Retest, stability and laboratory]], select [[Retest due]] or [[Reassessments open]] to open the lots, or [[Impact assessments open]] to open the assessments.
+
+### See tests past their due date
+
+1. Under [[Retest, stability and laboratory]], select [[Tests overdue]] to open the work list.
 
 ### Start a new lot
 
@@ -51,7 +55,7 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 - **Header**: title "Dashboard" with today's date and week (laboratory time zone), and **New material lot** for analysts.
 - **Work in progress** card, with the total of every queue: a band of six steps (Lots, Samples, Results, Review, Disposition, Certificates), each with its count and a link to its lane; then the six lanes, left to right. Each lane lists its queues in a fixed order; each queue shows its name (a link when a list shows it), its count and, when something waits, a status label and the date of the oldest item ("Oldest YYYY-MM-DD").
 - **Recently received lots** card: the eight newest lot records with Lot, Status, Material and Where it is, and **Material lots** to open the full list. Empty: "No material lots yet" with "Receive a lot to start the quality journey." and, for analysts, **New material lot**.
-- **Retest, stability and laboratory** card beside it: Retest due, Reassessments open, Impact assessments open, Pulls overdue, Pulls due now, Pulls awaiting acceptance, Active holds, Calibration overdue, Reagent lots awaiting release.
+- **Retest, stability and laboratory** card beside it: Retest due, Reassessments open, Impact assessments open, Tests overdue, Pulls overdue, Pulls due now, Pulls awaiting acceptance, Active holds, Calibration overdue, Reagent lots awaiting release.
 
 ## Actions
 
@@ -86,6 +90,7 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 | Retest due | `Lot`, `LotDates.retest_on`, `Reassessment` | Count of lots; oldest retest date in force | — | Shown with the status "Retest due". Lots in Quarantine or Released whose retest date in force is today or earlier, whose expiry date is not past and whose use has not ended. A suitable reassessment moves the date later. Opens Material lots with the Dates filter Retest due |
 | Reassessments open | `Reassessment.state` | Count of lots; oldest lot record date | — | Shown with the status "Reassessment open". Lots in Quarantine or Released with a reassessment open. Opens Material lots with the Dates filter Reassessment open |
 | Impact assessments open | `Assessment.state` | Count of assessments; oldest `started_at` | — | Shown with the status "Open". Impact assessments not yet concluded or withdrawn. Opens Impact assessments filtered to Open |
+| Tests overdue | `Plan.due_on`, `Target.days`, `AnalyticalTest.state` | Count of tests; oldest due date | — | Shown with the status "Overdue". Tests open or awaiting review whose due date (a planner's date, else the turnaround target in force when the test was assigned) is before today. Opens the Work list filtered to Overdue |
 | Pull and laboratory queues | `Pull`, `Equipment`, `ReagentLot` | Counts | — | Each the filter of the list it opens (Stability pulls, Equipment, Reagent lots), over every pull, item or reagent lot that list shows. Pulls of a closed (terminated) study are never due or awaiting acceptance |
 
 ## Rules and hidden logic
@@ -103,3 +108,4 @@ The home page after sign-in. It shows the manufacturing QC flow as work queues, 
 - [Sampling](/sampling/): requirement assignments and sampling records.
 - [Testing](/testing/): tests, batches and investigations.
 - [Certificates](/reports/): certificates of analysis.
+- [Work list](/planning/): open tests by due date, analyst and instrument.

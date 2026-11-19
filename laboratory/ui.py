@@ -42,6 +42,12 @@ SECTION_TABS = {
         ("Reserves", "reserve_list"),
         ("Holds", "hold_list"),
     ],
+    "planning": [
+        ("Work list", "work_list"),
+        ("Workload", "workload"),
+        ("Reminders", "reminders"),
+        ("Turnaround targets", "targets"),
+    ],
     "validation": [
         ("Intended use", "use_list"),
         ("Rehearsals", "rehearsal_list"),
