@@ -31,6 +31,7 @@ from core.services import (
     validate_rules,
 )
 
+from . import evidence
 from .models import (
     ExpectedResult,
     Material,
@@ -724,6 +725,7 @@ def calculation_problems(revision):
 def _check_method_revision(revision):
     if not revision.document_ref.strip() or not revision.suitability_ref.strip():
         raise ValidationError("Link the controlled procedure and suitability evidence.")
+    evidence.check_relied_on(revision)
     if revision.requires_batch and not revision.qc_checks.exists():
         raise ValidationError("A method that runs in a QC batch needs at least one QC check.")
     if problems := calculation_problems(revision):

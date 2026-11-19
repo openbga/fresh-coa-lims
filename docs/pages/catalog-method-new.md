@@ -4,7 +4,7 @@ urls: catalog:method_new
 views: catalog.views.method_new
 templates: catalog/form.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Create a method with its draft version 1, linking the controlled procedure and the evidence that it suits its intended use. Only the quality role can create methods.
 ---
 
@@ -19,7 +19,7 @@ summary: Create a method with its draft version 1, linking the controlled proced
 ### Require an instrument or reagent with every result
 1. Tick [[Records an instrument]] or [[Records a reagent or standard]]. Every result and batch QC entry must then record one.
 ## Good to know
-- The code and title cannot be changed after creation, and the draft's content is fixed. To change the content, create a new version.
+- The code and title cannot be changed after creation, and the draft's content is fixed except its suitability. To change other content, create a new version.
 - You become the author of version 1, so another quality user must approve it.
 - Tests cannot rely on the method until a version is approved.
 - The effective end is exclusive. Approving a later overlapping version ends this one earlier.
@@ -77,7 +77,7 @@ Creates a method and its draft version 1, linking the controlled procedure and s
 - **Review**: when ticked, the version is approved asking for qualified reviewers. Reviewing or returning a test of it then needs a qualification to review the method (see Qualifications); the reviewer role alone is not enough. The test freezes this with its method version.
 - **Resources and calculation**: the two resource options are frozen with the version and published to the testing module, which refuses a result or batch QC entry that records none of that kind. A calculation is added on the method record after creation (formula, inputs, result unit, decimals); a method with a calculation must be reported as a numeric test in the same unit.
 - **Audit**: `method.created` and `method_revision.created` with your reason. No signature yet.
-- **Draft content** is fixed at creation; change it by creating a new version.
+- **Draft content** is fixed at creation; change it by creating a new version. The exception is the suitability: on the draft, **Suitability evidence** on the method record can replace the basis and reference given here with an approved evidence record of the method or another external reference.
 - Date-time fields are labelled with the deployment time zone (setting `TIME_ZONE`, default UTC) and shown in it.
 - **Form behaviour**: the page shows "Fields marked * are required. The change is recorded in the audit trail with your reason." An invalid or refused submission returns the form with status 422, keeps your entries and shows an error summary ("Check the highlighted field(s) below. Your entries were kept.") plus refusals from the server as form-level errors.
 

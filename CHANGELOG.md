@@ -21,6 +21,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - No target exists after the upgrade, so open tests have no due date until quality sets targets (which apply to tests assigned afterwards) or a planner sets dates.
   > - Reminders are computed when the page is opened; nothing is sent and no scheduled job is added.
 
+- **Added**: Record a method's validation, verification or transfer and have method versions rely on it · Specifications · 2026-11-19
+
+  **Specifications and methods** has a new **Method evidence** tab. An analyst, a reviewer or a quality person records the evidence that a method is suitable for its intended use: a validation, the verification of a compendial procedure, a transfer or another documented demonstration, with its report and each characteristic's acceptance criterion and result. A quality person who neither recorded nor changed the record approves it with a signature, and it cannot be edited afterwards. On a draft method version, **Suitability evidence** lets quality rely on an approved record of the method instead of a reference only; approving the version checks the record again, and the method page links it.
+
+  In the application: **Method evidence**
+
+  > **Technical notes**
+  >
+  > - Migration `catalog.0009` adds the `MethodEvidence` and `MethodEvidenceCharacteristic` tables, with guard triggers that refuse any change to an approved or withdrawn record other than its withdrawal, refuse deletion, and allow characteristics to be added or removed only on a draft. It adds the nullable `MethodRevision.evidence` column and replaces the revision guard so that a draft version's `suitability_kind`, `suitability_ref` and `evidence` can change; approved versions stay immutable. No existing row changes.
+  > - New pages `catalog:evidence_list`, `catalog:evidence_new`, `catalog:evidence_detail`, `catalog:evidence_edit`, `catalog:evidence_characteristic_new`, `catalog:evidence_characteristic_remove`, `catalog:evidence_approve`, `catalog:evidence_withdraw` and `catalog:suitability_set`.
+  > - New audit actions `method_evidence.recorded`, `method_evidence.changed`, `method_evidence.characteristic_added`, `method_evidence.characteristic_removed`, `method_evidence.withdrawn` and `method_revision.suitability_set`. Records are approved with the meaning `approved` and an approved record is withdrawn with the meaning `withdrawn`; the approval freezes the record as `oq.method_evidence/1`.
+  > - A method version's approved content (`oq.method/1`) carries an `evidence` key (identifier, kind, conclusion and content hash) only when the version relies on a record. Requirement payloads frozen on tests are unchanged.
+
 - **Added**: Record training, qualify people to review a method, and see qualifications falling due · Laboratory · 2026-11-19 · [#63](https://github.com/openbga/qm-lims/pull/63)
 
   **Laboratory** has a new **Training** tab. Someone other than the trainee records a person's training in a method or activity, and the trainee confirms it with **Acknowledge** and their signature. A qualification now states whether it is for **Performing the work** or **Reviewing results**, and can rely on the person's acknowledged **Training records**. A method version can ask for **Reviewers qualified for the method**. A result of that version is then reviewed or returned only by a reviewer who holds a current qualification to review the method, and the test shows which qualification the review relied on. **Planning > Reminders** also lists qualifications that reach their last valid day with no approved renewal.

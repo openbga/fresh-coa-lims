@@ -4,7 +4,7 @@
     {% fact label="Method" %}{% code value=revision.method.code %}<small>{{ revision.method.title }}</small>{% endfact %}
     {% fact label="Technique" value=revision.technique %}
     {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}
-    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {% code value=revision.suitability_ref %}{% endfact %}
+    {% include "catalog/includes/suitability.html" with revision=revision only %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
     {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}

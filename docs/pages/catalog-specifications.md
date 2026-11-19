@@ -4,7 +4,7 @@ urls: catalog:specifications
 views: catalog.views.specification_list
 templates: catalog/specification_list.html
 models: catalog.Specification, catalog.SpecificationRevision, catalog.Material
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every specification: the tests and limits a material must meet at one stage and scope. Find a specification, see whether it has an approved version, or create a new one.
 ---
 
@@ -38,7 +38,7 @@ Lists every specification: the tests and limits a material must meet at a stage 
 
 ## Layout
 
-- **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Section tabs**: Specifications, Methods, Method evidence, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New specification** button for quality, with the introduction below.
 - **Intro**: "Approved, effective-dated specifications define the tests and limits each material must meet. Approved versions cannot be changed; create a new version instead."
 - **Filter bar**: **Search** (placeholder "Code, title or material"), **Stage** (default "All stages"), **Apply**, **Clear all** when filtered.
@@ -53,7 +53,7 @@ Lists every specification: the tests and limits a material must meet at a stage 
 |---|---|---|---|
 | **New specification** | Viewer has the quality role | Quality | Opens the New specification form |
 | Specification code link | Row exists | Any viewer | Opens that specification |
-| **Specifications / Methods / Materials** tabs | Always | Any viewer | Switch list |
+| **Specifications / Methods / Method evidence / Materials** tabs | Always | Any viewer | Switch list |
 | **Specification** and **Material** headers | Always | Any viewer | Sort by that column; activating it again reverses the order. The other columns do not sort |
 
 ## Fields

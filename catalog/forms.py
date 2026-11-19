@@ -10,6 +10,8 @@ from .models import (
     Material,
     MaterialKind,
     Method,
+    MethodEvidence,
+    MethodEvidenceCharacteristic,
     ResultType,
     Specification,
     Stage,
@@ -475,6 +477,192 @@ class FileImportForm(GroupedForm):
 class ReasonForm(forms.Form):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput)
     reason = reason_field("Reason")
+
+
+# Method evidence ---------------------------------------------------------------------------
+
+
+def _text(label=None, rows=3, required=True, help_text=""):
+    return forms.CharField(
+        label=label,
+        required=required,
+        max_length=4000,
+        widget=forms.Textarea(attrs={"rows": rows}),
+        help_text=help_text,
+    )
+
+
+def _model_help(name):
+    return MethodEvidence._meta.get_field(name).help_text
+
+
+class EvidenceChangeForm(GroupedForm):
+    """The fields of a method evidence record, as a draft is changed."""
+
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    kind = forms.ChoiceField(label="Kind of evidence", choices=SuitabilityKind.choices)
+    title = forms.CharField(max_length=160, help_text=_model_help("title"))
+    procedure_ref = forms.CharField(
+        label="Procedure studied", max_length=200, help_text=_model_help("procedure_ref")
+    )
+    intended_use = _text("Intended use", help_text=_model_help("intended_use"))
+    source = forms.CharField(
+        label="Source of the procedure",
+        max_length=200,
+        required=False,
+        help_text=_model_help("source"),
+    )
+    transfer_approach = forms.ChoiceField(
+        label="Transfer approach",
+        required=False,
+        choices=[("", "Not a transfer"), *MethodEvidence.TransferApproach.choices],
+        help_text=_model_help("transfer_approach"),
+    )
+    protocol_ref = forms.CharField(
+        label="Protocol", max_length=200, required=False, help_text=_model_help("protocol_ref")
+    )
+    report_ref = forms.CharField(
+        label="Report", max_length=200, help_text=_model_help("report_ref")
+    )
+    report_url = forms.URLField(
+        label="Report link",
+        max_length=500,
+        required=False,
+        help_text="Optional http or https link to the report in the document system.",
+    )
+    completed_on = forms.DateField(
+        label="Report completed on",
+        widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+        help_text="Not in the future.",
+    )
+    conclusion = forms.ChoiceField(choices=MethodEvidence.Conclusion.choices)
+    statement = _text("Statement of suitability", help_text=_model_help("statement"))
+    deviations = _text("Deviations", required=False, help_text=_model_help("deviations"))
+    reason = reason_field()
+
+    groups = [
+        ("Evidence", ["kind", "title"]),
+        (
+            "What was studied",
+            ["procedure_ref", "intended_use", "source", "transfer_approach", "protocol_ref"],
+        ),
+        ("Report", ["report_ref", "report_url", "completed_on"]),
+        ("Conclusion", ["conclusion", "statement", "deviations"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def clean(self):
+        data = super().clean()
+        kind = data.get("kind")
+        if kind == SuitabilityKind.TRANSFER and not data.get("transfer_approach"):
+            self.add_error("transfer_approach", "Choose how the transfer was performed.")
+        if kind and kind != SuitabilityKind.TRANSFER and data.get("transfer_approach"):
+            self.add_error("transfer_approach", "Only a transfer has a transfer approach.")
+        return data
+
+    def values(self):
+        return {
+            name: value
+            for name, value in self.cleaned_data.items()
+            if name not in ("expected_revision", "reason", "method")
+        }
+
+
+class EvidenceForm(EvidenceChangeForm):
+    """A new record: also the method it is for."""
+
+    method = forms.ModelChoiceField(
+        queryset=Method.objects.all(),
+        widget=RemoteSelect("methods"),
+        help_text="The method whose suitability the record shows.",
+    )
+    groups = [
+        ("Evidence", ["method", "kind", "title"]),
+        *EvidenceChangeForm.groups[1:],
+    ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        del self.fields["expected_revision"]
+        self.fields["reason"].label = "Reason"
+
+
+class CharacteristicForm(GroupedForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    characteristic = forms.ChoiceField(choices=MethodEvidenceCharacteristic.Characteristic.choices)
+    detail = forms.CharField(
+        max_length=160,
+        required=False,
+        help_text=MethodEvidenceCharacteristic._meta.get_field("detail").help_text,
+    )
+    criterion = _text("Acceptance criterion", rows=2)
+    result = _text("Result obtained", rows=2)
+    outcome = forms.ChoiceField(
+        label="Criterion", choices=MethodEvidenceCharacteristic.Outcome.choices
+    )
+    reason = reason_field("Reason")
+
+    groups = [
+        ("Characteristic", ["characteristic", "detail"]),
+        ("Criterion and result", ["criterion", "result", "outcome"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def clean(self):
+        data = super().clean()
+        if data.get("characteristic") == "other" and not (data.get("detail") or "").strip():
+            self.add_error("detail", "Say what was evaluated.")
+        return data
+
+
+class SuitabilityForm(GroupedForm):
+    """What a draft method version relies on: an approved record of its method, or an external
+    reference only."""
+
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    evidence = forms.ModelChoiceField(
+        label="Evidence record",
+        queryset=MethodEvidence.objects.none(),
+        required=False,
+        empty_label="None: an external reference only",
+        help_text="An approved record of this method that concludes it is suitable. Its kind "
+        "and report are used.",
+    )
+    suitability_kind = forms.ChoiceField(
+        label="Suitability basis",
+        required=False,
+        choices=[("", "Choose"), *SuitabilityKind.choices],
+        help_text="Only without an evidence record.",
+    )
+    suitability_ref = forms.CharField(
+        label="Suitability evidence",
+        max_length=200,
+        required=False,
+        help_text="Only without an evidence record: the report and where it is kept.",
+    )
+    reason = reason_field()
+
+    groups = [
+        ("Evidence kept here", ["evidence"]),
+        ("Or an external reference", ["suitability_kind", "suitability_ref"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def __init__(self, *args, choices, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["evidence"].queryset = choices
+        self.fields["evidence"].label_from_instance = lambda item: (
+            f"{item.identifier} · {item.title} ({item.get_kind_display()}, {item.report_ref})"
+        )
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("evidence"):
+            if not data.get("suitability_kind"):
+                self.add_error("suitability_kind", "Choose the kind of evidence.")
+            if not (data.get("suitability_ref") or "").strip():
+                self.add_error("suitability_ref", "Name the report and where it is kept.")
+        return data
 
 
 class ApprovalForm(SignatureIdentityForm):

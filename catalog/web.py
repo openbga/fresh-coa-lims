@@ -16,6 +16,7 @@ from core.models import AuditEvent, ElectronicSignature
 from core.services import require_role
 
 from . import services
+from .evidence import relied_on_refusal
 from .forms import ApprovalForm, ReasonForm
 from .models import RevisionStatus
 
@@ -161,6 +162,8 @@ def approval_offer(user, revision):
         services.retirements(revision)
     except ValidationError as exc:
         return False, " ".join(exc.messages)
+    if refusal := relied_on_refusal(revision):
+        return False, refusal
     return True, ""
 
 
@@ -192,6 +195,7 @@ def approve_page(request, revision, *, kind, crumbs, success_url, detail_templat
             ]
         except ValidationError as exc:
             refusal = " ".join(exc.messages)
+        refusal = refusal or relied_on_refusal(revision) or ""
     if request.method == "POST" and not blocked and not refusal and form.is_valid():
         approved = run(
             form,

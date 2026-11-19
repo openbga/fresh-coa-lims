@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import F, Q
 
@@ -151,6 +152,271 @@ class SuitabilityKind(models.TextChoices):
     FIT_FOR_PURPOSE = "fit_for_purpose", "Documented fitness for intended use"
 
 
+# An external link is untrusted text: only http(s) is accepted.
+http_url = URLValidator(schemes=["http", "https"])
+
+# Kinds of evidence that name where the procedure comes from: the pharmacopoeial text that is
+# verified, or the laboratory that transfers it.
+SOURCED_KINDS = (SuitabilityKind.COMPENDIAL_VERIFICATION, SuitabilityKind.TRANSFER)
+
+
+def _stated(*names):
+    condition = Q()
+    for name in names:
+        condition &= ~Q(**{f"{name}__regex": r"^\s*$"})
+    return condition
+
+
+class MethodEvidence(models.Model):
+    """The laboratory's record of the evidence that a method is suitable for its intended use:
+    a validation, the verification of a compendial procedure, a transfer from another
+    laboratory, or another documented demonstration of fitness for use.
+
+    It summarizes the report kept in the laboratory's document system: what was studied and for
+    which use, each performance characteristic with its acceptance criterion and result, and the
+    conclusion. Recorded and changed as a draft; a quality person who neither recorded nor
+    changed it approves it with a signature, which freezes ``content``. An approved record is
+    never edited or deleted (database guard, migration 0009); quality can withdraw it with a
+    signature. A method version relies on an approved record through ``MethodRevision.evidence``.
+    """
+
+    class TransferApproach(models.TextChoices):
+        COMPARATIVE = "comparative", "Comparative testing"
+        COVALIDATION = "covalidation", "Co-validation between laboratories"
+        REVALIDATION = "revalidation", "Revalidation or partial revalidation"
+        WAIVER = "waiver", "Transfer waiver"
+
+    class Conclusion(models.TextChoices):
+        SUITABLE = "suitable", "Suitable for the intended use"
+        NOT_SUITABLE = "not_suitable", "Not suitable"
+
+    class State(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        APPROVED = "approved", "Approved"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    method = models.ForeignKey(Method, on_delete=models.PROTECT, related_name="evidence")
+    kind = models.CharField(max_length=32, choices=SuitabilityKind.choices)
+    title = models.CharField(
+        max_length=160, help_text="Short name, e.g. Validation of the assay in film-coated tablets."
+    )
+    procedure_ref = models.CharField(
+        "Procedure studied",
+        max_length=200,
+        help_text="The controlled procedure that was studied, with its revision.",
+    )
+    intended_use = models.TextField(
+        "Intended use",
+        help_text="What the method is used for: the analyte or property, the materials or "
+        "matrices, the range, and the decisions its results support.",
+    )
+    source = models.CharField(
+        "Source of the procedure",
+        max_length=200,
+        blank=True,
+        help_text="For a compendial verification, the pharmacopoeial text and its edition; for a "
+        "transfer, the transferring laboratory.",
+    )
+    transfer_approach = models.CharField(
+        max_length=16,
+        blank=True,
+        choices=TransferApproach.choices,
+        help_text="For a transfer: how the receiving laboratory showed it can perform the method.",
+    )
+    protocol_ref = models.CharField(
+        "Protocol",
+        max_length=200,
+        blank=True,
+        help_text="The approved protocol with its revision, when the study had one.",
+    )
+    report_ref = models.CharField(
+        "Report",
+        max_length=200,
+        help_text="The report with its revision, as kept in the laboratory's document system.",
+    )
+    report_url = models.URLField("Report link", blank=True, max_length=500, validators=[http_url])
+    completed_on = models.DateField(help_text="The day the report was completed.")
+    conclusion = models.CharField(max_length=16, choices=Conclusion.choices)
+    statement = models.TextField(
+        "Statement of suitability",
+        help_text="The report's conclusion: whether and how the method is fit for its intended "
+        "use, with any conditions of use.",
+    )
+    deviations = models.TextField(
+        "Deviations",
+        blank=True,
+        help_text="Deviations from the protocol and criteria that were not met, and how each was "
+        "assessed.",
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=12, choices=State.choices, default=State.DRAFT)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    # Frozen by the approval signature: every field above and each characteristic.
+    content = models.JSONField(null=True, blank=True)
+    content_hash = models.CharField(max_length=64, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = "method evidence record"
+        ordering = ["-completed_on", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=_stated(
+                    "title", "procedure_ref", "intended_use", "report_ref", "statement"
+                ),
+                name="method_evidence_stated",
+            ),
+            models.CheckConstraint(
+                condition=~Q(kind__in=SOURCED_KINDS) | _stated("source"),
+                name="method_evidence_source",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    kind="transfer",
+                    transfer_approach__in=["comparative", "covalidation", "revalidation", "waiver"],
+                )
+                | (~Q(kind="transfer") & Q(transfer_approach="")),
+                name="method_evidence_transfer_approach",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    state="draft",
+                    approved_at__isnull=True,
+                    withdrawn_at__isnull=True,
+                    content__isnull=True,
+                    content_hash="",
+                )
+                | Q(
+                    ~Q(content_hash=""),
+                    state="approved",
+                    approved_at__isnull=False,
+                    withdrawn_at__isnull=True,
+                    content__isnull=False,
+                )
+                | Q(
+                    Q(approved_at__isnull=True, content__isnull=True, content_hash="")
+                    | Q(~Q(content_hash=""), approved_at__isnull=False, content__isnull=False),
+                    state="withdrawn",
+                    withdrawn_at__isnull=False,
+                ),
+                name="method_evidence_states",
+            ),
+        ]
+
+    @property
+    def identifier(self):
+        return f"MEV-{self.pk}"
+
+    @property
+    def is_draft(self):
+        return self.state == self.State.DRAFT
+
+    @property
+    def criteria_not_met(self):
+        return [c for c in self.characteristics.all() if c.outcome == c.Outcome.NOT_MET]
+
+    def __str__(self):
+        return f"{self.identifier} · {self.title}"
+
+    def frozen(self):
+        """Everything the approval signature binds: the record and its characteristics."""
+        return {
+            "schema": "oq.method_evidence/1",
+            "identifier": self.identifier,
+            "method": {"id": self.method_id, "code": self.method.code},
+            "kind": self.kind,
+            "title": self.title,
+            "procedure_ref": self.procedure_ref,
+            "intended_use": self.intended_use,
+            "source": self.source,
+            "transfer_approach": self.transfer_approach,
+            "protocol_ref": self.protocol_ref,
+            "report_ref": self.report_ref,
+            "report_url": self.report_url,
+            "completed_on": self.completed_on.isoformat(),
+            "conclusion": self.conclusion,
+            "statement": self.statement,
+            "deviations": self.deviations,
+            "characteristics": [item.content() for item in self.characteristics.all()],
+        }
+
+
+class MethodEvidenceCharacteristic(models.Model):
+    """One performance characteristic of a method evidence record: what was evaluated, its
+    acceptance criterion, the result obtained and whether the criterion was met. Added and
+    removed only while the record is a draft, never changed (database guard, migration 0009).
+
+    Entry order is the order of creation (``id``)."""
+
+    class Characteristic(models.TextChoices):
+        SPECIFICITY = "specificity", "Specificity or selectivity"
+        RANGE = "range", "Range and response (linearity)"
+        ACCURACY = "accuracy", "Accuracy"
+        REPEATABILITY = "repeatability", "Repeatability"
+        INTERMEDIATE_PRECISION = "intermediate_precision", "Intermediate precision"
+        REPRODUCIBILITY = "reproducibility", "Reproducibility"
+        DETECTION_LIMIT = "detection_limit", "Detection limit"
+        QUANTITATION_LIMIT = "quantitation_limit", "Quantitation limit"
+        ROBUSTNESS = "robustness", "Robustness"
+        COMPARISON = "comparison", "Comparison between laboratories"
+        OTHER = "other", "Other"
+
+    class Outcome(models.TextChoices):
+        MET = "met", "Met"
+        NOT_MET = "not_met", "Not met"
+
+    evidence = models.ForeignKey(
+        MethodEvidence, on_delete=models.PROTECT, related_name="characteristics"
+    )
+    characteristic = models.CharField(max_length=32, choices=Characteristic.choices)
+    detail = models.CharField(
+        max_length=160,
+        blank=True,
+        help_text="What was evaluated, e.g. recovery at 80, 100 and 120 % of the label claim. "
+        "Required for Other.",
+    )
+    criterion = models.TextField("Acceptance criterion")
+    result = models.TextField("Result obtained")
+    outcome = models.CharField("Criterion", max_length=8, choices=Outcome.choices)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=_stated("criterion", "result"),
+                name="method_evidence_characteristic_stated",
+            ),
+            models.CheckConstraint(
+                condition=~Q(characteristic="other") | _stated("detail"),
+                name="method_evidence_characteristic_other",
+            ),
+        ]
+
+    def __str__(self):
+        return self.label
+
+    @property
+    def label(self):
+        name = self.get_characteristic_display()
+        return f"{name}: {self.detail}" if self.detail else name
+
+    def content(self):
+        return {
+            "characteristic": self.characteristic,
+            "detail": self.detail,
+            "criterion": self.criterion,
+            "result": self.result,
+            "outcome": self.outcome,
+        }
+
+
 class MethodRevision(ControlledRevision):
     PARENT_FIELD = "method"
 
@@ -166,6 +432,17 @@ class MethodRevision(ControlledRevision):
         "Suitability evidence",
         max_length=200,
         help_text="Stable ID or location of the approved validation/verification evidence.",
+    )
+    # The approved record of the evidence this version relies on, when the laboratory keeps
+    # it here; the kind and reference above are then taken from it. Set on a draft by services
+    # and frozen with the approved content.
+    evidence = models.ForeignKey(
+        MethodEvidence,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="method_versions",
+        verbose_name="Evidence record",
     )
     summary = models.TextField(blank=True)
     requires_batch = models.BooleanField(
@@ -215,7 +492,7 @@ class MethodRevision(ControlledRevision):
         return f"{self.method.code} v{self.version}"
 
     def content(self):
-        return {
+        content = {
             "schema": "oq.method/1",
             "method": {"id": self.method_id, "code": self.method.code, "title": self.method.title},
             "version": self.version,
@@ -234,6 +511,17 @@ class MethodRevision(ControlledRevision):
             "effective_from": self.effective_from.isoformat(),
             "effective_until": self.effective_until.isoformat(),
         }
+        # Only a version that relies on a record kept here carries the key.
+        if self.evidence_id:
+            evidence = self.evidence
+            content["evidence"] = {
+                "id": evidence.pk,
+                "identifier": evidence.identifier,
+                "kind": evidence.kind,
+                "conclusion": evidence.conclusion,
+                "content_hash": evidence.content_hash,
+            }
+        return content
 
     @property
     def has_calculation(self):

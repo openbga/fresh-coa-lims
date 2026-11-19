@@ -4,7 +4,7 @@ urls: catalog:methods
 views: catalog.views.method_list
 templates: catalog/method_list.html
 models: catalog.Method, catalog.MethodRevision
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every analytical method, linked to its controlled procedure and suitability evidence. Find a method, see whether it has an approved version, or start a new one.
 ---
 
@@ -35,7 +35,7 @@ Lists the analytical methods that tests rely on, each linked to a controlled pro
 
 ## Layout
 
-- **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Section tabs**: Specifications, Methods, Method evidence, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New method** button for quality, with the introduction below.
 - **Intro**: "Methods link each test to a controlled procedure and evidence that it is suitable for its intended use."
 - **Filter bar**: **Search** (placeholder "Code or title"), **Apply**, **Clear all** when filtered.

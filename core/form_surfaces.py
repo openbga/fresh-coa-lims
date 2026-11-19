@@ -127,6 +127,13 @@ FORM_SURFACES = {
     "catalog:file_import_set": ("lg", ("quality",)),
     "catalog:file_import_clear": ("sm", ("quality",)),
     "catalog:material_new": ("md", ("quality",)),
+    "catalog:suitability_set": ("md", ("quality",)),
+    "catalog:evidence_new": ("lg", ("analyst", "quality", "reviewer")),
+    "catalog:evidence_edit": ("lg", ("analyst", "quality", "reviewer")),
+    "catalog:evidence_characteristic_new": ("md", ("analyst", "quality", "reviewer")),
+    "catalog:evidence_characteristic_remove": ("sm", ("analyst", "quality", "reviewer")),
+    "catalog:evidence_approve": ("lg", ("quality",)),
+    "catalog:evidence_withdraw": ("md", ("analyst", "quality", "reviewer")),
     # Suppliers
     "suppliers:new": ("md", ("quality",)),
     "suppliers:qualification_approve": ("md", ("quality",)),
