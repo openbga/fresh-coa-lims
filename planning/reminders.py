@@ -1,14 +1,15 @@
-"""Reminders: the calibrations, stability pulls and reagent or standard lots that fall due within
-a window of days, read from the same queries as their lists. Nothing is stored or sent: the page
-lists what is due, and each row opens the record that resolves it."""
+"""Reminders: the calibrations, stability pulls, reagent or standard lots and qualifications that
+fall due within a window of days, read from the same queries as their lists. Nothing is stored or
+sent: the page lists what is due, and each row opens the record that resolves it."""
 
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from django.db.models import DateField, Exists, ExpressionWrapper, OuterRef, Q
 from django.urls import reverse
 
 from laboratory.eligibility import equipment_queryset
-from laboratory.models import Calibration, Equipment, ReagentLot
+from laboratory.models import Calibration, Equipment, Qualification, ReagentLot
 from stability.models import Pull, Study
 from stability.views import _with_windows
 
@@ -16,6 +17,7 @@ KINDS = {
     "calibration": "Calibration",
     "pull": "Stability pull",
     "reagent": "Reagent or standard",
+    "qualification": "Qualification",
 }
 
 
@@ -111,7 +113,70 @@ def _reagents(today, until):
         )
 
 
-SOURCES = {"calibration": _calibrations, "pull": _pulls, "reagent": _reagents}
+def renewed(subject):
+    """An approved, unrevoked qualification of the same person or instrument (``subject``:
+    "user" or "equipment"), for the same activity (any case) and work, that takes over by the
+    day after this one's last valid day and runs past it: once it exists, this one needs no
+    reminder."""
+    day_after = ExpressionWrapper(
+        OuterRef("valid_until") + timedelta(days=1), output_field=DateField()
+    )
+    return Qualification.objects.filter(
+        **{subject: OuterRef(subject)},
+        state=Qualification.State.APPROVED,
+        activity__iexact=OuterRef("activity"),
+        work=OuterRef("work"),
+        valid_until__gt=OuterRef("valid_until"),
+        valid_from__lte=day_after,
+    ).exclude(pk=OuterRef("pk"))
+
+
+def expiring_qualifications(today, until):
+    """Approved qualifications in effect today whose last valid day falls from today to
+    ``until`` and that no approved renewal follows. A revoked one is not reminded of, nor one of
+    an inactive account or of equipment out of service (as calibrations are reminded of only
+    for equipment in service)."""
+    return (
+        Qualification.objects.filter(
+            Q(user__is_active=True) | Q(equipment__state=Equipment.State.IN_SERVICE),
+            state=Qualification.State.APPROVED,
+            valid_from__lte=today,
+            valid_until__gte=today,
+            valid_until__lte=until,
+        )
+        .alias(renewed=Exists(renewed("user")) | Exists(renewed("equipment")))
+        .filter(renewed=False)
+        .select_related("user", "equipment")
+    )
+
+
+def _qualifications(today, until):
+    for item in expiring_qualifications(today, until).order_by("valid_until", "activity", "pk"):
+        days = (item.valid_until - today).days
+        status = "Last valid day today" if days == 0 else f"Expires in {_days(days)}"
+        subject = (
+            (item.user.get_full_name() or item.user.get_username())
+            if item.user_id
+            else item.equipment.asset_id
+        )
+        purpose = item.get_work_display().lower() if item.user_id else "intended use"
+        yield Reminder(
+            "qualification",
+            item.valid_until,
+            f"QUAL-{item.pk} · {item.activity}",
+            f"{subject}, {purpose}, valid until {item.valid_until.isoformat()}",
+            reverse("laboratory:qualification_detail", args=[item.pk]),
+            status,
+            "warning" if days <= 7 else "neutral",
+        )
+
+
+SOURCES = {
+    "calibration": _calibrations,
+    "pull": _pulls,
+    "reagent": _reagents,
+    "qualification": _qualifications,
+}
 
 
 def reminders(today, within, kind=""):

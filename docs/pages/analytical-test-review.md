@@ -4,7 +4,7 @@ urls: analytical:test_review
 views: analytical.views.test_review
 templates: analytical/sign.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.InstrumentReading, quality.Lot, laboratory.ContractApproval, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: Independently review one submitted test and sign it with your PIN as reviewed. Out-of-specification results are reviewed too; the investigation decides their validity.
 ---
 
@@ -17,8 +17,8 @@ summary: Independently review one submitted test and sign it with your PIN as re
 1. Select [[Enroll or change your signature PIN]] if you have no PIN yet.
 ## Good to know
 - You cannot review a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded, even with the reviewer role.
-- If the test changes after you open this page, the signature is refused and you must review again.
-- Five wrong PINs in a row lock your PIN for 15 minutes. Failed attempts are recorded even though nothing is signed.
+- If the method version asks for qualified reviewers, you also need a current qualification to review it. One to perform it does not count.
+- If the test changes after you open this page, the signature is refused and you must review again. Five wrong PINs in a row lock your PIN for 15 minutes.
 - A result reported by a contract laboratory is checked against its report. The summary names the laboratory and the report.
 - A signed review does not release the lot. QC disposition is a separate signed decision.
 
@@ -56,6 +56,7 @@ Independently review one submitted test and sign it with meaning **reviewed**. O
 ## Rules and hidden logic
 
 - **Checked before the PIN form opens** (on opening and on submitting, with the same rules the signature uses): an impossible review never shows a PIN field, so no PIN is checked and no failed attempt is counted. Redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine." (for a stability test the pull's reason: it must be pulled and not yet accepted and its study active); "This test is not awaiting review."; "You cannot review your own test." (you recorded, corrected or submitted its data, including a contract laboratory result, or recorded its batch QC, even if you also hold the reviewer role); "Batch QC no longer passes; this test cannot be reviewed.". Signing rechecks everything under lock, including the revision.
+- **Qualified reviewer**: when the test's frozen method version was approved with Reviewers qualified for the method, you need an approved qualification to review that method (activity = the method code, case ignored, Qualified for "Reviewing results"), in effect now. Otherwise the review is refused with "No approved, current qualification to review “<code>”." The check repeats when you sign, with those qualifications locked. The qualification relied on is recorded on the test with the review and shown on the test record as Reviewer's qualification. A method version that does not ask for it checks nothing beyond the reviewer role.
 - **Preconditions**: test Submitted ("This test is not awaiting review."); not your own ("You cannot review your own test."); the lot's rule set version approved (not checked for a stability test: a pull is under no rule set, its criteria are the protocol's frozen on the test; "An approved rule revision is required."; it need not be in force still, so a result is reviewed and an investigation proceeds after a later version retired it); lot in quarantine (or, for a stability test, the pull open for testing); batch still Open with QC passed ("Batch QC no longer passes; this test cannot be reviewed."); calculation unchanged: the reportable value, the reportable text frozen at submission (for example "<10" or "Absent") and conformance are recalculated from the current replicates and must match ("Calculated result changed; return the test for resubmission."); every imported replicate still agrees with its stored file, read again with the frozen file import ("An imported replicate no longer agrees with the file it was read from; return the test for correction."). Every instrument reading a current replicate records still agrees with it, read again with the format of the connection it was taken through ("An instrument reading no longer agrees with what the device sent; return the test for correction.").
 - **Instrument readings**: the summary lists the values read from connected balances and meters and the readings no replicate records (taken again, for example). They are kept as evidence; review them against the replicates. They do not block the review.
 - **Result reported by a contract laboratory**: the summary names the laboratory and its report; check the replicates against that report, which also holds the laboratory's batch QC, instruments and calculation inputs. The test has no QC batch of this laboratory, so the batch check does not apply. The reported values have no stored inputs and are not recalculated from inputs; the reportable result and conformance are still worked out again from the replicates and must match.

@@ -2,11 +2,18 @@ from django import forms
 
 from core import device_formats
 from core.forms import SignatureIdentityForm
-from core.lookups import RemoteSelect
+from core.lookups import RemoteSelect, RemoteSelectMultiple
 from quality.models import Sample
 
 from .eligibility import users_with_roles
-from .models import Calibration, DeviceConnection, Equipment, ReagentLot
+from .models import (
+    Calibration,
+    DeviceConnection,
+    Equipment,
+    Qualification,
+    ReagentLot,
+    TrainingRecord,
+)
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -142,6 +149,91 @@ class CalibrationForm(forms.ModelForm):
         widgets = {"tolerance_note": forms.Textarea(attrs={"rows": 3})}
 
 
+def training_label(record):
+    trainee = record.trainee.get_username() if record.trainee_id else ""
+    done = record.completed_on.isoformat() if record.completed_on else ""
+    return (
+        f"{record.identifier} · {trainee} · {record.activity} · {record.get_kind_display()}, {done}"
+    )
+
+
+def supporting_training():
+    """Training records a qualification may rely on: acknowledged, and not an assessment that
+    found the trainee not yet competent (the service checks the person and the activity)."""
+    return (
+        TrainingRecord.objects.filter(state=TrainingRecord.State.ACKNOWLEDGED)
+        .exclude(outcome=TrainingRecord.Outcome.NOT_YET_COMPETENT)
+        .select_related("trainee")
+    )
+
+
+class TrainingChoice(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        return training_label(obj)
+
+
+class TrainingForm(forms.Form):
+    trainee = forms.ModelChoiceField(
+        queryset=users_with_roles(), label="Trainee", widget=RemoteSelect("active-users")
+    )
+    activity = forms.CharField(
+        max_length=120,
+        help_text="Method or activity code, as the qualification it supports will name it.",
+    )
+    document_ref = forms.CharField(
+        max_length=200,
+        label="Procedure or course",
+        help_text="The controlled procedure, method or course trained on, with its revision.",
+    )
+    kind = forms.ChoiceField(label="Kind of training", choices=TrainingRecord.Kind.choices)
+    outcome = forms.ChoiceField(
+        choices=TrainingRecord.Outcome.choices,
+        help_text="Completed for training; competent or not yet competent for an assessment.",
+    )
+    trainer = forms.CharField(
+        max_length=160,
+        label="Trainer or assessor",
+        help_text="Who gave the training or assessed it, or the provider of an outside course.",
+    )
+    completed_on = date_field(label="Completed on")
+    evidence_ref = forms.CharField(
+        max_length=200,
+        required=False,
+        label="Evidence reference",
+        help_text="Where the signed training record, test or certificate is kept.",
+    )
+    evidence_url = forms.URLField(required=False, max_length=500, label="Evidence link")
+    note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
+    reason = reason_field(max_length=2000)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["trainee"].queryset = users_with_roles()
+
+    def clean_evidence_url(self):
+        from .models import http_url
+
+        url = self.cleaned_data["evidence_url"]
+        if url:
+            http_url(url)
+        return url
+
+    def clean(self):
+        data = super().clean()
+        kind, outcome = data.get("kind"), data.get("outcome")
+        if kind and outcome:
+            assessment = kind == TrainingRecord.Kind.ASSESSMENT
+            if assessment and outcome == TrainingRecord.Outcome.COMPLETED:
+                self.add_error(
+                    "outcome", "An assessment finds the trainee competent or not yet competent."
+                )
+            elif not assessment and outcome != TrainingRecord.Outcome.COMPLETED:
+                self.add_error(
+                    "outcome", "Only an assessment of competence finds a trainee competent."
+                )
+        return data
+
+
 class QualificationForm(forms.Form):
     """Analyst qualification when `equipment` is absent, instrument qualification otherwise."""
 
@@ -150,6 +242,21 @@ class QualificationForm(forms.Form):
     )
     activity = forms.CharField(
         max_length=120, help_text="Method or activity code this evidence qualifies."
+    )
+    work = forms.ChoiceField(
+        label="Qualified for",
+        choices=Qualification.Work.choices,
+        initial=Qualification.Work.PERFORM,
+        help_text="Performing the work, or reviewing its results where a method version asks "
+        "for qualified reviewers. Each needs its own qualification.",
+    )
+    training = TrainingChoice(
+        queryset=supporting_training(),
+        required=False,
+        label="Training records",
+        widget=RemoteSelectMultiple("training-records"),
+        help_text="The person's acknowledged training in this activity that the evidence "
+        "relies on.",
     )
     scope_note = forms.CharField(widget=forms.Textarea(attrs={"rows": 2}), required=False)
     evidence_ref = forms.CharField(
@@ -164,8 +271,11 @@ class QualificationForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.equipment = equipment
         self.fields["user"].queryset = users_with_roles()
+        self.fields["training"].queryset = supporting_training()
         if equipment is not None:
             del self.fields["user"]
+            del self.fields["work"]
+            del self.fields["training"]
             self.fields["activity"].label = "Stage or intended use"
             self.fields["activity"].help_text = "For example IQ, OQ, PQ or requalification."
 

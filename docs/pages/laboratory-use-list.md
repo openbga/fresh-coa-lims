@@ -4,7 +4,7 @@ urls: laboratory:use_list
 views: laboratory.views.use_list
 templates: ops/list.html
 models: laboratory.ResourceUse
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Append-only record of the equipment and reagent lots used for work, by whom and when. Find the uses for a sample, lot, test or resource, or record a new use.
 ---
 
@@ -35,7 +35,7 @@ Append-only record of the eligible equipment and reagents used for work.
 
 ## Layout
 
-- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Training, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New use** button for Analyst. The introduction is below the title and action row.
 - **Toolbar**: **Search** (a sample reference, a lot number, a QC batch number or work ID, activity, test code, equipment asset ID or reagent lot identifier; case-insensitive "contains"; searching a sample reference finds the uses recorded for that sample, whether the work was recorded against the sample or against one of its native analytical tests; searching a lot number finds uses recorded against the lot's samples and analytical tests; searching a stability study identifier, or the lot number of a stability study, finds uses recorded against the tests of that study's pulls; searching a QC batch number finds uses recorded against that batch; every matching record is searched, with no cap). There is no Status filter. **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Used (time), Resource (links), Work, Activity, Test, By. Sort by Used (newest first by default). Sortable headers toggle ascending/descending.

@@ -4,7 +4,7 @@ urls: analytical:test_return
 views: analytical.views.test_return
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, quality.Lot
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: A reviewer sends a conforming submitted test back to the analyst for correction. No signature is made, and the observations stay as recorded.
 ---
 
@@ -15,6 +15,7 @@ summary: A reviewer sends a conforming submitted test back to the analyst for co
 ### Keep the test as submitted
 1. Select [[Cancel]] to go back to the test record without returning it.
 ## Good to know
+- Where the method version asks for qualified reviewers, you also need an approved, current qualification to review that method to return the test.
 - Out-of-specification results cannot be returned. The investigation decides whether the result is invalid.
 - You cannot return a test whose data you recorded, corrected, submitted or attached, or whose batch QC you recorded.
 - Returning clears the reportable result, the conformance and the submitter. The observations stay.
@@ -52,6 +53,7 @@ A reviewer sends a conforming submitted test back to the analyst for correction.
 ## Rules and hidden logic
 
 - **Checked before the form opens** (on opening and on submitting, with the same rules the return uses): redirects to the test record with the first applicable warning: "Lot LOT-TEST-001 is no longer in quarantine." (for a stability test the pull's reason: it must be pulled and not yet accepted and its study active); "Only submitted tests can be returned."; "You cannot review your own test." (you recorded, corrected or submitted its data, or recorded its batch QC); "Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid.". The return itself rechecks all of these under lock, plus the record revision.
+- **Qualified reviewer**: when the test's frozen method version was approved with Reviewers qualified for the method, you need an approved qualification to review that method, in effect now (Qualified for "Reviewing results"). Otherwise the return is refused with "No approved, current qualification to review “<code>”." The qualification relied on is recorded in the `test.returned` audit event, not on the test.
 - **Preconditions**: test Submitted ("Only submitted tests can be returned."); not your own ("You cannot review your own test."); conforming ("Out-of-specification results cannot be returned for correction; the investigation decides whether the result is invalid."); lot in quarantine (or, for a stability test, the pull open for testing).
 - **Stale page**: "Record changed. Reload and review before continuing."
 - **Effect**: mean, reportable value, reportable text, conformance and submitter are cleared; test revision and the revision of the lot (or, for a stability test, the pull) rise by 1; `test.returned` is audited with the previous values. Observations remain.

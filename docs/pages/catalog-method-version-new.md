@@ -4,8 +4,8 @@ urls: catalog:method_version_new
 views: catalog.views.method_version_new
 templates: catalog/form.html
 models: catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput
-reviewed: 2026-11-18
-summary: Create the next draft version of a method. It starts with the calculation, inputs, file import and resource options of the latest version, and its QC checks when it runs in a QC batch.
+reviewed: 2026-11-19
+summary: Create the next draft version of a method. It starts with the calculation, inputs, file import, resource options and reviewer qualification of the latest version, and its QC checks when it runs in a QC batch.
 ---
 
 ## Common tasks
@@ -16,7 +16,7 @@ summary: Create the next draft version of a method. It starts with the calculati
 ### Keep the batch QC checks
 1. Tick [[Runs in a QC batch]] to copy the QC checks of the latest version. Left clear, none are copied.
 ## Good to know
-- Only the two resource options start as in the latest version. Every other field starts empty.
+- Only the two resource options and Reviewers qualified for the method start as in the latest version. Every other field starts empty.
 - The calculation and inputs are copied whatever the status of the latest version, so an incomplete calculation stays incomplete until you fix it.
 - When approved, this version retires an earlier approved version it overlaps, from its start or from the moment of approval if that is later.
 - You become the author, so another quality user must approve this version.
@@ -33,8 +33,8 @@ Creates the next draft version of a method.
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code, New version. Title: "New version of" and the code.
-- **Intro**: "The new draft copies the QC checks (when it runs in a QC batch), the calculation and its inputs, and the file import of the latest version. The resource options start as in that version."
-- **Form sections**: Procedure, "Resources recorded with results", Suitability, Effective period, Change control.
+- **Intro**: "The new draft copies the QC checks (when it runs in a QC batch), the calculation and its inputs, and the file import of the latest version. The resource options and the reviewer qualification start as in that version."
+- **Form sections**: Procedure, "Resources recorded with results", Review, Suitability, Effective period, Change control.
 - **Buttons**: **Cancel** (back to the method) and **Create draft version**.
 
 ## Actions
@@ -54,6 +54,7 @@ Creates the next draft version of a method.
 | Runs in a QC batch | `MethodRevision.requires_batch` | Checkbox | No | Help: "If set, add the batch QC checks to the draft before approval." |
 | Records an instrument | `MethodRevision.requires_equipment` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one instrument." Fixed at creation; starts as in the latest version. |
 | Records a reagent or standard | `MethodRevision.requires_reagent` | Checkbox | No | Help: "If set, every result and batch QC entry must record at least one reagent or standard lot." Fixed at creation; starts as in the latest version. |
+| Reviewers qualified for the method | `MethodRevision.requires_review_qualification` | Checkbox | No | Help: "If set, whoever reviews or returns a result of this version needs an approved, current qualification to review this method, beyond the reviewer role." Fixed at creation. Starts as in the latest version. |
 | Suitability basis | `MethodRevision.suitability_kind` | Method validation, Compendial method verification, Method transfer, Documented fitness for intended use | Yes | Kind of evidence of suitability for intended use. |
 | Suitability evidence | `MethodRevision.suitability_ref` | Text, max 200 | Yes | Help: "Stable ID or location of the approved validation or verification report." |
 | Effective from (time zone) | `MethodRevision.effective_from` | Date and time | Yes | Start of the effective period, inclusive. |
@@ -63,7 +64,7 @@ Creates the next draft version of a method.
 
 ## Rules and hidden logic
 
-- **Numbering**: highest existing version number plus one. The form is not prefilled from earlier versions, except the two resource options, which start as in the latest version.
+- **Numbering**: highest existing version number plus one. The form is not prefilled from earlier versions, except the two resource options and Reviewers qualified for the method, which start as in the latest version.
 - **QC checks**: if "Runs in a QC batch" is ticked and an earlier version exists, its QC checks (from the highest-numbered version) are copied into the draft. Otherwise none are copied.
 - **Calculation**: the latest version's formula, result unit, decimals and inputs are copied into the draft whatever its status, so a copy of an incomplete draft stays incomplete until fixed. Change them with the calculation pages on the method record.
 - **File import**: the latest version's file import, if any, is copied into the draft. Change or clear it on the method record.

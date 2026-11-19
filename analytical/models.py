@@ -181,6 +181,12 @@ class AnalyticalTest(models.Model):
         help_text="What the signed record that the test cannot be completed froze; empty "
         "for every other test",
     )
+    review_evidence = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="The reviewer's qualification relied on at review, where the method version "
+        "asks for qualified reviewers; empty otherwise",
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     revision = models.PositiveIntegerField(default=1)
@@ -252,6 +258,11 @@ class AnalyticalTest(models.Model):
                 condition=(Q(state="not_completed") & ~Q(not_completed_record={}))
                 | (~Q(state="not_completed") & Q(not_completed_record={})),
                 name="analytical_test_not_completed_record",
+            ),
+            # The reviewer's qualification is recorded only by the review, and kept after it.
+            models.CheckConstraint(
+                condition=Q(review_evidence={}) | Q(state__in=["reviewed", "invalidated"]),
+                name="analytical_test_review_evidence",
             ),
         ]
 

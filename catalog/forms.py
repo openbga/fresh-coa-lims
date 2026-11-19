@@ -98,6 +98,12 @@ class MethodRevisionForm(GroupedForm):
         help_text="If set, every result and batch QC entry must record at least one reagent "
         "or standard lot.",
     )
+    requires_review_qualification = forms.BooleanField(
+        label="Reviewers qualified for the method",
+        required=False,
+        help_text="If set, whoever reviews or returns a result of this version needs an "
+        "approved, current qualification to review this method, beyond the reviewer role.",
+    )
     reason = reason_field()
 
     def __init__(self, *args, **kwargs):
@@ -107,6 +113,7 @@ class MethodRevisionForm(GroupedForm):
     groups = [
         ("Procedure", ["technique", "document_ref", "summary", "requires_batch"]),
         ("Resources recorded with results", ["requires_equipment", "requires_reagent"]),
+        ("Review", ["requires_review_qualification"]),
         ("Suitability", ["suitability_kind", "suitability_ref"]),
         ("Effective period", ["effective_from", "effective_until"]),
         ("Change control", ["reason"]),

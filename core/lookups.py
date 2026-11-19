@@ -92,6 +92,12 @@ def _planning():
     return services
 
 
+def _training():
+    from laboratory import forms
+
+    return forms
+
+
 def _owner_candidates():
     from validation.services import owner_candidates
 
@@ -168,6 +174,21 @@ register(
         ("identifier", "name", "lot_number"),
         ("identifier", "pk"),
         label=lambda item: f"{item.identifier} · {item.name}",
+    )
+)
+register(
+    Lookup(
+        "training-records",
+        lambda: _training().supporting_training(),
+        (
+            "activity",
+            "document_ref",
+            "trainee__username",
+            "trainee__first_name",
+            "trainee__last_name",
+        ),
+        ("-completed_on", "-pk"),
+        label=lambda record: _training().training_label(record),
     )
 )
 register(

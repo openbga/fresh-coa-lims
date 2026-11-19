@@ -15,6 +15,7 @@ from laboratory.models import (
     Qualification,
     ReagentLot,
     ResourceUse,
+    TrainingRecord,
 )
 
 from .access import check_boundary, make_user, route_names
@@ -25,6 +26,7 @@ from .helpers import (
     make_equipment,
     make_reagent,
     qualify_analyst,
+    record_training,
 )
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -36,6 +38,8 @@ READ_ROUTES = {
     "laboratory:calibration_list",
     "laboratory:qualification_list",
     "laboratory:qualification_detail",
+    "laboratory:training_list",
+    "laboratory:training_detail",
     "laboratory:reagent_list",
     "laboratory:reagent_detail",
     "laboratory:use_list",
@@ -55,6 +59,8 @@ MUTATION_ROUTES = {
     "laboratory:qualification_new",
     "laboratory:qualification_approve",
     "laboratory:qualification_revoke",
+    "laboratory:training_new",
+    "laboratory:training_acknowledge",
     "laboratory:reagent_new",
     "laboratory:reagent_release",
     "laboratory:reagent_reject",
@@ -71,6 +77,7 @@ TRACKED = [
     Qualification,
     ReagentLot,
     ResourceUse,
+    TrainingRecord,
     ContractLaboratory,
     ContractApproval,
     ContractUse,
@@ -116,6 +123,7 @@ def world(people, django_user_model):
         reason="Training record",
     )
     approved = qualify_analyst(people, people["analyst2"], "ASSAY-B")
+    training = record_training(people, people["analyst2"], "ASSAY-A")
     reagent = make_reagent(people, "R-NEW", release=False)
     outside = make_contract_laboratory(people)
     waiting = approve_contract_laboratory(people, outside, "ASSAY-A", sign=False)
@@ -135,6 +143,7 @@ def world(people, django_user_model):
         "calibration": calibration,
         "pending": pending,
         "approved": approved,
+        "training": training,
         "reagent": reagent,
         "outside": outside,
         "waiting": waiting,
@@ -152,6 +161,8 @@ def routes(world):
         ("laboratory:calibration_list", [], None),
         ("laboratory:qualification_list", [], None),
         ("laboratory:qualification_detail", [world["pending"].pk], None),
+        ("laboratory:training_list", [], None),
+        ("laboratory:training_detail", [world["training"].pk], None),
         ("laboratory:reagent_list", [], None),
         ("laboratory:reagent_detail", [world["reagent"].pk], None),
         ("laboratory:use_list", [], None),
@@ -172,6 +183,9 @@ def routes(world):
         ("laboratory:qualification_new", [], "reviewer"),
         ("laboratory:qualification_approve", [world["pending"].pk], "quality"),
         ("laboratory:qualification_revoke", [world["approved"].pk], "quality"),
+        ("laboratory:training_new", [], "reviewer"),
+        # Only the trainee acknowledges their training.
+        ("laboratory:training_acknowledge", [world["training"].pk], "analyst2"),
         ("laboratory:reagent_new", [], "analyst"),
         ("laboratory:reagent_release", [world["reagent"].pk], "reviewer"),
         ("laboratory:reagent_reject", [world["reagent"].pk], "analyst"),

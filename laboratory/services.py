@@ -27,6 +27,7 @@ from .eligibility import (
     reagent_eligibility,
     reagent_lineage,
     reagent_status,
+    reviewer_eligibility,
     unassessed_failures,
 )
 from .models import (
@@ -36,6 +37,7 @@ from .models import (
     Qualification,
     ReagentLot,
     ResourceUse,
+    TrainingRecord,
 )
 
 RECORDERS = ("analyst", "quality")
@@ -348,18 +350,119 @@ def accept_calibration(*, actor, pin, calibration, expected_revision, reason):
     )
 
 
+# --- Training --------------------------------------------------------------------------------
+
+
+@transaction.atomic
+def record_training(*, actor, reason, trainee, **values):
+    """Record a person's training. It is evidence only: nobody is qualified by it, and the
+    trainee acknowledges it with a signature before a qualification can rely on it."""
+    require_role(actor, *ANY_SCIENTIFIC)
+    if trainee.pk == actor.pk:
+        raise PermissionDenied("You cannot record your own training.")
+    if not trainee.is_active:
+        raise ValidationError("The trainee's account is inactive.")
+    if not trainee.groups.filter(name__in=ANY_SCIENTIFIC).exists():
+        # Only an analyst, a reviewer or a quality person can sign the acknowledgement.
+        raise ValidationError(
+            "The trainee needs the analyst, reviewer or quality role to acknowledge training."
+        )
+    if values.get("completed_on") and values["completed_on"] > timezone.localdate():
+        raise ValidationError({"completed_on": "Training cannot be completed in the future."})
+    lock_account(actor)
+    training = TrainingRecord(trainee=trainee, recorded_by=actor, **values)
+    training.full_clean()
+    training.save()
+    record_event(
+        actor=actor,
+        action="training.recorded",
+        obj=training,
+        after=snapshot(training),
+        reason=reason,
+    )
+    return training
+
+
+def acknowledge_training(*, actor, pin, training, expected_revision, reason):
+    """The trainee confirms, with their signature, that the record of their training is
+    right. Only the trainee can; whoever recorded it is someone else."""
+
+    def apply(locked):
+        if locked.trainee_id != actor.pk:
+            raise PermissionDenied("Only the trainee can acknowledge this training record.")
+        if locked.state != TrainingRecord.State.RECORDED:
+            raise ValidationError("This training record is already acknowledged.")
+        locked.state = TrainingRecord.State.ACKNOWLEDGED
+        locked.acknowledged_at = timezone.now()
+
+    return sign_transition(
+        actor=actor,
+        pin=pin,
+        obj=training,
+        expected_revision=expected_revision,
+        meaning="acknowledged",
+        reason=reason,
+        permission=ANY_SCIENTIFIC,
+        apply=apply,
+    )
+
+
+TRAINING_RECORDER_APPROVES = (
+    "You recorded training this qualification relies on; another quality person approves it."
+)
+
+
+def training_refusal(training, user, activity):
+    """Why ``training`` cannot support a qualification of ``user`` for ``activity``, or None."""
+    if training.trainee_id != getattr(user, "pk", None):
+        return f"{training.identifier} is the training of another person."
+    if training.activity.strip().casefold() != (activity or "").strip().casefold():
+        return f"{training.identifier} is training in “{training.activity}”, not this activity."
+    if training.state != TrainingRecord.State.ACKNOWLEDGED:
+        return f"{training.identifier} is not acknowledged by the trainee yet."
+    if training.outcome == TrainingRecord.Outcome.NOT_YET_COMPETENT:
+        return f"{training.identifier} found the trainee not yet competent."
+    return None
+
+
+def _training_of(qualification):
+    """The training records a qualification relies on, locked, in id order."""
+    ids = qualification.training or []
+    found = list(TrainingRecord.objects.select_for_update().filter(pk__in=ids).order_by("pk"))
+    if len(found) != len(set(ids)):
+        raise ValidationError("A training record this evidence relies on does not exist.")
+    return found
+
+
 # --- Qualification ---------------------------------------------------------------------------
 
 
 @transaction.atomic
-def record_qualification(*, actor, reason, user=None, equipment=None, **values):
+def record_qualification(*, actor, reason, user=None, equipment=None, training=(), **values):
     require_role(actor, *ANY_SCIENTIFIC)
     if user is not None and user.pk == actor.pk:
         raise PermissionDenied("You cannot record qualification evidence for yourself.")
     if user is not None and not user.is_active:
         raise ValidationError("The qualified person's account is inactive.")
+    if equipment is not None and (training or values.get("work", "perform") != "perform"):
+        raise ValidationError(
+            "An instrument is qualified for its use; it has no training and reviews nothing."
+        )
     lock_account(actor)
-    qualification = Qualification(user=user, equipment=equipment, recorded_by=actor, **values)
+    ids = sorted({item.pk for item in training})
+    records = list(TrainingRecord.objects.filter(pk__in=ids).order_by("pk"))
+    if len(records) != len(ids):
+        raise ValidationError({"training": "A selected training record does not exist."})
+    refusals = [
+        refusal
+        for item in records
+        if (refusal := training_refusal(item, user, values.get("activity")))
+    ]
+    if refusals:
+        raise ValidationError({"training": refusals})
+    qualification = Qualification(
+        user=user, equipment=equipment, recorded_by=actor, training=ids, **values
+    )
     qualification.full_clean()
     qualification.save()
     record_event(
@@ -382,6 +485,16 @@ def approve_qualification(*, actor, pin, qualification, expected_revision, reaso
             )
         if locked.valid_until < timezone.localdate():
             raise ValidationError("The qualification has already expired.")
+        training = _training_of(locked)
+        if any(item.recorded_by_id == actor.pk for item in training):
+            raise PermissionDenied(TRAINING_RECORDER_APPROVES)
+        refusals = [
+            refusal
+            for item in training
+            if (refusal := training_refusal(item, locked.user, locked.activity))
+        ]
+        if refusals:
+            raise ValidationError(refusals)
         locked.state = Qualification.State.APPROVED
         locked.approved_at = timezone.now()
 
@@ -416,6 +529,22 @@ def revoke_qualification(*, actor, pin, qualification, expected_revision, reason
         permission="quality",
         apply=apply,
     )
+
+
+def review_finding(*, actor, activity, lock=False):
+    """Whether ``actor`` holds an approved, current qualification to review results of
+    ``activity`` (a method code). With ``lock``, inside the review's transaction (which has
+    locked the reviewer's account), those qualifications are locked before they are read, so a
+    revocation signed meanwhile waits for the review to commit, or the review sees it."""
+    if lock:
+        if not connection.in_atomic_block:
+            raise RuntimeError("The reviewer check must run in the review's transaction.")
+        list(
+            Qualification.objects.select_for_update()
+            .filter(user=actor, work=Qualification.Work.REVIEW, activity__iexact=activity.strip())
+            .order_by("pk")
+        )
+    return reviewer_eligibility(actor, activity)
 
 
 # --- Reagents and standards ------------------------------------------------------------------
@@ -541,7 +670,8 @@ def _lock_and_check(*, actor, activity, equipment_ids, reagent_ids):
     list(
         Qualification.objects.select_for_update()
         .filter(
-            Q(user=actor, activity__iexact=activity.strip()) | Q(equipment__in=locked_equipment)
+            Q(user=actor, work=Qualification.Work.PERFORM, activity__iexact=activity.strip())
+            | Q(equipment__in=locked_equipment)
         )
         .order_by("pk")
     )

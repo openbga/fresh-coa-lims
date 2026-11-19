@@ -30,6 +30,7 @@ SECTION_TABS = {
         ("Equipment", "equipment_list"),
         ("Calibrations", "calibration_list"),
         ("Qualifications", "qualification_list"),
+        ("Training", "training_list"),
         ("Reagents and standards", "reagent_list"),
         ("Contract laboratories", "contract_laboratory_list"),
         ("Resource use", "use_list"),
@@ -78,22 +79,27 @@ def roles_of(user):
 
 
 class FilterForm(forms.Form):
-    """Search plus an optional status choice; GET-bound so the URL is the whole state."""
+    """Search plus an optional status choice and further choices (`extra`: {name: (label,
+    choices)}); GET-bound so the URL is the whole state."""
 
     q = forms.CharField(required=False, label="Search", max_length=100)
 
-    def __init__(self, *args, choices=None, **kwargs):
+    def __init__(self, *args, choices=None, extra=None, **kwargs):
         super().__init__(*args, **kwargs)
         if choices:
             self.fields["status"] = forms.ChoiceField(
                 required=False, label="Status", choices=[("", "All"), *choices]
             )
+        for name, (label, options) in (extra or {}).items():
+            self.fields[name] = forms.ChoiceField(
+                required=False, label=label, choices=[("", "All"), *options]
+            )
 
 
-def make_filter(request, choices=None):
-    keys = {"q", "status"}
+def make_filter(request, choices=None, extra=None):
+    keys = {"q", "status", *(extra or {})}
     bound = any(key in request.GET for key in keys)
-    form = FilterForm(request.GET if bound else None, choices=choices)
+    form = FilterForm(request.GET if bound else None, choices=choices, extra=extra)
     cleaned = form.cleaned_data if bound and form.is_valid() else {}
     return form, cleaned
 

@@ -112,6 +112,40 @@ def qualify_analyst(people, user, activity="HPLC-ASSAY", *, days=365):
     )
 
 
+def record_training(
+    people, trainee, activity="HPLC-ASSAY", *, recorder="reviewer", acknowledge=False, **values
+):
+    """A training record of ``trainee`` recorded by ``recorder``; acknowledged by the trainee
+    with their PIN when ``acknowledge``."""
+    fields = {
+        "document_ref": "SOP-SYN-001 rev 2",
+        "kind": "instruction",
+        "outcome": "completed",
+        "trainer": "Synthetic Trainer",
+        "completed_on": timezone.localdate() - timedelta(days=3),
+        "evidence_ref": "TRN-FORM-SYN-1",
+        "evidence_url": "",
+        "note": "",
+        **values,
+    }
+    training = services.record_training(
+        actor=people[recorder],
+        trainee=trainee,
+        activity=activity,
+        reason="Synthetic training",
+        **fields,
+    )
+    if acknowledge:
+        training = services.acknowledge_training(
+            actor=trainee,
+            pin=PIN,
+            training=training,
+            expected_revision=training.revision,
+            reason="I received this training",
+        )
+    return training
+
+
 def make_reagent(people, identifier="RG-001", *, release=True, expiry_days=120, **overrides):
     today = timezone.localdate()
     values = {

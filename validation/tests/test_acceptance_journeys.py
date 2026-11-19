@@ -161,7 +161,8 @@ def test_every_journey_passes_and_its_evidence_checks_out(tmp_path, captured_sec
 def test_a_broken_control_fails_its_step_and_the_run(tmp_path, monkeypatch):
     """Were self-review allowed, the journey reports it, stops, and the run exits non-zero;
     the other journeys still run and the report is written."""
-    monkeypatch.setattr(analytical, "review_refusal", lambda actor, test: None)
+    # The state and self-review predicate the signed review rechecks under lock.
+    monkeypatch.setattr(analytical, "review_state_refusal", lambda actor, test: None)
     with pytest.raises(CommandError, match="Acceptance journeys failed"):
         run(tmp_path)
     report = json.loads((tmp_path / "run" / "report.json").read_text())

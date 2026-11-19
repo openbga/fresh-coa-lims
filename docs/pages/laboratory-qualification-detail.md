@@ -4,8 +4,8 @@ urls: laboratory:qualification_detail
 views: laboratory.views.qualification_detail
 templates: ops/record.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-17
-summary: One qualification record: who or what it qualifies, for which activity and dates, with its approval or revocation signatures and its history.
+reviewed: 2026-11-19
+summary: One qualification record: who or what it qualifies, for which activity, for what work and dates, the training it relies on, with its approval or revocation signatures and its history.
 ---
 
 ## Common tasks
@@ -17,12 +17,13 @@ summary: One qualification record: who or what it qualifies, for which activity 
 2. Sign with your PIN on that page. Work after the signature time is blocked.
 ### Check the evidence
 1. Read [[Evidence reference]] and [[Scope]], and open the link under [[Evidence link]] if one was recorded.
+2. Under [[Training relied on]], open a training record to see who trained the person and the outcome.
 ## Good to know
+- Qualified for tells what the evidence covers: performing the work or reviewing results. An instrument's qualification shows Intended use.
+- Training relied on is frozen when the evidence is recorded and signed with the approval. Whoever recorded one of those training records cannot approve it.
 - Approved evidence qualifies only from the approval time and only from Valid from to Valid until.
 - Approve still shows on evidence whose last valid day has passed, but signing it is refused. Record new evidence instead.
-- A revoked qualification cannot be approved again or edited. Record new evidence.
-- Work recorded before a revocation stays on record; only later work is blocked.
-- Revoking equipment qualification can make the equipment unfit for use from the signature time.
+- A revoked qualification cannot be approved again or edited. Work recorded before the revocation stays; only later work is blocked.
 
 ## Purpose
 
@@ -38,6 +39,7 @@ Evidence that a person or instrument is qualified for an activity within stated 
 
 - **Header**: breadcrumbs, title (the activity), the identifier QUAL-n and the state label (Awaiting approval, Approved, "Approved, starts <date>" before its valid-from date, Expiring soon (amber, effective and its last valid day within 30 days), Expired or Revoked), action buttons.
 - **Details**: the facts below.
+- **Training relied on** (analyst qualifications only): a table of Training (TRN-n link with its procedure or course), Kind, Outcome, Completed on and Trainer or assessor. Empty: "This evidence cites no training record in the system; its evidence reference names the record relied on."
 - **Signatures**: signer, meaning, server time, record and bound revision, content hash prefix; "No signatures yet."
 - **History**: audit events in order with changes, reasons and actors; "No history recorded."
 
@@ -45,7 +47,7 @@ Evidence that a person or instrument is qualified for an activity within stated 
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Approve** | Awaiting approval; you are neither the recorder nor the subject | Quality | Opens the approval signing page |
+| **Approve** | Awaiting approval; you are neither the recorder nor the subject, and recorded none of the training it relies on | Quality | Opens the approval signing page |
 | **Revoke** (under **More**) | Approved (including past its last day); you are not the subject | Quality | Opens the revocation signing page |
 | Evidence link | An evidence URL was recorded | Any reader | Opens the external link (`noopener noreferrer`); treat its content as untrusted |
 
@@ -54,6 +56,8 @@ Evidence that a person or instrument is qualified for an activity within stated 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Subject / Type | `Qualification.user`, `.equipment` | Username or asset ID; Analyst or Equipment | — | Exactly one subject |
+| Qualified for | `Qualification.work` | Performing the work, Reviewing results, or Intended use for equipment | — | What the evidence qualifies the subject to do |
+| Training relied on | `Qualification.training` | Training records (TRN-n) | — | The person's acknowledged training the evidence cited when recorded |
 | Valid from / Valid until | `Qualification.valid_from`, `.valid_until` | Dates (inclusive) | — | Validity window |
 | Evidence reference / Evidence link / Scope | `Qualification.evidence_ref`, `.evidence_url`, `.scope_note` | Text; http(s) link; text | — | Controlled evidence and its limits; blank when not given |
 | Recorded by / Revision | `Qualification.recorded_by`, `.revision` | User, integer | — | Authorship and revision |

@@ -65,6 +65,7 @@ from .contracts import (
     resolve,
     resolve_pull,
     resolve_reassessment,
+    reviewers,
     stability_pulls,
     supplier_standing,
 )
@@ -1135,7 +1136,41 @@ def submit_test(*, actor, test, expected_revision, reason):
 # instead of a PIN prompt. Each returns a user-facing reason, or None when the action may proceed.
 
 
-def return_refusal(actor, test):
+def reviewer_check(actor, test, lock=False):
+    """(evidence, refusal) of the reviewer qualification the test's method version asks for:
+    the evidence to freeze on the test at review ({} where none is asked for, or no check is
+    configured), or why ``actor`` may not review or return it. With ``lock`` the qualifications
+    relied on are locked, so a revocation waits for the review or follows it."""
+    check = reviewers()
+    if check is None:
+        return {}, None
+    method = test.spec.method
+    return check.check(
+        actor=actor, method_code=method.code, method_revision=method.revision, lock=lock
+    )
+
+
+def reviewer_refusal(actor, test):
+    return reviewer_check(actor, test)[1]
+
+
+def reviewer_asked(test):
+    """Whether the test's method version asks for a reviewer qualified to review it."""
+    check = reviewers()
+    if check is None:
+        return False
+    method = test.spec.method
+    return check.asks(method_code=method.code, method_revision=method.revision)
+
+
+def reviewer_evidence(test):
+    """The reviewer's qualification frozen on the reviewed test, as {"label", "href"}, or
+    None."""
+    check = reviewers()
+    return check.describe(test.review_evidence) if check and test.review_evidence else None
+
+
+def return_state_refusal(actor, test):
     if test.state != AnalyticalTest.State.SUBMITTED:
         return "Only submitted tests can be returned."
     if actor.pk in _test_authors(test):
@@ -1148,7 +1183,11 @@ def return_refusal(actor, test):
     return None
 
 
-def review_refusal(actor, test):
+def return_refusal(actor, test):
+    return return_state_refusal(actor, test) or reviewer_refusal(actor, test)
+
+
+def review_state_refusal(actor, test):
     if test.state != AnalyticalTest.State.SUBMITTED:
         return "This test is not awaiting review."
     if actor.pk in _test_authors(test):
@@ -1158,6 +1197,17 @@ def review_refusal(actor, test):
         if batch.state != QCBatch.State.OPEN or batch.qc_status()[0] != "passed":
             return "Batch QC no longer passes; this test cannot be reviewed."
     return None
+
+
+def review_refusal(actor, test):
+    return review_state_refusal(actor, test) or reviewer_refusal(actor, test)
+
+
+def _locked_reviewer_evidence(actor, test):
+    """The reviewer check under lock, inside the transition; raises its refusal."""
+    evidence, refusal = reviewer_check(actor, test, lock=True)
+    _raise(refusal)
+    return evidence
 
 
 def results_submitted(batch):
@@ -1201,7 +1251,8 @@ def return_test(*, actor, test, expected_revision, reason):
         test = AnalyticalTest.objects.select_for_update().get(pk=test.pk)
         _check_revision(test, expected_revision)
         subjects = _lock_subjects(test)
-        _raise(return_refusal(actor, test))
+        _raise(return_state_refusal(actor, test))
+        reviewer = _locked_reviewer_evidence(actor, test)
         before = {
             "mean": None if test.mean_value is None else str(test.mean_value),
             "reportable": test.reportable_display,
@@ -1212,14 +1263,23 @@ def return_test(*, actor, test, expected_revision, reason):
         test.submitted_by = None
         _touch(test)
         _bump(*subjects)
-        record_event(actor=actor, action="test.returned", obj=test, before=before, reason=reason)
+        record_event(
+            actor=actor,
+            action="test.returned",
+            obj=test,
+            before=before,
+            # The reviewer's qualification relied on, where the method version asks for one.
+            after={"reviewer": reviewer} if reviewer else None,
+            reason=reason,
+        )
         return test
 
 
 def review_test(*, actor, pin, test, expected_revision, reason):
     def apply(locked):
         subjects = _lock_subjects(locked)
-        _raise(review_refusal(actor, locked))
+        _raise(review_state_refusal(actor, locked))
+        locked.review_evidence = _locked_reviewer_evidence(actor, locked)
         # The review evaluates what was recorded against the requirement frozen on the test.
         # It does not need the lot's rule version to be in force still: that is checked when
         # tests are assigned and at disposition, so a version retired meanwhile strands

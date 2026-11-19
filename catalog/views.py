@@ -500,6 +500,7 @@ def method_version_new(request, pk):
         {
             "requires_equipment": latest.requires_equipment,
             "requires_reagent": latest.requires_reagent,
+            "requires_review_qualification": latest.requires_review_qualification,
         }
         if latest
         else {}
@@ -526,8 +527,8 @@ def method_version_new(request, pk):
         cancel_url=detail,
         submit_label="Create draft version",
         intro="The new draft copies the QC checks (when it runs in a QC batch), the calculation "
-        "and its inputs, and the file import of the latest version. The resource options start "
-        "as in that version.",
+        "and its inputs, and the file import of the latest version. The resource options and the "
+        "reviewer qualification start as in that version.",
     )
 
 
