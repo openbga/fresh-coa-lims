@@ -34,7 +34,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - No target exists after the upgrade, so open tests have no due date until quality sets targets (which apply to tests assigned afterwards) or a planner sets dates.
   > - Reminders are computed when the page is opened; nothing is sent and no scheduled job is added.
 
-- **Added**: Plan proficiency testing and interlaboratory comparisons, and review their outcomes · Specifications and methods · 2026-11-19
+- **Added**: Plan proficiency testing and interlaboratory comparisons, and review their outcomes · Specifications and methods · 2026-11-19 · [#67](https://github.com/openbga/qm-lims/pull/67)
 
   Under **Specifications and methods > Proficiency testing**, quality plans each method's participation in a proficiency testing round or another interlaboratory comparison, with the day results are due; **Reminders** list results falling due or overdue. The laboratory records its report and each result with the provider's score, and a quality person who recorded and performed none of it reviews the outcome with a signature. An unsatisfactory result needs corrective follow-up (cause, actions, results already reported, effectiveness), closed with a signature by another quality person; the **Methods** list shows each method's last outcome and next round.
 

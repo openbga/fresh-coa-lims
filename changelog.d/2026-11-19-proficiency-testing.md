@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 67
 type: added
 impact: high
 title: Plan proficiency testing and interlaboratory comparisons, and review their outcomes
