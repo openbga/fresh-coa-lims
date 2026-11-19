@@ -4,8 +4,8 @@ urls: quality:disposition
 views: quality.views.sign
 templates: signatures/sign.html, signatures/dialog.html
 models: laboratory.ContractApproval, quality.Lot, quality.LotReceipt, quality.LotDates, quality.SupplierCertificate, quality.SupplierCertificateResult, quality.SupplierCertificateWithdrawal, quality.SupplierResultAcceptance, suppliers.SupplierQualification, quality.Sample, quality.Result, sampling.LotAssignment, sampling.SamplingRecord, analytical.AnalyticalTest, analytical.Observation, analytical.Investigation, stability.Hold, core.ElectronicSignature, core.PINCredential
-reviewed: 2026-11-17
-summary: Sign the QC disposition that releases a quarantined lot. Quality role only, never someone who authored the lot's data. QC disposition does not mean manufacturer release.
+reviewed: 2026-11-19
+summary: Sign the QC disposition that releases a quarantined lot. Quality role only, not someone who authored the lot's data, and with a Release decisions qualification where a rule set reserves it. QC disposition does not mean manufacturer release.
 ---
 
 ## Common tasks
@@ -14,14 +14,14 @@ summary: Sign the QC disposition that releases a quarantined lot. Quality role o
 2. Enter a [[Reason]], your [[Signing username]] and your [[Signature PIN]].
 3. Select [[Sign approved]]. The lot becomes Released and you return to the lot record.
 ### Find out why you cannot sign
-1. If [[Not permitted]] shows, you authored some of the lot's data. Select [[Return to the lot]]; another quality person signs.
+1. If [[Not permitted]] shows, you authored some of the lot's data, or a rule set reserves release for a qualification you do not hold. Select [[Return to the lot]]; another quality person signs.
 ### Leave without signing
 1. Select [[Cancel]]. Nothing is signed.
 ## Good to know
 - You cannot disposition a lot holding your own receipt, supplier certificate, expiry and retest dates, sampling or test data, or a supplier result you proposed, whatever roles you hold.
 - The page opens before the lot is ready. Missing evidence, active holds and open investigations are checked when you sign.
-- The QC disposition card on the lot record lists what would block signing, in the same order.
-- Any change to the lot after you opened the page makes signing fail. Reload and review before signing.
+- Some rule sets reserve release for people with a Release decisions qualification. Without it, [[Not permitted]] shows and no PIN is asked for.
+- The QC disposition card on the lot record lists what would block signing. Any change to the lot after you opened the page makes signing fail; reload and review.
 - A supplier result that does not meet the specification, or a discrepancy on receipt, does not block signing. Only an active hold does.
 
 ## Purpose
@@ -32,11 +32,13 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 
 - Sign-in required. **Quality** role only; others receive 403.
 - Never a user who authored any of the lot's receipt, supplier certificate, expiry and retest dates, sampling or test data, or who proposed a supplier result in place of a test, even with the quality role (see Independence). Such a user sees the reason, a **Return to the lot** link and no signing form (status 403); no PIN is requested.
+- Where a rule set the lot is under reserves its release (policy key `authorization`, `release`), you also need an approved, current qualification Release decisions for the activity it names; every rule set the lot is under asks for its own. Without it you see the reason, **Return to the lot** and no form (403); no PIN is requested. It is checked again under the locks when you sign.
 - Requires an enrolled signature PIN.
 
 ## Layout
 
 - Breadcrumbs Lots › the lot number › the title. A signing dialog (a plain card without JavaScript), headed with the title: meaning, lot number, the lot record revision shown, the signer, the resulting revision the signature binds (shown + 1), a PIN enrolment link, the form, **Sign approved** and **Cancel**.
+- **Qualification notice**: above the form, when a reservation applies and you hold the qualification: "This signature relies on your qualification QUAL-3, for release decisions in “REL-TEST” (Rule set RS-TEST v1), and records it." Information only.
 - **Dates notice**: above the form, first, when the lot has expiry or retest dates in force: what the release freezes. Information only.
 - **Supplier certificate notice**: above the form, one warning for each supplier certificate of the lot that is not withdrawn and states a result which does not meet the specification (see Rules). It is information only.
 - **Supplier result notice**: above the form, one warning for each supplier result that was accepted in place of a laboratory test and still stands (see Rules). It is information only.
@@ -72,7 +74,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 | Scopes notice | `LotAssignment.payload` (scopes, specifications, additional rule sets) | Text | — | The scopes the lot's current requirements were assigned under, each specification with its scope, and the additional rule sets applied |
 | Decided requirements notice | `LotAssignment.decision` (choices) or `LotAssignment.replacement` (decisions, signing time); `assigned_at`, `assigned_by` of a replacement | Text | — | The test, what its statements differ in, when and by whom the choice was decided, the specification whose statement applies with its scopes and requirement, the statements not applied, the decider's reason and, when a later replacement carried the choice, when and by whom that was signed |
 | Decision set aside notice | `LotAssignment.origin`, `supersedes`, `assigned_at`, `assigned_by`, `scopes` | Text | — | When and by whom the decision was signed, the tests it decided, and when, by whom and under which scopes the requirements were assigned again |
-| Frozen evidence (not shown) | `Lot.disposition_evidence` | JSON | — | Native path, plus the lot's expiry and retest dates in force (record, dates, basis, recorder and time) when it has any: assignment ID and hash plus the analytical evidence snapshot, which lists the supplier results accepted in place of tests apart from the laboratory's results |
+| Frozen evidence (not shown) | `Lot.disposition_evidence` | JSON | — | The qualifications the release relied on (`authorization`) when a rule set reserves it. Native path, plus the lot's expiry and retest dates in force (record, dates, basis, recorder and time) when it has any: assignment ID and hash plus the analytical evidence snapshot, which lists the supplier results accepted in place of tests apart from the laboratory's results |
 
 ## Rules and hidden logic
 
@@ -96,6 +98,7 @@ Record the signed QC disposition of a quarantined lot with meaning **approved**,
 - **Receipt authors**: the receipt check applies on both the native and the manual path. The analyst who received the lot through New material lot recorded its receipt details and so cannot sign its disposition. The check reads the receipt records only: a lot received before receipt details were kept has no receipt author until an analyst records them.
 - **Supplier certificate authors**: the check applies on both the native and the manual path. It reads every supplier certificate record of the lot and every withdrawal, so a user stays an author after their record was corrected or withdrawn by someone else. A lot without supplier certificates has no such author. Proposers of supplier results are refused with the same message, on both paths.
 - **Dates blockers**: the last checks, on both paths. Each failing one is its own message. A rule set the lot is under (its own, or an additional one frozen with its requirements) requires dates the lot lacks: "Rule set RS-TEST v1 requires an expiry date and a retest date for the lot. Record its dates." (the requirement reads "an expiry date", "a retest date", "an expiry date or a retest date" or "an expiry date and a retest date"). After the expiry date: "The lot expired after 2026-11-01. An expired lot is not released." From the retest date on: "The lot's retest date, 2026-11-01, has been reached. A lot is not released on or after its retest date; correct the dates if its testing supports a later one." The dates are compared with the local date. On the manual path these checks come before the sample check.
+- **Release reserved for qualified people (optional policy key `authorization`)**: the refusal reads "Rule set RS-TEST v1 reserves release decisions for people qualified for “REL-TEST”. You hold no approved, current qualification for it.", one sentence for each rule set that asks. The lot's own rule set and the additional ones frozen with its requirements are all asked. Activities match without regard to case. The check is repeated under the locks when signing, on the native and the manual path, after the authorship check. On release the qualification relied on is frozen in the lot's evidence and shown on the lot record as "Released under". A qualification revoked later changes nothing already signed.
 - **Dates notice**: "The release freezes the lot's expiry date 2027-05-31, retest date 2026-12-01 (basis: BASIS). Check them against their basis before you sign." It lists only the dates stated, comes before the other notices and never blocks signing. Not shown when the dates were corrected to none.
 - **Dates frozen**: the release stores the dates in force with the lot's evidence; the certificate is then checked against them. Recording or correcting dates raises the lot revision, so a page opened before refuses signing.
 - **Supplier certificate notice**: for each supplier certificate whose current record is not withdrawn and states a result that does not meet the specification, the page shows "Supplier certificate COA-TEST-001 states a result that does not meet the specification: Assay. Supplier results are not laboratory tests and do not block this disposition." with that certificate's number and the names of those tests. The notice never blocks signing and needs no acknowledgement. A withdrawn certificate raises no notice. The notice uses the comparison stored when the result was recorded.

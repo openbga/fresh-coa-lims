@@ -169,6 +169,21 @@ def reviewer_eligibility(user, activity, at=None):
     )
 
 
+AUTHORITY_MISSING = {
+    Qualification.Work.RELEASE: "No approved, current qualification for release decisions in "
+    "“{activity}”.",
+    Qualification.Work.CERTIFY: "No approved, current qualification for issuing certificates "
+    "in “{activity}”.",
+}
+
+
+def authority_eligibility(user, activity, work, at=None):
+    """Whether ``user`` may sign a decision that a rule set reserves for people qualified for
+    ``activity``: an approved, current qualification of that kind (``work`` release or certify).
+    A qualification to perform or to review does not count, nor one kind for the other."""
+    return _person_eligibility(user, activity, work, at, AUTHORITY_MISSING[work])
+
+
 def check_use(*, analyst, activity, equipment=(), reagents=(), at=None):
     """All findings for one proposed piece of work; the work is allowed only if every one is ok."""
     at = at or timezone.now()

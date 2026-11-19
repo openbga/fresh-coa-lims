@@ -48,7 +48,7 @@ Approve qualification evidence with meaning **approved**, making the subject eli
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Subject / Activity / Qualified for / Valid / Evidence / Training relied on | `Qualification.user` or `.equipment`, `.activity`, `.work`, `.valid_from`, `.valid_until`, `.evidence_ref`, `.training` | Display | — | From the qualification record; Qualified for is Performing the work, Reviewing results or Intended use; Valid reads "start to end"; Training relied on lists TRN-n numbers, or "None cited" |
+| Subject / Activity / Qualified for / Valid / Evidence / Training relied on | `Qualification.user` or `.equipment`, `.activity`, `.work`, `.valid_from`, `.valid_until`, `.evidence_ref`, `.training` | Display | — | From the qualification record; Qualified for is Performing the work, Reviewing results, Release decisions, Issuing certificates or Intended use; Valid reads "start to end"; Training relied on lists TRN-n numbers, or "None cited" |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Reason for signing | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |

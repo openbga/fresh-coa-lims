@@ -337,9 +337,11 @@ class Qualification(models.Model):
     """Approved evidence that an analyst is qualified for an activity/method, or that an
     instrument is qualified for its intended use. Exactly one subject.
 
-    A person's qualification is for performing the work or for reviewing its results (``work``);
-    an instrument's is always for performing. It may cite the person's acknowledged training
-    records (``training``, their ids), frozen with the record and bound by its approval."""
+    A person's qualification is for performing the work, for reviewing its results, or for
+    authorizing a decision that a rule set reserves for qualified people: the release of a lot or
+    the certificates issued for it (``work``); an instrument's is always for performing. It may
+    cite the person's acknowledged training records (``training``, their ids), frozen with the
+    record and bound by its approval."""
 
     class State(models.TextChoices):
         RECORDED = "recorded", "Awaiting approval"
@@ -349,6 +351,8 @@ class Qualification(models.Model):
     class Work(models.TextChoices):
         PERFORM = "perform", "Performing the work"
         REVIEW = "review", "Reviewing results"
+        RELEASE = "release", "Release decisions"
+        CERTIFY = "certify", "Issuing certificates"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
@@ -357,7 +361,9 @@ class Qualification(models.Model):
         Equipment, null=True, blank=True, on_delete=models.PROTECT, related_name="qualifications"
     )
     activity = models.CharField(
-        max_length=120, help_text="Method, activity or qualification stage (e.g. IQ/OQ/PQ)."
+        max_length=120,
+        help_text="Method, activity or qualification stage (e.g. IQ/OQ/PQ), or the activity a "
+        "rule set names for the decisions it reserves.",
     )
     work = models.CharField("Qualified for", max_length=8, choices=Work, default=Work.PERFORM)
     scope_note = models.TextField(blank=True)

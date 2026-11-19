@@ -4,7 +4,7 @@ urls: reporting:version, reporting:pdf, reporting:data
 views: reporting.views.version_detail, reporting.views.version_pdf, reporting.views.version_data
 templates: reporting/version.html, reporting/_certificate.html, reporting/pdf/certificate.html
 models: reporting.ReportVersion, reporting.Report, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: One issued version of a certificate, shown exactly as stored, with its signature, checksums, the stored PDF and its certificate data to download, also after the certificate is withdrawn.
 ---
 
@@ -16,6 +16,8 @@ summary: One issued version of a certificate, shown exactly as stored, with its 
 2. Compare its SHA-256 with [[Certificate data SHA-256]] under [[Issued record]]. The PDF carries the same file as an attachment.
 ### Check who signed this version
 1. Under [[Issued record]], read [[Signature]] for the signer, the meaning and the time.
+### Check which qualification the signer relied on
+1. Where a rule set reserved certificates, read [[Signed under]] under [[Issued record]]. Select QUAL-n to open the qualification.
 ### Go to the version it amends or that replaced it
 1. Select the version under [[Amends]] or [[Superseded by]].
 ## Good to know
@@ -38,7 +40,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 
 - **Withdrawn** (red notice, when the certificate is withdrawn): "Certificate … was withdrawn on … by …: this version is no longer valid. It stays on record, and its PDF stays downloadable exactly as issued, as evidence."
 - **Header**: breadcrumbs, "Report number version N", status "Withdrawn" (any version of a withdrawn certificate), "Current version" or "Superseded" (a superseded version also shows the fact **Superseded by** as a blue **Superseded** label with the link to the newer version under it), issue time, **Open PDF**, **Download data** (only for a version issued with certificate data) and then **Download PDF** (the primary button, last).
-- **Issued record**: Signature, Size, PDF format, Certificate data, links to the version it amends or is superseded by, PDF SHA-256, Certificate data SHA-256 (when there is data), Evidence SHA-256, and a note that content comes from the frozen snapshot.
+- **Issued record**: Signature, Signed under (only when a rule set reserved certificates for the lot: a link to QUAL-n and "For issuing certificates in “CERT-TEST” (Rule set RS-TEST v1)" under it), Size, PDF format, Certificate data, links to the version it amends or is superseded by, PDF SHA-256, Certificate data SHA-256 (when there is data), Evidence SHA-256, and a note that content comes from the frozen snapshot.
 - **Certificate**: the stored certificate content, including the signature table. A certificate for one scope shows "Certificate for: Scope X" under the lot facts, only that scope's specification and methods, results with Limits and Conformity, and "How conformity is judged"; a general certificate of a lot under several specifications has the section "Conformity with each specification". Each method is listed once.
 
 ## Actions
@@ -55,6 +57,7 @@ One issued version of a certificate, shown exactly as stored, with its signature
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Signature | `ElectronicSignature.signer_name`, `meaning`, `signed_at`, `revision` | Text, UTC time | — | Who signed issue or amendment, and the bound certificate record revision |
+| Signed under | `ReportVersion.snapshot` (`report.authorization`) | Link and text | — | The qualification the signer relied on for each activity a rule set reserved, frozen at signing. Absent when nothing was reserved. Revoking it later changes nothing. It is not printed in the PDF or the certificate data |
 | PDF SHA-256 | `ReportVersion.pdf_sha256` | Hex | — | Checksum of the stored PDF |
 | Size | `ReportVersion.pdf_size` | Bytes | — | Stored PDF length |
 | PDF format | `ReportVersion.pdf_format` | Text | — | What the PDF declares itself to be: "PDF/A-3a, PDF/UA-1" (the archival format, tagged for assistive technology); "Not declared" for a version issued before |

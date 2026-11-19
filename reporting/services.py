@@ -26,6 +26,7 @@ from core.audit import record_event, snapshot
 from core.models import ElectronicSignature
 from core.services import require_role, sign_transition, verify_pin
 from core.session_control import signing_context
+from quality import authority
 from quality.models import Lot
 
 from . import certificate_data
@@ -163,6 +164,11 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
             raise ValidationError(["Certificate cannot be issued:", *problems])
         if ev.independence_conflict(evidence, actor):
             raise PermissionDenied("You cannot issue a certificate for records you authored.")
+        # Under the head and lot locks, after the signer's: the qualifications relied on.
+        try:
+            relied = authority.authorize(actor, lot, authority.CERTIFICATE)
+        except ValidationError as exc:
+            raise PermissionDenied(" ".join(exc.messages)) from exc
         previous = locked.versions.order_by("-number").first()
         # The exact server time that sign_transition persists as the signature's signed_at.
         issued_at = locked._signing_timestamp
@@ -185,6 +191,9 @@ def _transition(*, actor, pin, report, kind, expected_version, evidence_hash, re
                 "lot_revision": lot.revision,
             },
         }
+        # Only a certificate its lot's rule sets reserve carries it; others keep their shape.
+        if relied:
+            snap["report"][authority.AUTHORIZATION] = relied
         synthetic = getattr(settings, "REPORT_SYNTHETIC_DATA_NOTICE", True)
         try:
             # The certificate data states what the PDF prints; the PDF embeds these bytes.
@@ -252,6 +261,8 @@ def _issue_preflight(*, actor, pin, lot, evidence_hash, reason, scope):
         raise ValidationError(["Certificate cannot be issued:", *problems])
     if ev.independence_conflict(evidence, actor):
         raise PermissionDenied("You cannot issue a certificate for records you authored.")
+    if refused := authority.refusal(actor, lot, authority.CERTIFICATE):
+        raise PermissionDenied(refused)
     verify_pin(actor, pin)
 
 
@@ -279,7 +290,12 @@ def issue_report(*, actor, pin, lot, recipient, evidence_hash, reason, remarks="
 
 @sensitive_variables("pin")
 def amend_report(*, actor, pin, report, expected_version, evidence_hash, reason, remarks=""):
-    """Sign an amendment: a new version that supersedes, and never alters, the issued one."""
+    """Sign an amendment: a new version that supersedes, and never alters, the issued one.
+    A signer without a qualification the lot's rule sets reserve certificates for is refused
+    before the PIN is checked; signing checks it again under the locks."""
+    require_role(actor, ISSUE_ROLE)
+    if refused := authority.refusal(actor, report.lot, authority.CERTIFICATE):
+        raise PermissionDenied(refused)
     return _transition(
         actor=actor,
         pin=pin,

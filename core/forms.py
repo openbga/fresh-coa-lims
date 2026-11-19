@@ -37,7 +37,10 @@ class RuleForm(forms.Form):
         "additional rule set: it is not chosen when a lot is received and applies to every "
         "lot whose requirements are assigned for a material, stage and scope it names. "
         "material_dates (expiry, retest, expiry_or_retest or expiry_and_retest) states which "
-        "of a lot's dates must be recorded before it is released.",
+        "of a lot's dates must be recorded before it is released. authorization, with "
+        "release, certificate or both, each an activity code, reserves the release of the "
+        "rule set's lots, and the certificates issued for them, for people holding an "
+        "approved, current qualification for that activity.",
     )
     effective_from = forms.DateTimeField(widget=LocalDateTimeInput)
     effective_until = forms.DateTimeField(required=False, widget=LocalDateTimeInput)

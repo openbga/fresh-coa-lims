@@ -12,6 +12,7 @@ from catalog.units import plain
 from core.audit import record_event
 from core.services import is_additional, require_role, sign_transition, validate_rules
 
+from . import authority
 from .models import Lot, LotReceipt, ReceiptCondition, ReceiptSource, Result, Sample
 
 # What a receipt states. Every key is required, exactly as entered; nothing is defaulted.
@@ -361,8 +362,12 @@ def disposition_notices(lot):
 
 
 def disposition_denial(actor, lot):
-    """Read-only preflight shown before any PIN is requested; signing repeats it under lock."""
-    return SELF_DISPOSITION if actor.pk in disposition_authors(lot) else ""
+    """Read-only preflight shown before any PIN is requested; signing repeats it under lock:
+    an author of the lot's records, then a signer without a qualification its rule sets reserve
+    the release for."""
+    if actor.pk in disposition_authors(lot):
+        return SELF_DISPOSITION
+    return authority.refusal(actor, lot, authority.RELEASE)
 
 
 def disposition_blockers(lot):
@@ -387,6 +392,12 @@ def disposition_blockers(lot):
 
 @sensitive_variables("pin")
 def dispose_lot(*, actor, pin, lot, expected_revision, reason):
+    # A signer without a qualification the lot's rule sets reserve its release for is refused
+    # before the PIN is checked; ``apply`` checks it again under the locks.
+    require_role(actor, "quality")
+    if refused := authority.refusal(actor, lot, authority.RELEASE):
+        raise ValidationError(refused)
+
     def apply(locked):
         if locked.state != "quarantine":
             raise ValidationError("This lot has already been dispositioned.")
@@ -421,6 +432,8 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
                 raise ValidationError(
                     "Mixed foundation and native evidence requires reconciliation."
                 )
+            # Under the lot lock, after the signer's: the qualifications the release relies on.
+            relied = authority.authorize(actor, locked, authority.RELEASE)
             from .dates import frozen as frozen_dates
 
             locked.disposition_evidence = {
@@ -431,6 +444,9 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
             # A lot with dates releases them with it; evidence of a lot without keeps its shape.
             if (dates := frozen_dates(locked)) is not None:
                 locked.disposition_evidence["dates"] = dates
+            # So does a lot whose rule sets reserve the release for qualified people.
+            if relied:
+                locked.disposition_evidence[authority.AUTHORIZATION] = relied
             locked.state = "released"
             return
         from .dates import lot_blockers as dates_blockers
@@ -450,6 +466,9 @@ def dispose_lot(*, actor, pin, lot, expected_revision, reason):
                 raise ValidationError(SELF_DISPOSITION)
             if any(r.state != "reviewed" or not r.conforms for r in results):
                 raise ValidationError("All results must conform and have independent review.")
+        # The development-only path freezes no evidence (reporting reads any as native), but a
+        # rule set's reservation of the release holds there too.
+        authority.authorize(actor, locked, authority.RELEASE)
         locked.state = "released"
 
     return sign_transition(

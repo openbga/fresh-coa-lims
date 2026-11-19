@@ -47,6 +47,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - New setting `ANALYTICAL_REVIEWERS` (default `config.integrations.LaboratoryReviewers`). A settings module without it fails the new system check `analytical.E001`. `core.services.sign_transition` now also accepts a tuple of roles as `permission`.
   > - A method version's approved content (`oq.method/1`) now carries `requires_review_qualification`. Requirement payloads frozen on tests are unchanged.
 
+- **Added**: Reserve the release of lots and their certificates for people qualified to authorize them · Laboratory · 2026-11-19 · [#65](https://github.com/openbga/qm-lims/pull/65)
+
+  A rule set can now reserve the release of its lots and the certificates issued for them for quality people who hold a current qualification for an activity it names. Qualifications have two new kinds under **Qualified for**: **Release decisions** and **Issuing certificates**. Where a lot's rule sets reserve them, the release, a reassessment concluded **Suitable**, and each certificate issue and amendment are refused before the PIN is asked for unless the signer holds the qualification. The signed decision keeps which qualification it relied on, and the lot record, the reassessment, the certificate version and the qualification's own page show it. Rejection, cancellation and certificate withdrawal are not reserved, and rule sets without the new setting work as before.
+
+  In the application: **Qualifications**
+
+  > **Technical notes**
+  >
+  > - New optional rule policy key `authorization`, an object with `release`, `certificate` or both, each an activity code of at most 120 characters. `validate_policy` accepts it; earlier rule set versions are unchanged.
+  > - Migration `laboratory.0007` adds the `Qualification.work` choices `release` and `certify` and updates help text. No existing row changes, and no schema or trigger changes.
+  > - The qualifications relied on are stored as `authorization` (a list of `activity`, `rule_sets` and `qualification`), only where something is reserved: in `Lot.disposition_evidence` for a native release, in `Reassessment.result_evidence` for a suitable conclusion, and in `ReportVersion.snapshot["report"]` for a certificate version. The signature content binds each one. Certificate evidence hashes, certificate data and PDFs are unchanged.
+  > - On the qualification list and record, the **Type** of a person's qualification reads **Person** instead of **Analyst**.
+
 - **Added**: See turnaround and right-first-time figures of the tests reviewed in a period · Planning · 2026-11-19 · [#62](https://github.com/openbga/qm-lims/pull/62)
 
   **Planning** has two new tabs for reviewers, quality, auditors and admins. **Figures** shows, for the tests reviewed in a period you choose, the median turnaround from assignment to review, the turnaround nine in ten tests met, how many were reviewed on time against their due date, and how many were right first time: never returned for correction, with no corrected reading, and neither a repeat nor repeated. It also counts results out of specification and those invalidated after an investigation. Choose **Figures by** to break the figures down by kind of work, material, method, analyst or month. Every count opens **Reviewed tests**, which lists those tests with their turnaround, due date and what kept each from being right first time, and can be exported with **Export filtered CSV**.

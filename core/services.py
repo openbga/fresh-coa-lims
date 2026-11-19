@@ -285,7 +285,17 @@ MATERIAL_DATES_RULES = {
     "expiry_or_retest": "an expiry date or a retest date",
     "expiry_and_retest": "an expiry date and a retest date",
 }
-OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO, MATERIAL_DATES})
+# Optional. Which of a lot's decisions the rule set reserves for people holding an approved,
+# current qualification for an activity it names: the release of a lot (and the conclusion that
+# reassessed material stays in use), and the certificates issued for it. A rule set without it
+# leaves both to the quality role.
+AUTHORIZATION = "authorization"
+AUTHORIZED_DECISIONS = {
+    "release": "release decisions",
+    "certificate": "issuing certificates",
+}
+ACTIVITY_LENGTH = 120
+OPTIONAL_POLICY_KEYS = frozenset({SUPPLIER_RESULTS, APPLIES_TO, MATERIAL_DATES, AUTHORIZATION})
 SCOPE_NAME = re.compile(r"[-a-zA-Z0-9_]+")
 
 
@@ -339,6 +349,25 @@ def validate_policy(policy):
         raise ValidationError(
             "material_dates must be one of " + ", ".join(MATERIAL_DATES_RULES) + "."
         )
+    if AUTHORIZATION in policy:
+        reserved = policy[AUTHORIZATION]
+        if (
+            not isinstance(reserved, dict)
+            or not reserved
+            or not set(reserved) <= set(AUTHORIZED_DECISIONS)
+            or not all(
+                isinstance(activity, str)
+                and activity.strip()
+                and activity == activity.strip()
+                and len(activity) <= ACTIVITY_LENGTH
+                for activity in reserved.values()
+            )
+        ):
+            raise ValidationError(
+                "authorization must name, for release, certificate or both, the activity a "
+                f"signer must be qualified for: a code of at most {ACTIVITY_LENGTH} characters "
+                "without surrounding spaces."
+            )
     if APPLIES_TO in policy:
         where = policy[APPLIES_TO]
         if (

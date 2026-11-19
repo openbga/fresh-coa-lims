@@ -4,7 +4,7 @@ urls: reporting:amend_sign
 views: reporting.views.amend_sign
 templates: reporting/sign.html
 models: reporting.Report, reporting.ReportVersion, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: Sign an amendment of an issued certificate with your PIN. It adds a new version that supersedes the earlier one, which stays unchanged.
 ---
 
@@ -17,7 +17,7 @@ summary: Sign an amendment of an issued certificate with your PIN. It adds a new
 1. Select [[Cancel]] to return to the amendment review. Nothing changes.
 ## Good to know
 - If another version was issued or the evidence changed after you reviewed it, signing is refused. Review it again.
-- You cannot amend a certificate for a lot where you recorded the lot, a sample or a result.
+- You cannot amend a certificate for a lot where you recorded the lot, a sample or a result. If a rule set reserves certificates, you also need its Issuing certificates qualification.
 - The earlier version's PDF and content never change. The new version links to it.
 - An amendment cannot change Issued to or the scope it is for. A certificate for another recipient is a new certificate.
 
@@ -28,7 +28,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 ## Who can use it
 
 - Sign-in required. Only the **quality** role; others receive 403. **admin** is read-only here: an administrator without the quality role is refused (403) and sees no signing actions; an administrator who also holds the quality role has the quality actions, with the same authorship rule.
-- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result; you are turned back before the form is shown, and a direct submission is refused (status 403, nothing signed). Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
+- You cannot amend a certificate for a lot on which you recorded the lot, a sample or a result, and, where a rule set reserves certificates, without the Issuing certificates qualification it names; you are turned back before the form is shown, and a direct submission is refused (status 403, nothing signed). Not enforced by this page: a different signer from the original issuer; the same quality user may amend.
 
 ## Layout
 
@@ -59,6 +59,7 @@ Signs an amendment: a new version of an issued certificate that supersedes, and 
 - **Stale checks**: if another version was issued since you opened the page: "The certificate changed since you reviewed it. Review again."; if the evidence changed: "The evidence changed since you reviewed it. Review again."
 - **Dates**: the date blockers apply as on a first issue: an expired lot, a lot whose use ended with a reassessment, a lot whose retest date in force was reached (a later date given by a suitable reassessment lifts this), or dates that are not those the release froze refuse the amendment ("Certificate cannot be issued:" plus reasons).
 - **Scope**: the amendment keeps the certificate's scope, stored again in the new version's snapshot, and is judged against that scope's blockers as on a first issue.
+- **Qualification**: where a rule set the lot is under reserves certificates, you need an approved, current Issuing certificates qualification for each activity named. Without it you return to the amendment review with a warning before the form, and a submission is refused before the PIN is checked (the reason names the rule set and activity). It is checked again under the locks. When you hold it, the dialog states "This signature relies on your qualification QUAL-3, for issuing certificates in “CERT-TEST” (Rule set RS-TEST v1), and records it."; the qualification is frozen in the new version and shown there as "Signed under".
 - **Gates and authorship**: same blockers and authorship rule as a first issue, including that a native lot's signed requirement assignment must still resolve and verify; later assignments do not replace it ("Certificate cannot be issued:" plus reasons).
 - **Atomic and audited**: version, PDF, signature (meaning `amended`) and audit event `signed.amended` commit together or not at all; failed PIN attempts are audited and survive the rejection.
 - **Preserved original**: the earlier version's bytes and snapshot are untouched; the new version links to it as superseding.

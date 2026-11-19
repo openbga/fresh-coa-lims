@@ -979,7 +979,7 @@ def qualification_list(request):
                     reverse("laboratory:qualification_detail", args=[q.pk]),
                 ),
                 str(q.subject),
-                "Analyst" if q.user_id else "Equipment",
+                "Person" if q.user_id else "Equipment",
                 qualified_for(q),
                 day(q.valid_from),
                 day(q.valid_until),
@@ -990,7 +990,8 @@ def qualification_list(request):
         request,
         title="Qualifications",
         intro="Approved qualification evidence by activity or method, for performing the "
-        "work or reviewing its results. Group membership alone never qualifies anyone.",
+        "work, reviewing its results, or the release decisions and certificates a rule set "
+        "reserves. Group membership alone never qualifies anyone.",
         noun="qualifications",
         columns=[
             ("Activity", "activity", False),
@@ -1084,7 +1085,7 @@ def qualification_detail(request, pk):
         state=status(state_label, state_tone),
         facts=[
             ("Subject", str(q.subject)),
-            ("Type", "Analyst" if q.user_id else "Equipment"),
+            ("Type", "Person" if q.user_id else "Equipment"),
             ("Qualified for", qualified_for(q)),
             ("Valid from", day(q.valid_from)),
             ("Valid until (inclusive)", day(q.valid_until)),
@@ -1095,8 +1096,28 @@ def qualification_detail(request, pk):
             ("Revision", q.revision),
         ],
         actions=actions,
-        sections=[training_section(q)] if q.user_id else [],
+        sections=[training_section(q)]
+        + ([decisions_section(q)] if q.work in AUTHORIZING_WORK else [])
+        if q.user_id
+        else [],
         related=[q],
+    )
+
+
+AUTHORIZING_WORK = (Qualification.Work.RELEASE, Qualification.Work.CERTIFY)
+
+
+def decisions_section(q):
+    """The decisions signed in reliance on a qualification for authorizing them, as frozen
+    with each signature: released lots, reassessments concluded suitable, certificate
+    versions."""
+    from quality.authority import relied_on
+
+    return section(
+        "Decisions relying on it",
+        [("Decision", False), ("Record", False)],
+        [[kind, cell(label, href)] for kind, label, href in relied_on(q)],
+        "No decision has relied on this qualification yet.",
     )
 
 

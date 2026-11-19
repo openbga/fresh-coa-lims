@@ -16,6 +16,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from core.grids import Column, paginate
 from core.models import AuditEvent, ElectronicSignature
+from quality import authority
 from quality.models import Lot
 
 from . import certificate_data, checks, conformity, lot_record, services
@@ -87,7 +88,7 @@ def signing_data(form):
     return {k: v for k, v in form.cleaned_data.items() if k != "signature_username"}
 
 
-def preflight(request, evidence, digest, problems, verb):
+def preflight(request, lot, evidence, digest, problems, verb):
     """Reason the signing form must not be offered, or None. POST revalidates everything."""
     if request.GET.get("evidence") != digest:
         return "The evidence changed since you reviewed it. Review it again."
@@ -95,7 +96,8 @@ def preflight(request, evidence, digest, problems, verb):
         return f"This certificate cannot be {verb}: " + " ".join(problems)
     if ev.independence_conflict(evidence, request.user):
         return f"You authored records on this lot, so you cannot sign this certificate as {verb}."
-    return None
+    # A qualification the lot's rule sets reserve certificates for (rechecked under lock).
+    return authority.refusal(request.user, lot, authority.CERTIFICATE) or None
 
 
 def failure(exc):
@@ -188,6 +190,9 @@ def _review_context(request, lot, evidence, digest, problems, scope=""):
         "is_preview": True,
         "can_sign": has_role(request.user, services.ISSUE_ROLE),
         "conflict": ev.independence_conflict(evidence, request.user),
+        "unauthorized": authority.refusal(request.user, lot, authority.CERTIFICATE)
+        if has_role(request.user, services.ISSUE_ROLE)
+        else "",
     }
 
 
@@ -222,7 +227,7 @@ def issue_sign(request, lot_pk):
     if request.method == "GET":
         scope = _scope(request)
         evidence, digest, problems = services.preview(lot, scope)
-        refusal = preflight(request, evidence, digest, problems, "issued")
+        refusal = preflight(request, lot, evidence, digest, problems, "issued")
         if refusal:
             messages.warning(request, refusal)
             return redirect(_preview_url(lot, scope))
@@ -254,6 +259,7 @@ def issue_sign(request, lot_pk):
             "meaning": "issued",
             "target": f"CoA for lot {lot.number}, version 1, {services.scope_label(scope)}",
             "cancel_url": _preview_url(lot, scope),
+            "relied_on": authority.notices(request.user, lot, authority.CERTIFICATE),
             "evidence_short": form["evidence_hash"].value()[:16]
             if form["evidence_hash"].value()
             else "",
@@ -365,7 +371,7 @@ def amend_sign(request, pk):
     status = 200
     if request.method == "GET":
         evidence, digest, problems = services.preview(report.lot, report.scope)
-        refusal = preflight(request, evidence, digest, problems, "amended")
+        refusal = preflight(request, report.lot, evidence, digest, problems, "amended")
         if refusal:
             messages.warning(request, refusal)
             return redirect("reporting:amend_preview", pk=report.pk)
@@ -404,6 +410,7 @@ def amend_sign(request, pk):
             "target": f"{report.number}, new version {latest.number + 1}, "
             f"{services.scope_label(report.scope)}",
             "cancel_url": reverse("reporting:amend_preview", args=[report.pk]),
+            "relied_on": authority.notices(request.user, report.lot, authority.CERTIFICATE),
             "evidence_short": (form["evidence_hash"].value() or "")[:16],
         },
         status=status,
@@ -510,6 +517,10 @@ def version_detail(request, pk, number):
             "version": version,
             "snapshot": version.snapshot,
             "signature": services.signature_for(version),
+            "authorization": authority.describe(
+                (version.snapshot.get("report") or {}).get(authority.AUTHORIZATION),
+                authority.CERTIFICATE,
+            ),
             "is_current": version.is_current,
             "withdrawal": services.withdrawal_signature(report),
         },

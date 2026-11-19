@@ -9,7 +9,7 @@
 {% if can_export %}<a class="btn btn-outline-secondary" href="{% url 'quality:lot_record' lot.pk %}">{% icon name="download" %}Export record</a>{% endif %}
 {% if can_record and can_dispose and not disposition_denied %}<a class="btn btn-outline-secondary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% if can_dispose and disposition_denied %}<span class="vr-action-note" data-refused="disposition">{{ disposition_denied }}</span>{% endif %}
-{% if can_reject %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% elif reject_note and not disposition_denied %}<span class="vr-action-note" data-refused="reject">{{ reject_note }}</span>{% endif %}
+{% if can_reject %}<a class="btn btn-outline-danger" href="{% url 'quality:lot_reject' lot.pk %}">{% icon name="x-circle" %}Reject lot</a>{% elif reject_note and not disposition_self %}<span class="vr-action-note" data-refused="reject">{{ reject_note }}</span>{% endif %}
 {% if can_cancel %}{% more_actions %}<li><a class="dropdown-item" href="{% url 'quality:lot_cancel' lot.pk %}">{% icon name="dash-circle" %}Cancel lot received in error</a></li>{% endmore_actions %}{% endif %}
 {% if can_dispose and not disposition_denied %}<a class="btn btn-primary" href="{% url 'quality:disposition' lot.pk %}">Review disposition</a>{% elif can_record %}<a class="btn btn-primary" href="{% url 'quality:sample_new' lot.pk %}">{% icon name="plus-lg" %}Add sample</a>{% endif %}
 {% else %}
@@ -54,7 +54,7 @@
 {% if lot.state == 'quarantine' %}
 {% panel title="QC disposition" heading_id="disposition-heading" %}
   {% fill count %}{% if blockers %}{{ blockers|length }}{% endif %}{% endfill %}
-  <dl class="vr-facts">{% if blockers %}{% fact label="Evidence" critical="danger" %}{% status label="Blocked" tone="danger" %}{% endfact %}{% else %}{% fact label="Evidence" critical="success" %}{% status label="Complete" tone="success" %}{% endfact %}{% endif %}</dl>
+  <dl class="vr-facts">{% if blockers %}{% fact label="Evidence" critical="danger" %}{% status label="Blocked" tone="danger" %}{% endfact %}{% else %}{% fact label="Evidence" critical="success" %}{% status label="Complete" tone="success" %}{% endfact %}{% endif %}{% if release_reserved %}{% fact label="Who may release" wide=True %}{{ release_reserved|join:" " }}{% endfact %}{% endif %}</dl>
   {% if blockers %}<p class="mb-2">QC disposition cannot be approved until these are resolved:</p>
   <ul class="vr-checklist">{% for item in blockers %}<li>{% status label=item tone="danger" plain=True %}</li>{% endfor %}</ul>
   {% else %}<p class="mb-0">{% if supplier_accepted %}Every requirement has a reviewed, conforming result or an accepted supplier result, and no investigation is open.{% else %}Every required test has a reviewed, conforming result and no investigation is open.{% endif %} This is laboratory evidence only; QC disposition is a separate signed decision and does not mean manufacturer release.</p>{% endif %}
@@ -63,6 +63,7 @@
 {% panel title="Certificates of analysis" heading_id="reports-heading" count=reports|length %}
   <p>{% if issued %}{% status label="Issued" tone="success" %}{% else %}{% status label="Not issued" tone="neutral" %}{% endif %}</p>
   {% if reports %}<ul class="mb-0 ps-3">{% for report in reports %}<li><a class="vr-id" href="{% url 'reporting:detail' report.pk %}">{{ report.number }}</a> {% status label=report.status_label tone=report.tone plain=True %}</li>{% endfor %}</ul>{% else %}{% empty_state title="No certificate issued yet" %}{% endif %}
+  {% if release_relied_on or certificate_reserved %}<dl class="vr-facts mt-3 mb-0">{% if certificate_reserved %}{% fact label="Who may issue" wide=True %}{{ certificate_reserved|join:" " }}{% endfact %}{% endif %}{% if release_relied_on %}{% fact label="Released under" wide=True %}{% for item in release_relied_on %}<a class="vr-id" href="{{ item.href }}">{{ item.label }}</a><small>{{ item.text }}</small>{% endfor %}{% endfact %}{% endif %}</dl>{% endif %}
 {% endpanel %}
 {% endif %}
 {% endfill %}
