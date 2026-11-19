@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 63
 type: added
 impact: high
 title: Record training, qualify people to review a method, and see qualifications falling due
