@@ -23,6 +23,7 @@ from reporting.forms import LotPickForm
 from sampling.forms import AssignForm, PlanForm
 from stability.forms import HoldForm, ObligationForm, ProtocolForm, ReserveForm, StudyForm
 from suppliers.forms import MaterialChoiceForm
+from trending import forms as trending_forms
 from validation.forms import UseAcceptanceForm
 
 pytestmark = pytest.mark.django_db
@@ -203,6 +204,8 @@ REMOTE_FIELDS = [
     (lambda: planning_forms.PlanForm(), "equipment"),
     (lambda: catalog_forms.ProficiencyResultForm(), "performed_by"),
     (lambda: catalog_forms.FollowUpForm(), "impact_assessment"),
+    (lambda: trending_forms.ChartForm(), "line"),
+    (lambda: trending_forms.FindingsForm(), "impact_assessment"),
 ]
 
 
@@ -220,7 +223,9 @@ def test_lookup_offers_what_the_field_validates(make, name):
     obj = field.queryset.model()
     if hasattr(obj, "code"):
         obj.code, obj.name, obj.title = "c", "n", "t"
-    if field.widget.lookup != "specifications":
+    # These labels name related records (a specification's material, a test line's
+    # specification version), which a blank instance has not got.
+    if field.widget.lookup not in ("specifications", "trend-lines"):
         assert entry.label(obj) == field.label_from_instance(obj)
 
 

@@ -3,9 +3,9 @@ title: Reminders
 urls: planning:reminders
 views: planning.views.reminders
 templates: planning/reminders.html
-models: catalog.ProficiencyParticipation, laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification, stability.Pull, stability.Study
+models: trending.Limits, trending.EvaluationAlert, analytical.AnalyticalTest, catalog.ProficiencyParticipation, laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification, stability.Pull, stability.Study
 reviewed: 2026-11-19
-summary: What falls due in the coming days: calibrations, stability pulls, reagent and standard lots, qualifications and proficiency testing results. Each row opens the record.
+summary: What falls due in the coming days: calibrations, stability pulls, reagent and standard lots, qualifications, proficiency testing results and out-of-trend alerts not yet evaluated. Each row opens the record.
 ---
 
 ## Common tasks
@@ -13,7 +13,7 @@ summary: What falls due in the coming days: calibrations, stability pulls, reage
 ### See what falls due this month
 
 1. Open the page: it lists what falls due in the next 30 days, earliest first, overdue items first.
-2. Select a row to open the equipment, the stability pull, the reagent lot, the qualification or the proficiency testing participation.
+2. Select a row to open the equipment, the stability pull, the reagent lot, the qualification, the proficiency testing participation or the trend chart.
 
 ### Look further ahead or at one kind
 
@@ -22,14 +22,14 @@ summary: What falls due in the coming days: calibrations, stability pulls, reage
 ## Good to know
 
 - Nothing is sent: open this page or the dashboard to see reminders.
-- Overdue calibrations, pulls and proficiency testing rounds stay listed until resolved; expired reagent lots are not listed one by one, a notice links to them.
+- Overdue calibrations, pulls and proficiency testing rounds stay listed until resolved, as does an out-of-trend alert until an evaluation covers it. Expired lots get a notice.
 - A pull counts once its window opens within the days shown, even if its due date is later.
 - Only equipment in service with an accepted passing calibration has a calibration reminder.
 - A qualification is listed only until an approved renewal for the same person or instrument, activity and work takes over, so renewing it removes the reminder.
 
 ## Purpose
 
-A dated list of laboratory work that falls due: calibrations of equipment in service, scheduled pulls of active stability studies and released reagent and standard lots reaching their last day of use, approved qualifications reaching their last valid day, and proficiency testing results due to a provider, so they can be planned before they block work.
+A dated list of laboratory work that falls due: calibrations of equipment in service, scheduled pulls of active stability studies and released reagent and standard lots reaching their last day of use, approved qualifications reaching their last valid day, proficiency testing results due to a provider, and out-of-trend alerts that no evaluation covers yet, so they can be planned before they block work.
 
 ## Who can use it
 
@@ -46,7 +46,7 @@ A dated list of laboratory work that falls due: calibrations of equipment in ser
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| A reminder | Always | Any reader | Opens the equipment record, the stability pull, the reagent lot, the qualification or the proficiency testing participation |
+| A reminder | Always | Any reader | Opens the equipment record, the stability pull, the reagent lot, the qualification, the proficiency testing participation or the trend chart |
 | **Open the lots past expiry** | Released lots are past expiry | Any reader | Opens Reagents and standards filtered to Released but expired |
 | **Apply** / **Clear all** | Always / a filter is set | Any reader | Changes the window or kind / returns to 30 days, all kinds |
 
@@ -55,9 +55,9 @@ A dated list of laboratory work that falls due: calibrations of equipment in ser
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Within | — | 7, 14, 30, 60 or 90 days | No | How far ahead to look; default 30 days |
-| Kind | — | Choice | No | All reminders; Calibrations; Stability pulls; Reagents and standards; Qualifications; Proficiency testing |
-| Date | `Calibration.due_date`, `Pull.due_date`, `ReagentLot.expiry_date`, `Qualification.valid_until`, `ProficiencyParticipation.results_due` | Date | — | Calibration valid until, the pull's due date, the lot's last day of use, the qualification's last valid day, or the day proficiency testing results are due; the list is sorted by it |
-| Status | — | Status | — | Calibration: "Overdue by N days", "Due today", "Due in N days". Pull: "Overdue: window closed …", "Due now, until …", "Window opens in N days". Lot: "Expires today", "Expires in N days". Qualification: "Last valid day today", "Expires in N days" |
+| Kind | — | Choice | No | All reminders; Calibrations; Stability pulls; Reagents and standards; Qualifications; Proficiency testing; Out-of-trend alerts |
+| Date | `Calibration.due_date`, `Pull.due_date`, `ReagentLot.expiry_date`, `Qualification.valid_until`, `ProficiencyParticipation.results_due` | Date | — | Calibration valid until, the pull's due date, the lot's last day of use, the qualification's last valid day, the day proficiency testing results are due, or the day the review of an out-of-trend result was signed; the list is sorted by it |
+| Status | — | Status | — | Calibration: "Overdue by N days", "Due today", "Due in N days". Pull: "Overdue: window closed …", "Due now, until …", "Window opens in N days". Lot: "Expires today", "Expires in N days". Qualification: "Last valid day today", "Expires in N days". Out-of-trend alert: "Not evaluated" (red) |
 
 ## Rules and hidden logic
 
@@ -66,6 +66,7 @@ A dated list of laboratory work that falls due: calibrations of equipment in ser
 - Reagents and standards: released lots whose last day of use is from today to the last day shown. Lots already past it are counted in the notice only.
 - Qualifications: approved qualifications of people and of instruments that are in effect today and whose last valid day is from today to the last day shown. The row reads "QUAL-n · activity" with the person (or the asset ID), "performing the work", "reviewing results" or "intended use", and the last valid day. Revoked, expired and not-yet-started qualifications are not listed, nor those of an inactive account or of equipment out of service. One is also left out when an approved qualification of the same person or instrument, for the same activity (any case) and the same work, starts by the day after its last valid day and runs past it. The status is amber within 7 days.
 - Proficiency testing: open participations whose day results were reported is not recorded yet and whose results due day is on or before the last day shown, with no earlier limit, so overdue ones stay. The row reads "PT-n · method code" with "<provider>, <round>: results due <date>"; the date column is the results due day. Status: "Overdue by N days" (red), "Due today" (amber), "Due in N days" (amber within 7 days, otherwise neutral). Participations with a report, under review, in follow-up, closed or cancelled are not listed.
+- Out-of-trend alerts: results that conform to their specification, broke a rule of the trend chart limits in force when their review was signed, and are covered by no evaluation. They are listed whatever the window, with no earlier limit. The row reads "TC-n · T-n" with "<test name> of <material code>, lot <lot number>: <value> <unit>. <rules broken>"; the date column is the day the review was signed. Status: "Not evaluated" (red). The row opens the chart. An alert leaves the list once an evaluation covers it, even while that evaluation is open.
 - Dates are calendar days in the deployment time zone. Twenty-five rows per page by default.
 - Not enforced by this page: no message, e-mail or task is created, and nothing here stops work; the result pages check equipment, calibration and lots when they are used.
 
@@ -73,4 +74,5 @@ A dated list of laboratory work that falls due: calibrations of equipment in ser
 
 - [Equipment](/laboratory/equipment/), [Reagents and standards](/laboratory/reagents/) and [Stability pulls](/stability/pulls/): the records behind each reminder.
 - [Proficiency testing](/catalog/proficiency/): the participations behind these reminders.
+- [Trend charts](/trends/): the charts behind the out-of-trend alerts.
 - [Work list](/planning/) and [Workload](/planning/workload/).

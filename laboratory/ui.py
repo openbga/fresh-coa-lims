@@ -43,6 +43,10 @@ SECTION_TABS = {
         ("Reserves", "reserve_list"),
         ("Holds", "hold_list"),
     ],
+    "trending": [
+        ("Charts", "chart_list"),
+        ("Evaluations", "evaluation_list"),
+    ],
     "planning": [
         ("Work list", "work_list"),
         ("Workload", "workload"),
@@ -445,10 +449,14 @@ def record_page(
     schedule=None,
     meta=(),
     status_code=200,
+    template="ops/record.html",
+    extra=None,
 ):
     """`related` are objects whose signatures and audit history appear on the page. `schedule`
     (a stability study's pulls as a condition by time point grid) is shown before `sections`.
     `meta` is the muted line under the title: (label, value) pairs such as the record revision.
+    `template` extends ops/record.html to fill its `record_lead` block (a panel after the
+    details) with the page's own context from `extra`.
 
     The header shows at most one primary action (last) and three others; the rest go under
     More (docs/ui-standards.md)."""
@@ -458,8 +466,9 @@ def record_page(
     rare = [a for a in actions if a is not primary and a["more"]]
     return render(
         request,
-        "ops/record.html",
+        template,
         {
+            **(extra or {}),
             "page_title": title,
             "identifier": identifier,
             "crumbs": crumbs,

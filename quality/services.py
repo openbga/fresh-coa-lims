@@ -344,9 +344,11 @@ def disposition_notices(lot):
     that do not meet the specification, supplier results accepted in place of a laboratory
     test, reported results whose contract laboratory approval has been revoked since,
     requirements replaced during testing with the tests that were superseded, and the expiry and
-    retest dates the release freezes."""
+    retest dates the release freezes, and the lot's results that raised an out-of-trend alert
+    no evaluation has concluded."""
     from analytical.gates import lot_notices
     from sampling.services import replacement_notices
+    from trending.notices import disposition_notices as trend_notices
 
     from .certificates import disposition_notices as certificate_notices
     from .dates import disposition_notices as dates_notices
@@ -358,6 +360,7 @@ def disposition_notices(lot):
         *reliance_notices(lot),
         *lot_notices(lot),
         *replacement_notices(lot),
+        *trend_notices(lot),
     ]
 
 

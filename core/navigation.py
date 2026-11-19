@@ -48,6 +48,7 @@ SECTIONS = (
             NavItem("Testing", "analytical:test_list", "clipboard2-data", ("analytical",)),
             NavItem("Planning", "planning:work_list", "calendar3", ("planning",)),
             NavItem("Stability", "stability:overview", "thermometer-half", ("stability",)),
+            NavItem("Trends", "trending:chart_list", "graph-up", ("trending",)),
             NavItem("Laboratory", "laboratory:overview", "tools", ("laboratory",)),
         ),
         requires="can_view_workspace",

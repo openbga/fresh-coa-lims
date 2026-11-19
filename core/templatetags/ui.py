@@ -494,6 +494,7 @@ COMPONENTS = {
         derive=value_list_values,
     ),
     "route": Component(I + "route.html", ("stages", "label", "micro", "summary")),
+    "trend_chart": Component(I + "trend_chart.html", ("chart", "label")),
     "page_toc": Component(I + "page_toc.html", ("items", "label")),
     "record_foot": Component(I + "record_foot.html", ("identifier",)),
     "app_footer": Component(I + "app_footer.html", ("centered",), reads=("source_code_url",)),

@@ -1,0 +1,8 @@
+{% extends "ops/record.html" %}
+{% load ui %}
+{% comment %}A trend chart's record page: ops/record.html with the chart drawn after the details. Context from trending.views.chart_detail: the record page's, plus drawing (trending.plot.geometry, or None) and drawing_note.{% endcomment %}
+{% block record_lead %}
+{% panel title="Chart" heading_id="chart-heading" class="mb-3" %}
+  {% if drawing %}{% trend_chart chart=drawing label="chart-heading" %}{% else %}{% empty_state kind="empty" title="No result plotted yet" body=drawing_note %}{% endif %}
+{% endpanel %}
+{% endblock %}
