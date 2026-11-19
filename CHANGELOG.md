@@ -21,7 +21,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - No target exists after the upgrade, so open tests have no due date until quality sets targets (which apply to tests assigned afterwards) or a planner sets dates.
   > - Reminders are computed when the page is opened; nothing is sent and no scheduled job is added.
 
-- **Added**: Record a method's validation, verification or transfer and have method versions rely on it · Specifications · 2026-11-19
+- **Added**: Record a method's validation, verification or transfer and have method versions rely on it · Specifications · 2026-11-19 · [#64](https://github.com/openbga/qm-lims/pull/64)
 
   **Specifications and methods** has a new **Method evidence** tab. An analyst, a reviewer or a quality person records the evidence that a method is suitable for its intended use: a validation, the verification of a compendial procedure, a transfer or another documented demonstration, with its report and each characteristic's acceptance criterion and result. A quality person who neither recorded nor changed the record approves it with a signature, and it cannot be edited afterwards. On a draft method version, **Suitability evidence** lets quality rely on an approved record of the method instead of a reference only; approving the version checks the record again, and the method page links it.
 

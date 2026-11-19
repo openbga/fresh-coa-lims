@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 64
 type: added
 impact: high
 title: Record a method's validation, verification or transfer and have method versions rely on it
