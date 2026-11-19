@@ -176,6 +176,7 @@ class ReminderFilterForm(forms.Form):
             ("reagent", "Reagents and standards"),
             ("qualification", "Qualifications"),
             ("proficiency", "Proficiency testing"),
+            ("trend", "Out-of-trend alerts"),
         ],
     )
 

@@ -3,7 +3,8 @@
 Every icon is a symbol copied verbatim from Bootstrap Icons 1.13.2 into static/img/icons.svg
 (static/vendor/README.md records the package and its integrity) and rendered through {% icon %}
 (templates/includes/icon.html) or window.vrUi.icon (static/js/app.js). The only other drawings
-are the brand mark (static/img/mark.svg) and the sign-in illustration, both files.
+are the brand mark (static/img/mark.svg) and the sign-in illustration, both files, and the trend
+chart's data drawing (templates/includes/trend_chart.html), which is not an icon.
 """
 
 import re
@@ -17,7 +18,8 @@ ROOT = Path(settings.BASE_DIR)
 SPRITE = ROOT / "static/img/icons.svg"
 APP_CSS = ROOT / "static/css/app.css"
 
-SVG_TEMPLATES = {"templates/includes/icon.html"}
+# The icon, and the trend chart: the one data drawing (trending.plot works out its geometry).
+SVG_TEMPLATES = {"templates/includes/icon.html", "templates/includes/trend_chart.html"}
 
 # SVG data URIs app.css may keep, by the path that identifies each, with the reason.
 DATA_URIS = {

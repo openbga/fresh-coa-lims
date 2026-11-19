@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, meta (the muted line), facts, primary_action, actions (an action, or laboratory.ui.refused: its reason shown instead), more_actions, schedule, sections, signatures, history, notice.{% endcomment %}
+{% comment %}Generic record page. Context from laboratory.ui.record_page: page_title, identifier, crumbs, state, meta (the muted line), facts, primary_action, actions (an action, or laboratory.ui.refused: its reason shown instead), more_actions, schedule, sections, signatures, history, notice. A page's own template extends this one to fill record_lead, after the details.{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% if state.tone %}{% status label=state.text tone=state.tone size="lg" %}{% else %}{% include "ops/_cell.html" with cell=state only %}{% endif %}</li><li>{% code value=identifier %}</li>{% fill line %}{% for label, value in meta %}{{ label }} <strong>{{ value }}</strong>{% if not forloop.last %} · {% endif %}{% endfor %}{% endfill %}{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% for action in actions %}{% if action.note %}<span class="vr-action-note" data-refused>{{ action.note }}</span>{% else %}<a class="btn {% if action.danger %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}" href="{{ action.href }}">{{ action.label }}</a>{% endif %}{% endfor %}{% more_actions %}{% for action in more_actions %}<li><a class="dropdown-item{% if action.danger %} vr-menu-danger{% endif %}" href="{{ action.href }}">{{ action.label }}</a></li>{% endfor %}{% endmore_actions %}{% if primary_action %}<a class="btn btn-primary" href="{{ primary_action.href }}">{{ primary_action.label }}</a>{% endif %}{% endblock %}
@@ -9,6 +9,7 @@
 {% panel title="Details" heading_id="facts-heading" class="mb-3" %}
   <dl class="vr-facts">{% for label, value in facts %}{% if value.critical %}{% fact label=label critical=value.tone %}{% status label=value.text tone=value.tone %}{% if value.sub %}<small>{{ value.sub }}</small>{% endif %}{% endfact %}{% else %}{% fact label=label %}{% include "ops/_cell.html" with cell=value only %}{% endfact %}{% endif %}{% endfor %}</dl>
 {% endpanel %}
+{% block record_lead %}{% endblock %}
 {% if schedule %}
 {% panel title="Pull schedule" heading_id="schedule-heading" table=True class="mb-3" %}
   <div class="vr-table-wrap"><table class="table vr-table vr-schedule" aria-labelledby="schedule-heading">

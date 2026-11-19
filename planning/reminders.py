@@ -1,13 +1,14 @@
 """Reminders: the calibrations, stability pulls, reagent or standard lots, qualifications and
-proficiency testing results that fall due within a window of days, read from the same queries as
-their lists. Nothing is stored or sent: the page lists what is due, and each row opens the record
-that resolves it."""
+proficiency testing results that fall due within a window of days, and the out-of-trend alerts no
+evaluation covers yet, read from the same queries as their lists. Nothing is stored or sent: the
+page lists what is due, and each row opens the record that resolves it."""
 
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 from django.db.models import DateField, Exists, ExpressionWrapper, OuterRef, Q
 from django.urls import reverse
+from django.utils import timezone
 
 from catalog.models import ProficiencyParticipation
 from laboratory.eligibility import equipment_queryset
@@ -21,6 +22,7 @@ KINDS = {
     "reagent": "Reagent or standard",
     "qualification": "Qualification",
     "proficiency": "Proficiency testing",
+    "trend": "Out-of-trend alert",
 }
 
 
@@ -202,12 +204,40 @@ def _proficiency(today, until):
         )
 
 
+def _trend_alerts(today, until):
+    """Results that raised an out-of-trend alert no evaluation covers yet, whatever the window:
+    like an overdue item, an alert stays listed until quality evaluates it. Dated by the day its
+    review was signed."""
+    from trending.rules import describe
+    from trending.series import all_series
+
+    for series in all_series():
+        chart = series.chart
+        for point in series.open_alerts:
+            limits = point.limits
+            rules = "; ".join(
+                describe(rule, run_length=limits.run_length, trend_length=limits.trend_length)
+                for rule in point.rules
+            )
+            yield Reminder(
+                "trend",
+                timezone.localtime(point.reviewed_at).date(),
+                f"{chart.identifier} · {point.test.label}",
+                f"{chart.name} of {chart.material.code}, lot {point.test.lot.number}: "
+                f"{point.text} {chart.unit}. {rules}",
+                reverse("trending:chart_detail", args=[chart.pk]),
+                "Not evaluated",
+                "danger",
+            )
+
+
 SOURCES = {
     "calibration": _calibrations,
     "pull": _pulls,
     "reagent": _reagents,
     "qualification": _qualifications,
     "proficiency": _proficiency,
+    "trend": _trend_alerts,
 }
 
 

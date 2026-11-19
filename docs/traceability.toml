@@ -170,6 +170,7 @@
     "e2e/test_reassessment_journey.py",
     "e2e/test_stability_testing_journey.py",
     "e2e/test_test_not_completed_journey.py",
+    "e2e/test_trend_journey.py",
     "stability/tests/test_testing.py",
     "tests/test_impact_assessment.py",
     "tests/test_impact_assessment_views.py",
@@ -181,6 +182,9 @@
     "tests/test_revised_versions_in_progress.py",
     "tests/test_stability_testing.py",
     "tests/test_test_not_completed.py",
+    "trending/tests/test_rules.py",
+    "trending/tests/test_services.py",
+    "trending/tests/test_views.py",
     "validation/tests/test_acceptance_journeys.py",
 ]
 "OQ-009" = [

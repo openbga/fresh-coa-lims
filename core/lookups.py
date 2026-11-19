@@ -98,6 +98,12 @@ def _training():
     return forms
 
 
+def _trending():
+    from trending import services
+
+    return services
+
+
 def _owner_candidates():
     from validation.services import owner_candidates
 
@@ -206,6 +212,21 @@ register(
         lambda: _model("quality.Lot").objects.exclude(state__in=["rejected", "cancelled"]),
         LOT_SEARCH,
         ("number", "pk"),
+    )
+)
+register(
+    Lookup(
+        "trend-lines",
+        lambda: _trending().chart_lines(uncharted=True),
+        (
+            "code",
+            "name",
+            "specification_revision__specification__code",
+            "specification_revision__specification__material__code",
+            "specification_revision__specification__material__name",
+        ),
+        ("specification_revision__specification__material__code", "code", "pk"),
+        label=lambda line: _trending().line_label(line),
     )
 )
 register(

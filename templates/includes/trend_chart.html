@@ -1,0 +1,43 @@
+{% comment %}
+A trend chart of one test's results: the results in the order their reviews were signed, the
+center line and limits of each limits version over the results it judged, the specification
+limits, and the flagged results (a diamond for an alert, filled while not evaluated, outlined once
+an evaluation covers it; a square for a result out of specification). Rendered by
+{% trend_chart %} ({% load ui %}); the geometry and every word come from trending.plot.geometry.
+This is the one data drawing of the application, so it is the one template besides the icon that
+writes SVG (tests/test_icons.py). The SVG is an image with a name and a caption; the results table
+beside it on the page holds the same values for keyboard and assistive technology. Each mark keeps
+its words in a <title>, shown on hover. Below its minimum width the drawing scrolls sideways
+in a focusable region, like a wide table.
+Parameters:
+  chart  the dict from trending.plot.geometry (None draws nothing)
+  label  id of the heading that names the chart
+Usage: {% trend_chart chart=drawing label="chart-heading" %}
+{% endcomment %}{% if chart %}<figure class="vr-trend">
+  <div class="vr-trend-scroll" tabindex="0" role="group" aria-labelledby="{{ label }}">
+  <svg class="vr-trend-plot" viewBox="{{ chart.view_box }}" role="img" aria-labelledby="{{ label }} trend-chart-title" focusable="false">
+    <title id="trend-chart-title">{{ chart.title }}</title>
+    <g class="vr-trend-grid">{% for tick in chart.y_ticks %}<line x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/>{% endfor %}</g>
+    <g class="vr-trend-axis-text" text-anchor="end">{% for tick in chart.y_ticks %}<text x="{{ chart.tick_x }}" y="{{ tick.label_y }}">{{ tick.label }}</text>{% endfor %}</g>
+    <g class="vr-trend-axis-text" text-anchor="middle">{% for tick in chart.x_ticks %}<text x="{{ tick.x }}" y="{{ chart.axis_label_y }}">{{ tick.label }}</text>{% endfor %}</g>
+    <line class="vr-trend-axis" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ chart.bottom }}" y2="{{ chart.bottom }}"/>
+    <g>{% for line in chart.lines %}<line class="vr-trend-line" data-kind="{{ line.kind }}" x1="{{ line.x1 }}" x2="{{ line.x2 }}" y1="{{ line.y }}" y2="{{ line.y }}"><title>{{ line.title }}</title></line>{% endfor %}</g>
+    <g class="vr-trend-label-text">{% for item in chart.labels %}<text data-kind="{{ item.kind }}" x="{{ chart.label_x }}" y="{{ item.label_y }}">{{ item.text }}</text>{% endfor %}</g>
+    <path class="vr-trend-series" d="{{ chart.path }}"/>
+    <g>{% for mark in chart.markers %}{% if mark.d %}<path class="vr-trend-mark" data-kind="{{ mark.kind }}" d="{{ mark.d }}"><title>{{ mark.title }}</title></path>{% else %}<circle class="vr-trend-mark" data-kind="{{ mark.kind }}" cx="{{ mark.x }}" cy="{{ mark.y }}" r="4"><title>{{ mark.title }}</title></circle>{% endif %}{% endfor %}</g>
+  </svg>
+  </div>
+  <figcaption class="vr-trend-caption">
+    <ul class="vr-trend-legend" aria-label="Key">
+      <li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle class="vr-trend-mark" data-kind="result" cx="8" cy="8" r="4"/></svg>Result</li>
+      {% if "alert" in chart.kinds %}<li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path class="vr-trend-mark" data-kind="alert" d="M8,2 L14,8 L8,14 L2,8 Z"/></svg>Alert, not evaluated</li>{% endif %}
+      {% if "evaluated" in chart.kinds %}<li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path class="vr-trend-mark" data-kind="evaluated" d="M8,2 L14,8 L8,14 L2,8 Z"/></svg>Alert, evaluated</li>{% endif %}
+      {% if "oos" in chart.kinds %}<li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path class="vr-trend-mark" data-kind="oos" d="M3,3 H13 V13 H3 Z"/></svg>Out of specification</li>{% endif %}
+      {% if "center" in chart.kinds %}<li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="center" x1="0" x2="24" y1="8" y2="8"/></svg>Center line</li>{% endif %}
+      {% if "limit" in chart.kinds %}<li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="limit" x1="0" x2="24" y1="8" y2="8"/></svg>Limits</li>{% endif %}
+      {% if "spec" in chart.kinds %}<li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="spec" x1="0" x2="24" y1="8" y2="8"/></svg>Specification limits</li>{% endif %}
+    </ul>
+    {% if chart.caption %}<p class="vr-muted mb-0">{{ chart.caption }}</p>{% endif %}
+    {% if chart.named_specs %}<p class="vr-muted mb-0">Specification limits outside the plotted range: {{ chart.named_specs|join:", " }} {{ chart.unit }}.</p>{% endif %}
+  </figcaption>
+</figure>{% endif %}
