@@ -46,6 +46,7 @@ SECTIONS = (
             ),
             NavItem("Sampling", "sampling:lots", "eyedropper", ("sampling",)),
             NavItem("Testing", "analytical:test_list", "clipboard2-data", ("analytical",)),
+            NavItem("Planning", "planning:work_list", "calendar3", ("planning",)),
             NavItem("Stability", "stability:overview", "thermometer-half", ("stability",)),
             NavItem("Laboratory", "laboratory:overview", "tools", ("laboratory",)),
         ),

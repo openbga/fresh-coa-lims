@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Reminders of calibrations, stability pulls and reagent or standard lots falling due. Context from planning.views.reminders: page_title, tabs, columns, page_obj (planning.reminders.Reminder rows), filters, filtered, invalid, within, until, today, expired (released lots past expiry).{% endcomment %}
+{% block page_dateline %}{% dateline %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">What falls due by {{ until|date:"Y-m-d" }}: calibrations that run out, stability pulls whose window opens, and released reagent and standard lots that reach their last day of use. Overdue calibrations and pulls stay listed until they are resolved. Nothing is sent: open this page, or the dashboard, to see them.</p>{% endblock %}
+{% block content %}
+{% if expired %}{% url 'laboratory:reagent_list' as reagents_url %}{% notice tone="danger" %}{{ expired }} released reagent or standard lot{{ expired|pluralize }} {{ expired|pluralize:"is,are" }} past {{ expired|pluralize:"its,their" }} last day of use. <a href="{{ reagents_url }}?status=expired">Open the lots past expiry</a>.{% endnotice %}{% endif %}
+{% panel title="Reminders" heading_id="reminders-heading" table=True hidden_title=True %}
+  {% grid_toolbar label="Filter reminders" no_search=True inline=filters active=filtered invalid=invalid %}
+  {% list_results items=page_obj grid="planning.reminders" noun="reminders" filtered=filtered invalid=invalid sizes=True clear_url=request.path empty_title="Nothing falls due in this window" empty_body="No calibration runs out, no stability pull window opens and no released reagent or standard lot expires in the days shown. Choose a longer window to look further ahead." no_results_title="Nothing falls due in this window" no_results_body="Choose a longer window or another kind to look further." %}
+  {% grid_table grid="planning.reminders" columns=columns label="reminders-heading" %}
+      <tbody>
+        {% for r in page_obj %}<tr>
+          <th scope="row"><a class="vr-row-link vr-id" href="{{ r.href }}">{{ r.label }}</a><span class="vr-sub">{{ r.detail }}</span></th>
+          <td class="vr-nowrap">{{ r.on|date:"Y-m-d" }}</td>
+          <td>{{ r.kind_label }}</td>
+          <td>{% status label=r.status tone=r.tone plain=True %}</td>
+        </tr>{% endfor %}
+      </tbody>
+  {% endgrid_table %}
+  {% endlist_results %}
+{% endpanel %}
+{% endblock %}

@@ -75,6 +75,9 @@ FORM_SURFACES = {
     "analytical:raw_file_new": ("md", ("analyst",)),
     "analytical:import_new": ("md", ("analyst",)),
     "analytical:import_file": ("lg", ("analyst",)),
+    # Planning
+    "planning:plan": ("lg", ("quality", "reviewer")),
+    "planning:targets_change": ("md", ("quality",)),
     # Stability and retention
     "stability:protocol_new": ("md", ("analyst", "quality")),
     "stability:condition_new": ("md", ("analyst", "quality")),
@@ -191,6 +194,7 @@ NOT_FORM_PAGES = {
     "analytical:test_detail": "a record; its Submit for review form opens in the dialog from the "
     "page (form_page dialog=)",
     "analytical:lot_testing": "a record; its only form is a one-button action without fields",
+    "planning:take": "POST-only: the Assign to me button of a work list row; it renders no page",
     "certificate_check": "the check without an account: there is no session and no workspace "
     "page to open it over",
 }

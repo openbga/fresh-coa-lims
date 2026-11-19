@@ -453,6 +453,12 @@ Readings are taken in Chrome or Edge on a desktop computer over HTTPS (or `local
 
 Every reading is kept on its test with the server's time, whether or not a replicate records it, and the review page lists readings no replicate records. Ending a connection or setting a new one stops readings already taken through it from being recorded; they stay on the test. Readings are rows in PostgreSQL and part of database backups and the lot's record export. The browser passes on what the device sent and the server cannot tell a device from a program that imitates one: rely on the laboratory's access controls for the analysts' computers, and treat a reading like any result an analyst records.
 
+## Planning and turnaround targets
+
+After an upgrade that brings Planning no turnaround target exists, so open tests have no due date. A quality person sets the targets (Planning, Turnaround targets, Change targets) from the laboratory's procedure, with the reason; they apply to tests assigned from then on, and planners give the tests already open a due date on the work list (Plan selected tests, at most 100 at once). Reviewers and quality plan; analysts take unassigned tests. Who plans and how assignments are agreed is the laboratory's procedure: an assignment does not stop another qualified analyst from recording a test, and planning checks neither qualifications nor calibrations (result entry does).
+
+Reminders are worked out when the page is opened from the equipment, reagent lot and stability pull records; nothing is sent and no scheduled job runs. The work list, the workload and the dashboard's overdue count compute each test's due date in the database query, so their cost follows the number of open tests, not of all tests.
+
 ## Accounts, sessions and signing
 
 | Operation | Procedure and boundary |

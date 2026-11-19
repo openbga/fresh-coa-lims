@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Change the turnaround targets. Context from planning.views.targets_change: page_title, crumbs, form (TargetForm), cancel_url.{% endcomment %}
+{% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Calendar days from the day a test is assigned. A new target applies to tests assigned from now on; tests already assigned keep their due dates.</p>{% endblock %}
+{% block content %}
+{% form_page form=form cancel_url=cancel_url submit_label="Change targets" note="The change is recorded in the audit trail with your reason." %}{% endform_page %}
+{% endblock %}

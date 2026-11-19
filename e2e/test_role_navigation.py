@@ -32,6 +32,7 @@ def test_menu_after_sign_in(live_server, django_user_model, artifacts, roles):
             "Lots",
             "Sampling",
             "Testing",
+            "Planning",
             "Stability",
             "Laboratory",
             "Specifications",

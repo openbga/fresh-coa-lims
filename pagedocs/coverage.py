@@ -24,6 +24,8 @@ EXEMPT_NAMES = {
     "pagedocs:doc": "The documentation endpoint itself.",
     "core:lookup": "JSON options of the remote select (core/lookups.py); renders no page.",
     "core:preference": "POST-only save of a presentation preference (core/preferences.py).",
+    "planning:take": "POST-only: the Assign to me button of a work list row; documented with the "
+    "work list (planning-work-list.md).",
     "analytical:instrument_read": "POST-only JSON: keeps a reading a connected balance or meter "
     "sent (analytical/readings.py); documented with the result pages that take readings.",
 }

@@ -245,6 +245,7 @@ def gates():
     from impact.models import Assessment
     from laboratory.eligibility import equipment_filter, equipment_queryset
     from laboratory.models import ReagentLot
+    from planning.services import due_filter, open_work
     from stability.models import Hold, Pull
     from stability.views import _pull_filter
 
@@ -281,6 +282,14 @@ def gates():
             tone="progress",
             status="Open",
             url=reverse("impact:list") + "?status=open",
+        ),
+        queue(
+            "Tests overdue",
+            due_filter(open_work(), "overdue", today),
+            "due",
+            tone="danger",
+            status="Overdue",
+            url=reverse("planning:work_list") + "?due=overdue",
         ),
         queue(
             "Pulls overdue",

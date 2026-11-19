@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load ui %}
+{% comment %}Workload overview. Context from planning.views.workload: page_title, tabs, queues ({label, count, tone, href}), analyst_rows and instrument_rows (each count a (number, work list URL) pair), soon_days.{% endcomment %}
+{% block page_dateline %}{% dateline %}{% endblock %}
+{% block page_intro %}<p class="vr-page-intro">Open work by due date, by analyst and by planned instrument. Each count opens the work list filtered to those tests.</p>{% endblock %}
+{% block content %}
+{% panel title="Open work" heading_id="queues-heading" table=True %}
+  <div class="vr-table-wrap"><table class="table table-hover vr-table vr-queue-table" aria-labelledby="queues-heading">
+    <thead><tr><th scope="col">Queue</th><th scope="col" class="text-end">Tests</th><th scope="col">Attention</th></tr></thead>
+    <tbody>{% for queue in queues %}<tr><th scope="row" class="vr-wrap"><a class="vr-row-link" href="{{ queue.href }}">{{ queue.label }}</a></th><td class="text-end">{{ queue.count }}</td><td>{% if queue.count %}{% status label="Needs attention" tone=queue.tone plain=True %}{% else %}{% status label="Clear" tone="neutral" plain=True %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% panel title="By analyst" heading_id="analyst-heading" table=True %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="analyst-heading">
+    <caption class="visually-hidden">Open tests assigned to each active analyst</caption>
+    <thead><tr><th scope="col">Analyst</th><th scope="col" class="text-end">Open tests</th><th scope="col" class="text-end">Overdue</th><th scope="col" class="text-end">Due today</th><th scope="col" class="text-end">Due in the next {{ soon_days }} days</th><th scope="col" class="text-end">No due date</th></tr></thead>
+    <tbody>{% for row in analyst_rows %}<tr>
+      <th scope="row">{% if forloop.last %}<span class="vr-muted">{{ row.name }}</span>{% else %}{{ row.name }}{% endif %}</th>
+      <td class="text-end">{% if row.total.0 %}<a href="{{ row.total.1 }}">{{ row.total.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.overdue.0 %}<a href="{{ row.overdue.1 }}">{% status label=row.overdue.0|stringformat:"s" tone="danger" plain=True %}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.today.0 %}<a href="{{ row.today.1 }}">{{ row.today.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.soon.0 %}<a href="{{ row.soon.1 }}">{{ row.soon.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.none.0 %}<a href="{{ row.none.1 }}">{{ row.none.0 }}</a>{% else %}0{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+{% endpanel %}
+{% panel title="By instrument" heading_id="instrument-heading" table=True %}
+  {% if instrument_rows %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="instrument-heading">
+    <caption class="visually-hidden">Open tests planned on each instrument, with its fitness and calibration</caption>
+    <thead><tr><th scope="col">Instrument</th><th scope="col">Fitness</th><th scope="col">Calibration valid until</th><th scope="col" class="text-end">Open tests</th><th scope="col" class="text-end">Overdue</th><th scope="col">Latest due date</th><th scope="col">Check</th></tr></thead>
+    <tbody>{% for row in instrument_rows %}<tr>
+      <th scope="row">{% include "ops/_cell.html" with cell=row.asset first=True only %}</th>
+      <td>{% include "ops/_cell.html" with cell=row.fitness only %}</td>
+      <td class="vr-nowrap">{{ row.calibration_due|default:"—" }}</td>
+      <td class="text-end">{% if row.total.0 %}<a href="{{ row.total.1 }}">{{ row.total.0 }}</a>{% else %}0{% endif %}</td>
+      <td class="text-end">{% if row.overdue.0 %}<a href="{{ row.overdue.1 }}">{% status label=row.overdue.0|stringformat:"s" tone="danger" plain=True %}</a>{% else %}0{% endif %}</td>
+      <td class="vr-nowrap">{{ row.latest|default:"—" }}</td>
+      <td>{% if row.check %}{% status label=row.check.0 tone=row.check.1 plain=True %}{% else %}<span class="vr-muted">No conflict found</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  {% empty_state kind="empty" title="No test is planned on an instrument" body="Plan tests on an instrument from the work list to see its planned work beside its calibration." %}
+  {% endif %}
+{% endpanel %}
+{% endblock %}

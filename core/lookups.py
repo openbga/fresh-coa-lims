@@ -86,6 +86,12 @@ def _lots(**exclude):
 LOT_SEARCH = ("number", "material")
 
 
+def _planning():
+    from planning import services
+
+    return services
+
+
 def _owner_candidates():
     from validation.services import owner_candidates
 
@@ -148,6 +154,15 @@ register(
 )
 register(
     Lookup(
+        "instruments-in-service",
+        lambda: _planning().instruments(),
+        ("asset_id", "description", "category"),
+        ("asset_id", "pk"),
+        label=lambda item: f"{item.asset_id} · {item.description}",
+    )
+)
+register(
+    Lookup(
         "reagent-lots",
         lambda: _model("laboratory.ReagentLot").objects.all(),
         ("identifier", "name", "lot_number"),
@@ -178,6 +193,15 @@ register(
         lambda: get_user_model().objects.filter(is_active=True),
         ("username", "first_name", "last_name"),
         ("username", "pk"),
+    )
+)
+register(
+    Lookup(
+        "analysts",
+        lambda: _planning().analysts(),
+        ("username", "first_name", "last_name"),
+        ("username", "pk"),
+        label=user_label,
     )
 )
 register(
