@@ -21,7 +21,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - No target exists after the upgrade, so open tests have no due date until quality sets targets (which apply to tests assigned afterwards) or a planner sets dates.
   > - Reminders are computed when the page is opened; nothing is sent and no scheduled job is added.
 
-- **Added**: See turnaround and right-first-time figures of the tests reviewed in a period · Planning · 2026-11-19
+- **Added**: See turnaround and right-first-time figures of the tests reviewed in a period · Planning · 2026-11-19 · [#62](https://github.com/openbga/qm-lims/pull/62)
 
   **Planning** has two new tabs for reviewers, quality, auditors and admins. **Figures** shows, for the tests reviewed in a period you choose, the median turnaround from assignment to review, the turnaround nine in ten tests met, how many were reviewed on time against their due date, and how many were right first time: never returned for correction, with no corrected reading, and neither a repeat nor repeated. It also counts results out of specification and those invalidated after an investigation. Choose **Figures by** to break the figures down by kind of work, material, method, analyst or month. Every count opens **Reviewed tests**, which lists those tests with their turnaround, due date and what kept each from being right first time, and can be exported with **Export filtered CSV**.
 
