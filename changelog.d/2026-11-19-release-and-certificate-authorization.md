@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 65
 type: added
 impact: high
 title: Reserve the release of lots and their certificates for people qualified to authorize them

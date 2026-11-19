@@ -47,7 +47,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - New setting `ANALYTICAL_REVIEWERS` (default `config.integrations.LaboratoryReviewers`). A settings module without it fails the new system check `analytical.E001`. `core.services.sign_transition` now also accepts a tuple of roles as `permission`.
   > - A method version's approved content (`oq.method/1`) now carries `requires_review_qualification`. Requirement payloads frozen on tests are unchanged.
 
-- **Added**: Reserve the release of lots and their certificates for people qualified to authorize them · Laboratory · 2026-11-19
+- **Added**: Reserve the release of lots and their certificates for people qualified to authorize them · Laboratory · 2026-11-19 · [#65](https://github.com/openbga/qm-lims/pull/65)
 
   A rule set can now reserve the release of its lots and the certificates issued for them for quality people who hold a current qualification for an activity it names. Qualifications have two new kinds under **Qualified for**: **Release decisions** and **Issuing certificates**. Where a lot's rule sets reserve them, the release, a reassessment concluded **Suitable**, and each certificate issue and amendment are refused before the PIN is asked for unless the signer holds the qualification. The signed decision keeps which qualification it relied on, and the lot record, the reassessment, the certificate version and the qualification's own page show it. Rejection, cancellation and certificate withdrawal are not reserved, and rule sets without the new setting work as before.
 
