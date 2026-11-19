@@ -18,6 +18,7 @@ from .forms import (
     FileImportForm,
     MaterialForm,
     MethodForm,
+    MethodResourceForm,
     MethodRevisionForm,
     QCCheckForm,
     ReasonForm,
@@ -30,6 +31,7 @@ from .models import (
     Method,
     MethodCalculationInput,
     MethodQCCheck,
+    MethodResource,
     MethodRevision,
     RevisionStatus,
     Specification,
@@ -467,16 +469,18 @@ def method_detail(request, pk):
     method = get_object_or_404(Method, pk=pk)
     revisions = list(
         method.revisions.select_related("author", "superseded_by", "evidence").prefetch_related(
-            "qc_checks", "calculation_inputs"
+            "qc_checks", "calculation_inputs", "resources"
         )
     )
     sigs = list(signatures(*revisions))
     can_edit = can(request.user, services.AUTHOR_ROLE)
+    now = timezone.now()
     for revision in revisions:
         revision.signature_list = [s for s in sigs if s.object_id == str(revision.pk)]
         revision.can_approve, revision.approve_note = (
             approval_offer(request.user, revision) if can_edit else (False, "")
         )
+    _resource_rows(method, revisions, now)
     return render(
         request,
         "catalog/method_detail.html",
@@ -492,6 +496,37 @@ def method_detail(request, pk):
             "can_record": can(request.user, *RECORDERS),
         },
     )
+
+
+def _resource_rows(method, revisions, now):
+    """Set ``show_register`` on each revision and ``register_now`` on each of its suitable
+    resources: what the laboratory register holds for the line now (instruments with their
+    calibration status, lots neither rejected nor expired with their release and expiry status).
+    Shown on a draft and on an approved version that applies now or later."""
+    from laboratory.suitability import name_key, register
+
+    lines = {}
+    for revision in revisions:
+        revision.show_register = revision.status == RevisionStatus.DRAFT or (
+            revision.status == RevisionStatus.APPROVED and revision.applies_until > now
+        )
+        if revision.show_register:
+            for item in revision.resources.all():
+                lines.setdefault(_line_key(item.content(), name_key), item.content())
+    if not lines:
+        return
+    found = {
+        _line_key(row["line"], name_key): row
+        for row in register(list(lines.values()), activity=method.code)
+    }
+    for revision in revisions:
+        if revision.show_register:
+            for item in revision.resources.all():
+                item.register_now = found[_line_key(item.content(), name_key)]
+
+
+def _line_key(line, name_key):
+    return (line["kind"], name_key(line["name"]), bool(line.get("method_qualified")))
 
 
 @login_required
@@ -531,8 +566,9 @@ def method_version_new(request, pk):
         cancel_url=detail,
         submit_label="Create draft version",
         intro="The new draft copies the QC checks (when it runs in a QC batch), the calculation "
-        "and its inputs, and the file import of the latest version. The resource options and the "
-        "reviewer qualification start as in that version.",
+        "and its inputs, the file import and the suitable instruments, reagents and standards of "
+        "the latest version. The resource options and the reviewer qualification start as in "
+        "that version.",
     )
 
 
@@ -636,6 +672,84 @@ def qc_check_remove(request, pk, check_pk):
         submit_label="Remove QC check",
         intro="Removal from a draft is recorded in its history with your reason.",
         facts=[("QC check", str(check)), ("Unit", check.unit)],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def method_resource_new(request, pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    revision, detail, crumbs, refused = _draft_method(
+        request, pk, "Add suitable resource", only="Suitable resources"
+    )
+    if refused:
+        return refused
+    from laboratory.suitability import register_names
+
+    form = MethodResourceForm(request.POST or None, names=register_names())
+    if request.method == "POST" and form.is_valid():
+        item = run(
+            form,
+            lambda: services.add_method_resource(
+                actor=request.user, revision=revision, **form.cleaned_data
+            ),
+        )
+        if item:
+            messages.success(request, f"{item} listed as suitable for {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Add suitable resource · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Add suitable resource",
+        intro="Once the version lists an instrument category, results recorded under it accept "
+        "only instruments of a listed category; once it lists a reagent, standard or solution, "
+        "only lots of a listed one or prepared from one. Fitness checks still apply.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def method_resource_remove(request, pk, resource_pk):
+    require_role(request.user, services.AUTHOR_ROLE)
+    item = get_object_or_404(
+        MethodResource.objects.select_related("method_revision__method"),
+        pk=resource_pk,
+        method_revision_id=pk,
+    )
+    revision = item.method_revision
+    detail, crumbs = _method_crumbs(revision, f"Remove {item.name}")
+    if revision.status != RevisionStatus.DRAFT:
+        messages.error(request, "Suitable resources can only be removed from a draft version.")
+        return redirect(detail)
+    form = ReasonForm(request.POST or None, initial={"expected_revision": revision.revision})
+    if request.method == "POST" and form.is_valid():
+        if run(
+            form,
+            lambda: services.remove_method_resource(
+                actor=request.user,
+                item=item,
+                reason=form.cleaned_data["reason"],
+                expected_revision=form.cleaned_data["expected_revision"],
+            ),
+        ):
+            messages.success(request, f"{item} removed from draft {revision}.")
+            return redirect(detail)
+    return form_page(
+        request,
+        form,
+        title=f"Remove {item.name} · {revision}",
+        crumbs=crumbs,
+        cancel_url=detail,
+        submit_label="Remove",
+        intro="Removal from a draft is recorded in its history with your reason.",
+        facts=[
+            ("Kind", item.get_kind_display()),
+            ("Name", item.name),
+            ("Recorded with every result", "Yes" if item.required else "No, may be used"),
+        ],
     )
 
 

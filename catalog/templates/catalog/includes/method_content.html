@@ -14,6 +14,7 @@
     {% fact label="Author" value=revision.author|person %}
   </dl>
   {% if revision.requires_batch %}{% include "catalog/includes/qc_checks.html" with checks=revision.qc_checks.all revision=revision only %}{% endif %}
+  {% include "catalog/includes/resources.html" with revision=revision only %}
   {% include "catalog/includes/calculation.html" with revision=revision only %}
   {% include "catalog/includes/file_import.html" with revision=revision only %}
 {% endpanel %}

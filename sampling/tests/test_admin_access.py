@@ -28,6 +28,7 @@ from catalog.tests.factories import (
     window,
 )
 from core.models import AuditEvent, ElectronicSignature
+from laboratory.models import Equipment
 from quality.models import Lot
 
 from .test_gate import short
@@ -72,6 +73,8 @@ MUTATIONS = {
     "catalog:calculation_clear": (("method_draft",), "approver"),
     "catalog:calculation_input_new": (("method_draft",), "approver"),
     "catalog:calculation_input_remove": (("method_draft", "calc_input"), "approver"),
+    "catalog:method_resource_new": (("method_draft",), "approver"),
+    "catalog:method_resource_remove": (("method_draft", "method_resource"), "approver"),
     "catalog:file_import_set": (("method_draft",), "approver"),
     "catalog:file_import_clear": (("method_draft",), "approver"),
     "catalog:method_withdraw": (("method_draft",), "approver"),
@@ -238,6 +241,12 @@ def world(people, ready):  # noqa: F811
         name="Peak area",
         unit="peak area",
     )
+    Equipment.objects.create(
+        asset_id="SYN-GC-01", description="Synthetic GC", category="GC", created_by=author
+    )
+    method_resource = catalog.add_method_resource(
+        actor=author, revision=method_draft, reason="Suitable", kind="instrument", name="GC"
+    )
     plan_draft = plan_revision(author, material(author, code="syn-api-002"))
     evidence_draft, characteristic = method_evidence(people, method_draft.method)
     evidence_approved, _ = method_evidence(people, method_draft.method)
@@ -264,6 +273,7 @@ def world(people, ready):  # noqa: F811
         "method_draft": method_draft.pk,
         "qc_check": qc_check.pk,
         "calc_input": calc_input.pk,
+        "method_resource": method_resource.pk,
         "plan": plan_draft.plan_id,
         "plan_approved": ready["plan"].plan_id,
         "plan_draft": plan_draft.pk,

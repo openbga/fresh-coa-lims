@@ -566,6 +566,7 @@ def _authorize(
     evidence = desk.authorize(
         actor=actor,
         method_code=method.code,
+        method_revision=method.revision,
         test_code=test_code,
         context_type=context_type,
         context_id=context_id,

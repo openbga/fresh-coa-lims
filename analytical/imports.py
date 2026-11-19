@@ -514,7 +514,7 @@ def import_file(request, pk, file_pk):
             held = (
                 selection_refusal(test, extract, recorded) or row_refusal(spec, extract.rows) or ""
             )
-    choices, hold = (None, "") if held else rawdata_choices()
+    choices, hold = (None, "") if held else rawdata_choices(spec.method)
     held = held or hold
     rows = list(extract.rows) if extract and not held else []
     form = None
@@ -598,8 +598,9 @@ def upload_refusal(test, upload):
     return selection_refusal(test, extract, recorded) or row_refusal(test.spec, extract.rows)
 
 
-def rawdata_choices():
-    """The bench's equipment and lot choices, or (None, hold message) without a bench."""
+def rawdata_choices(method=None):
+    """The bench's equipment and lot choices for ``method``, or (None, hold message) without a
+    bench."""
     from .views import bench_choices
 
-    return bench_choices()
+    return bench_choices(method)

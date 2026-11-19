@@ -21,7 +21,10 @@ a calculation applies to test observations only.
 
 settings.ANALYTICAL_BENCH names the bench class (``choices``, ``lock_actor``, ``authorize``,
 ``record_refusal``) that checks the analyst and the selected equipment and reagent lots for every
-observation and batch QC entry. There is no default: without it those entries are held.
+observation and batch QC entry. There is no default: without it those entries are held. Testing
+passes ``choices`` and ``authorize`` the method code and the version (``method_revision``) the
+test or batch is frozen to, so the bench can offer and accept only what that version lists as
+suitable.
 
 The same bench answers for results reported by a contract laboratory (``contract_choices``,
 ``authorize_contract``, ``record_contract_refusal``, ``contract_notice``): it checks that the

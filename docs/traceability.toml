@@ -96,9 +96,12 @@
     "catalog/tests/",
     "e2e/test_calculation_bench_journey.py",
     "e2e/test_method_evidence_journey.py",
+    "e2e/test_method_resources_journey.py",
+    "laboratory/tests/test_suitability.py",
     "sampling/tests/test_services.py",
     "sampling/tests/test_views.py",
     "tests/test_formulas.py",
+    "tests/test_method_resources_journey.py",
     "tests/test_review_qualification.py",
 ]
 "OQ-006" = [
@@ -237,18 +240,22 @@
 ]
 "OQ-011" = [
     "analytical/tests/test_calculations_bench.py",
+    "catalog/tests/test_method_resources.py",
     "e2e/test_calculation_bench_journey.py",
     "e2e/test_figures_journey.py",
+    "e2e/test_method_resources_journey.py",
     "e2e/test_planning_journey.py",
     "e2e/test_training_journey.py",
     "laboratory/tests/test_bench.py",
     "laboratory/tests/test_services.py",
+    "laboratory/tests/test_suitability.py",
     "laboratory/tests/test_training.py",
     "laboratory/tests/test_views.py",
     "planning/tests/",
     "tests/test_calculation_bench_journey.py",
     "tests/test_impact_assessment.py",
     "tests/test_instrument_readings.py",
+    "tests/test_method_resources_journey.py",
 ]
 "OQ-012" = [
     "e2e/test_stability_testing_journey.py",
