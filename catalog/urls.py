@@ -45,6 +45,16 @@ urlpatterns = [
         name="qc_check_remove",
     ),
     path(
+        "method-versions/<int:pk>/resources/new/",
+        views.method_resource_new,
+        name="method_resource_new",
+    ),
+    path(
+        "method-versions/<int:pk>/resources/<int:resource_pk>/remove/",
+        views.method_resource_remove,
+        name="method_resource_remove",
+    ),
+    path(
         "method-versions/<int:pk>/calculation/",
         views.calculation_set,
         name="calculation_set",

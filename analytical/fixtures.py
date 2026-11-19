@@ -391,7 +391,7 @@ class SyntheticBench:
     reagent or standard lots released.
     """
 
-    def choices(self):
+    def choices(self, method_code=None, method_revision=None):
         return {
             "equipment": [(pk, f"{a} {n} · {st}") for pk, (a, n, st) in EQUIPMENT.items()],
             "reagents": [(pk, f"{i} {n} · {st}") for pk, (i, n, st) in REAGENTS.items()],
@@ -413,6 +413,7 @@ class SyntheticBench:
         equipment_ids,
         reagent_ids,
         reason,
+        method_revision=None,
     ):
         if not connection.in_atomic_block:
             raise RuntimeError("authorize needs the caller's transaction.")
@@ -421,6 +422,7 @@ class SyntheticBench:
                 "authorize",
                 {
                     "method_code": method_code,
+                    "method_revision": method_revision,
                     "test_code": test_code,
                     "context_type": context_type,
                     "context_id": context_id,

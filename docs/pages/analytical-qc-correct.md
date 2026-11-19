@@ -4,7 +4,7 @@ urls: analytical:qc_correct
 views: analytical.views.qc_correct
 templates: analytical/form.html, analytical/_summary.html
 models: analytical.QCResult, analytical.QCBatch
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Correct a recorded QC result by adding a linked correction with a reason. The original value stays visible on the batch record.
 ---
 
@@ -19,6 +19,7 @@ summary: Correct a recorded QC result by adding a linked correction with a reaso
 - The batch QC status is worked out again from the current values, so a correction can change QC failed to QC passed.
 - Any analyst may correct a QC result, also one recorded by someone else. Both count as authors of the batch's QC.
 - Corrections close once a test in the batch is submitted.
+- Suitable resources the method version lists narrow the equipment and lot choices; a required one makes the field required.
 
 ## Purpose
 
@@ -55,6 +56,7 @@ Correct a recorded QC result by adding a linked correction; the original stays v
 
 - **Wrong state**: opening or submitting this page when the record is not in the right state redirects to the batch record with the warning "This QC result can no longer be corrected." (batch closed, QC frozen, or the result already corrected). QC is frozen once a test in the batch has been submitted; a test superseded before it was ever submitted does not count, one superseded after submission does.
 - **Bench checks**: without a configured bench the page redirects to the batch record with "No bench check is configured; results are held." The bench checks your current qualification for the batch method and every instrument and lot selected; a refusal shows "Refused: <subject>: <reason>" on the refused checkbox list or above the form, nothing is saved and the bench audits the attempt. A method that requires equipment or a reagent or standard lot refuses an entry with none selected. The evidence is frozen on the correction (`QCResult.eligibility`) and in its audit event. The bench checks the correcting analyst.
+- **Suitable resources**: the lines come from the approved content of the method version the batch is frozen to. Where it lists instrument categories, every instrument selected must be of a listed category; a lot of a kind it lists (reagent, reference standard or prepared solution), or prepared from a lot of such a kind, must be a listed one or prepared from one, while lots of other kinds stay open; every required line must be answered, and such a line makes the matching field required on the form; an instrument whose line asks for it needs an approved, current qualification whose activity is the method code. These refusals appear with the calibration, service, release and expiry refusals, nothing is saved, and the refusal is audited (`resource.use_blocked`).
 - **Preconditions**: batch Open and no test in it submitted (same messages as recording); "This QC result has already been corrected."
 - **Effect**: a new row supersedes the old; batch revision rises by 1; `qc.corrected` is audited with before and after values and the bench evidence. The batch QC status is recalculated from the current values.
 - The link is offered on the batch record to every analyst, including for results recorded by others.

@@ -8,6 +8,19 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### High impact
 
+- **Added**: List the instruments, reagents and standards suitable for each method version · Specifications and methods · 2026-11-19
+
+  On a draft method version, quality can now list what is suitable for the method under **Suitable instruments, reagents and standards**: kinds of instrument by equipment category, and reagents, reference standards and prepared solutions as the register names their lots; each kind is checked on its own. Each line is either recorded with every result or only allowed, and an instrument line can ask for an instrument qualified for the method. Results, corrections, file imports and batch QC results under that version then offer and accept only what it lists, beside the calibration, release and expiry checks, and the method page shows each line next to the matching instruments and lots and their status. Versions without a list, and tests already assigned, work as before.
+
+  In the application: **Specifications and methods: Methods**
+
+  > **Technical notes**
+  >
+  > - Migration `catalog.0010` adds the table `catalog_methodresource` with a database guard: lines are added or removed only while their version is a draft, never updated, at most 20 per version. No existing row changes.
+  > - A version that lists resources carries `resources` (a list of `kind`, `name`, `required` and `method_qualified`) in its approved content; the content and hash of every other version are unchanged. New audit actions: `method_revision.resource_added` and `method_revision.resource_removed`.
+  > - The bench contract passes the frozen method version: `choices(method_code=, method_revision=)` and `authorize(..., method_revision=)` (`config.integrations.LaboratoryBench`). A custom `ANALYTICAL_BENCH` written to the earlier contract must accept these keyword arguments. `choices` can also return `required` (`equipment`, `reagents`) to make a field mandatory, and the bench holds an entry frozen to a version of a catalog method that is not approved. Bench evidence can now carry `suitable_as` for each resource and `method_qualification` for an instrument. A refused entry is still audited as `resource.use_blocked`, and its refusals can include a subject `Method <code>` for a required line that was not answered.
+  > - To qualify an instrument for one method, record an equipment qualification whose stage or intended use is the method's code.
+
 - **Added**: Plan open tests on a work list and see reminders of what falls due · Planning · 2026-11-19 · [#61](https://github.com/openbga/qm-lims/pull/61)
 
   A new **Planning** section lists every test that is open or awaiting review, earliest due first, with the analyst it is assigned to and the instrument it is planned on. A test is due by the date a reviewer or quality person sets, or by the **turnaround target** quality sets for lot, stability or reassessment testing; a test keeps the target in force when it was assigned. Reviewers and quality tick tests and use **Plan selected tests** to give them a due date, an analyst and an instrument at once; an analyst can **Assign to me** a test nobody has taken. **Workload** shows open work by due date, by analyst and by instrument, and flags an instrument whose calibration runs out before its planned work. **Reminders** lists the calibrations, stability pulls and reagent and standard lots that fall due in the coming days, and the dashboard counts the tests overdue. Planning authorizes nothing: recording a result still checks the analyst's qualification, the instrument and every lot.

@@ -4,7 +4,7 @@ urls: laboratory:equipment_qualification_new
 views: laboratory.views.qualification_new
 templates: ops/form.html
 models: laboratory.Qualification, laboratory.Equipment, core.AuditEvent
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Record installation, operational or performance qualification evidence for one instrument. It counts toward fitness only after a different quality user approves it.
 ---
 
@@ -17,6 +17,7 @@ summary: Record installation, operational or performance qualification evidence 
 1. Select [[Cancel]] to return to the equipment record. Nothing is saved.
 ## Good to know
 - The equipment counts the evidence only once a quality user other than you approves it, from the approval time and within its dates.
+- Enter a method's code as the stage to qualify the instrument for that method; a method version's instrument line can require it (compared without case).
 - Equipment registered without Requires qualification does not need this evidence to be fit for use.
 - Evidence cannot be edited after it is recorded. Record new evidence instead.
 - Valid until is the last valid day and cannot be before Valid from.
@@ -53,7 +54,7 @@ Record installation/operational/performance qualification evidence for one instr
 | Valid until (inclusive) | `Qualification.valid_until` | Date | Yes | Last valid day; cannot precede Valid from |
 | Reason | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the evidence |
 
-The label of Stage or intended use differs from the person form ("Activity"); help text: "For example IQ, OQ, PQ or requalification."
+The label of Stage or intended use differs from the person form ("Activity"); help text: "For example IQ, OQ, PQ or requalification. To qualify the instrument for one method, enter the method's code: a method version can ask for it. Any approved qualification counts as the instrument's qualification evidence."
 
 ## Rules and hidden logic
 

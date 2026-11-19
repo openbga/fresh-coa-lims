@@ -4,7 +4,7 @@ urls: analytical:import_file
 views: analytical.imports.import_file
 templates: analytical/import_form.html, analytical/_summary.html
 models: analytical.AnalyticalTest, analytical.Observation, analytical.RawDataFile, core.AuditEvent
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: Check the values the method's approved file import reads from a stored export for this test, enter the inputs the file does not hold, and record every row as the next replicate.
 ---
 
@@ -20,7 +20,7 @@ summary: Check the values the method's approved file import reads from a stored 
 - Every row that names the test is read. A file with more rows than replicates left is refused, so no row is left out.
 - A cell that is empty or not a plain number refuses the whole file. Record such results by hand.
 - An imported replicate is corrected like any other, with a reason; the imported original stays visible.
-- A file attached with Attach raw data stays attached even when nothing can be imported from it.
+- A file attached with Attach raw data stays attached even when nothing can be imported from it. Suitable resources the method version lists narrow the equipment and lot choices.
 
 ## Purpose
 
@@ -66,6 +66,7 @@ Shows what the method's approved file import reads from one stored export for th
 - **Nothing imported** (the notice): "No row of the file names T-n in column ..."; "n rows of the file name T-n, but none has ... in column ..."; "The file holds n rows for T-n and the test takes m more replicates. Every row that names the test in ... (and has ... in ..., when the file import selects rows) is read, so none is left out. Record the replicates by hand, with the reason the other rows do not count."; a row with more cells than the column names ("Row n has more cells than the column names in row h, so its values would be read from the wrong columns ..."); a row with more than 500 columns; a missing column ("Row 2 has no column named ..."), a column named twice, a file that is not in the stated encoding, or a cell that is empty or not a plain number ("Row 5, column ... holds ..., which is not a plain number with a decimal point. Nothing was recorded; enter this result by hand or correct the export."); a value the requirement cannot take ("Row n: The value has more than 8 decimal places.", a count that is not whole, or for a calculation an input with more than 8 decimals or 20 digits); "Results from this file are already recorded on this test."; "The stored file failed its integrity check."
 - **Numbers**: an optional sign, digits with the file import's decimal mark and an optional exponent (1.25E+2 is recorded as 125). Thousands separators, units, less-than signs and text are refused, never converted. A value with more than 8 decimals is refused instead of rounded. A recorded value is written out in full (0.0000001, never 1E-7).
 - **On recording**: the server locks the test, rejects a test changed since the page opened ("Record changed. Reload and review before continuing."), repeats every check, reads the stored file again and records all rows or none. A calculated result is calculated from the cells read and the inputs entered, with the method's formula; a refused row is named ("Row 6: ...").
+- **Suitable resources**: the lines come from the approved content of the method version the test is frozen to. Where it lists instrument categories, every instrument selected must be of a listed category; a lot of a kind it lists (reagent, reference standard or prepared solution), or prepared from a lot of such a kind, must be a listed one or prepared from one, while lots of other kinds stay open; every required line must be answered, and such a line makes the matching field required on the form; an instrument whose line asks for it needs an approved, current qualification whose activity is the method code. These refusals appear with the calibration, service, release and expiry refusals, nothing is saved, and the refusal is audited (`resource.use_blocked`).
 - **Effect**: per row an observation with the file, the row and the cells read, and an audit event `observation.imported` with the file's name and SHA-256, the row, the cells, the reading and the hash of the file import. The test revision and the lot's (or pull's or reassessment's) revision rise by 1. A bench refusal is audited as for an observation entered by hand and stores nothing.
 - **Later checks**: the test record, submission and review read every imported replicate's file again; one that no longer agrees blocks submission and review.
 

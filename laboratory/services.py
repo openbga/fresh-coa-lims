@@ -17,6 +17,7 @@ from django.utils import timezone
 from core.audit import record_event, snapshot
 from core.services import require_role, sign_transition
 
+from . import suitability
 from .eligibility import (
     AUTHORITY_MISSING,
     affected_uses,
@@ -679,8 +680,12 @@ def reject_reagent(*, actor, reagent, reason):
 # --- Use authorization -----------------------------------------------------------------------
 
 
-def _lock_and_check(*, actor, activity, equipment_ids, reagent_ids):
+def _lock_and_check(*, actor, activity, equipment_ids, reagent_ids, suitable=None):
     """Lock, then check. Returns (locked equipment, locked reagents, findings).
+
+    ``suitable`` are the lines of the method version's suitable resources (``suitability``);
+    findings then also refuse what the version does not list, and end with a finding of the
+    method when a required line is not answered.
 
     Lock order is fixed so concurrent state changes cannot interleave with the check: account,
     equipment, reagent lineage, qualifications. Approval and revocation lock the qualification row
@@ -715,6 +720,13 @@ def _lock_and_check(*, actor, activity, equipment_ids, reagent_ids):
     findings = check_use(
         analyst=actor, activity=activity, equipment=locked_equipment, reagents=locked_reagents
     )
+    findings = suitability.apply(
+        findings,
+        suitable,
+        activity=activity,
+        equipment=locked_equipment,
+        reagents=locked_reagents,
+    )
     return locked_equipment, locked_reagents, findings
 
 
@@ -734,7 +746,8 @@ def _record_uses(
     """Write one ResourceUse per resource with its evidence, and the audit event (if any)."""
     analyst_evidence = findings[0].evidence
     uses = []
-    for item, finding in zip([*equipment, *reagents], findings[1:], strict=True):
+    items = [*equipment, *reagents]
+    for item, finding in zip(items, findings[1 : 1 + len(items)], strict=True):
         uses.append(
             ResourceUse.objects.create(
                 equipment=item if isinstance(item, Equipment) else None,
@@ -862,9 +875,13 @@ def use_in_work(
     equipment_ids=(),
     reagent_ids=(),
     reason,
+    suitable=None,
 ):
     """Check the analyst and the selected resources for work being recorded by the caller, and
     record their use, inside the caller's transaction.
+
+    ``suitable`` are the lines of the suitable resources of the method version the work is
+    recorded under (see ``suitability``); without them any fit resource may be used.
 
     The caller owns authorization of the actor's role and the lock on its own records. Nothing is
     written when a check fails (UseBlocked); the caller rolls back and then calls
@@ -875,7 +892,11 @@ def use_in_work(
     equipment_ids = _ids(equipment_ids, "equipment item")
     reagent_ids = _ids(reagent_ids, "reagent lot")
     locked_equipment, locked_reagents, findings = _lock_and_check(
-        actor=actor, activity=activity, equipment_ids=equipment_ids, reagent_ids=reagent_ids
+        actor=actor,
+        activity=activity,
+        equipment_ids=equipment_ids,
+        reagent_ids=reagent_ids,
+        suitable=suitable,
     )
     if not all(f.ok for f in findings):
         raise UseBlocked(findings)
@@ -892,6 +913,8 @@ def use_in_work(
         reason=reason,
     )
     by_resource = {(u.equipment_id, u.reagent_lot_id): u for u in uses}
+    # Findings: the analyst, each instrument, each lot (all passed, so nothing follows them).
+    split = 1 + len(locked_equipment)
     return {
         "user": actor.pk,
         "activity": activity.strip(),
@@ -903,7 +926,7 @@ def use_in_work(
                 "asset_id": item.asset_id,
                 "use": by_resource[(item.pk, None)].pk,
             }
-            for item, finding in zip(locked_equipment, findings[1:], strict=False)
+            for item, finding in zip(locked_equipment, findings[1:split], strict=True)
         ],
         "reagents": [
             {
@@ -912,9 +935,7 @@ def use_in_work(
                 "identifier": item.identifier,
                 "use": by_resource[(None, item.pk)].pk,
             }
-            for item, finding in zip(
-                locked_reagents, findings[1 + len(locked_equipment) :], strict=True
-            )
+            for item, finding in zip(locked_reagents, findings[split:], strict=True)
         ],
     }
 
@@ -922,10 +943,12 @@ def use_in_work(
 # --- Choices for work entry -------------------------------------------------------------------
 
 
-def bench_choices():
-    """Equipment and reagent lots offered when recording work: (pk, label) pairs, two queries.
+def bench_choices(suitable=None, activity=""):
+    """Equipment and reagent lots offered when recording work: (pk, label) pairs.
 
-    Labels name the item and its current status in words. Rejected lots are not offered."""
+    Labels name the item and its current status in words. Rejected lots are not offered. With
+    the lines of a method version's suitable resources (``suitable``) only what it lists is
+    offered (``suitability.narrow``)."""
     today = timezone.localdate()
     equipment = [
         (item.pk, f"{item.asset_id} · {item.description} · {equipment_status(item, today)[0]}")
@@ -941,4 +964,5 @@ def bench_choices():
             "identifier", "pk"
         )
     ]
-    return {"equipment": equipment, "reagents": reagents}
+    choices = {"equipment": equipment, "reagents": reagents}
+    return suitability.narrow(choices, suitable, activity=activity)

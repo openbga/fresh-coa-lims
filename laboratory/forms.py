@@ -280,7 +280,11 @@ class QualificationForm(forms.Form):
             del self.fields["work"]
             del self.fields["training"]
             self.fields["activity"].label = "Stage or intended use"
-            self.fields["activity"].help_text = "For example IQ, OQ, PQ or requalification."
+            self.fields["activity"].help_text = (
+                "For example IQ, OQ, PQ or requalification. To qualify the instrument for one "
+                "method, enter the method's code: a method version can ask for it. Any approved "
+                "qualification counts as the instrument's qualification evidence."
+            )
 
     def clean_evidence_url(self):
         from .models import http_url

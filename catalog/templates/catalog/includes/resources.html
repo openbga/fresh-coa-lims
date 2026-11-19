@@ -1,0 +1,15 @@
+{% load ui %}{% comment %}The instruments, reagents, reference standards and prepared solutions a method version lists as suitable. Include with revision=... register=... can_edit=... only. register: show what the laboratory register holds now for each line, read from item.register_now ({"entries": [...], "more": n}, set by the view). Actions show on a draft when can_edit is set.{% endcomment %}
+<h3 class="h6 mt-3">Suitable instruments, reagents and standards</h3>
+{% with rows=revision.resources.all %}{% if rows %}
+<div class="vr-table-wrap"><table class="table vr-table">
+  <caption class="visually-hidden">Suitable instruments, reagents and standards of {{ revision }}</caption>
+  <thead><tr><th scope="col">Resource</th><th scope="col">Use</th>{% if register %}<th scope="col">In the register now</th>{% endif %}{% if revision.is_draft and can_edit %}<th scope="col"><span class="visually-hidden">Actions</span></th>{% endif %}</tr></thead>
+  <tbody>{% for item in rows %}<tr>
+    <th scope="row" class="vr-wrap">{{ item.name }}<small class="d-block vr-muted">{% if item.is_instrument %}Instrument category{% else %}{{ item.get_kind_display }}{% endif %}</small></th>
+    <td class="vr-wrap">{% if item.required %}Recorded with every result{% else %}May be used{% endif %}{% if item.method_qualified %}<small class="d-block vr-muted">Qualified for {{ revision.method.code }}</small>{% endif %}</td>
+    {% if register %}<td class="vr-wrap">{% for entry in item.register_now.entries %}<div>{% if entry.instrument %}<a href="{% url 'laboratory:equipment_detail' entry.pk %}">{{ entry.id }}</a>{% else %}<a href="{% url 'laboratory:reagent_detail' entry.pk %}">{{ entry.id }}</a>{% endif %} {% status label=entry.label tone=entry.tone plain=True %}</div>{% empty %}<span class="vr-muted">{% if item.is_instrument %}No instrument of this category{% else %}No lot in use or awaiting release{% endif %}</span>{% endfor %}{% if item.register_now.more %}<small class="d-block vr-muted">and {{ item.register_now.more }} more</small>{% endif %}</td>{% endif %}
+    {% if revision.is_draft and can_edit %}<td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_resource_remove' revision.pk item.pk %}">Remove<span class="visually-hidden"> {{ item.name }}</span></a></td>{% endif %}
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>None listed. Any instrument, reagent or standard that passes its calibration, release and expiry checks may be recorded.</p>{% endif %}{% endwith %}
+{% if revision.is_draft and can_edit %}<p><a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_resource_new' revision.pk %}">Add suitable resource<span class="visually-hidden"> to version {{ revision.version }}</span></a></p>{% endif %}

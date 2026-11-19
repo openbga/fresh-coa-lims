@@ -33,11 +33,13 @@ from core.services import (
 
 from . import evidence
 from .models import (
+    MAX_METHOD_RESOURCES,
     ExpectedResult,
     Material,
     Method,
     MethodCalculationInput,
     MethodQCCheck,
+    MethodResource,
     MethodRevision,
     RevisionStatus,
     Specification,
@@ -157,8 +159,8 @@ def new_method_revision(
     requires_reagent=None,
     requires_review_qualification=None,
 ):
-    """New draft version; QC checks, the calculation and the file import are copied from the
-    latest prior version.
+    """New draft version; QC checks, the calculation, the file import and the suitable resources
+    are copied from the latest prior version.
 
     The two resource flags and the reviewer qualification are taken from the prior version when
     not given.
@@ -207,6 +209,11 @@ def new_method_revision(
             check.save()
     if previous:
         for item in previous.calculation_inputs.all():
+            item.pk = None
+            item.method_revision = revision
+            item.created_by = actor
+            item.save()
+        for item in previous.resources.all():
             item.pk = None
             item.method_revision = revision
             item.created_by = actor
@@ -270,6 +277,85 @@ def remove_qc_check(*, actor, check, reason):
     record_event(
         actor=actor,
         action="method_revision.qc_check_removed",
+        obj=locked,
+        before=before,
+        reason=reason,
+    )
+    return locked
+
+
+# Suitable resources ------------------------------------------------------------------------------
+
+
+@transaction.atomic
+def add_method_resource(
+    *, actor, revision, reason, kind, name, required=True, method_qualified=False
+):
+    """List an instrument category, or a reagent, reference standard or prepared solution, as
+    suitable for a draft method version. The name must be one the laboratory register records
+    (any case), and is kept as the register first recorded it."""
+    from laboratory.suitability import name_key, register_names
+
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(revision)
+    if kind not in MethodResource.Kind.values:
+        raise ValidationError({"kind": "Choose a kind from the list."})
+    key = name_key(name)
+    if not key:
+        raise ValidationError({"name": "Name the instrument category or the material."})
+    known = {name_key(item): item for item in register_names().get(kind, [])}
+    if key not in known:
+        noun = "equipment category" if kind == MethodResource.Kind.INSTRUMENT else "lot name"
+        raise ValidationError(
+            {"name": f"No {noun} of this kind in the laboratory register is named like this."}
+        )
+    if method_qualified and kind != MethodResource.Kind.INSTRUMENT:
+        raise ValidationError(
+            {"method_qualified": "Only an instrument can be asked to be qualified for the method."}
+        )
+    current = list(locked.resources.all())
+    if any(item.kind == kind and name_key(item.name) == key for item in current):
+        raise ValidationError({"name": "This version already lists it."})
+    if len(current) >= MAX_METHOD_RESOURCES:
+        raise ValidationError(
+            f"A method version lists at most {MAX_METHOD_RESOURCES} suitable resources."
+        )
+    item = MethodResource(
+        method_revision=locked,
+        kind=kind,
+        name=known[key],
+        required=bool(required),
+        method_qualified=bool(method_qualified),
+        created_by=actor,
+    )
+    item.full_clean()
+    item.save()
+    _bump(locked)
+    record_event(
+        actor=actor,
+        action="method_revision.resource_added",
+        obj=locked,
+        after=item.content(),
+        reason=reason,
+    )
+    return item
+
+
+@transaction.atomic
+def remove_method_resource(*, actor, item, reason, expected_revision=None):
+    require_role(actor, AUTHOR_ROLE)
+    _require_reason(reason)
+    locked = _locked_draft(item.method_revision)
+    if expected_revision is not None and locked.revision != expected_revision:
+        raise ValidationError("The version changed. Reload before removing this line.")
+    item = MethodResource.objects.select_for_update().get(pk=item.pk, method_revision=locked)
+    before = item.content()
+    item.delete()
+    _bump(locked)
+    record_event(
+        actor=actor,
+        action="method_revision.resource_removed",
         obj=locked,
         before=before,
         reason=reason,

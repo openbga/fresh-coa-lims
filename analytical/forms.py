@@ -37,11 +37,13 @@ class RevisionReasonForm(ReasonForm):
 def bench_fields(choices, method):
     """Equipment and reagent or standard lot checkboxes from the bench's choices.
 
-    A kind is required when the method requires it; a kind with no choices that the method does
-    not require is left out. ``cleaned_data`` keys are the service's ``equipment_ids`` and
+    A kind is required when the method requires it, or when the bench says the method version
+    lists one that every result records (``choices["required"]``); a kind with no choices that
+    is not required is left out. ``cleaned_data`` keys are the service's ``equipment_ids`` and
     ``reagent_ids``.
     """
     fields = {}
+    listed = choices.get("required") or {}
     for key, choice_key, label, required, noun in [
         ("equipment_ids", "equipment", "Equipment used", method.requires_equipment, "instrument"),
         (
@@ -52,6 +54,7 @@ def bench_fields(choices, method):
             "reagent or standard lot",
         ),
     ]:
+        required = required or bool(listed.get(choice_key))
         options = list(choices.get(choice_key, []))
         if not options and not required:
             continue

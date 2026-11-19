@@ -47,22 +47,57 @@ class CatalogRequirementProvider:
         return result
 
 
+def method_resources(method_code, method_revision):
+    """The suitable resources the approved method version lists (catalog), as plain lines for
+    the laboratory checks; ``[]`` when it lists none or no version is named. The approved content
+    never changes, so the answer is the same for the whole life of a test frozen to it. A
+    version the catalog does not hold approved, of a method it knows, holds the entry rather
+    than accept any resource; a method from another requirement source lists nothing here."""
+    from catalog.models import Method, MethodRevision
+
+    if method_revision is None:
+        return []
+    content = (
+        MethodRevision.objects.filter(
+            method__code=method_code,
+            version=method_revision,
+            approved_content__isnull=False,
+        )
+        .values_list("approved_content", flat=True)
+        .first()
+    )
+    if content is None:
+        if not Method.objects.filter(code=method_code).exists():
+            return []
+        raise ValidationError(
+            f"Method {method_code} version {method_revision} is not approved here; results "
+            "are held."
+        )
+    return list(content.get("resources") or [])
+
+
 class LaboratoryBench:
     """Bench checks for result entry, evaluated by the laboratory module.
 
     Testing calls this inside the transaction that records an observation or a batch QC result:
     the analyst needs a current approved qualification for the method, and every instrument and
-    reagent or standard lot selected must be fit for use. Success records the resource uses and
-    returns the evidence relied on; a refusal is audited after the entry has rolled back.
+    reagent or standard lot selected must be fit for use. Where the method version the work is
+    recorded under lists the instruments, reagents and standards suitable for it, each one
+    selected must be one it lists and every required line must be answered. Success records the
+    resource uses and returns the evidence relied on; a refusal is audited after the entry has
+    rolled back.
 
     A result reported by a contract laboratory takes the other door: the laboratory needs a signed
     approval for the method that covers the date of its report.
     """
 
-    def choices(self):
+    def choices(self, method_code=None, method_revision=None):
+        """What the analyst can select; only what the method version lists, when it lists any."""
         from laboratory.services import bench_choices
 
-        return bench_choices()
+        return bench_choices(
+            method_resources(method_code, method_revision), activity=method_code or ""
+        )
 
     def lock_actor(self, actor):
         from django.db import connection
@@ -86,6 +121,7 @@ class LaboratoryBench:
         equipment_ids,
         reagent_ids,
         reason,
+        method_revision=None,
     ):
         from analytical.contracts import WorkRefused
         from laboratory.services import UseBlocked, use_in_work
@@ -100,6 +136,7 @@ class LaboratoryBench:
                 equipment_ids=equipment_ids,
                 reagent_ids=reagent_ids,
                 reason=reason,
+                suitable=method_resources(method_code, method_revision),
             )
         except UseBlocked as exc:
             raise WorkRefused(

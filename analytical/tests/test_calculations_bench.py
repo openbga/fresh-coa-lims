@@ -298,6 +298,7 @@ def test_calculated_observation_keeps_inputs_formula_and_method(people, calc):
     (authorized,) = bench_calls("authorize")
     assert authorized == {
         "method_code": "SYN-UV",
+        "method_revision": test.spec.method.revision,
         "test_code": "uv_assay",
         "context_type": "analytical.analyticaltest",
         "context_id": test.pk,

@@ -311,7 +311,13 @@ def form_options(test, form):
     wanted = targets(test.spec)
     if not wanted or reading_refusal(test):
         return None
-    instruments = list(bench().connections().values())
+    # Only the instruments the analyst can select under Equipment used (which the bench narrows
+    # to those the method version lists as suitable): a reading is recorded only with its
+    # instrument selected there.
+    selectable = form.fields.get("equipment_ids")
+    offered = {str(value) for value, _ in selectable.choices} if selectable is not None else set()
+    connections = {pk: c for pk, c in bench().connections().items() if str(pk) in offered}
+    instruments = list(connections.values())
     fields = [
         {
             "name": field,

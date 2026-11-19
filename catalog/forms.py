@@ -12,6 +12,7 @@ from .models import (
     Method,
     MethodEvidence,
     MethodEvidenceCharacteristic,
+    MethodResource,
     ResultType,
     Specification,
     Stage,
@@ -315,6 +316,57 @@ class QCCheckForm(GroupedForm):
         ("Acceptance limits (inclusive)", ["unit", "lower_limit", "upper_limit"]),
         ("Change control", ["reason"]),
     ]
+
+
+class MethodResourceForm(GroupedForm):
+    """A suitable instrument category, reagent, reference standard or prepared solution, chosen
+    from the names the laboratory register records for each kind. ``cleaned_data`` holds the
+    service's ``kind`` and ``name``."""
+
+    resource = forms.ChoiceField(
+        label="Name in the register",
+        help_text="An instrument is listed by its equipment category; a reagent, standard or "
+        "solution by the name its lots carry.",
+    )
+    required = forms.BooleanField(
+        label="Recorded with every result",
+        required=False,
+        initial=True,
+        help_text="Every result and batch QC entry must record one. Otherwise it may be used.",
+    )
+    method_qualified = forms.BooleanField(
+        label="Qualified for the method",
+        required=False,
+        help_text="Instruments only: the instrument also needs an approved, current "
+        "qualification whose activity is this method's code.",
+    )
+    reason = reason_field()
+    groups = [
+        ("Suitable resource", ["resource", "required", "method_qualified"]),
+        ("Change control", ["reason"]),
+    ]
+
+    def __init__(self, *args, names, **kwargs):
+        """``names``: ``{kind: [name, ...]}`` from the laboratory register."""
+        super().__init__(*args, **kwargs)
+        labels = dict(MethodResource.Kind.choices)
+        self.fields["resource"].choices = [("", "Choose from the register")] + [
+            (labels[kind], [(f"{kind}|{name}", name) for name in names.get(kind, [])])
+            for kind in MethodResource.Kind.values
+            if names.get(kind)
+        ]
+
+    def clean(self):
+        data = super().clean()
+        kind, _, name = (data.pop("resource", None) or "").partition("|")
+        if kind:
+            data["kind"], data["name"] = kind, name
+            if data.get("method_qualified") and kind != MethodResource.Kind.INSTRUMENT:
+                self.add_error(
+                    "method_qualified",
+                    "Only an instrument can be asked to be qualified for the method.",
+                )
+        return data
 
 
 class CalculationInputForm(GroupedForm):

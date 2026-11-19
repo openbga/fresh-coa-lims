@@ -122,6 +122,8 @@ FORM_SURFACES = {
     "catalog:qc_check_remove": ("sm", ("quality",)),
     "catalog:calculation_set": ("lg", ("quality",)),
     "catalog:calculation_clear": ("sm", ("quality",)),
+    "catalog:method_resource_new": ("md", ("quality",)),
+    "catalog:method_resource_remove": ("sm", ("quality",)),
     "catalog:calculation_input_new": ("md", ("quality",)),
     "catalog:calculation_input_remove": ("sm", ("quality",)),
     "catalog:file_import_set": ("lg", ("quality",)),

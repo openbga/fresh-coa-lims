@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.validators import URLValidator
 from django.db import models
 from django.db.models import F, Q
+from django.db.models.functions import Lower
 
 from core import formulas
 
@@ -511,6 +512,10 @@ class MethodRevision(ControlledRevision):
             "effective_from": self.effective_from.isoformat(),
             "effective_until": self.effective_until.isoformat(),
         }
+        # Only a version that lists suitable resources carries the key, so the content (and the
+        # hash) of every other version stays as it was.
+        if self.pk and (resources := [item.content() for item in self.resources.all()]):
+            content["resources"] = resources
         # Only a version that relies on a record kept here carries the key.
         if self.evidence_id:
             evidence = self.evidence
@@ -615,6 +620,71 @@ class MethodCalculationInput(models.Model):
 
     def content(self):
         return {"code": self.code, "name": self.name, "unit": self.unit}
+
+
+MAX_METHOD_RESOURCES = 20
+
+
+class MethodResource(models.Model):
+    """A kind of instrument, or a reagent, reference standard or prepared solution, suitable for
+    a method version. Added and removed only while the version is a draft (database guard in
+    migration 0010) and frozen with its approved content.
+
+    An instrument line names an equipment category; the other kinds name a reagent lot's kind and
+    name as the laboratory register records them. ``required``: every result and batch QC entry
+    records one. ``method_qualified`` (instruments only): the instrument also needs an approved,
+    current qualification whose activity is the method's code.
+    """
+
+    class Kind(models.TextChoices):
+        INSTRUMENT = "instrument", "Instrument"
+        # The values of laboratory.ReagentLot.Kind, which a line is matched against.
+        REAGENT = "reagent", "Reagent"
+        STANDARD = "reference_standard", "Reference standard"
+        PREPARED = "prepared_solution", "Prepared solution"
+
+    method_revision = models.ForeignKey(
+        MethodRevision, on_delete=models.PROTECT, related_name="resources"
+    )
+    kind = models.CharField(max_length=24, choices=Kind)
+    name = models.CharField(
+        max_length=160,
+        help_text="The equipment category, or the name of the reagent, standard or solution, "
+        "as the register records it.",
+    )
+    required = models.BooleanField("Recorded with every result", default=True)
+    method_qualified = models.BooleanField("Qualified for the method", default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(
+                "method_revision", "kind", Lower("name"), name="method_resource_unique"
+            ),
+            models.CheckConstraint(
+                condition=Q(kind="instrument") | Q(method_qualified=False),
+                name="method_resource_qualified_instrument",
+            ),
+            models.CheckConstraint(condition=~Q(name=""), name="method_resource_named"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.name}"
+
+    @property
+    def is_instrument(self):
+        return self.kind == self.Kind.INSTRUMENT
+
+    def content(self):
+        return {
+            "kind": self.kind,
+            "name": self.name,
+            "required": self.required,
+            "method_qualified": self.method_qualified,
+        }
 
 
 class MethodQCCheck(models.Model):
