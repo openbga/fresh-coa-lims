@@ -184,6 +184,12 @@ class MethodRevision(ControlledRevision):
         help_text="Every result and batch QC entry must record at least one reagent or "
         "standard lot.",
     )
+    requires_review_qualification = models.BooleanField(
+        "Reviewers qualified for the method",
+        default=False,
+        help_text="Whoever reviews or returns a result of this version needs an approved, "
+        "current qualification to review the method.",
+    )
     # One optional calculation. Formula, unit and decimals are changed on a draft by services
     # (the database allows only these three columns to change on a draft); its inputs are
     # MethodCalculationInput rows. A version without a formula and without inputs has none.
@@ -221,6 +227,7 @@ class MethodRevision(ControlledRevision):
             "requires_batch": self.requires_batch,
             "requires_equipment": self.requires_equipment,
             "requires_reagent": self.requires_reagent,
+            "requires_review_qualification": self.requires_review_qualification,
             "qc_checks": [check.content() for check in self.qc_checks.all()],
             "calculation": self.calculation(),
             "file_import": self.file_import,

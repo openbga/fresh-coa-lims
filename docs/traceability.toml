@@ -70,10 +70,12 @@
     "e2e/test_role_navigation.py",
     "e2e/test_security_key_journey.py",
     "e2e/test_single_sign_on_journey.py",
+    "e2e/test_training_journey.py",
     "e2e/test_two_factor_journey.py",
     "e2e/test_user_management.py",
     "laboratory/tests/test_admin_access.py",
     "laboratory/tests/test_contract.py",
+    "laboratory/tests/test_training.py",
     "reporting/tests/test_admin_access.py",
     "sampling/tests/test_admin_access.py",
     "stability/tests/test_admin_access.py",
@@ -84,6 +86,7 @@
     "tests/test_impact_assessment.py",
     "tests/test_journey.py",
     "tests/test_lookups.py",
+    "tests/test_review_qualification.py",
     "tests/test_security_hardening.py",
 ]
 "OQ-005" = [
@@ -92,6 +95,7 @@
     "sampling/tests/test_services.py",
     "sampling/tests/test_views.py",
     "tests/test_formulas.py",
+    "tests/test_review_qualification.py",
 ]
 "OQ-006" = [
     "analytical/tests/test_contract_results.py",
@@ -232,8 +236,10 @@
     "e2e/test_calculation_bench_journey.py",
     "e2e/test_figures_journey.py",
     "e2e/test_planning_journey.py",
+    "e2e/test_training_journey.py",
     "laboratory/tests/test_bench.py",
     "laboratory/tests/test_services.py",
+    "laboratory/tests/test_training.py",
     "laboratory/tests/test_views.py",
     "planning/tests/",
     "tests/test_calculation_bench_journey.py",

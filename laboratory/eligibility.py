@@ -128,20 +128,45 @@ def reagent_eligibility(reagent, at=None):
     return Finding(reagent.identifier, not reasons, tuple(reasons), evidence)
 
 
-def analyst_eligibility(user, activity, at=None):
+def _person_eligibility(user, activity, work, at, missing):
     at = at or timezone.now()
     activity = (activity or "").strip()
     reasons = []
     evidence = {"user": user.pk, "activity": activity}
     if not user.is_active:
         reasons.append("The account is inactive.")
-    candidates = Qualification.objects.filter(user=user, activity__iexact=activity)
+    candidates = Qualification.objects.filter(user=user, work=work, activity__iexact=activity)
     qualified = [q for q in candidates if qualification_valid(q, at)] if activity else []
     if qualified:
         evidence["qualification"] = max(qualified, key=lambda q: q.pk).pk
     else:
-        reasons.append(f"No approved, current qualification for “{activity or 'activity'}”.")
+        reasons.append(missing.format(activity=activity or "activity"))
     return Finding(user.get_username(), not reasons, tuple(reasons), evidence)
+
+
+def analyst_eligibility(user, activity, at=None):
+    """Whether ``user`` may perform ``activity`` (a method code): an approved qualification to
+    perform it, current at ``at``. A qualification to review does not count."""
+    return _person_eligibility(
+        user,
+        activity,
+        Qualification.Work.PERFORM,
+        at,
+        "No approved, current qualification for “{activity}”.",
+    )
+
+
+def reviewer_eligibility(user, activity, at=None):
+    """Whether ``user`` may review results of ``activity`` (a method code) where its method
+    version asks for qualified reviewers: an approved qualification to review it, current at
+    ``at``. A qualification to perform the method does not count."""
+    return _person_eligibility(
+        user,
+        activity,
+        Qualification.Work.REVIEW,
+        at,
+        "No approved, current qualification to review “{activity}”.",
+    )
 
 
 def check_use(*, analyst, activity, equipment=(), reagents=(), at=None):

@@ -339,6 +339,58 @@ class Reassessments:
         return module.lock(reassessment_ids, refuse=refuse)
 
 
+class LaboratoryReviewers:
+    """Who may review a test's results beyond the reviewer role (settings.ANALYTICAL_REVIEWERS).
+
+    A method version approved with ``requires_review_qualification`` (catalog) asks that whoever
+    reviews or returns a result of it holds an approved, current qualification to review that
+    method (laboratory). The version is the one the test froze; its approved content never
+    changes, so the answer is the same for the test's whole life. ``check`` returns the evidence
+    to freeze on the test, ``{}`` where the version asks for nothing, or the reason for refusal.
+    """
+
+    def asks(self, *, method_code, method_revision):
+        """Whether the approved method version asks for qualified reviewers."""
+        from catalog.models import MethodRevision
+
+        content = (
+            MethodRevision.objects.filter(
+                method__code=method_code,
+                version=method_revision,
+                approved_content__isnull=False,
+            )
+            .values_list("approved_content", flat=True)
+            .first()
+        )
+        return bool((content or {}).get("requires_review_qualification"))
+
+    def check(self, *, actor, method_code, method_revision, lock=False):
+        from laboratory.services import review_finding
+
+        if not self.asks(method_code=method_code, method_revision=method_revision):
+            return {}, None
+        finding = review_finding(actor=actor, activity=method_code, lock=lock)
+        if not finding.ok:
+            return None, " ".join(finding.reasons)
+        return {
+            "activity": method_code,
+            "method_revision": method_revision,
+            "qualification": finding.evidence["qualification"],
+        }, None
+
+    def describe(self, evidence):
+        """The qualification frozen on a reviewed test, as a label and its page, or None."""
+        from django.urls import reverse
+
+        pk = (evidence or {}).get("qualification")
+        if not isinstance(pk, int):
+            return None
+        return {
+            "label": f"QUAL-{pk}",
+            "href": reverse("laboratory:qualification_detail", args=[pk]),
+        }
+
+
 def report_holds(lot):
     from stability.gates import lot_hold_evidence
 

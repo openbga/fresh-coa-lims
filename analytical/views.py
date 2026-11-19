@@ -768,9 +768,12 @@ def test_detail(request, pk):
     can_review = can_return = False
     if "reviewer" in user_roles and test.state == "submitted":
         subject = services.subject_refusal(test)
-        review_note = subject or services.review_refusal(request.user, test) or ""
+        # review_refusal and return_refusal, with the reviewer check run once for both.
+        reviewer = services.reviewer_refusal(request.user, test)
+        review_note = subject or services.review_state_refusal(request.user, test) or reviewer
+        review_note = review_note or ""
         can_review = not review_note
-        can_return = not (subject or services.return_refusal(request.user, test))
+        can_return = not (subject or services.return_state_refusal(request.user, test) or reviewer)
     can_batch = (
         "analyst" in user_roles
         and is_open
@@ -838,6 +841,8 @@ def test_detail(request, pk):
             "qc_ready": qc_ready,
             "can_review": can_review,
             "review_note": review_note,
+            "reviewer_asked": services.reviewer_asked(test),
+            "reviewer_evidence": services.reviewer_evidence(test),
             "can_not_complete": can_not_complete,
             "not_completed_note": not_completed_note,
             "contract_note": contract_note,

@@ -290,6 +290,10 @@ ANALYTICAL_STABILITY_PULLS = "config.integrations.StabilityPulls"
 # requirements in force, whether the reassessment still takes testing, and for its lock. Without
 # this setting no reassessment is tested in the system.
 ANALYTICAL_REASSESSMENTS = "config.integrations.Reassessments"
+# Reviewing or returning a test asks the laboratory module whether the reviewer holds a current
+# qualification to review the method, where the test's approved method version asks for one.
+# The system check analytical.E001 refuses to start without it.
+ANALYTICAL_REVIEWERS = "config.integrations.LaboratoryReviewers"
 # Replacing a lot's requirements during testing asks the testing module which of the lot's tests
 # carry over and which are superseded. Without this setting requirements cannot be replaced
 # once testing has started.

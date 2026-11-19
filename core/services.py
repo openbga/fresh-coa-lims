@@ -88,6 +88,10 @@ def verify_pin(actor, pin):
     return credential.encoded
 
 
+def _roles(permission):
+    return permission if isinstance(permission, tuple) else (permission,)
+
+
 @sensitive_variables()
 def lock_signer(actor, permission, encoded):
     """Lock the signer, then the credential (the order PIN changes and role changes use), and
@@ -95,7 +99,7 @@ def lock_signer(actor, permission, encoded):
     the stored hash, so all of them, and those of the queries below, stay out of error reports."""
     actor = get_user_model().objects.select_for_update().get(pk=actor.pk)
     credential = PINCredential.objects.select_for_update().filter(user=actor).first()
-    require_role(actor, permission)
+    require_role(actor, *_roles(permission))
     if (
         credential is None  # Re-enrollment was required after verification.
         or credential.encoded != encoded
@@ -115,8 +119,11 @@ def sign_transition(
     ``prepare`` runs inside the transaction after the signer is locked and before the record
     is: a transition that also writes rows which its module locks ahead of this record takes
     those locks there, so that it never locks out of order.
+
+    ``permission`` is the role the signer needs, or a tuple of roles any one of which will do
+    (the trainee acknowledging their own training holds whichever laboratory role they have).
     """
-    require_role(actor, permission)
+    require_role(actor, *_roles(permission))
     if not reason.strip() or not meaning.strip():
         raise ValidationError("Meaning and reason are required.")
     from .session_control import signing_context

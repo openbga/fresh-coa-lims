@@ -3,9 +3,9 @@ title: Laboratory operations
 urls: laboratory:overview
 views: laboratory.views.overview
 templates: ops/overview.html
-models: laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification, laboratory.ContractApproval
-reviewed: 2026-11-17
-summary: Work queues for laboratory fitness: equipment calibration and service, reagent lots, qualifications and contract laboratory approvals. Each queue opens the list that resolves it.
+models: laboratory.Equipment, laboratory.Calibration, laboratory.ReagentLot, laboratory.Qualification, laboratory.TrainingRecord, laboratory.ContractApproval
+reviewed: 2026-11-19
+summary: Work queues for laboratory fitness: equipment calibration and service, reagent lots, qualifications, training and contract laboratory approvals. Each queue opens the list that resolves it.
 ---
 
 ## Common tasks
@@ -13,10 +13,10 @@ summary: Work queues for laboratory fitness: equipment calibration and service, 
 1. Look for queues marked [[Needs attention]]. [[Clear]] means nothing is waiting.
 2. Select a queue name, for example [[Calibration overdue]], to open the list already filtered to those records.
 ### Find work waiting for a signature
-1. Select [[Calibrations awaiting acceptance]], [[Reagent lots awaiting release]] or [[Qualifications awaiting approval]].
-2. Open a record from that list. You cannot sign evidence you recorded yourself.
+1. Select [[Calibrations awaiting acceptance]], [[Reagent lots awaiting release]], [[Qualifications awaiting approval]] or [[Training awaiting acknowledgement]].
+2. Open a record from that list. You cannot sign evidence you recorded yourself, and only the trainee acknowledges training.
 ### Open a laboratory list
-1. Select a tab: [[Equipment]], [[Calibrations]], [[Qualifications]], [[Reagents and standards]], [[Contract laboratories]] or [[Resource use]].
+1. Select a tab: [[Equipment]], [[Calibrations]], [[Qualifications]], [[Training]], [[Reagents and standards]], [[Contract laboratories]] or [[Resource use]].
 ## Good to know
 - The counts cover everyone's records, not only your own work.
 - Equipment that is not calibrated, has failed or is not qualified has no queue here. Use the Not calibrated or qualified status on the Equipment list.
@@ -25,7 +25,7 @@ summary: Work queues for laboratory fitness: equipment calibration and service, 
 
 ## Purpose
 
-Work queues for equipment fitness, reagent lots, qualifications and contract laboratory approvals, each linking to the filtered list that resolves it.
+Work queues for equipment fitness, reagent lots, qualifications, training and contract laboratory approvals, each linking to the filtered list that resolves it.
 
 ## Who can use it
 
@@ -34,7 +34,7 @@ Work queues for equipment fitness, reagent lots, qualifications and contract lab
 
 ## Layout
 
-- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
+- **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Training, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - Dateline, title and introduction ("Equipment fitness, reagent and standard provenance, analyst qualification and contract laboratory approvals: the gates for laboratory work."), then one table of queues: **Queue**, **Records** (count) and **Attention** ("Needs attention" or "Clear").
 - Queues, in this order, with what each counts and the list it opens:
 
@@ -48,6 +48,7 @@ Work queues for equipment fitness, reagent lots, qualifications and contract lab
 | Released lots expiring within 30 days | Released lots expiring today to 30 days ahead | Reagents, Expiring within 30 days |
 | Released lots past expiry | Released lots past expiry | Reagents, Released but expired |
 | Qualifications awaiting approval | Qualifications in state Awaiting approval | Qualifications, Awaiting approval |
+| Training awaiting acknowledgement | Training records in state Awaiting acknowledgement | Training, Awaiting acknowledgement |
 | Qualifications expiring within 30 days | Approved qualifications already in effect and ending today to 30 days ahead (future-dated approvals are not counted until they start) | Qualifications, Expiring within 30 days |
 | Contract laboratories with an approval awaiting signature | Contract laboratories holding at least one approval in state Awaiting approval | Contract laboratories, Approval awaiting signature |
 | Contract laboratories with an approval expiring within 30 days | Contract laboratories holding at least one signed, unrevoked approval already in effect and ending today to 30 days ahead | Contract laboratories, Approval expiring within 30 days |

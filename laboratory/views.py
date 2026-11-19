@@ -35,6 +35,7 @@ from .forms import (
     ReagentForm,
     ReasonForm,
     SigningForm,
+    TrainingForm,
     UseForm,
 )
 from .models import (
@@ -44,8 +45,9 @@ from .models import (
     Qualification,
     ReagentLot,
     ResourceUse,
+    TrainingRecord,
 )
-from .services import UseBlocked
+from .services import ANY_SCIENTIFIC, UseBlocked
 from .ui import (
     access,
     action,
@@ -153,6 +155,12 @@ def overview(request):
             Qualification.objects.filter(state="recorded").count(),
             "info",
             reverse("laboratory:qualification_list") + "?status=recorded",
+        ),
+        (
+            "Training awaiting acknowledgement",
+            TrainingRecord.objects.filter(state="recorded").count(),
+            "info",
+            reverse("laboratory:training_list") + "?status=recorded",
         ),
         (
             "Qualifications expiring within 30 days",
@@ -913,12 +921,23 @@ QUALIFICATION_STATUS = [
 ]
 
 
+def qualified_for(q):
+    """What a qualification is for, in words: an instrument's is always for its use."""
+    return q.get_work_display() if q.user_id else "Intended use"
+
+
 @login_required
 def qualification_list(request):
     access(request.user)
     today, soon = _soon()
-    form, data = make_filter(request, QUALIFICATION_STATUS)
+    form, data = make_filter(
+        request,
+        QUALIFICATION_STATUS,
+        extra={"work": ("Qualified for", Qualification.Work.choices)},
+    )
     queryset = Qualification.objects.select_related("user", "equipment")
+    if data.get("work"):
+        queryset = queryset.filter(work=data["work"])
     if data.get("q"):
         q = data["q"]
         queryset = queryset.filter(
@@ -961,6 +980,7 @@ def qualification_list(request):
                 ),
                 str(q.subject),
                 "Analyst" if q.user_id else "Equipment",
+                qualified_for(q),
                 day(q.valid_from),
                 day(q.valid_until),
                 status(label, tone),
@@ -969,13 +989,14 @@ def qualification_list(request):
     return list_page(
         request,
         title="Qualifications",
-        intro="Approved training and qualification evidence by activity or method. "
-        "Group membership alone never qualifies anyone.",
+        intro="Approved qualification evidence by activity or method, for performing the "
+        "work or reviewing its results. Group membership alone never qualifies anyone.",
         noun="qualifications",
         columns=[
             ("Activity", "activity", False),
             ("Subject", None, False),
             ("Type", None, False),
+            ("Qualified for", None, False),
             ("Valid from", None, False),
             ("Valid until (inclusive)", "until", False),
             ("State", None, False),
@@ -996,7 +1017,13 @@ def qualification_list(request):
 def qualification_new(request, equipment_pk=None):
     require_role(request.user, "analyst", "reviewer", "quality")
     item = get_object_or_404(Equipment, pk=equipment_pk) if equipment_pk else None
-    form = QualificationForm(request.POST or None, equipment=item)
+    initial = {}
+    if item is None and request.method == "GET" and request.GET.get("training", "").isdigit():
+        # Opened from a training record: the person, the activity and that record.
+        source = TrainingRecord.objects.filter(pk=request.GET["training"]).first()
+        if source is not None and source.supports_qualification:
+            initial = {"user": source.trainee, "activity": source.activity, "training": [source]}
+    form = QualificationForm(request.POST or None, equipment=item, initial=initial)
     if request.method == "POST" and form.is_valid():
         values = dict(form.cleaned_data)
         done, _ = run_form(
@@ -1031,7 +1058,9 @@ def qualification_detail(request, pk):
     today = timezone.localdate()
     state_label, state_tone, _ = qualification_status(q, today)
     user = request.user
-    eligible_actor = user.pk not in (q.recorded_by_id, q.user_id)
+    eligible_actor = user.pk not in (q.recorded_by_id, q.user_id) and not training_recorded_by(
+        q, user
+    )
     actions = [
         action("Approve", reverse("laboratory:qualification_approve", args=[q.pk]), True)
         if q.state == "recorded" and eligible_actor and can(user, "quality")
@@ -1056,6 +1085,7 @@ def qualification_detail(request, pk):
         facts=[
             ("Subject", str(q.subject)),
             ("Type", "Analyst" if q.user_id else "Equipment"),
+            ("Qualified for", qualified_for(q)),
             ("Valid from", day(q.valid_from)),
             ("Valid until (inclusive)", day(q.valid_until)),
             ("Evidence reference", q.evidence_ref),
@@ -1065,7 +1095,44 @@ def qualification_detail(request, pk):
             ("Revision", q.revision),
         ],
         actions=actions,
+        sections=[training_section(q)] if q.user_id else [],
         related=[q],
+    )
+
+
+def training_recorded_by(q, user):
+    """Whether ``user`` recorded a training record the qualification relies on."""
+    return TrainingRecord.objects.filter(pk__in=q.training or [], recorded_by=user).exists()
+
+
+def training_section(q):
+    """The training records a person's qualification relies on, as recorded with it."""
+    records = TrainingRecord.objects.filter(pk__in=q.training or []).order_by("completed_on", "pk")
+    return section(
+        "Training relied on",
+        [
+            ("Training", False),
+            ("Kind", False),
+            ("Outcome", False),
+            ("Completed on", False),
+            ("Trainer or assessor", False, "low"),
+        ],
+        [
+            [
+                cell(
+                    t.identifier,
+                    reverse("laboratory:training_detail", args=[t.pk]),
+                    sub=t.document_ref,
+                ),
+                t.get_kind_display(),
+                t.get_outcome_display(),
+                day(t.completed_on),
+                t.trainer,
+            ]
+            for t in records
+        ],
+        "This evidence cites no training record in the system; its evidence reference "
+        "names the record relied on.",
     )
 
 
@@ -1075,6 +1142,8 @@ def _qualification_sign(request, pk, *, approve):
     denial = ""
     if approve and request.user.pk in (q.recorded_by_id, q.user_id):
         denial = "The recorder and the qualified person cannot approve this qualification."
+    elif approve and training_recorded_by(q, request.user):
+        denial = services.TRAINING_RECORDER_APPROVES
     elif not approve and q.user_id == request.user.pk:
         denial = "You cannot revoke your own qualification."
     elif q.state != ("recorded" if approve else "approved"):
@@ -1098,8 +1167,13 @@ def _qualification_sign(request, pk, *, approve):
         facts=[
             ("Subject", str(q.subject)),
             ("Activity", q.activity),
+            ("Qualified for", qualified_for(q)),
             ("Valid", f"{day(q.valid_from)} to {day(q.valid_until)}"),
             ("Evidence", q.evidence_ref),
+            (
+                "Training relied on",
+                ", ".join(f"TRN-{pk}" for pk in q.training) if q.training else "None cited",
+            ),
         ],
         revision=q.revision,
         cancel_url=detail,
@@ -1129,6 +1203,263 @@ def qualification_approve(request, pk):
 @login_required
 def qualification_revoke(request, pk):
     return _qualification_sign(request, pk, approve=False)
+
+
+# --- Training --------------------------------------------------------------------------------
+
+TRAINING_STATUS = [
+    ("recorded", "Awaiting acknowledgement"),
+    ("acknowledged", "Acknowledged"),
+]
+
+
+def training_status(t):
+    """(label, tone) of a training record's state."""
+    if t.state == TrainingRecord.State.RECORDED:
+        return t.get_state_display(), "progress"
+    return t.get_state_display(), "success"
+
+
+def training_outcome(t):
+    """The outcome, as a warning when an assessment found the trainee not yet competent: no
+    qualification can rely on that record."""
+    if t.outcome == TrainingRecord.Outcome.NOT_YET_COMPETENT:
+        return status(t.get_outcome_display(), "warning")
+    return t.get_outcome_display()
+
+
+@login_required
+def training_list(request):
+    access(request.user)
+    form, data = make_filter(
+        request,
+        TRAINING_STATUS,
+        extra={
+            "kind": ("Kind", TrainingRecord.Kind.choices),
+            "outcome": ("Outcome", TrainingRecord.Outcome.choices),
+        },
+    )
+    queryset = TrainingRecord.objects.select_related("trainee")
+    if data.get("q"):
+        q = data["q"]
+        queryset = queryset.filter(
+            Q(activity__icontains=q)
+            | Q(document_ref__icontains=q)
+            | Q(trainer__icontains=q)
+            | Q(trainee__username__icontains=q)
+            | Q(trainee__first_name__icontains=q)
+            | Q(trainee__last_name__icontains=q)
+        )
+    if data.get("status"):
+        queryset = queryset.filter(state=data["status"])
+    if data.get("kind"):
+        queryset = queryset.filter(kind=data["kind"])
+    if data.get("outcome"):
+        queryset = queryset.filter(outcome=data["outcome"])
+    page, sort, descending = paginate(
+        request,
+        queryset,
+        {"completed": ["completed_on"], "activity": ["activity"]},
+        "-completed",
+    )
+    rows = []
+    for t in page:
+        label, tone = training_status(t)
+        rows.append(
+            [
+                cell(
+                    t.identifier,
+                    reverse("laboratory:training_detail", args=[t.pk]),
+                    sub=t.document_ref,
+                ),
+                person(t.trainee),
+                t.activity,
+                t.get_kind_display(),
+                training_outcome(t),
+                day(t.completed_on),
+                status(label, tone),
+            ]
+        )
+    return list_page(
+        request,
+        title="Training",
+        intro="Training records of each person by method or activity. A record qualifies "
+        "nobody: once the trainee acknowledges it, a qualification can rely on it.",
+        noun="training records",
+        columns=[
+            ("Training", None, False),
+            ("Trainee", None, False),
+            ("Activity", "activity", False),
+            ("Kind", None, False),
+            ("Outcome", None, False),
+            ("Completed on", "completed", False),
+            ("State", None, False),
+        ],
+        rows=rows,
+        page=page,
+        sort=sort,
+        descending=descending,
+        filter_form=form,
+        new={"label": "training record", "href": reverse("laboratory:training_new")}
+        if can(request.user, *ANY_SCIENTIFIC)
+        else None,
+        empty_body="Record a person's training in a method or activity.",
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def training_new(request):
+    require_role(request.user, *ANY_SCIENTIFIC)
+    form = TrainingForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        values = dict(form.cleaned_data)
+        done, _ = run_form(
+            request,
+            form,
+            lambda: services.record_training(actor=request.user, **values),
+        )
+        if done:
+            messages.success(
+                request, "Training recorded; the trainee acknowledges it with their signature."
+            )
+            return redirect("laboratory:training_detail", pk=done.pk)
+    return form_page(
+        request,
+        form,
+        title="New training record",
+        crumbs=crumbs(("Training", reverse("laboratory:training_list")), ("Record training", None)),
+        submit="Record training",
+        cancel_url=reverse("laboratory:training_list"),
+        intro="Record training someone else received. Recording it qualifies nobody: the "
+        "trainee acknowledges it with their signature, and a qualification can then rely on it.",
+    )
+
+
+@login_required
+def training_detail(request, pk):
+    access(request.user)
+    t = get_object_or_404(TrainingRecord.objects.select_related("trainee", "recorded_by"), pk=pk)
+    user = request.user
+    label, tone = training_status(t)
+    actions = [
+        action(
+            "Record qualification",
+            reverse("laboratory:qualification_new") + f"?training={t.pk}",
+        )
+        if t.supports_qualification and t.trainee_id != user.pk and can(user, *ANY_SCIENTIFIC)
+        else None,
+        action("Acknowledge", reverse("laboratory:training_acknowledge", args=[t.pk]), True)
+        if t.state == TrainingRecord.State.RECORDED
+        and t.trainee_id == user.pk
+        and can(user, *ANY_SCIENTIFIC)
+        else None,
+    ]
+    relying = (
+        Qualification.objects.filter(training__contains=[t.pk])
+        .select_related("user")
+        .order_by("-recorded_at", "-pk")
+    )
+    today = timezone.localdate()
+    return record_page(
+        request,
+        identifier=t.identifier,
+        title=t.activity,
+        crumbs=crumbs(("Training", reverse("laboratory:training_list")), (t.identifier, None)),
+        state=status(label, tone),
+        facts=[
+            ("Trainee", person(t.trainee)),
+            ("Activity", t.activity),
+            ("Procedure or course", t.document_ref),
+            ("Kind", t.get_kind_display()),
+            ("Outcome", training_outcome(t)),
+            ("Trainer or assessor", t.trainer),
+            ("Completed on", day(t.completed_on)),
+            ("Evidence reference", t.evidence_ref),
+            ("Evidence link", external_link(t.evidence_url)),
+            ("Note", t.note),
+            ("Recorded by", person(t.recorded_by)),
+            ("Acknowledged", when(t.acknowledged_at)),
+        ],
+        meta=[("Revision", t.revision)],
+        actions=actions,
+        sections=[
+            section(
+                "Qualifications relying on it",
+                [
+                    ("Qualification", False),
+                    ("Qualified for", False),
+                    ("Valid until (inclusive)", False),
+                    ("State", False),
+                ],
+                [
+                    [
+                        cell(
+                            f"QUAL-{q.pk}",
+                            reverse("laboratory:qualification_detail", args=[q.pk]),
+                            sub=q.activity,
+                        ),
+                        qualified_for(q),
+                        day(q.valid_until),
+                        status(*qualification_status(q, today)[:2]),
+                    ]
+                    for q in relying
+                ],
+                "No qualification relies on this training record yet.",
+            )
+        ],
+        related=[t],
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def training_acknowledge(request, pk):
+    require_role(request.user, *ANY_SCIENTIFIC)
+    t = get_object_or_404(TrainingRecord.objects.select_related("trainee", "recorded_by"), pk=pk)
+    denial = ""
+    if t.trainee_id != request.user.pk:
+        denial = "Only the trainee can acknowledge this training record."
+    elif t.state != TrainingRecord.State.RECORDED:
+        denial = "This training record is already acknowledged."
+    form = SigningForm(request.POST or None, initial={"expected_revision": t.revision})
+    detail = reverse("laboratory:training_detail", args=[t.pk])
+    return sign_page(
+        request,
+        form,
+        title="Acknowledge training",
+        identifier=t.identifier,
+        meaning="acknowledged",
+        meaning_text="You confirm that you received this training and that the record of it "
+        "is right.",
+        button="Sign and acknowledge",
+        facts=[
+            ("Activity", t.activity),
+            ("Procedure or course", t.document_ref),
+            ("Kind", t.get_kind_display()),
+            ("Outcome", t.get_outcome_display()),
+            ("Trainer or assessor", t.trainer),
+            ("Completed on", day(t.completed_on)),
+            ("Recorded by", person(t.recorded_by)),
+        ],
+        revision=t.revision,
+        cancel_url=detail,
+        run=lambda d: services.acknowledge_training(
+            actor=request.user,
+            pin=d["pin"],
+            training=t,
+            expected_revision=d["expected_revision"],
+            reason=d["reason"],
+        ),
+        success="Training acknowledged.",
+        success_url=detail,
+        denial=denial,
+        crumbs=crumbs(
+            ("Training", reverse("laboratory:training_list")),
+            (t.identifier, detail),
+            ("Acknowledge", None),
+        ),
+    )
 
 
 # --- Reagents and standards ------------------------------------------------------------------

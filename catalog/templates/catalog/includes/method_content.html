@@ -9,6 +9,7 @@
     {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
     {% fact label="Instrument" %}{% if revision.requires_equipment %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
     {% fact label="Reagent or standard" %}{% if revision.requires_reagent %}Recorded with every result{% else %}Not required{% endif %}{% endfact %}
+    {% fact label="Review" %}{% if revision.requires_review_qualification %}By a reviewer qualified to review this method{% else %}By any reviewer{% endif %}{% endfact %}
     {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
     {% fact label="Author" value=revision.author|person %}
   </dl>

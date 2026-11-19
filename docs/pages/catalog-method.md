@@ -4,7 +4,7 @@ urls: catalog:method
 views: catalog.views.method_detail
 templates: catalog/method_detail.html
 models: catalog.Method, catalog.MethodRevision, catalog.MethodQCCheck, catalog.MethodCalculationInput, core.ElectronicSignature, core.AuditEvent
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: One method and all its versions, newest first: procedure, suitability evidence, batch QC checks, calculation, file import, signatures and history. Quality users build and approve drafts here.
 ---
 
@@ -26,7 +26,7 @@ summary: One method and all its versions, newest first: procedure, suitability e
 1. Select [[Withdraw draft]] on the draft's card, then give a reason on that page. It shows only to quality users.
 ## Good to know
 - You cannot approve a draft you created or changed, including its QC checks or calculation. The card then says another quality approver must sign.
-- A draft's procedure, suitability, resource options and effective period are fixed when it is created. To change them, create a new version.
+- A draft's procedure, suitability, resource options, reviewer qualification and effective period are fixed when it is created. To change them, create a new version.
 - The version in force is the approved one that applies now. Approving a later overlapping version retires it; it keeps its content and signature.
 - Approval is refused while the names in the formula and the inputs do not match exactly.
 - Lots keep the method versions frozen when their requirements were assigned.
@@ -45,7 +45,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 ## Layout
 
 - **Breadcrumbs**: Specifications and methods, Methods, method code. Under the heading: **Approved** and "Version N in force" for the approved version in force now (the latest that applies at this moment), or **No approved version** when none applies; then the method title.
-- **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Controlled procedure, Suitability, Effective, Summary (only when entered), QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Record revision, Author.
+- **One card per version**, newest first: heading "Version N" with its status; draft buttons for quality; facts Technique, Controlled procedure, Suitability, Effective, Summary (only when entered), QC batch ("Runs in a QC batch" or "No batch QC required"), Instrument and Reagent or standard ("Recorded with every result" or "Not required"), Review ("By a reviewer qualified to review this method" or "By any reviewer"), Record revision, Author.
 - **Batch QC checks** (batch methods only): table Check, "Limits (inclusive)", with **Remove** on drafts for quality. Empty: "No QC checks yet. Approval requires at least one." **Add QC check** on drafts for quality.
 - **Calculation** (every version): formula, result unit and decimals, and a table Input, Unit with **Remove** on drafts for quality. Without a calculation: "No calculation. Results are entered directly." Without inputs: "No inputs yet. Approval requires one input for each name in the formula." On drafts for quality: **Set formula** (**Change formula** once set), **Add input** and, when there is a calculation, **Clear calculation**.
 - **File import** (every version): Export, Format ("<separator> separated, decimal mark <mark>, <encoding>"), Column names ("Row N") and Rows read, then a table Input, Column of the file ("Entered by the analyst for each row" for an input the file does not hold). Without one: "No file import. Analysts record each result by hand." On drafts for quality: **Set file import** (**Change file import** once set) and, when there is one, **Clear file import**.
@@ -82,6 +82,7 @@ Shows a method with every version: procedure, suitability evidence, batch QC che
 | QC batch | `MethodRevision.requires_batch` | Yes/No text | — | Whether results must come from a batch whose QC checks pass. |
 | Instrument | `MethodRevision.requires_equipment` | Text | — | Whether every result and batch QC entry must record an instrument. |
 | Reagent or standard | `MethodRevision.requires_reagent` | Text | — | Whether every result and batch QC entry must record a reagent or standard lot. |
+| Review | `MethodRevision.requires_review_qualification` | Text | — | "By a reviewer qualified to review this method" when reviewing or returning a result of this version needs a qualification to review the method; otherwise "By any reviewer". |
 | Formula | `MethodRevision.calculation_formula` | Text, max 500 | — | Arithmetic over the input codes. |
 | Result | `MethodRevision.calculation_unit`, `calculation_decimals` | Unit, 0 to 8 decimals | — | Unit of the calculated value and the decimals it is rounded to. |
 | Input | `MethodCalculationInput.code`, `name`, `unit` | Code, name, unit | — | One value the analyst enters, in the order added. |

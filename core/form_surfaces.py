@@ -146,6 +146,8 @@ FORM_SURFACES = {
     "laboratory:contract_approval_approve": ("md", ("quality",)),
     "laboratory:contract_approval_revoke": ("md", ("quality",)),
     "laboratory:qualification_new": ("md", ("analyst", "quality", "reviewer")),
+    "laboratory:training_new": ("md", ("analyst", "quality", "reviewer")),
+    "laboratory:training_acknowledge": ("md", ("analyst", "quality", "reviewer")),
     "laboratory:reagent_new": ("md", ("analyst", "quality")),
     "laboratory:reagent_release": ("md", ("reviewer",)),
     "laboratory:reagent_reject": ("md", ("analyst", "quality", "reviewer")),

@@ -154,11 +154,13 @@ def new_method_revision(
     requires_batch=False,
     requires_equipment=None,
     requires_reagent=None,
+    requires_review_qualification=None,
 ):
     """New draft version; QC checks, the calculation and the file import are copied from the
     latest prior version.
 
-    The two resource flags are taken from the prior version when not given.
+    The two resource flags and the reviewer qualification are taken from the prior version when
+    not given.
     """
     require_role(actor, AUTHOR_ROLE)
     _require_reason(reason)
@@ -169,6 +171,10 @@ def new_method_revision(
         requires_equipment = previous.requires_equipment if previous else False
     if requires_reagent is None:
         requires_reagent = previous.requires_reagent if previous else False
+    if requires_review_qualification is None:
+        requires_review_qualification = (
+            previous.requires_review_qualification if previous else False
+        )
     revision = MethodRevision(
         method=method,
         version=_next_version(MethodRevision, "method", method),
@@ -180,6 +186,7 @@ def new_method_revision(
         requires_batch=requires_batch,
         requires_equipment=requires_equipment,
         requires_reagent=requires_reagent,
+        requires_review_qualification=requires_review_qualification,
         calculation_formula=previous.calculation_formula if previous else "",
         calculation_unit=previous.calculation_unit if previous else "",
         calculation_decimals=previous.calculation_decimals if previous else None,

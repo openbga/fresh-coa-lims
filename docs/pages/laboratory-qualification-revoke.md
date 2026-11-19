@@ -4,13 +4,13 @@ urls: laboratory:qualification_revoke
 views: laboratory.views.qualification_revoke
 templates: ops/sign.html
 models: laboratory.Qualification, core.ElectronicSignature
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Sign the withdrawal of an approved qualification. Work after your signature time is blocked; work recorded before it stays on record. Quality role only.
 ---
 
 ## Common tasks
 ### Revoke the qualification
-1. Check [[Subject]], [[Activity]], [[Valid]] and [[Evidence]].
+1. Check [[Subject]], [[Activity]], [[Qualified for]], [[Valid]], [[Evidence]] and [[Training relied on]].
 2. Enter [[Signing username]], [[Reason for signing]] and [[Signature PIN]].
 3. Select [[Sign and revoke]]. The qualification record opens showing Revoked.
 ### Leave without signing
@@ -48,7 +48,7 @@ Withdraw an approved qualification with meaning **revoked**. Work after the sign
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Subject / Activity / Valid / Evidence | `Qualification.user` or `.equipment`, `.activity`, `.valid_from`, `.valid_until`, `.evidence_ref` | Display | — | From the qualification record |
+| Subject / Activity / Qualified for / Valid / Evidence / Training relied on | `Qualification.user` or `.equipment`, `.activity`, `.work`, `.valid_from`, `.valid_until`, `.evidence_ref`, `.training` | Display | — | From the qualification record; Qualified for is Performing the work, Reviewing results or Intended use; Training relied on lists TRN-n numbers, or "None cited" |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Reason for signing | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |
@@ -58,6 +58,7 @@ Withdraw an approved qualification with meaning **revoked**. Work after the sign
 
 - **Preconditions**: currently approved ("Only approved qualifications can be revoked."); you are not the subject ("You cannot revoke your own qualification.").
 - Meaning text: "You withdraw this qualification; work after the signature time is blocked." Success message: "Qualification revoked."
+- Revoking a qualification to review results stops that person reviewing or returning results of methods that ask for qualified reviewers, from the signature time; a review already signed keeps the qualification it relied on.
 - An approved record can be revoked even after its last valid day.
 - Revoked qualifications are immutable and cannot be re-approved; record new evidence. For equipment qualification, revocation removes the equipment's qualification evidence from the signature time.
 - **Identity, session and PIN**: you must type your own username and re-enter your signature PIN for every signature; a wrong username, wrong PIN, expired session or locked PIN is refused with an inline message and nothing changes. Failed PIN attempts are counted and audited even though the action is rejected (five failures lock the PIN for 15 minutes).

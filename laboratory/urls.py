@@ -43,6 +43,14 @@ urlpatterns = [
     path(
         "qualifications/<int:pk>/revoke/", views.qualification_revoke, name="qualification_revoke"
     ),
+    path("training/", views.training_list, name="training_list"),
+    path("training/new/", views.training_new, name="training_new"),
+    path("training/<int:pk>/", views.training_detail, name="training_detail"),
+    path(
+        "training/<int:pk>/acknowledge/",
+        views.training_acknowledge,
+        name="training_acknowledge",
+    ),
     path("reagents/", views.reagent_list, name="reagent_list"),
     path("reagents/new/", views.reagent_new, name="reagent_new"),
     path("reagents/<int:pk>/", views.reagent_detail, name="reagent_detail"),

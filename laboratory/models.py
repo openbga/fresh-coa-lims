@@ -246,14 +246,109 @@ class Calibration(models.Model):
         return f"{self.equipment} calibration {self.performed_at:%Y-%m-%d}"
 
 
+class TrainingRecord(models.Model):
+    """A person's training in a method, procedure or activity, as evidence for their
+    qualifications. Someone else records it; the trainee acknowledges it with a signature. The
+    record is immutable apart from that acknowledgement (database guard, migration 0006)."""
+
+    class Kind(models.TextChoices):
+        READ = "read", "Read and understood"
+        INSTRUCTION = "instruction", "Instruction or demonstration"
+        SUPERVISED = "supervised", "Supervised practice"
+        ASSESSMENT = "assessment", "Assessment of competence"
+
+    class Outcome(models.TextChoices):
+        COMPLETED = "completed", "Completed"
+        COMPETENT = "competent", "Competent"
+        NOT_YET_COMPETENT = "not_yet_competent", "Not yet competent"
+
+    class State(models.TextChoices):
+        RECORDED = "recorded", "Awaiting acknowledgement"
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+
+    trainee = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    activity = models.CharField(
+        max_length=120, help_text="Method or activity code, as qualifications name it."
+    )
+    document_ref = models.CharField(
+        "Procedure or course",
+        max_length=200,
+        help_text="The controlled procedure, method or course trained on, with its revision.",
+    )
+    kind = models.CharField(max_length=16, choices=Kind)
+    outcome = models.CharField(max_length=20, choices=Outcome)
+    trainer = models.CharField(
+        "Trainer or assessor",
+        max_length=160,
+        help_text="Who gave the training or assessed it, or the provider of an outside course.",
+    )
+    completed_on = models.DateField(help_text="The day the training or assessment was completed.")
+    evidence_ref = models.CharField(
+        "Evidence reference",
+        max_length=200,
+        blank=True,
+        help_text="Where the signed training record, test or certificate is kept.",
+    )
+    evidence_url = evidence_url()
+    note = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recorded_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=14, choices=State, default=State.RECORDED)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["-completed_on", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(kind="assessment", outcome__in=["competent", "not_yet_competent"])
+                    | (~models.Q(kind="assessment") & models.Q(outcome="completed"))
+                ),
+                name="training_outcome_of_kind",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(state="recorded", acknowledged_at__isnull=True)
+                | models.Q(state="acknowledged", acknowledged_at__isnull=False),
+                name="training_acknowledged_when_signed",
+            ),
+        ]
+
+    @property
+    def identifier(self):
+        return f"TRN-{self.pk}"
+
+    @property
+    def supports_qualification(self):
+        """Acknowledged, and not an assessment that found the trainee not yet competent."""
+        return (
+            self.state == self.State.ACKNOWLEDGED and self.outcome != self.Outcome.NOT_YET_COMPETENT
+        )
+
+    def __str__(self):
+        return f"{self.identifier} · {self.activity}"
+
+
 class Qualification(models.Model):
     """Approved evidence that an analyst is qualified for an activity/method, or that an
-    instrument is qualified for its intended use. Exactly one subject."""
+    instrument is qualified for its intended use. Exactly one subject.
+
+    A person's qualification is for performing the work or for reviewing its results (``work``);
+    an instrument's is always for performing. It may cite the person's acknowledged training
+    records (``training``, their ids), frozen with the record and bound by its approval."""
 
     class State(models.TextChoices):
         RECORDED = "recorded", "Awaiting approval"
         APPROVED = "approved", "Approved"
         REVOKED = "revoked", "Revoked"
+
+    class Work(models.TextChoices):
+        PERFORM = "perform", "Performing the work"
+        REVIEW = "review", "Reviewing results"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
@@ -264,11 +359,17 @@ class Qualification(models.Model):
     activity = models.CharField(
         max_length=120, help_text="Method, activity or qualification stage (e.g. IQ/OQ/PQ)."
     )
+    work = models.CharField("Qualified for", max_length=8, choices=Work, default=Work.PERFORM)
     scope_note = models.TextField(blank=True)
     evidence_ref = models.CharField(
         max_length=200, help_text="Controlled training or qualification record and revision."
     )
     evidence_url = evidence_url()
+    training = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Ids of the person's acknowledged training records this evidence relies on.",
+    )
     valid_from = models.DateField()
     valid_until = models.DateField(help_text="Last day of validity (inclusive).")
     recorded_by = models.ForeignKey(
@@ -287,6 +388,10 @@ class Qualification(models.Model):
                 condition=models.Q(user__isnull=False, equipment__isnull=True)
                 | models.Q(user__isnull=True, equipment__isnull=False),
                 name="qualification_one_subject",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(user__isnull=False) | models.Q(work="perform", training=[]),
+                name="qualification_equipment_performs",
             ),
             models.CheckConstraint(
                 condition=models.Q(valid_until__gte=models.F("valid_from")),

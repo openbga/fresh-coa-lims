@@ -46,6 +46,13 @@ settings.ANALYTICAL_REASSESSMENTS names the source of reassessments of released 
 same three doors: the requirements are those of the specifications in force for the lot, a
 reassessment takes no more testing once concluded or withdrawn, and ``lock`` locks the
 reassessments a transition changes.
+
+settings.ANALYTICAL_REVIEWERS names the check (``check``) of who may review a test's results
+beyond the reviewer role: given the reviewer and the method and version the test is frozen to,
+it returns the evidence relied on (empty where that method version asks for no qualified
+reviewer) or the reason the reviewer may not review or return the test. With ``lock`` it locks
+what it relies on, inside the review's transaction. The system check analytical.E001 reports a
+deployment without the setting (testing would then ignore the request, so any reviewer reviews).
 """
 
 import hashlib
@@ -839,6 +846,12 @@ def bench():
     if not path:
         raise ValidationError("No bench check is configured; results are held.")
     return import_string(path)()
+
+
+def reviewers():
+    """The configured reviewer check (settings.ANALYTICAL_REVIEWERS), or None."""
+    path = getattr(settings, "ANALYTICAL_REVIEWERS", "")
+    return import_string(path)() if path else None
 
 
 CONTRACT = "contract"

@@ -757,12 +757,19 @@ def test_method_forms_set_the_flags_and_version_form_prefills(client, people):
         "effective_until": end.strftime("%Y-%m-%dT%H:%M"),
         "reason": "New",
         "requires_equipment": "on",
+        "requires_review_qualification": "on",
     }
     assert client.post(reverse("catalog:method_new"), data).status_code == 302
     revision = MethodRevision.objects.get(method__code="flag-web")
     assert (revision.requires_equipment, revision.requires_reagent) == (True, False)
+    assert revision.requires_review_qualification is True
     page = client.get(reverse("catalog:method_version_new", args=[revision.method_id]))
-    assert page.context["form"].initial == {"requires_equipment": True, "requires_reagent": False}
+    assert page.context["form"].initial == {
+        "requires_equipment": True,
+        "requires_reagent": False,
+        "requires_review_qualification": True,
+    }
     client.force_login(people["approver"])
     detail = client.get(reverse("catalog:method_approve", args=[revision.pk])).content.decode()
     assert "Instrument" in detail and "Calculation" in detail
+    assert "By a reviewer qualified to review this method" in detail
