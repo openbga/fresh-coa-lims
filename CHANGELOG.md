@@ -8,7 +8,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### High impact
 
-- **Added**: Plan open tests on a work list and see reminders of what falls due · Planning · 2026-11-19
+- **Added**: Plan open tests on a work list and see reminders of what falls due · Planning · 2026-11-19 · [#61](https://github.com/openbga/qm-lims/pull/61)
 
   A new **Planning** section lists every test that is open or awaiting review, earliest due first, with the analyst it is assigned to and the instrument it is planned on. A test is due by the date a reviewer or quality person sets, or by the **turnaround target** quality sets for lot, stability or reassessment testing; a test keeps the target in force when it was assigned. Reviewers and quality tick tests and use **Plan selected tests** to give them a due date, an analyst and an instrument at once; an analyst can **Assign to me** a test nobody has taken. **Workload** shows open work by due date, by analyst and by instrument, and flags an instrument whose calibration runs out before its planned work. **Reminders** lists the calibrations, stability pulls and reagent and standard lots that fall due in the coming days, and the dashboard counts the tests overdue. Planning authorizes nothing: recording a result still checks the analyst's qualification, the instrument and every lot.
 
