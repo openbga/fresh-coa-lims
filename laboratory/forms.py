@@ -241,14 +241,17 @@ class QualificationForm(forms.Form):
         queryset=users_with_roles(), label="Qualified person", widget=RemoteSelect("active-users")
     )
     activity = forms.CharField(
-        max_length=120, help_text="Method or activity code this evidence qualifies."
+        max_length=120,
+        help_text="Method or activity code this evidence qualifies. For release decisions or "
+        "certificates, the activity a rule set names for them.",
     )
     work = forms.ChoiceField(
         label="Qualified for",
         choices=Qualification.Work.choices,
         initial=Qualification.Work.PERFORM,
-        help_text="Performing the work, or reviewing its results where a method version asks "
-        "for qualified reviewers. Each needs its own qualification.",
+        help_text="Performing the work; reviewing its results where a method version asks for "
+        "qualified reviewers; or release decisions or issuing certificates where a rule set "
+        "reserves them, for a person with the quality role. Each needs its own qualification.",
     )
     training = TrainingChoice(
         queryset=supporting_training(),

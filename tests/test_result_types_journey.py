@@ -32,7 +32,8 @@ OBSERVED_SAL = "No Salmonella detected after enrichment of 25 g"
 CODES = ["identity", "salmonella", "tamc", "impurity"]
 
 
-def build_world(django_user_model, with_assay=False):
+def build_world(django_user_model, with_assay=False, extra_policy=None):
+    """``extra_policy``: optional rule policy keys added to the lot's rule set."""
     people = {}
     for name, roles in {
         "author": ["quality"],
@@ -57,6 +58,7 @@ def build_world(django_user_model, with_assay=False):
             "required_tests": required,
             "review_meaning": "reviewed",
             "disposition_meaning": "approved",
+            **(extra_policy or {}),
         },
         effective_from=start,
         effective_until=end,

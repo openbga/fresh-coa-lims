@@ -13,7 +13,7 @@ from core.grids import Column, paginate
 from core.models import ElectronicSignature
 from core.services import AUDIT_READ_ROLES, MATERIAL_DATES_RULES, require_role
 
-from . import certificates, dashboard, dates, reassessment, reliance, route, services
+from . import authority, certificates, dashboard, dates, reassessment, reliance, route, services
 from .forms import LotForm, ReceiptCorrectionForm, ReceiptForm, ResultForm, SampleForm, SigningForm
 from .models import Lot, LotReceipt, LotState, ReceiptSource, Result, Sample
 from .rejection import RejectionGrounds
@@ -183,6 +183,15 @@ def lot_detail(request, pk):
     from stability.gates import active_holds
 
     quarantine = lot.state == "quarantine"
+    from sampling.services import applied_rules
+
+    # What the lot's rule sets reserve for qualified people, and what a release relied on.
+    rules = applied_rules(lot, assignment)
+    reserved = {
+        decision: [authority.requirement_text(entry, decision) for entry in entries]
+        for decision in (authority.RELEASE, authority.CERTIFICATE)
+        if (entries := authority.reserved(lot, decision, rules))
+    }
     holds = list(active_holds(lot)) if quarantine else []
     # Exactly what signing the disposition checks (services.dispose_lot).
     blockers = services.disposition_blockers(lot) if quarantine else []
@@ -292,6 +301,9 @@ def lot_detail(request, pk):
             "disposition_denied": services.disposition_denial(request.user, lot)
             if lot.state == "quarantine"
             else "",
+            # An author of the lot's records is refused rejection too, which the note says.
+            "disposition_self": lot.state == "quarantine"
+            and request.user.pk in services.disposition_authors(lot),
             **closure_offers(request.user, lot),
             "can_issue_coa": request.user.groups.filter(name="quality").exists(),
             # The exported record includes the audit trail, so it needs a role that reads it.
@@ -299,6 +311,15 @@ def lot_detail(request, pk):
             "reports": reports,
             "issued": any(report.state == "issued" for report in reports),
             "blockers": blockers,
+            "release_reserved": reserved.get(authority.RELEASE, []) if quarantine else [],
+            "certificate_reserved": reserved.get(authority.CERTIFICATE, [])
+            if lot.state == "released"
+            else [],
+            "release_relied_on": authority.describe(
+                (lot.disposition_evidence or {}).get(authority.AUTHORIZATION), authority.RELEASE
+            )
+            if lot.state == "released"
+            else [],
             "holds": holds,
             "awaiting_review": sum(
                 1
@@ -637,7 +658,12 @@ def sign(request, pk, action):
             "is_review": is_review,
             "meaning": "reviewed" if is_review else "approved",
             "denial": denial,
-            "notices": [] if is_review or denial else services.disposition_notices(obj),
+            "notices": []
+            if is_review or denial
+            else [
+                *services.disposition_notices(obj),
+                *authority.notices(request.user, obj, authority.RELEASE),
+            ],
         },
         status=403 if denial else 422 if request.method == "POST" else 200,
     )

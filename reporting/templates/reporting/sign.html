@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% load static ui %}
-{% comment %}Sign a certificate issue or amendment; static/js/signature-dialog.js opens the panel marked data-signature-dialog as a modal dialog labelled by #sign-title. Context: page_title, heading, form, lot, report (amendment), submit, meaning, target, cancel_url, evidence_short.{% endcomment %}
+{% comment %}Sign a certificate issue or amendment; static/js/signature-dialog.js opens the panel marked data-signature-dialog as a modal dialog labelled by #sign-title. Context: page_title, heading, form, lot, report (amendment), submit, meaning, target, cancel_url, evidence_short, relied_on (the qualifications the signature relies on, where the lot's rule sets reserve certificates).{% endcomment %}
 {% block breadcrumbs %}{% url 'reporting:list' as list_url %}{% if report %}{% url 'reporting:detail' report.pk as record_url %}{% breadcrumbs section="Certificates" section_url=list_url record=report.number record_url=record_url current=heading %}{% else %}{% breadcrumbs section="Certificates" section_url=list_url record=lot.number record_url=cancel_url current=heading %}{% endif %}{% endblock %}
 {% block content %}
 {% signature_card title=heading hook="signature-dialog" %}
   {% fill summary %}<p>Your signature records <strong>{{ meaning|meaning }}</strong> for {{ target }}. The server binds it to the exact evidence <span class="vr-id text-wrap text-break">{{ evidence_short }}</span> you reviewed and rejects it if anything changed.</p>
   <p>Signer: <strong>{{ request.user|person }}</strong>. The server records the execution time. A laboratory QC disposition is not manufacturer batch release.</p>
+  {% for item in relied_on %}<p>{{ item }}</p>{% endfor %}
   <p><a href="{% url 'core:pin' %}">Enroll or change your signature PIN</a></p>{% endfill %}
   {% form_page form=form cancel_url=cancel_url cancel_hook="signature-cancel" submit_label=submit submit_icon="vector-pen" autocomplete_off=True %}{% endform_page %}
 {% endsignature_card %}

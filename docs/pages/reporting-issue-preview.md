@@ -4,14 +4,14 @@ urls: reporting:issue_preview
 views: reporting.views.issue_preview
 templates: reporting/preview.html, reporting/_certificate.html, reporting/_method.html
 models: quality.Lot, quality.LotDates, reporting.Report, core.RuleSet, core.ElectronicSignature
-reviewed: 2026-11-18
+reviewed: 2026-11-19
 summary: The certificate that would be issued for a lot, for all its requirements or for one scope, built from its current signed evidence, and anything that stops it. Nothing is issued here.
 ---
 
 ## Common tasks
 ### Review and sign a certificate
 1. Read the preview, from [[Material and lot]] to [[Electronic signatures]].
-2. Select [[Continue to signing]]. It shows only to the quality role when nothing blocks the certificate and you authored no records on the lot.
+2. Select [[Continue to signing]]. It shows only to the quality role when nothing blocks the certificate, you authored no records on the lot and you hold any qualification a rule set reserves.
 3. Sign with your PIN on that page using [[Sign and issue certificate]].
 ### Review a certificate for one customer or market
 1. Under [[Certificate for]], choose a scope in [[The certificate reports]] and select [[Show this certificate]].
@@ -21,7 +21,7 @@ summary: The certificate that would be issued for a lot, for all its requirement
 ### Open a certificate already opened for this lot
 1. Under [[Certificates already opened for this lot]], select a certificate number.
 ## Good to know
-- You cannot issue a certificate for a lot where you recorded the lot, a sample or a result, even with the quality role. Another quality user must sign.
+- You cannot issue a certificate for a lot you authored records on, even with the quality role. If a rule set reserves certificates, you also need its Issuing certificates qualification.
 - The certificate uses the evidence frozen at QC disposition. Each result is judged against every specification of the lot; a scope's certificate needs every result within its limits.
 - An open hold blocks the certificate until the hold is closed, resolved, cleared or released.
 - If the evidence changes after you review it, signing is refused and you review it again.
@@ -34,14 +34,14 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 ## Who can use it
 
 - Sign-in required. Viewing requires **analyst**, **reviewer**, **quality**, **admin** or **auditor**.
-- **Continue to signing** is shown only to **quality** users who are not blocked and did not author records on the lot.
+- **Continue to signing** is shown only to **quality** users who are not blocked, did not author records on the lot and hold the Issuing certificates qualification any rule set of the lot reserves.
 - Other viewers, including administrators without the quality role, see a "Read only" note: only users with the quality role can issue or amend certificates.
 
 ## Layout
 
 - **Header**: breadcrumbs, title "Review certificate · lot number", status "Preview, not issued", "For scope X" when a scope is chosen, and the first 16 characters of the evidence hash.
 - **Certificate for** panel (only for a lot under more than one specification): the radio group **The certificate reports** with "All of the lot's requirements" and one choice per scope ("scope: SPEC version N"), and **Show this certificate**. It reloads the page for the choice; nothing is issued.
-- **Alerts** (only one shows, in this priority): "Cannot issue" with the list of reasons; "Not permitted" when you authored records on the lot; "Read only" for users without the quality role.
+- **Alerts** (only one shows, in this priority): "Cannot issue" with the list of reasons; "Not permitted" when you authored records on the lot, or when a rule set reserves certificates for a qualification you do not hold (the reason names the rule set and activity, then "Another quality user who holds it must sign."); "Read only" for users without the quality role.
 - **Certificates already opened for this lot**: links with recipient and status, when any exist.
 - **Certificate preview**: Material and lot, Decision, Applied rules specification and methods (for a lot assigned under several scopes or with additional rule sets: every specification with its scope, each additional rule set, and under the facts each requirement that quality decided between specifications, with what the statements differ in and who decided it, when and why), Results (per sample, or per reportable result for native lots, followed by a separate table of results accepted from the supplier's certificate when the lot has any; when this laboratory performed no test of a native lot, the sentence "No requirement of this lot was tested by this laboratory." takes the place of the laboratory's table), Holds and corrections (including linked investigations for native lots), optional Remarks, Electronic signatures, a **Technical identifiers** block (specification, method and assignment hashes, requirement sources) and the full evidence SHA-256. A certificate for one scope prints a reduced version of these sections (see Rules). Hashes wrap so they stay complete and copyable on narrow screens.
 
@@ -49,7 +49,7 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 
 | Action | Shown when | Who | Result |
 |---|---|---|---|
-| **Continue to signing** | Quality role, no blockers, no authorship conflict | Quality | Opens the signing page, carrying the evidence hash you reviewed |
+| **Continue to signing** | Quality role, no blockers, no authorship conflict, holds any reserved qualification | Quality | Opens the signing page, carrying the evidence hash you reviewed |
 | **Show this certificate** | The lot is under more than one specification | Any viewer | Reloads the review for the chosen scope (`?scope=`); nothing is saved |
 | Existing certificate links | Certificates exist for the lot | Any viewer | Open that certificate record (the list also names a certificate's scope: "for scope X") |
 
@@ -91,6 +91,7 @@ Shows the certificate that would be issued for a lot, built from the lot's curre
 - **Methods**: each method version is listed once, even when several tests use it.
 - **Frozen once issued**: an issued version's snapshot, PDF and hashes never change. Later holds or requirement changes affect only new previews, not issued certificates.
 - **Authorship**: you cannot issue a certificate if you recorded the lot, a sample or a result, or (native lots) authored the frozen analytical records, even with the quality role. For an accepted supplier result the authors are the analyst who proposed it and everyone who recorded or corrected its supplier certificate. For a lot with expiry or retest dates, everyone who recorded or corrected them is an author too, and so is everyone who started, tested or investigated the reassessment that set the retest date in force. This page only hides **Continue to signing**; the server refuses at signing.
+- **Certificates reserved for qualified people (optional policy key `authorization`, `certificate`)**: when a rule set the lot is under, its own or an additional one frozen with its requirements, names an activity for certificates, you need an approved, current Issuing certificates qualification for each activity named (case ignored). Without it the page shows "Not permitted", for example "Rule set RS-TEST v1 reserves issuing certificates for people qualified for “CERT-TEST”. You hold no approved, current qualification for it. Another quality user who holds it must sign." and no **Continue to signing**. The signing page is refused again before any PIN is asked for, and once more under the locks when signing. The lot record shows "Who may issue".
 - **No mutation**: viewing writes no audit event; a scope in the address is only read. The page works for any lot, so an unreleased lot simply lists its blockers. Unknown lot: 404. GET only.
 
 ## Related pages

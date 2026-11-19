@@ -16,6 +16,8 @@ from .grids import Column
 from .models import AuditEvent, ElectronicSignature, RuleSet
 from .services import (
     AUDIT_READ_ROLES,
+    AUTHORIZATION,
+    AUTHORIZED_DECISIONS,
     MATERIAL_DATES,
     MATERIAL_DATES_RULES,
     approve_rule,
@@ -107,6 +109,13 @@ def rules(request):
         revision.dates_required = (
             MATERIAL_DATES_RULES.get(dates_rule, "") if isinstance(dates_rule, str) else ""
         )
+        reserved = policy.get(AUTHORIZATION)
+        revision.reserved = [
+            f"{AUTHORIZED_DECISIONS[decision].capitalize()} reserved for people qualified for "
+            f"“{activity}”"
+            for decision, activity in (reserved.items() if isinstance(reserved, dict) else [])
+            if decision in AUTHORIZED_DECISIONS
+        ]
     return render(
         request,
         "core/rules.html",

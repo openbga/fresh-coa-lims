@@ -48,7 +48,7 @@ Withdraw an approved qualification with meaning **revoked**. Work after the sign
 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
-| Subject / Activity / Qualified for / Valid / Evidence / Training relied on | `Qualification.user` or `.equipment`, `.activity`, `.work`, `.valid_from`, `.valid_until`, `.evidence_ref`, `.training` | Display | — | From the qualification record; Qualified for is Performing the work, Reviewing results or Intended use; Training relied on lists TRN-n numbers, or "None cited" |
+| Subject / Activity / Qualified for / Valid / Evidence / Training relied on | `Qualification.user` or `.equipment`, `.activity`, `.work`, `.valid_from`, `.valid_until`, `.evidence_ref`, `.training` | Display | — | From the qualification record; Qualified for is Performing the work, Reviewing results, Release decisions, Issuing certificates or Intended use; Training relied on lists TRN-n numbers, or "None cited" |
 | Signing username | — | Text | Yes | Must equal your own username |
 | Reason for signing | `AuditEvent.reason` | Text, max 2000 | Yes | Recorded with the signature |
 | Signature PIN | `PINCredential` (checked, never stored) | Masked digits | Yes | Re-entered for every signature; never shown again |
@@ -57,6 +57,7 @@ Withdraw an approved qualification with meaning **revoked**. Work after the sign
 ## Rules and hidden logic
 
 - **Preconditions**: currently approved ("Only approved qualifications can be revoked."); you are not the subject ("You cannot revoke your own qualification.").
+- Revoking never changes a decision already signed under the qualification; it only stops later decisions from relying on it.
 - Meaning text: "You withdraw this qualification; work after the signature time is blocked." Success message: "Qualification revoked."
 - Revoking a qualification to review results stops that person reviewing or returning results of methods that ask for qualified reviewers, from the signature time; a review already signed keeps the qualification it relied on.
 - An approved record can be revoked even after its last valid day.

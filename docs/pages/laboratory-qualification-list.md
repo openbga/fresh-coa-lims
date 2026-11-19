@@ -5,14 +5,14 @@ views: laboratory.views.qualification_list
 templates: ops/list.html
 models: laboratory.Qualification
 reviewed: 2026-11-19
-summary: Approved qualification evidence for analysts and equipment, for performing work or reviewing results, with its dates and approval state. Find a record, or record new evidence for an analyst.
+summary: Approved qualification evidence for people and equipment, for performing work, reviewing results, release decisions or issuing certificates, with its dates and approval state. Find a record, or record new evidence for an analyst.
 ---
 
 ## Common tasks
 ### Find a qualification
 1. Type an activity, a username or an asset ID in [[Search]].
 2. To narrow by state, choose one in [[Status]], for example [[Awaiting approval]] or [[Expiring within 30 days]].
-3. To see only qualifications to review results, choose [[Reviewing results]] in [[Qualified for]].
+3. To see only one kind, such as [[Release decisions]], choose it in [[Qualified for]].
 4. Select [[Apply]], then select an activity to open its record.
 ### Record evidence for an analyst
 1. Select [[New qualification]]. It shows for the analyst, reviewer and quality roles.
@@ -22,7 +22,7 @@ summary: Approved qualification evidence for analysts and equipment, for perform
 ### See every qualification again
 1. Select [[Clear all]] to remove the search and the filters.
 ## Good to know
-- A qualification to review results is separate from one to perform the work. Neither counts for the other.
+- Each kind of qualification counts only for its own work. Performing, reviewing, Release decisions and Issuing certificates do not stand in for each other.
 - Group membership alone never qualifies anyone. Only approved evidence counts, and only within its dates.
 - Approved, starts and a date means approved but not yet in effect.
 - Expired is shown for approved evidence whose last valid day has passed.
@@ -30,7 +30,7 @@ summary: Approved qualification evidence for analysts and equipment, for perform
 
 ## Purpose
 
-Approved qualification evidence by activity or method, for analysts (performing the work or reviewing results) and equipment (intended use). Group membership alone never qualifies anyone.
+Approved qualification evidence by activity or method, for people (performing the work, reviewing results, release decisions or issuing certificates) and equipment (intended use). Group membership alone never qualifies anyone.
 
 ## Who can use it
 
@@ -42,9 +42,9 @@ Approved qualification evidence by activity or method, for analysts (performing 
 
 - **Section tabs**: Overview, Equipment, Calibrations, Qualifications, Training, Reagents and standards, Contract laboratories, Resource use. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Laboratory operations can use every section link.
 - **Header**: title and a **New qualification** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
-- **Introduction**: "Approved qualification evidence by activity or method, for performing the work or reviewing its results. Group membership alone never qualifies anyone."
-- **Toolbar**: **Search** (activity, the person's username, or the equipment asset ID; case-insensitive "contains") and **Status** (All, Awaiting approval, Approved, starts later, Approved and effective, Expiring within 30 days, Expired, Revoked) and **Qualified for** (All, Performing the work, Reviewing results). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
-- **Table**: Activity (links to the record), Subject, Type (Analyst or Equipment), Qualified for (Performing the work or Reviewing results; Intended use for equipment), Valid from, Valid until (inclusive), State. Sort by Recorded (newest first by default; there is no Recorded column), Valid until or Activity. Sortable headers toggle ascending/descending.
+- **Introduction**: "Approved qualification evidence by activity or method, for performing the work, reviewing its results, or the release decisions and certificates a rule set reserves. Group membership alone never qualifies anyone."
+- **Toolbar**: **Search** (activity, the person's username, or the equipment asset ID; case-insensitive "contains") and **Status** (All, Awaiting approval, Approved, starts later, Approved and effective, Expiring within 30 days, Expired, Revoked) and **Qualified for** (All, Performing the work, Reviewing results, Release decisions, Issuing certificates). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
+- **Table**: Activity (links to the record), Subject, Type (Person or Equipment), Qualified for (Performing the work, Reviewing results, Release decisions or Issuing certificates; Intended use for equipment), Valid from, Valid until (inclusive), State. Sort by Recorded (newest first by default; there is no Recorded column), Valid until or Activity. Sortable headers toggle ascending/descending.
 - **Footer**: "Showing x–y of N", **Rows per page** (25, 50, 100) and a pager.
 - **Empty states**: "No records yet" ("Record controlled training evidence for an analyst and activity.", with **New qualification**); "Nothing matches these filters" with **Clear filters**; "These filters cannot be applied" for an invalid filter value.
 
@@ -61,9 +61,9 @@ Approved qualification evidence by activity or method, for analysts (performing 
 | Field | Model field | Type / units | Required | Meaning and use |
 |---|---|---|---|---|
 | Status | — | Choice | No | Awaiting approval and Revoked match the stored state. Approved, starts later: approved with Valid from after today. Approved and effective: approved with Valid from today or earlier and Valid until today or later. Expiring: effective, with Valid until from today to 30 days ahead. Expired: approved but past Valid until |
-| Qualified for (filter) | `Qualification.work` | Choice | No | Shows only qualifications to perform the work or to review results. Equipment qualifications count as performing, so "Performing the work" lists them too |
-| Qualified for (column) | `Qualification.work` | Label | — | Performing the work or Reviewing results for an analyst; Intended use for equipment |
-| Activity / Subject / Type | `Qualification.activity`, `.user`, `.equipment` | Text | — | Subject is the username or the asset ID; Type is Analyst or Equipment |
+| Qualified for (filter) | `Qualification.work` | Choice | No | Shows only the chosen kind of qualification. Equipment qualifications count as performing, so "Performing the work" lists them too |
+| Qualified for (column) | `Qualification.work` | Label | — | Performing the work, Reviewing results, Release decisions or Issuing certificates for a person; Intended use for equipment |
+| Activity / Subject / Type | `Qualification.activity`, `.user`, `.equipment` | Text | — | Subject is the username or the asset ID; Type is Person or Equipment |
 | Valid from / Valid until (inclusive) | `Qualification.valid_from`, `.valid_until` | Dates | — | Validity window |
 | State | `Qualification.state` | Label | — | Awaiting approval, Approved, "Approved, starts <date>" (approved but Valid from is still in the future, so it does not qualify anyone yet), Expiring soon (amber: effective, last valid day within 30 days, the records the "Expiring within 30 days" filter finds), Expired (approved records past their last day) or Revoked |
 

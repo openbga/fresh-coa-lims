@@ -66,6 +66,7 @@ from core.audit import record_event, snapshot
 from core.models import RuleSet
 from core.services import (
     APPLIES_TO,
+    additional_rules,
     applies_at,
     require_role,
     sign_transition,
@@ -299,6 +300,28 @@ def applied_rules(lot, assignment=None):
         ids = [rule["id"] for rule in payload_additional_rules(assignment.payload)]
     found = RuleSet.objects.in_bulk(ids)
     return [lot.rules, *(found[pk] for pk in ids)]
+
+
+def rules_now(lot, at=None):
+    """The rule set versions a released lot would be under now, as ``requirements_in_force``
+    reads them: the version in force of its own rule set (its own as frozen when none is), and
+    the additional rule sets that apply now to the material, stage and scopes of its
+    requirements (none while it has none)."""
+    at = at or timezone.now()
+    rules = rules_in_force(lot.rules, at) or lot.rules
+    current = current_assignment(lot)
+    if current is None or current.status != AssignmentStatus.READY:
+        return [rules]
+    return [
+        rules,
+        *additional_rules(
+            material=current.material.code,
+            stage=current.stage,
+            scopes=current.scope_list,
+            at=at,
+            exclude_code=rules.code,
+        ),
+    ]
 
 
 def additional_rule_problems(lot, at=None):

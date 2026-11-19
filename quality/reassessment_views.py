@@ -15,7 +15,7 @@ from laboratory.forms import SigningForm
 from laboratory.ui import action, cell, day, record_page, refused, section, sign_page, status
 from laboratory.ui import when as stamp
 
-from . import reassessment
+from . import authority, reassessment
 from .forms import ReassessmentConclusionForm, ReassessmentForm, ReassessmentTestsForm
 from .models import Lot, Reassessment
 from .views import LOTS, access, action_page
@@ -247,6 +247,12 @@ def reassessment_detail(request, pk):
             ("Started by", person(item.started_by)),
             ("Started", stamp(item.started_at)),
             ("New retest date", day(item.retest_on)),
+            *(
+                ("Concluded under", cell(entry["label"], entry["href"], sub=entry["text"]))
+                for entry in authority.describe(
+                    (item.result_evidence or {}).get(authority.AUTHORIZATION), authority.RELEASE
+                )
+            ),
             ("Decided", stamp(item.decided_at)),
             ("Reason for the decision", item.decision_reason),
             ("Revision", item.revision),
@@ -360,24 +366,36 @@ def reassessment_conclude(request, pk):
     item = _item(pk)
     detail = detail_url(item)
     found = reassessment.review(item)
+    # Why this signer cannot conclude that the material stays in use: the results, or a
+    # qualification the rule sets reserve release decisions for (both rechecked when signing).
+    suitable_refusal = found.suitable_refusal
+    if not suitable_refusal and item.state == STATE.OPEN:
+        suitable_refusal = reassessment.suitable_denial(request.user, item)
     denial = ""
     if item.state != STATE.OPEN:
         denial = reassessment.NOT_OPEN
     elif request.user.pk in reassessment.author_ids(item):
         denial = reassessment.SELF_CONCLUSION
-    elif found.suitable_refusal and found.end_refusal:
+    elif suitable_refusal and found.end_refusal:
+        # Neither outcome can be signed: say what stops each.
         denial = found.end_refusal
+        if not found.suitable_refusal:
+            denial = f"{suitable_refusal} {denial}"
     form = ReassessmentConclusionForm(
         request.POST or None,
         initial={
             "expected_revision": item.revision,
-            "outcome": OUTCOME.NOT_SUITABLE if found.suitable_refusal else OUTCOME.SUITABLE,
+            "outcome": OUTCOME.NOT_SUITABLE if suitable_refusal else OUTCOME.SUITABLE,
         },
     )
     if found.suitable_refusal:
         form.fields[
             "outcome"
         ].help_text = f"The material cannot be found suitable: {found.suitable_refusal}"
+    elif suitable_refusal:
+        form.fields[
+            "outcome"
+        ].help_text = f"You cannot conclude that the material is suitable: {suitable_refusal}"
     return sign_page(
         request,
         form,
@@ -391,7 +409,22 @@ def reassessment_conclude(request, pk):
             "as signed, takes no certificate and is not reassessed again."
         ),
         button="Sign and conclude",
-        facts=_summary(item, found),
+        facts=[
+            *_summary(item, found),
+            *(
+                ("If suitable", text)
+                for text in (
+                    authority.notices(
+                        request.user,
+                        item.lot,
+                        authority.RELEASE,
+                        rules=reassessment.rules_now(item.lot),
+                    )
+                    if not suitable_refusal
+                    else []
+                )
+            ),
+        ],
         revision=item.revision,
         cancel_url=detail,
         run=lambda d: reassessment.conclude(

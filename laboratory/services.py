@@ -18,7 +18,9 @@ from core.audit import record_event, snapshot
 from core.services import require_role, sign_transition
 
 from .eligibility import (
+    AUTHORITY_MISSING,
     affected_uses,
+    authority_eligibility,
     check_use,
     equipment_queryset,
     equipment_status,
@@ -42,6 +44,15 @@ from .models import (
 
 RECORDERS = ("analyst", "quality")
 ANY_SCIENTIFIC = ("analyst", "reviewer", "quality")
+# Release decisions and certificates are signed by the quality role; a qualification for them is
+# recorded only for a person who holds it.
+AUTHORIZING_ROLE = "quality"
+AUTHORITY_ROLE_NEEDED = {
+    Qualification.Work.RELEASE: "Release decisions are signed with the quality role: choose a "
+    "person who holds it.",
+    Qualification.Work.CERTIFY: "Certificates are issued with the quality role: choose a person "
+    "who holds it.",
+}
 
 
 class UseBlocked(ValidationError):
@@ -448,6 +459,12 @@ def record_qualification(*, actor, reason, user=None, equipment=None, training=(
         raise ValidationError(
             "An instrument is qualified for its use; it has no training and reviews nothing."
         )
+    if (
+        user is not None
+        and values.get("work") in AUTHORITY_MISSING
+        and not user.groups.filter(name=AUTHORIZING_ROLE).exists()
+    ):
+        raise ValidationError({"user": AUTHORITY_ROLE_NEEDED[values["work"]]})
     lock_account(actor)
     ids = sorted({item.pk for item in training})
     records = list(TrainingRecord.objects.filter(pk__in=ids).order_by("pk"))
@@ -545,6 +562,25 @@ def review_finding(*, actor, activity, lock=False):
             .order_by("pk")
         )
     return reviewer_eligibility(actor, activity)
+
+
+def authority_finding(*, actor, activity, work, lock=False):
+    """Whether ``actor`` holds an approved, current qualification of kind ``work`` (release or
+    certify) for ``activity``, the activity a rule set names for the decisions it reserves. With
+    ``lock``, inside the decision's transaction (which has locked the signer's account and the
+    record signed), those qualifications are locked before they are read, so a revocation signed
+    meanwhile waits for the decision to commit, or the decision sees it."""
+    if work not in AUTHORITY_MISSING:
+        raise ValueError(f"Not a qualification for authorizing a decision: {work}")
+    if lock:
+        if not connection.in_atomic_block:
+            raise RuntimeError("The authorization check must run in the decision's transaction.")
+        list(
+            Qualification.objects.select_for_update()
+            .filter(user=actor, work=work, activity__iexact=activity.strip())
+            .order_by("pk")
+        )
+    return authority_eligibility(actor, activity, work)
 
 
 # --- Reagents and standards ------------------------------------------------------------------

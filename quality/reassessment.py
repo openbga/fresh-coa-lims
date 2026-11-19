@@ -29,11 +29,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from django.views.decorators.debug import sensitive_variables
 
 from core.audit import record_event
 from core.services import require_role, sign_transition
 
-from . import dates
+from . import authority, dates
 from .models import Lot, LotState, Reassessment
 
 START_ROLES = ("analyst", "quality")
@@ -402,11 +403,32 @@ def retest_refusal(retest_on, on, expiry_on):
     return ""
 
 
+def rules_now(lot):
+    """The rule set versions the lot is reassessed under (those its requirements in force are
+    read from)."""
+    from sampling.services import rules_now as read
+
+    return read(lot)
+
+
+def suitable_denial(actor, reassessment):
+    """Why ``actor`` may not conclude that the material stays in use, for want of a
+    qualification the rule sets reserve release decisions for, or "" (rechecked when signing)."""
+    lot = reassessment.lot
+    return authority.refusal(actor, lot, authority.RELEASE, rules=rules_now(lot))
+
+
+@sensitive_variables("pin")
 def conclude(*, actor, pin, reassessment, expected_revision, outcome, retest_on, reason):
     """Conclude the reassessment with a signature: the material is suitable until
-    ``retest_on``, or its use ends (``retest_on`` None)."""
+    ``retest_on``, or its use ends (``retest_on`` None). Suitable needs, where the rule sets
+    reserve release decisions, the signer's qualification for them: refused before the PIN is
+    checked, and checked again under the locks."""
     if outcome not in OUTCOME.values:
         raise ValidationError("Choose the outcome of the reassessment.")
+    require_role(actor, QUALITY)
+    if outcome == OUTCOME.SUITABLE and (refused := suitable_denial(actor, reassessment)):
+        raise ValidationError(refused)
 
     def apply(locked):
         if locked.state != STATE.OPEN:
@@ -416,12 +438,18 @@ def conclude(*, actor, pin, reassessment, expected_revision, outcome, retest_on,
         # Every change to the reassessment's tests advanced its revision under its lock, so
         # what is read here is what the signer saw.
         found = review(locked)
+        relied = []
         if outcome == OUTCOME.SUITABLE:
             if refused := found.suitable_refusal:
                 raise ValidationError(refused)
             on = timezone.localdate(locked._signing_timestamp)
             if refused := retest_refusal(retest_on, on, found.expiry_on):
                 raise ValidationError({"retest_on": refused})
+            # Keeping the material in use is a release decision: under the lot's lock, the
+            # qualifications the rule sets it is examined under reserve it for.
+            relied = authority.authorize(
+                actor, locked.lot, authority.RELEASE, rules=rules_now(locked.lot)
+            )
             locked.retest_on = retest_on
         else:
             if refused := found.end_refusal:
@@ -431,6 +459,8 @@ def conclude(*, actor, pin, reassessment, expected_revision, outcome, retest_on,
                     {"retest_on": "A reassessment that ends the material's use sets no date."}
                 )
         locked.result_evidence = _frozen(locked, found, author_ids(locked))
+        if relied:
+            locked.result_evidence[authority.AUTHORIZATION] = relied
         locked.outcome = outcome
         locked.state = STATE.CONCLUDED
         locked.decided_at = locked._signing_timestamp
@@ -449,6 +479,7 @@ def conclude(*, actor, pin, reassessment, expected_revision, outcome, retest_on,
     )
 
 
+@sensitive_variables("pin")
 def withdraw(*, actor, pin, reassessment, expected_revision, reason):
     """Withdraw a reassessment started in error, with a signature. Refused while testing is
     in progress and when a result failed: a failure is concluded, never withdrawn."""
