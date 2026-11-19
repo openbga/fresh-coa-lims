@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 66
 type: added
 impact: high
 title: List the instruments, reagents and standards suitable for each method version

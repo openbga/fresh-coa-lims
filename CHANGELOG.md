@@ -8,7 +8,7 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
 
 ### High impact
 
-- **Added**: List the instruments, reagents and standards suitable for each method version · Specifications and methods · 2026-11-19
+- **Added**: List the instruments, reagents and standards suitable for each method version · Specifications and methods · 2026-11-19 · [#66](https://github.com/openbga/qm-lims/pull/66)
 
   On a draft method version, quality can now list what is suitable for the method under **Suitable instruments, reagents and standards**: kinds of instrument by equipment category, and reagents, reference standards and prepared solutions as the register names their lots; each kind is checked on its own. Each line is either recorded with every result or only allowed, and an instrument line can ask for an instrument qualified for the method. Results, corrections, file imports and batch QC results under that version then offer and accept only what it lists, beside the calibration, release and expiry checks, and the method page shows each line next to the matching instruments and lots and their status. Versions without a list, and tests already assigned, work as before.
 
