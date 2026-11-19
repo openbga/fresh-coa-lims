@@ -201,6 +201,8 @@ REMOTE_FIELDS = [
     (lambda: StartForm(), "contract_laboratory"),
     (lambda: planning_forms.PlanForm(), "analyst"),
     (lambda: planning_forms.PlanForm(), "equipment"),
+    (lambda: catalog_forms.ProficiencyResultForm(), "performed_by"),
+    (lambda: catalog_forms.FollowUpForm(), "impact_assessment"),
 ]
 
 

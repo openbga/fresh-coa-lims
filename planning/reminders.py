@@ -1,6 +1,7 @@
-"""Reminders: the calibrations, stability pulls, reagent or standard lots and qualifications that
-fall due within a window of days, read from the same queries as their lists. Nothing is stored or
-sent: the page lists what is due, and each row opens the record that resolves it."""
+"""Reminders: the calibrations, stability pulls, reagent or standard lots, qualifications and
+proficiency testing results that fall due within a window of days, read from the same queries as
+their lists. Nothing is stored or sent: the page lists what is due, and each row opens the record
+that resolves it."""
 
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -8,6 +9,7 @@ from datetime import date, timedelta
 from django.db.models import DateField, Exists, ExpressionWrapper, OuterRef, Q
 from django.urls import reverse
 
+from catalog.models import ProficiencyParticipation
 from laboratory.eligibility import equipment_queryset
 from laboratory.models import Calibration, Equipment, Qualification, ReagentLot
 from stability.models import Pull, Study
@@ -18,6 +20,7 @@ KINDS = {
     "pull": "Stability pull",
     "reagent": "Reagent or standard",
     "qualification": "Qualification",
+    "proficiency": "Proficiency testing",
 }
 
 
@@ -171,11 +174,40 @@ def _qualifications(today, until):
         )
 
 
+def _proficiency(today, until):
+    """Open participations whose results are due by ``until`` and are not reported yet, overdue
+    ones included: they stay listed until the report is recorded or the participation is
+    cancelled."""
+    planned = ProficiencyParticipation.objects.filter(
+        state=ProficiencyParticipation.State.OPEN,
+        reported_on__isnull=True,
+        results_due__lte=until,
+    ).select_related("method")
+    for item in planned.order_by("results_due", "pk"):
+        days = (item.results_due - today).days
+        if days < 0:
+            status, tone = f"Overdue by {_days(-days)}", "danger"
+        elif days == 0:
+            status, tone = "Due today", "warning"
+        else:
+            status, tone = f"Due in {_days(days)}", "warning" if days <= 7 else "neutral"
+        yield Reminder(
+            "proficiency",
+            item.results_due,
+            f"{item.identifier} · {item.method.code}",
+            f"{item.provider}, {item.round_ref}: results due {item.results_due.isoformat()}",
+            reverse("catalog:proficiency_detail", args=[item.pk]),
+            status,
+            tone,
+        )
+
+
 SOURCES = {
     "calibration": _calibrations,
     "pull": _pulls,
     "reagent": _reagents,
     "qualification": _qualifications,
+    "proficiency": _proficiency,
 }
 
 

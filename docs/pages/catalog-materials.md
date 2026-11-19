@@ -37,7 +37,7 @@ Lists the controlled materials and products that specifications and sampling pla
 
 ## Layout
 
-- **Section tabs**: Specifications, Methods, Method evidence, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Section tabs**: Specifications, Methods, Method evidence, Proficiency testing, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New material** button for quality, with the introduction below.
 - **Intro**: "Controlled materials and products that specifications and sampling plans apply to."
 - **Filter bar**: **Search** (placeholder "Code or name"), **Apply**, **Clear all** when filtered.

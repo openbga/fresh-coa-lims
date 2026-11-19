@@ -210,6 +210,15 @@ register(
 )
 register(
     Lookup(
+        "impact-assessments",
+        lambda: _model("impact.Assessment").objects.exclude(state="withdrawn"),
+        ("title", "description", "quality_reference"),
+        ("-started_at", "-pk"),
+        label=lambda assessment: f"{assessment.label} · {assessment.title}",
+    )
+)
+register(
+    Lookup(
         "active-users",
         lambda: get_user_model().objects.filter(is_active=True),
         ("username", "first_name", "last_name"),

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import URLValidator
 from django.db import models
@@ -923,3 +925,349 @@ class SpecificationTest(models.Model):
         from .services import describe_limits
 
         return describe_limits(self.content())
+
+
+# Proficiency testing and interlaboratory comparisons -----------------------------------------
+
+
+class ProficiencyOutcome(models.TextChoices):
+    SATISFACTORY = "satisfactory", "Satisfactory"
+    QUESTIONABLE = "questionable", "Questionable"
+    UNSATISFACTORY = "unsatisfactory", "Unsatisfactory"
+    NOT_EVALUATED = "not_evaluated", "Not evaluated"
+
+
+class ProficiencyParticipation(models.Model):
+    """The laboratory's participation in one round of a proficiency testing scheme, or in another
+    interlaboratory comparison, for one method.
+
+    Quality plans it with the day results are due. The laboratory then records its report (the
+    method version used, when the item arrived and the results were sent, where the original
+    records are kept and the provider's report) and each result with the provider's score. A
+    quality person who recorded none of the report or results, and performed none of them,
+    reviews the outcome with a signature that freezes ``review_content``: closed, or open for
+    corrective follow-up, which another quality person closes with a signature that freezes
+    ``close_content``. A participation that does not take place is cancelled while it holds no
+    result. Never deleted; the database refuses any other change (migration 0011).
+    """
+
+    class Kind(models.TextChoices):
+        PROFICIENCY_TEST = "proficiency_test", "Proficiency testing scheme"
+        COMPARISON = "comparison", "Interlaboratory comparison"
+
+    class State(models.TextChoices):
+        OPEN = "open", "Open"
+        FOLLOW_UP = "follow_up", "Follow-up open"
+        CLOSED = "closed", "Closed"
+        CANCELLED = "cancelled", "Cancelled"
+
+    method = models.ForeignKey(Method, on_delete=models.PROTECT, related_name="participations")
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    provider = models.CharField(
+        "Provider or organizer",
+        max_length=160,
+        help_text="Who runs the scheme, or the laboratory or group that organizes the comparison.",
+    )
+    provider_accreditation = models.CharField(
+        "Provider's accreditation",
+        max_length=200,
+        blank=True,
+        help_text="As the provider states it, for example its accreditation to ISO/IEC 17043 and "
+        "the certificate number.",
+    )
+    scheme = models.CharField(
+        max_length=160, blank=True, help_text="The scheme or programme, when it has a name."
+    )
+    round_ref = models.CharField(
+        "Round", max_length=80, help_text="The round number or the comparison's reference."
+    )
+    test_item = models.CharField(
+        "Test item",
+        max_length=200,
+        help_text="What is tested: the material or matrix of the item and the measurands.",
+    )
+    results_due = models.DateField(
+        "Results due", help_text="The day the laboratory's results are due to the provider."
+    )
+    planned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    planned_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=12, choices=State.choices, default=State.OPEN)
+    # The laboratory's report, recorded while the participation is open.
+    method_version = models.ForeignKey(
+        "MethodRevision",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Method version used",
+    )
+    received_on = models.DateField("Item received", null=True, blank=True)
+    reported_on = models.DateField(
+        "Results reported",
+        null=True,
+        blank=True,
+        help_text="The day the laboratory sent its results to the provider.",
+    )
+    data_ref = models.CharField(
+        "Laboratory records",
+        max_length=200,
+        blank=True,
+        help_text="Where the original records of the analysis are kept: worksheet, notebook "
+        "or data system reference.",
+    )
+    report_ref = models.CharField(
+        "Provider's report",
+        max_length=200,
+        blank=True,
+        help_text="The report that evaluates the round, with its number or version.",
+    )
+    report_on = models.DateField("Report dated", null=True, blank=True)
+    report_url = models.URLField("Report link", blank=True, max_length=500, validators=[http_url])
+    # The review, signed by a quality person independent of the report and results.
+    outcome = models.CharField(max_length=16, choices=ProficiencyOutcome.choices, blank=True)
+    review_conclusion = models.TextField("Review", blank=True)
+    follow_up_required = models.BooleanField("Corrective follow-up", default=False)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_content = models.JSONField(null=True, blank=True)
+    review_hash = models.CharField(max_length=64, blank=True)
+    # Corrective follow-up, recorded by quality while it is open.
+    cause = models.TextField(
+        "Cause", blank=True, help_text="What the investigation of the outcome found."
+    )
+    actions = models.TextField(
+        "Corrective actions", blank=True, help_text="What was done, by whom and when."
+    )
+    reported_results = models.TextField(
+        "Results already reported",
+        blank=True,
+        help_text="Whether results reported with the method since its last satisfactory "
+        "comparison could be affected, and what was done about them.",
+    )
+    impact_assessment = models.ForeignKey(
+        "impact.Assessment",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Impact assessment",
+    )
+    quality_reference = models.CharField(
+        "Quality-system reference",
+        max_length=200,
+        blank=True,
+        help_text="The nonconformance or CAPA record in the quality system.",
+    )
+    effectiveness = models.TextField(
+        "Effectiveness check",
+        blank=True,
+        help_text="How the actions were shown to work, for example a later round or a repeat "
+        "analysis of the remaining item.",
+    )
+    closed_at = models.DateTimeField(null=True, blank=True)
+    close_content = models.JSONField(null=True, blank=True)
+    close_hash = models.CharField(max_length=64, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = "participation"
+        ordering = ["-results_due", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=_stated("provider", "round_ref", "test_item"),
+                name="proficiency_stated",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    state="open",
+                    outcome="",
+                    reviewed_at__isnull=True,
+                    review_content__isnull=True,
+                    review_hash="",
+                    follow_up_required=False,
+                    closed_at__isnull=True,
+                    close_content__isnull=True,
+                    close_hash="",
+                    cancelled_at__isnull=True,
+                )
+                | Q(
+                    ~Q(outcome=""),
+                    ~Q(review_hash=""),
+                    state="follow_up",
+                    reviewed_at__isnull=False,
+                    review_content__isnull=False,
+                    follow_up_required=True,
+                    closed_at__isnull=True,
+                    close_content__isnull=True,
+                    close_hash="",
+                    cancelled_at__isnull=True,
+                )
+                | Q(
+                    ~Q(outcome=""),
+                    ~Q(review_hash=""),
+                    Q(follow_up_required=False, close_content__isnull=True, close_hash="")
+                    | Q(~Q(close_hash=""), follow_up_required=True, close_content__isnull=False),
+                    state="closed",
+                    reviewed_at__isnull=False,
+                    review_content__isnull=False,
+                    closed_at__isnull=False,
+                    cancelled_at__isnull=True,
+                )
+                | Q(
+                    state="cancelled",
+                    outcome="",
+                    reviewed_at__isnull=True,
+                    review_content__isnull=True,
+                    review_hash="",
+                    follow_up_required=False,
+                    closed_at__isnull=True,
+                    close_content__isnull=True,
+                    close_hash="",
+                    cancelled_at__isnull=False,
+                ),
+                name="proficiency_states",
+            ),
+        ]
+
+    @property
+    def identifier(self):
+        return f"PT-{self.pk}"
+
+    @property
+    def title(self):
+        return f"{self.provider} · {self.round_ref}"
+
+    def __str__(self):
+        return f"{self.identifier} · {self.title}"
+
+    def details(self):
+        """The plan and the report, as the review signature freezes them."""
+        version = self.method_version
+        return {
+            "identifier": self.identifier,
+            "method": {"id": self.method_id, "code": self.method.code},
+            "kind": self.kind,
+            "provider": self.provider,
+            "provider_accreditation": self.provider_accreditation,
+            "scheme": self.scheme,
+            "round_ref": self.round_ref,
+            "test_item": self.test_item,
+            "results_due": self.results_due.isoformat(),
+            "method_version": {"id": version.pk, "version": version.version} if version else None,
+            "received_on": self.received_on.isoformat() if self.received_on else None,
+            "reported_on": self.reported_on.isoformat() if self.reported_on else None,
+            "data_ref": self.data_ref,
+            "report_ref": self.report_ref,
+            "report_on": self.report_on.isoformat() if self.report_on else None,
+            "report_url": self.report_url,
+        }
+
+
+# The conventional interpretation of each kind of score (ISO 13528): a z, z′ or ζ score is
+# satisfactory up to 2 in absolute value, questionable above 2 and below 3, unsatisfactory from
+# 3; an En number is satisfactory up to 1 and unsatisfactory above it.
+Z_LIKE_SCORES = ("z", "z_prime", "zeta")
+_Z_SATISFACTORY = Q(score__gte=Decimal("-2"), score__lte=Decimal("2"))
+_Z_QUESTIONABLE = Q(score__gt=Decimal("2"), score__lt=Decimal("3")) | Q(
+    score__lt=Decimal("-2"), score__gt=Decimal("-3")
+)
+_Z_UNSATISFACTORY = Q(score__gte=Decimal("3")) | Q(score__lte=Decimal("-3"))
+_EN_SATISFACTORY = Q(score__gte=Decimal("-1"), score__lte=Decimal("1"))
+_EN_UNSATISFACTORY = Q(score__gt=Decimal("1")) | Q(score__lt=Decimal("-1"))
+
+
+class ProficiencyResult(models.Model):
+    """One measurand of a participation: the laboratory's result as reported to the provider,
+    the assigned value and the provider's score, with who performed the analysis. The outcome
+    follows from the score's kind and value; without a score it is the provider's evaluation.
+    Added and removed only while the participation is open, never changed (migration 0011).
+
+    Entry order is the order of creation (``id``)."""
+
+    class ScoreKind(models.TextChoices):
+        Z = "z", "z score"
+        Z_PRIME = "z_prime", "z′ score"
+        ZETA = "zeta", "ζ score (zeta)"
+        EN = "en", "En number"
+        NONE = "none", "No score: the provider's evaluation"
+
+    participation = models.ForeignKey(
+        ProficiencyParticipation, on_delete=models.PROTECT, related_name="results"
+    )
+    measurand = models.CharField(
+        max_length=120, help_text="The analyte or property, as the provider names it."
+    )
+    unit = models.CharField(max_length=40, blank=True)
+    reported_value = models.CharField(
+        "Laboratory's result",
+        max_length=60,
+        help_text="Exactly as reported to the provider, for example 98.6, <0.5 or Detected.",
+    )
+    assigned_value = models.CharField(
+        "Assigned value",
+        max_length=60,
+        blank=True,
+        help_text="As the provider's report states it.",
+    )
+    score_kind = models.CharField("Score", max_length=8, choices=ScoreKind.choices)
+    score = models.DecimalField(
+        "Score value", max_digits=12, decimal_places=4, null=True, blank=True
+    )
+    outcome = models.CharField(max_length=16, choices=ProficiencyOutcome.choices)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="Analyst",
+    )
+    note = models.TextField(blank=True, help_text="The provider's comment, if any.")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "proficiency result"
+        constraints = [
+            models.CheckConstraint(
+                condition=_stated("measurand", "reported_value"),
+                name="proficiency_result_stated",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    score_kind="none",
+                    score__isnull=True,
+                    outcome__in=ProficiencyOutcome.values,
+                )
+                | Q(
+                    Q(_Z_SATISFACTORY, outcome="satisfactory")
+                    | Q(_Z_QUESTIONABLE, outcome="questionable")
+                    | Q(_Z_UNSATISFACTORY, outcome="unsatisfactory"),
+                    score_kind__in=Z_LIKE_SCORES,
+                )
+                | Q(
+                    Q(_EN_SATISFACTORY, outcome="satisfactory")
+                    | Q(_EN_UNSATISFACTORY, outcome="unsatisfactory"),
+                    score_kind="en",
+                ),
+                name="proficiency_result_outcome",
+            ),
+        ]
+
+    def __str__(self):
+        return self.measurand
+
+    def content(self):
+        return {
+            "measurand": self.measurand,
+            "unit": self.unit,
+            "reported_value": self.reported_value,
+            "assigned_value": self.assigned_value,
+            "score_kind": self.score_kind,
+            "score": plain(self.score),
+            "outcome": self.outcome,
+            "performed_by": self.performed_by_id,
+            "note": self.note,
+        }
