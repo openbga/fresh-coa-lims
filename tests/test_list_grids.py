@@ -20,6 +20,7 @@ NOT_A_LIST = {
     "analytical/templates/analytical/batch_detail.html": "tests of one batch record",
     "analytical/templates/analytical/lot_testing.html": "tests of one lot record",
     "catalog/templates/catalog/specification_revision.html": "lines of one revision record",
+    "catalog/templates/catalog/method_detail.html": "evidence records of one method record",
     "laboratory/templates/ops/record.html": "rows of one record",
     "sampling/templates/sampling/lot_detail.html": "records of one lot",
     "suppliers/templates/suppliers/detail.html": "lots of one supplier record",

@@ -4,7 +4,7 @@ urls: catalog:materials
 views: catalog.views.material_list
 templates: catalog/material_list.html
 models: catalog.Material, catalog.Specification
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every controlled material and product that specifications and sampling plans apply to. Find a material, see how many specifications it has, or create a new one.
 ---
 
@@ -37,7 +37,7 @@ Lists the controlled materials and products that specifications and sampling pla
 
 ## Layout
 
-- **Section tabs**: Specifications, Methods, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
+- **Section tabs**: Specifications, Methods, Method evidence, Materials. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view.
 - **Header**: title "Specifications and methods" and the **New material** button for quality, with the introduction below.
 - **Intro**: "Controlled materials and products that specifications and sampling plans apply to."
 - **Filter bar**: **Search** (placeholder "Code or name"), **Apply**, **Clear all** when filtered.

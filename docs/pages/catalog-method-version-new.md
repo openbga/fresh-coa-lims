@@ -16,6 +16,7 @@ summary: Create the next draft version of a method. It starts with the calculati
 ### Keep the batch QC checks
 1. Tick [[Runs in a QC batch]] to copy the QC checks of the latest version. Left clear, none are copied.
 ## Good to know
+- You can replace the suitability on the draft later with [[Suitability evidence]] on the method record, using an approved evidence record of the method or another external reference.
 - Only the two resource options and Reviewers qualified for the method start as in the latest version. Every other field starts empty.
 - The calculation and inputs are copied whatever the status of the latest version, so an incomplete calculation stays incomplete until you fix it.
 - When approved, this version retires an earlier approved version it overlaps, from its start or from the moment of approval if that is later.

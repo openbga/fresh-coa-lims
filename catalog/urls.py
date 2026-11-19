@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import evidence_views, views
 
 app_name = "catalog"
 urlpatterns = [
@@ -75,6 +75,35 @@ urlpatterns = [
         name="file_import_clear",
     ),
     path("method-versions/<int:pk>/withdraw/", views.method_withdraw, name="method_withdraw"),
+    path(
+        "method-versions/<int:pk>/suitability/",
+        evidence_views.suitability_set,
+        name="suitability_set",
+    ),
+    path("method-evidence/", evidence_views.evidence_list, name="evidence_list"),
+    path("method-evidence/new/", evidence_views.evidence_new, name="evidence_new"),
+    path("method-evidence/<int:pk>/", evidence_views.evidence_detail, name="evidence_detail"),
+    path("method-evidence/<int:pk>/change/", evidence_views.evidence_edit, name="evidence_edit"),
+    path(
+        "method-evidence/<int:pk>/characteristics/new/",
+        evidence_views.characteristic_new,
+        name="evidence_characteristic_new",
+    ),
+    path(
+        "method-evidence/<int:pk>/characteristics/<int:item_pk>/remove/",
+        evidence_views.characteristic_remove,
+        name="evidence_characteristic_remove",
+    ),
+    path(
+        "method-evidence/<int:pk>/approve/",
+        evidence_views.evidence_approve,
+        name="evidence_approve",
+    ),
+    path(
+        "method-evidence/<int:pk>/withdraw/",
+        evidence_views.evidence_withdraw,
+        name="evidence_withdraw",
+    ),
     path("materials/", views.material_list, name="materials"),
     path("materials/new/", views.material_new, name="material_new"),
 ]

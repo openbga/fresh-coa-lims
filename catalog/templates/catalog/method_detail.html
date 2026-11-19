@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load ui %}
-{% comment %}A method and its versions, newest first. Context: page_title, method, revisions, in_force (the approved version in force now), history, crumbs, can_edit.{% endcomment %}
+{% comment %}A method and its versions, newest first, then its evidence records. Context: page_title, method, revisions, in_force (the approved version in force now), evidence (the method's evidence records), history, crumbs, can_edit, can_record (may record evidence).{% endcomment %}
 {% block breadcrumbs %}{% breadcrumbs crumbs=crumbs %}{% endblock %}
 {% block page_meta %}{% page_meta %}<li>{% if in_force %}{% status label="Approved" tone="success" %}{% else %}{% status label="No approved version" tone="warning" %}{% endif %}</li>{% if in_force %}<li>Version {{ in_force.version }} in force</li>{% endif %}<li>{{ method.title }}</li>{% endpage_meta %}{% endblock %}
 {% block page_actions %}{% if can_edit %}<a class="btn btn-primary" href="{% url 'catalog:method_version_new' method.pk %}">{% icon name="plus-lg" %}New version</a>{% endif %}{% endblock %}
@@ -8,12 +8,13 @@
 {% for revision in revisions %}{% with pk=revision.pk|stringformat:"s" %}{% with heading_id="version-"|add:pk %}
 {% panel heading_id=heading_id class="mb-3" %}
   {% fill title %}Version {{ revision.version }} · {% include "catalog/includes/revision_status.html" with status=revision.status plain=True only %}{% endfill %}
-  {% fill actions %}{% if revision.status == "draft" and can_edit %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_withdraw' revision.pk %}">Withdraw draft<span class="visually-hidden"> version {{ revision.version }}</span></a>
+  {% fill actions %}{% if revision.status == "draft" and can_edit %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:suitability_set' revision.pk %}">Suitability evidence<span class="visually-hidden"> of version {{ revision.version }}</span></a>
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_withdraw' revision.pk %}">Withdraw draft<span class="visually-hidden"> version {{ revision.version }}</span></a>
     {% if revision.can_approve %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:method_approve' revision.pk %}">Review and approve<span class="visually-hidden"> version {{ revision.version }}</span></a>{% elif revision.approve_note %}<span class="vr-action-note" data-refused="approve">{{ revision.approve_note }}</span>{% endif %}{% endif %}{% endfill %}
   <dl class="vr-facts">
     {% fact label="Technique" value=revision.technique %}
     {% fact label="Controlled procedure" %}{% code value=revision.document_ref %}{% endfact %}
-    {% fact label="Suitability" %}{{ revision.get_suitability_kind_display }} · {% code value=revision.suitability_ref %}{% endfact %}
+    {% include "catalog/includes/suitability.html" with revision=revision only %}
     {% fact label="Effective" %}{% include "catalog/includes/effective.html" with revision=revision only %}{% endfact %}
     {% if revision.summary %}{% fact label="Summary" %}{{ revision.summary|linebreaksbr }}{% endfact %}{% endif %}
     {% fact label="QC batch" %}{% if revision.requires_batch %}Runs in a QC batch{% else %}No batch QC required{% endif %}{% endfact %}
@@ -32,6 +33,15 @@
 {% empty %}
 {% empty_state title="No versions" body="Create the first version of this method." %}
 {% endfor %}
+{% panel title="Evidence records" heading_id="evidence-heading" table=True class="mb-3" %}
+  {% fill actions %}{% if can_record %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'catalog:evidence_new' %}?method={{ method.pk }}">New evidence record<span class="visually-hidden"> for {{ method.code }}</span></a>{% endif %}{% endfill %}
+  {% list_results items=evidence empty_title="No evidence records" empty_body="Records of the validation, verification or transfer of this method appear here." %}
+  <div class="vr-table-wrap"><table class="table vr-table" aria-labelledby="evidence-heading">
+    <thead><tr><th scope="col">Record</th><th scope="col">Kind</th><th scope="col">Completed on</th><th scope="col">Conclusion</th><th scope="col">State</th></tr></thead>
+    <tbody>{% for item in evidence %}<tr><th scope="row" class="vr-wrap"><a href="{% url 'catalog:evidence_detail' item.pk %}">{{ item.identifier }}</a><small class="d-block vr-muted">{{ item.title }}</small></th><td>{{ item.get_kind_display }}</td><td>{{ item.completed_on|when:"date" }}</td><td>{% if item.conclusion == "suitable" %}{% status label=item.get_conclusion_display tone="success" %}{% else %}{% status label=item.get_conclusion_display tone="warning" %}{% endif %}</td><td>{% if item.state == "approved" %}{% status label=item.get_state_display tone="success" %}{% elif item.state == "draft" %}{% status label=item.get_state_display tone="progress" %}{% else %}{% status label=item.get_state_display tone="neutral" %}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endlist_results %}
+{% endpanel %}
 {% history_panel events=history empty_title="No recorded history" class="mt-3" %}{% endhistory_panel %}
 {% endblock %}
 {% block record_foot %}{% record_foot identifier=method.code %}{% endblock %}

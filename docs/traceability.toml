@@ -92,6 +92,7 @@
 "OQ-005" = [
     "catalog/tests/",
     "e2e/test_calculation_bench_journey.py",
+    "e2e/test_method_evidence_journey.py",
     "sampling/tests/test_services.py",
     "sampling/tests/test_views.py",
     "tests/test_formulas.py",

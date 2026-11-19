@@ -12,7 +12,9 @@ import pytest
 from django.apps import apps
 from django.core.exceptions import PermissionDenied
 from django.urls import get_resolver, reverse
+from django.utils import timezone
 
+from catalog import evidence
 from catalog import services as catalog
 from catalog.models import Method
 from catalog.tests.factories import (
@@ -41,6 +43,8 @@ READ = {
     "catalog:methods": (),
     "catalog:method": ("method",),
     "catalog:materials": (),
+    "catalog:evidence_list": (),
+    "catalog:evidence_detail": ("evidence_draft",),
     "sampling:lots": (),
     "sampling:lot": ("lot",),
     "sampling:plans": (),
@@ -49,6 +53,7 @@ READ = {
 EXTRA_READS = [  # approved versions render differently from drafts
     ("catalog:specification_revision", ("spec_approved",)),
     ("catalog:method", ("method_approved",)),
+    ("catalog:evidence_detail", ("evidence_approved",)),
     ("sampling:plan", ("plan_approved",)),
 ]
 MUTATIONS = {
@@ -71,6 +76,13 @@ MUTATIONS = {
     "catalog:file_import_clear": (("method_draft",), "approver"),
     "catalog:method_withdraw": (("method_draft",), "approver"),
     "catalog:material_new": ((), "approver"),
+    "catalog:suitability_set": (("method_draft",), "approver"),
+    "catalog:evidence_new": ((), "analyst"),
+    "catalog:evidence_edit": (("evidence_draft",), "analyst"),
+    "catalog:evidence_characteristic_new": (("evidence_draft",), "analyst"),
+    "catalog:evidence_characteristic_remove": (("evidence_draft", "characteristic"), "analyst"),
+    "catalog:evidence_approve": (("evidence_draft",), "approver"),
+    "catalog:evidence_withdraw": (("evidence_draft",), "analyst"),
     "sampling:assign": (("lot",), "analyst"),
     "sampling:replace": (("lot_testing",), "approver"),
     "sampling:decide": (("lot_conflict",), "approver"),
@@ -153,6 +165,35 @@ def lot_with_conflict(people, ready):  # noqa: F811
     return lot
 
 
+def method_evidence(people, method):
+    """A draft evidence record of ``method`` with one characteristic, ready for approval."""
+    item = evidence.record_evidence(
+        actor=people["analyst"],
+        method=method,
+        reason="Synthetic evidence",
+        kind="validation",
+        title="Synthetic validation",
+        procedure_ref="SOP-SYN-GC rev 1",
+        intended_use="Synthetic use",
+        report_ref="VR-SYN-GC rev 1",
+        completed_on=timezone.localdate(),
+        conclusion="suitable",
+        statement="Suitable",
+    )
+    line = evidence.add_characteristic(
+        actor=people["analyst"],
+        evidence=item,
+        reason="Synthetic characteristic",
+        characteristic="accuracy",
+        detail="",
+        criterion="98-102 %",
+        result="100 %",
+        outcome="met",
+    )
+    item.refresh_from_db()
+    return item, line
+
+
 @pytest.fixture
 def world(people, ready):  # noqa: F811
     """Approved and draft versions of every controlled record, and a lot with a deviation."""
@@ -198,6 +239,15 @@ def world(people, ready):  # noqa: F811
         unit="peak area",
     )
     plan_draft = plan_revision(author, material(author, code="syn-api-002"))
+    evidence_draft, characteristic = method_evidence(people, method_draft.method)
+    evidence_approved, _ = method_evidence(people, method_draft.method)
+    evidence.approve_evidence(
+        actor=people["approver"],
+        pin=PIN,
+        evidence=evidence_approved,
+        expected_revision=evidence_approved.revision,
+        reason="Synthetic approval",
+    )
     assign(people, ready)
     record = short(people, ready)
     testing = lot_in_testing(people, ready)
@@ -219,6 +269,9 @@ def world(people, ready):  # noqa: F811
         "plan_draft": plan_draft.pk,
         "lot": ready["lot"].pk,
         "record": record.pk,
+        "evidence_draft": evidence_draft.pk,
+        "evidence_approved": evidence_approved.pk,
+        "characteristic": characteristic.pk,
     }
 
 

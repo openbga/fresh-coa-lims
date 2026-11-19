@@ -11,6 +11,7 @@ from core.grids import Column
 from core.services import require_role
 
 from . import services
+from .evidence import RECORDERS
 from .forms import (
     CalculationForm,
     CalculationInputForm,
@@ -58,6 +59,7 @@ def tabs(request, current):
     items = [
         ("Specifications", reverse("catalog:specifications")),
         ("Methods", reverse("catalog:methods")),
+        ("Method evidence", reverse("catalog:evidence_list")),
         ("Materials", reverse("catalog:materials")),
     ]
     return [{"label": label, "url": url, "current": label == current} for label, url in items]
@@ -464,7 +466,7 @@ def method_detail(request, pk):
     read_access(request)
     method = get_object_or_404(Method, pk=pk)
     revisions = list(
-        method.revisions.select_related("author", "superseded_by").prefetch_related(
+        method.revisions.select_related("author", "superseded_by", "evidence").prefetch_related(
             "qc_checks", "calculation_inputs"
         )
     )
@@ -486,6 +488,8 @@ def method_detail(request, pk):
             "history": history(method, *revisions),
             "crumbs": crumbs_for(("Methods", reverse("catalog:methods")), (method.code, None)),
             "can_edit": can_edit,
+            "evidence": list(method.evidence.order_by("-completed_on", "-pk")),
+            "can_record": can(request.user, *RECORDERS),
         },
     )
 
