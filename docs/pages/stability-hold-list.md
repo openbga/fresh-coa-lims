@@ -4,7 +4,7 @@ urls: stability:hold_list
 views: stability.views.hold_list
 templates: ops/list.html
 models: stability.Hold
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every hold on lots and reserve samples. An active hold blocks QC disposition and disposal until a different quality signer releases it.
 ---
 
@@ -36,7 +36,7 @@ All holds on lots and reserve samples. A hold blocks QC disposition (and any dis
 
 ## Layout
 
-- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds, Shelf life. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title "Holds" and a **New hold** button for Analyst, Reviewer, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (lot number, reference or reason; contains, not case sensitive) and **Status** (All, Active, Released). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Hold (links to the record, with its kind under it), Lot, Reference, State, Placed. Placed shows date and time. Sort by Placed (newest first by default) or Lot; ties break by record order. Sortable headers toggle ascending/descending.

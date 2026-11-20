@@ -28,6 +28,8 @@ __all__ = [
     "review",
     "reviewed",
     "accept",
+    "studies_with_results",
+    "FALLING",
 ]
 
 
@@ -348,3 +350,50 @@ def accept(people, pull, reviewer="reviewer"):
         expected_revision=pull.revision,
         reason="Pull and results reviewed",
     )
+
+
+# --- Shelf-life evaluations ----------------------------------------------------------------------
+
+SHELF_LIFE_INTERVALS = (0, 91, 183, 274)
+
+
+def studies_with_results(
+    people, series, *, intervals=SHELF_LIFE_INTERVALS, config=None, code="SYN-SL"
+):
+    """(studies, config): one study of protocol ``code`` per entry of ``series``, each entry the
+    assay results of its pulls by interval, every pull tested, reviewed and accepted. None in
+    an entry leaves that pull scheduled."""
+    config = config or shelf_life(people)
+    protocol = approved_protocol(
+        people,
+        code=code,
+        intervals=intervals,
+        specification=config["specification"],
+        test_codes=("assay",),
+    )
+    studies = []
+    for number, values in enumerate(series, start=1):
+        study = started_study(
+            people,
+            protocol=protocol,
+            lot=lot_of(people, config["material"], f"SYN-SL-LOT-{code}-{number}"),
+            identifier=f"STB-{code}-{number}",
+            days_ago=max(intervals) + 3,
+        )
+        for interval, value in zip(intervals, values, strict=True):
+            if value is None:
+                continue
+            pull = pulled(people, study, interval)
+            (test,) = assign(people, pull)
+            reviewed(people, test, value)
+            accept(people, pull)
+        studies.append(study)
+    return studies, config
+
+
+# Three batches of a slowly falling assay: pooled, with a shelf life well inside the horizon.
+FALLING = (
+    ("100.2", "99.7", "98.9", "98.4"),
+    ("100.1", "99.5", "99.1", "98.2"),
+    ("100.3", "99.6", "99.0", "98.3"),
+)

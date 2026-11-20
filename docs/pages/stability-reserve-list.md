@@ -4,7 +4,7 @@ urls: stability:reserve_list
 views: stability.views.reserve_list
 templates: ops/list.html
 models: stability.ReserveSample
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every identified reserve sample, with its quantity against the minimum, retention date and any active hold. Find a reserve, open its record, or record a new one.
 ---
 
@@ -35,7 +35,7 @@ Identified reserve samples with quantity against the minimum multiple of one tes
 
 ## Layout
 
-- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds, Shelf life. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and a **New reserve sample** button for Analyst, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (reserve identifier or lot number, contains, case-insensitive) and **Status** (All, Below minimum quantity, Retention anchor not yet known: reserves with an obligation whose anchor date is not known yet). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Reserve (links to the record, with the lot number under it), Quantity, Retained, Location, Quantity check, Retain through (the latest date any of its retention obligations retains it to; blank while an obligation has no anchor date yet, or when none is recorded), Hold ("Active" when an active hold applies to the reserve or to its whole lot). Quantity is the retained amount with its unit. Sort by Retained (newest first by default), Reserve (identifier) or Lot (lot number). Sortable headers toggle ascending/descending.

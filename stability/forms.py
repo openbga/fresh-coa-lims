@@ -269,3 +269,164 @@ class HoldForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["lot"].queryset = WITH_MATERIAL.order_by("number")
+
+
+# --- Shelf-life evaluations ----------------------------------------------------------------------
+
+
+def _shelf_life_help(name):
+    from .models import ShelfLifeEvaluation
+
+    return ShelfLifeEvaluation._meta.get_field(name).help_text
+
+
+def shelf_life_study_label(study):
+    return (
+        f"{study.identifier} · {study.protocol.code} · lot {study.lot.number} · "
+        f"{study.container_closure}"
+    )
+
+
+def evaluable_studies():
+    """Studies whose protocol names a specification: their pulls are tested in the system."""
+    return Study.objects.filter(protocol__specification__isnull=False).select_related(
+        "protocol", "lot"
+    )
+
+
+class StudyChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return shelf_life_study_label(obj)
+
+
+class ShelfLifeStudyForm(forms.Form):
+    """The first step of a new evaluation: a study of the protocol and container closure."""
+
+    study = StudyChoice(
+        queryset=Study.objects.none(),
+        widget=RemoteSelect("shelf-life-studies"),
+        help_text="Any study of the protocol and container closure to evaluate: the evaluation "
+        "uses every study of both, and you can leave some out afterwards. Only studies whose "
+        "protocol names a specification are tested in the system.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["study"].queryset = evaluable_studies()
+
+
+DIRECTION_HELP = (
+    "Expected to decrease: the lower one-sided 95 % confidence limit is compared with the lower "
+    "limit, as for an assay. Expected to increase: the upper one-sided limit with the upper "
+    "limit, as for a degradation product. Either way or not known: two-sided 95 % limits with "
+    "both."
+)
+
+
+class ShelfLifeForm(forms.Form):
+    """A new evaluation for one study's protocol: the condition and test choices are its own."""
+
+    condition = forms.ChoiceField(
+        label="Storage condition",
+        help_text="The protocol's condition whose results are evaluated, usually the long-term "
+        "one. A study's time-zero result counts at every condition that has none of its own.",
+    )
+    test_code = forms.ChoiceField(
+        label="Test",
+        help_text="A numeric or count test of the protocol with a limit, as the version in "
+        "force of its specification states it now. That criterion is kept with the evaluation.",
+    )
+    direction = forms.ChoiceField(
+        label="Expected change",
+        choices=[],
+        widget=forms.RadioSelect,
+        help_text=DIRECTION_HELP,
+    )
+    purpose = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        max_length=2000,
+        help_text=_shelf_life_help("purpose"),
+    )
+    reason = reason_field(max_length=2000)
+
+    def __init__(self, *args, conditions=(), lines=(), **kwargs):
+        from .models import ShelfLifeEvaluation
+
+        super().__init__(*args, **kwargs)
+        self.fields["condition"].choices = [(label, label) for label in conditions]
+        self.fields["test_code"].choices = [(line.code, line.label) for line in lines]
+        self.fields["direction"].choices = ShelfLifeEvaluation.Direction.choices
+
+
+class ShelfLifeChangeForm(forms.Form):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+    studies = forms.TypedMultipleChoiceField(
+        coerce=int,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="The studies whose results are evaluated: the primary batches of the product "
+        "in this container closure, at least three where the data exist.",
+    )
+    direction = forms.ChoiceField(
+        label="Expected change", choices=[], widget=forms.RadioSelect, help_text=DIRECTION_HELP
+    )
+    purpose = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 3}),
+        max_length=2000,
+        help_text=_shelf_life_help("purpose"),
+    )
+    reason = reason_field(max_length=2000)
+
+    def __init__(self, *args, studies=(), **kwargs):
+        from .models import ShelfLifeEvaluation
+
+        super().__init__(*args, **kwargs)
+        self.fields["studies"].choices = [
+            (study.pk, f"{study.identifier} · lot {study.lot.number} · {study.protocol.identifier}")
+            for study in studies
+        ]
+        self.fields["direction"].choices = ShelfLifeEvaluation.Direction.choices
+
+
+class ShelfLifeWithdrawForm(ReasonForm):
+    expected_revision = forms.IntegerField(widget=forms.HiddenInput)
+
+
+class ShelfLifeConcludeForm(SigningForm):
+    data_hash = forms.CharField(widget=forms.HiddenInput, max_length=64)
+    outcome = forms.ChoiceField(
+        label="Outcome",
+        choices=[],
+        widget=forms.RadioSelect,
+        help_text="Supported: the shelf life you record, in whole months, is no longer than the "
+        "estimate. None supported: the data do not support a shelf life yet, or at all.",
+    )
+    shelf_life_months = forms.IntegerField(
+        label="Shelf life (months)",
+        required=False,
+        min_value=1,
+        max_value=999,
+        help_text="Whole months, at most the estimate rounded down. Leave empty when none is "
+        "supported.",
+    )
+    conclusion = forms.CharField(
+        widget=forms.Textarea(attrs={"rows": 4}),
+        max_length=4000,
+        help_text="What the data support and on what basis: the model, the batches, any "
+        "extrapolation beyond the period the data cover and the supporting data it rests on.",
+    )
+    field_order = [
+        "expected_revision",
+        "data_hash",
+        "outcome",
+        "shelf_life_months",
+        "conclusion",
+        "reason",
+        "signature_username",
+        "pin",
+    ]
+
+    def __init__(self, *args, **kwargs):
+        from .models import ShelfLifeEvaluation
+
+        super().__init__(*args, **kwargs)
+        self.fields["outcome"].choices = ShelfLifeEvaluation.Outcome.choices

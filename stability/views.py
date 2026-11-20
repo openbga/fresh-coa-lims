@@ -45,7 +45,7 @@ from laboratory.ui import (
     when,
 )
 
-from . import gates, services, testing
+from . import gates, services, shelf_life_views, testing
 from .evidence import (
     CONFORMS,
     FAILS,
@@ -193,6 +193,12 @@ def overview(request):
             Protocol.objects.filter(state="draft").count(),
             "info",
             reverse("stability:protocol_list") + "?status=draft",
+        ),
+        (
+            "Shelf-life evaluations in draft",
+            shelf_life_views.drafts_count(),
+            "info",
+            reverse("stability:shelf_life_list") + "?status=draft",
         ),
         (
             "Active holds",
@@ -858,6 +864,7 @@ def study_detail(request, pk):
         )
         if active and can(user, "quality") and s.created_by_id != user.pk
         else None,
+        shelf_life_views.study_action(user, s),
     ]
     failing = [p for p in pulls if p.outcome == FAILS]
     notice = None
@@ -912,6 +919,7 @@ def study_detail(request, pk):
                 "No pulls scheduled.",
             ),
             *_comparison(pulls),
+            *([shelf_life_views.study_section(s)] if s.protocol.specification_id else []),
         ],
         notice=notice,
         related=[s],

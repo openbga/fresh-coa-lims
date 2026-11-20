@@ -436,3 +436,170 @@ class Hold(models.Model):
 
     def __str__(self):
         return self.identifier
+
+
+class ShelfLifeEvaluation(models.Model):
+    """A statistical evaluation of the shelf life (or retest period) that one test supports at
+    one storage condition, from the results of the studies of one protocol and container
+    closure (ICH Q1E, Appendix B; ``stability.regression``).
+
+    Quality drafts it: the test's acceptance criterion is taken from the version in force of the
+    protocol's specification and kept with the draft, and quality chooses the studies and the
+    direction the attribute is expected to change in. The results and the figures are worked
+    out from the record whenever a draft is read. A quality person who neither drafted nor
+    changed it, and who produced none of its results' data, concludes it with a signature that
+    freezes the results, the figures and the shelf life recorded. A draft that will not be
+    concluded is withdrawn. Nothing is deleted, and a concluded or withdrawn evaluation never
+    changes (migration 0007).
+    """
+
+    class State(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        CONCLUDED = "concluded", "Concluded"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    class Direction(models.TextChoices):
+        DECREASES = "decreases", "Expected to decrease"
+        INCREASES = "increases", "Expected to increase"
+        EITHER = "either", "Could change either way, or not known"
+
+    class Outcome(models.TextChoices):
+        SUPPORTED = "supported", "Shelf life supported"
+        NOT_SUPPORTED = "not_supported", "No shelf life supported"
+
+    protocol_code = models.CharField("Protocol", max_length=60)
+    product = models.CharField(max_length=160)
+    container_closure = models.CharField(max_length=200)
+    condition = models.CharField("Storage condition", max_length=80)
+    specification = models.ForeignKey(
+        "catalog.Specification", on_delete=models.PROTECT, related_name="+"
+    )
+    specification_version = models.PositiveIntegerField()
+    test_code = models.SlugField("Test code", max_length=80)
+    name = models.CharField("Test", max_length=160)
+    unit = models.CharField(max_length=24)
+    decimals = models.PositiveSmallIntegerField("Reporting decimals", null=True, blank=True)
+    lower_limit = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
+    upper_limit = models.DecimalField(max_digits=20, decimal_places=8, null=True, blank=True)
+    direction = models.CharField(
+        "Expected change",
+        max_length=12,
+        choices=Direction.choices,
+        help_text="Decides which confidence limit is compared with the acceptance criterion: "
+        "the lower one-sided limit for a decrease, the upper for an increase, two-sided limits "
+        "otherwise.",
+    )
+    purpose = models.TextField(
+        help_text="Why the shelf life is evaluated now, for example the data for a proposed "
+        "shelf life or the annual review of the studies."
+    )
+    drafted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    drafted_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=12, choices=State.choices, default=State.DRAFT)
+    outcome = models.CharField(max_length=16, choices=Outcome.choices, blank=True)
+    shelf_life_months = models.PositiveSmallIntegerField(
+        "Shelf life (months)", null=True, blank=True
+    )
+    conclusion = models.TextField(blank=True)
+    concluded_at = models.DateTimeField(null=True, blank=True)
+    content = models.JSONField(null=True, blank=True)
+    content_hash = models.CharField(max_length=64, blank=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        verbose_name = "shelf-life evaluation"
+        ordering = ["-drafted_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["protocol_code", "container_closure", "condition", "test_code"],
+                condition=models.Q(state="draft"),
+                name="stability_shelf_life_one_draft",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    state="draft",
+                    outcome="",
+                    shelf_life_months__isnull=True,
+                    conclusion="",
+                    concluded_at__isnull=True,
+                    content__isnull=True,
+                    content_hash="",
+                    withdrawn_at__isnull=True,
+                )
+                | models.Q(
+                    ~models.Q(conclusion=""),
+                    ~models.Q(content_hash=""),
+                    models.Q(outcome="supported", shelf_life_months__gt=0)
+                    | models.Q(outcome="not_supported", shelf_life_months__isnull=True),
+                    state="concluded",
+                    concluded_at__isnull=False,
+                    content__isnull=False,
+                    withdrawn_at__isnull=True,
+                )
+                | models.Q(
+                    state="withdrawn",
+                    outcome="",
+                    shelf_life_months__isnull=True,
+                    conclusion="",
+                    concluded_at__isnull=True,
+                    content__isnull=True,
+                    content_hash="",
+                    withdrawn_at__isnull=False,
+                ),
+                name="stability_shelf_life_states",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(direction="decreases", lower_limit__isnull=False)
+                | models.Q(direction="increases", upper_limit__isnull=False)
+                | models.Q(
+                    models.Q(lower_limit__isnull=False) | models.Q(upper_limit__isnull=False),
+                    direction="either",
+                ),
+                name="stability_shelf_life_criterion",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(lower_limit__isnull=True)
+                | models.Q(upper_limit__isnull=True)
+                | models.Q(lower_limit__lt=models.F("upper_limit")),
+                name="stability_shelf_life_ordered",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(purpose__regex=r"^\s*$"), name="stability_shelf_life_purpose"
+            ),
+        ]
+
+    @property
+    def identifier(self):
+        return f"SLE-{self.pk}"
+
+    @property
+    def title(self):
+        return f"{self.name} · {self.protocol_code} · {self.condition}"
+
+    def __str__(self):
+        return f"{self.identifier} {self.title}"
+
+
+class ShelfLifeStudy(models.Model):
+    """A study whose results a shelf-life evaluation uses: a study of the evaluation's protocol
+    code and container closure. Added and removed only while the evaluation is a draft."""
+
+    evaluation = models.ForeignKey(
+        ShelfLifeEvaluation, on_delete=models.PROTECT, related_name="study_links"
+    )
+    study = models.ForeignKey(Study, on_delete=models.PROTECT, related_name="shelf_life_links")
+
+    class Meta:
+        verbose_name = "study of a shelf-life evaluation"
+        ordering = ["study_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["evaluation", "study"], name="stability_shelf_life_study_unique"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.study} in {self.evaluation.identifier}"
