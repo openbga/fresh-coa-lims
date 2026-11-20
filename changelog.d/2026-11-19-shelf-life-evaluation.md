@@ -1,5 +1,6 @@
 ---
 date: 2026-11-19
+pr: 69
 type: added
 impact: high
 title: Shelf-life evaluation from stability data
