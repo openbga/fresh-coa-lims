@@ -104,6 +104,12 @@ def _trending():
     return services
 
 
+def _stability_forms():
+    from stability import forms
+
+    return forms
+
+
 def _owner_candidates():
     from validation.services import owner_candidates
 
@@ -212,6 +218,15 @@ register(
         lambda: _model("quality.Lot").objects.exclude(state__in=["rejected", "cancelled"]),
         LOT_SEARCH,
         ("number", "pk"),
+    )
+)
+register(
+    Lookup(
+        "shelf-life-studies",
+        lambda: _stability_forms().evaluable_studies(),
+        ("identifier", "lot__number", "protocol__code", "protocol__product", "container_closure"),
+        ("identifier", "pk"),
+        label=lambda study: _stability_forms().shelf_life_study_label(study),
     )
 )
 register(

@@ -42,6 +42,7 @@ SECTION_TABS = {
         ("Pulls", "pull_list"),
         ("Reserves", "reserve_list"),
         ("Holds", "hold_list"),
+        ("Shelf life", "shelf_life_list"),
     ],
     "trending": [
         ("Charts", "chart_list"),

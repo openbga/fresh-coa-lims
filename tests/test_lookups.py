@@ -21,6 +21,7 @@ from quality.forms import LotForm
 from quality.models import Lot
 from reporting.forms import LotPickForm
 from sampling.forms import AssignForm, PlanForm
+from stability import forms as stability_forms
 from stability.forms import HoldForm, ObligationForm, ProtocolForm, ReserveForm, StudyForm
 from suppliers.forms import MaterialChoiceForm
 from trending import forms as trending_forms
@@ -205,6 +206,7 @@ REMOTE_FIELDS = [
     (lambda: catalog_forms.ProficiencyResultForm(), "performed_by"),
     (lambda: catalog_forms.FollowUpForm(), "impact_assessment"),
     (lambda: trending_forms.ChartForm(), "line"),
+    (lambda: stability_forms.ShelfLifeStudyForm(), "study"),
     (lambda: trending_forms.FindingsForm(), "impact_assessment"),
 ]
 
@@ -225,7 +227,7 @@ def test_lookup_offers_what_the_field_validates(make, name):
         obj.code, obj.name, obj.title = "c", "n", "t"
     # These labels name related records (a specification's material, a test line's
     # specification version), which a blank instance has not got.
-    if field.widget.lookup not in ("specifications", "trend-lines"):
+    if field.widget.lookup not in ("specifications", "trend-lines", "shelf-life-studies"):
         assert entry.label(obj) == field.label_from_instance(obj)
 
 

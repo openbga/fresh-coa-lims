@@ -13,10 +13,20 @@ from stability.models import (
     Pull,
     ReserveSample,
     RetentionObligation,
+    ShelfLifeEvaluation,
+    ShelfLifeStudy,
     Study,
 )
 
-from .helpers import PIN, approved_protocol, make_lot, specified_study, started_study
+from .helpers import (
+    FALLING,
+    PIN,
+    approved_protocol,
+    make_lot,
+    specified_study,
+    started_study,
+    studies_with_results,
+)
 from .helpers import pulled as record_pulled
 
 pytestmark = pytest.mark.django_db(transaction=True)
@@ -33,6 +43,8 @@ READ_ROUTES = {
     "stability:reserve_detail",
     "stability:hold_list",
     "stability:hold_detail",
+    "stability:shelf_life_list",
+    "stability:shelf_life_detail",
 }
 MUTATION_ROUTES = {
     "stability:protocol_new",
@@ -52,6 +64,10 @@ MUTATION_ROUTES = {
     "stability:anchor_set",
     "stability:hold_new",
     "stability:hold_release",
+    "stability:shelf_life_new",
+    "stability:shelf_life_change",
+    "stability:shelf_life_withdraw",
+    "stability:shelf_life_conclude",
 }
 TRACKED = [
     Protocol,
@@ -62,6 +78,8 @@ TRACKED = [
     ReserveSample,
     RetentionObligation,
     Hold,
+    ShelfLifeEvaluation,
+    ShelfLifeStudy,
 ]
 
 
@@ -144,8 +162,19 @@ def world(people, django_user_model):
         actor=author, lot=make_lot(people, "HOLD-LOT"), kind="quality", reason="Review"
     )
     # A pull of a protocol that names a specification: its tests can be assigned.
-    tested, _ = specified_study(people)
+    tested, config = specified_study(people)
     testable = record_pulled(people, tested)
+    # A draft shelf-life evaluation of a study with accepted results: ready to conclude.
+    (evaluated,), _ = studies_with_results(people, [FALLING[0]], config=config)
+    evaluation = services.draft_shelf_life(
+        actor=people["quality"],
+        study=evaluated,
+        condition="Long-term",
+        test_code="assay",
+        direction="decreases",
+        purpose="Synthetic",
+        reason="Draft",
+    )
     users = dict(people)
     for name, roles in {
         "admin_analyst": ["admin", "analyst"],
@@ -163,6 +192,7 @@ def world(people, django_user_model):
         "reserve": reserve,
         "obligation": obligation,
         "hold": hold,
+        "evaluation": evaluation,
     }
 
 
@@ -181,6 +211,8 @@ def routes(world):
         ("stability:reserve_detail", [world["reserve"].pk], None),
         ("stability:hold_list", [], None),
         ("stability:hold_detail", [world["hold"].pk], None),
+        ("stability:shelf_life_list", [], None),
+        ("stability:shelf_life_detail", [world["evaluation"].pk], None),
     ]
     mutations = [
         ("stability:protocol_new", [], "analyst"),
@@ -200,6 +232,10 @@ def routes(world):
         ("stability:anchor_set", [world["obligation"].pk], "analyst"),
         ("stability:hold_new", [], "reviewer"),
         ("stability:hold_release", [world["hold"].pk], "quality"),
+        ("stability:shelf_life_new", [], "quality"),
+        ("stability:shelf_life_change", [world["evaluation"].pk], "quality"),
+        ("stability:shelf_life_withdraw", [world["evaluation"].pk], "quality"),
+        ("stability:shelf_life_conclude", [world["evaluation"].pk], "quality2"),
     ]
     assert {n for n, _, _ in reads} == READ_ROUTES
     assert {n for n, _, _ in mutations} == MUTATION_ROUTES

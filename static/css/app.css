@@ -4885,6 +4885,60 @@ a.vr-queue-label:hover {
   height: var(--vr-space-4);
 }
 
+/* ================================================================ Shelf-life charts
+
+   A shelf-life evaluation's results over months on stability ({% shelf_life_chart %},
+   includes/shelf_life_chart.html), on the trend chart's grid, axes and key. Each study has its
+   own marker shape, so colour never tells the batches apart; a result outside its criterion is
+   filled in the danger tone. The mean line is the ink, the confidence limit the accent, dashed;
+   the criterion is drawn as the specification limits of a trend chart. */
+
+.vr-shelf-mark {
+  stroke: var(--vr-surface);
+  stroke-width: var(--vr-border-width);
+}
+
+.vr-shelf-mark[data-state="result"] {
+  fill: var(--vr-ink);
+}
+
+.vr-shelf-mark[data-state="oos"] {
+  fill: var(--vr-danger-text);
+}
+
+.vr-trend-line[data-kind="mean"] {
+  stroke: var(--vr-ink);
+  stroke-width: var(--vr-border-width);
+}
+
+.vr-trend-line[data-kind="confidence"] {
+  stroke: var(--vr-line);
+  stroke-dasharray: 6 3;
+}
+
+.vr-trend-line[data-kind="criterion"] {
+  stroke: var(--vr-danger-border);
+  stroke-dasharray: 2 3;
+}
+
+.vr-trend-line[data-kind="covered"] {
+  stroke: var(--vr-border-strong);
+  stroke-width: var(--vr-border-width);
+}
+
+.vr-trend-line[data-kind="estimate"] {
+  stroke: var(--vr-warning-border);
+  stroke-dasharray: 6 3;
+}
+
+.vr-trend-label-text text[data-kind="criterion"] {
+  fill: var(--vr-danger-text);
+}
+
+.vr-trend-label-text text[data-kind="estimate"] {
+  fill: var(--vr-warning-text);
+}
+
 /* ================================================================ Print
 
    Always the light print palette, whatever the screen mode: no shell, no shadows, panels flat on

@@ -1,0 +1,41 @@
+{% comment %}
+A shelf-life evaluation's results over time on stability: each study's results with its own
+marker shape (named in the key, filled in the danger tone when outside the acceptance criterion),
+the mean line of each fit, the confidence limit compared with the criterion (dashed), the
+criterion, and upright lines where the data end and at the estimate. Rendered by
+{% shelf_life_chart %} ({% load ui %}); the geometry and every word come from
+stability.plot.geometry. Like the trend chart it is a data drawing, so it writes SVG
+(tests/test_icons.py). The SVG is an image with a name; the tables beside it on the page hold the
+same values for keyboard and assistive technology. Each mark keeps its words in a <title>, shown
+on hover. Below its minimum width the drawing scrolls sideways in a focusable region.
+Parameters:
+  chart  the dict from stability.plot.geometry (None draws nothing)
+  label  id of the heading that names the chart
+Usage: {% shelf_life_chart chart=drawing label="chart-heading" %}
+{% endcomment %}{% if chart %}<figure class="vr-trend">
+  <div class="vr-trend-scroll" tabindex="0" role="group" aria-labelledby="{{ label }}">
+  <svg class="vr-trend-plot" viewBox="{{ chart.view_box }}" role="img" aria-labelledby="{{ label }} shelf-life-chart-title" focusable="false">
+    <title id="shelf-life-chart-title">{{ chart.title }}</title>
+    <g class="vr-trend-grid">{% for tick in chart.y_ticks %}<line x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ tick.y }}" y2="{{ tick.y }}"/>{% endfor %}</g>
+    <g class="vr-trend-axis-text" text-anchor="end">{% for tick in chart.y_ticks %}<text x="{{ chart.tick_x }}" y="{{ tick.label_y }}">{{ tick.label }}</text>{% endfor %}</g>
+    <g class="vr-trend-axis-text" text-anchor="middle">{% for tick in chart.x_ticks %}<text x="{{ tick.x }}" y="{{ chart.axis_label_y }}">{{ tick.label }}</text>{% endfor %}</g>
+    <line class="vr-trend-axis" x1="{{ chart.left }}" x2="{{ chart.right }}" y1="{{ chart.bottom }}" y2="{{ chart.bottom }}"/>
+    <g>{% for mark in chart.marks %}<line class="vr-trend-line" data-kind="{{ mark.kind }}" x1="{{ mark.x }}" x2="{{ mark.x }}" y1="{{ chart.top }}" y2="{{ chart.bottom }}"><title>{{ mark.text }}</title></line>{% endfor %}</g>
+    <g class="vr-trend-label-text">{% for mark in chart.marks %}<text data-kind="{{ mark.kind }}" x="{{ mark.x }}" y="{{ mark.label_y }}" text-anchor="{{ mark.anchor }}" dx="{{ mark.dx }}">{{ mark.text }}</text>{% endfor %}</g>
+    <g>{% for line in chart.lines %}<line class="vr-trend-line" data-kind="{{ line.kind }}" x1="{{ line.x1 }}" x2="{{ line.x2 }}" y1="{{ line.y1 }}" y2="{{ line.y2 }}"><title>{{ line.title }}</title></line>{% endfor %}</g>
+    <g>{% for path in chart.paths %}<path class="vr-trend-line" data-kind="{{ path.kind }}" d="{{ path.d }}"/>{% endfor %}</g>
+    <g class="vr-trend-label-text">{% for item in chart.labels %}<text data-kind="{{ item.kind }}" x="{{ chart.label_x }}" y="{{ item.label_y }}">{{ item.text }}</text>{% endfor %}</g>
+    <g>{% for mark in chart.markers %}<path class="vr-shelf-mark" data-state="{{ mark.state }}" d="{{ mark.d }}"><title>{{ mark.title }}</title></path>{% endfor %}</g>
+  </svg>
+  </div>
+  <figcaption class="vr-trend-caption">
+    <ul class="vr-trend-legend" aria-label="Key">
+      {% for item in chart.key %}<li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path class="vr-shelf-mark" data-state="result" d="{{ item.d }}"/></svg>{{ item.label }}</li>{% endfor %}
+      {% if chart.has_oos %}<li><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path class="vr-shelf-mark" data-state="oos" d="M4,8 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z"/></svg>Outside the acceptance criterion</li>{% endif %}
+      {% if chart.has_fit %}<li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="mean" x1="0" x2="24" y1="8" y2="8"/></svg>Mean line</li>
+      <li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="confidence" x1="0" x2="24" y1="8" y2="8"/></svg>{{ chart.confidence }}</li>{% endif %}
+      <li><svg viewBox="0 0 24 16" aria-hidden="true" focusable="false"><line class="vr-trend-line" data-kind="criterion" x1="0" x2="24" y1="8" y2="8"/></svg>Acceptance criterion</li>
+    </ul>
+    <p class="vr-muted mb-0">Months on stability{% if chart.caption %}. {{ chart.caption }}{% endif %}</p>
+  </figcaption>
+</figure>{% endif %}

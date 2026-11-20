@@ -96,6 +96,10 @@ FORM_SURFACES = {
     "stability:anchor_set": ("sm", ("analyst", "quality")),
     "stability:hold_new": ("md", ("analyst", "quality", "reviewer")),
     "stability:hold_release": ("md", ("quality",)),
+    "stability:shelf_life_new": ("md", ("quality",)),
+    "stability:shelf_life_change": ("md", ("quality",)),
+    "stability:shelf_life_withdraw": ("sm", ("quality",)),
+    "stability:shelf_life_conclude": ("lg", ("quality",)),
     # Sampling and requirements
     "sampling:assign": ("lg", ("analyst", "quality")),
     "sampling:replace": ("lg", ("quality",)),

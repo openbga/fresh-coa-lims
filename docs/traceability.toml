@@ -266,11 +266,16 @@
     "tests/test_method_resources_journey.py",
 ]
 "OQ-012" = [
+    "e2e/test_shelf_life_journey.py",
     "e2e/test_stability_testing_journey.py",
     "planning/tests/test_figures.py::test_a_stability_test_counts_as_stability_work_of_its_study_lot",
     "planning/tests/test_views.py::test_reminders_list_calibrations_pulls_and_reagents_within_the_window",
     "stability/tests/test_admin_access.py",
+    "stability/tests/test_plot.py",
+    "stability/tests/test_regression.py",
     "stability/tests/test_services.py",
+    "stability/tests/test_shelf_life.py",
+    "stability/tests/test_shelf_life_views.py",
     "stability/tests/test_testing.py",
     "stability/tests/test_views.py",
     "tests/test_impact_assessment.py",

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import shelf_life_views, views
 
 app_name = "stability"
 urlpatterns = [
@@ -32,4 +32,22 @@ urlpatterns = [
     path("holds/new/", views.hold_new, name="hold_new"),
     path("holds/<int:pk>/", views.hold_detail, name="hold_detail"),
     path("holds/<int:pk>/release/", views.hold_release, name="hold_release"),
+    path("shelf-life/", shelf_life_views.shelf_life_list, name="shelf_life_list"),
+    path("shelf-life/new/", shelf_life_views.shelf_life_new, name="shelf_life_new"),
+    path("shelf-life/<int:pk>/", shelf_life_views.shelf_life_detail, name="shelf_life_detail"),
+    path(
+        "shelf-life/<int:pk>/change/",
+        shelf_life_views.shelf_life_change,
+        name="shelf_life_change",
+    ),
+    path(
+        "shelf-life/<int:pk>/withdraw/",
+        shelf_life_views.shelf_life_withdraw,
+        name="shelf_life_withdraw",
+    ),
+    path(
+        "shelf-life/<int:pk>/conclude/",
+        shelf_life_views.shelf_life_conclude,
+        name="shelf_life_conclude",
+    ),
 ]

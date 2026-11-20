@@ -4,7 +4,7 @@ urls: stability:protocol_list
 views: stability.views.protocol_list
 templates: ops/list.html
 models: stability.Protocol
-reviewed: 2026-11-17
+reviewed: 2026-11-19
 summary: Every version of every stability protocol: draft, approved, superseded or withdrawn. Find a protocol, open its record, or draft a new one.
 ---
 
@@ -36,7 +36,7 @@ All versions of product-specific stability protocols, draft, approved and supers
 
 ## Layout
 
-- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
+- **Section tabs**: Overview, Protocols, Studies, Pulls, Reserves, Holds, Shelf life. These links stay in one row above the header. Scroll sideways when space is limited; the current page is highlighted and brought into view. Anyone who can read Stability and retention can use every section link.
 - **Header**: title and a **New protocol** button for Analyst, Quality. The introduction is below the title and action row.
 - **Toolbar**: **Search** (code, title or product) and **Status** (All, Draft, Approved, Superseded, Withdrawn). **Apply** runs the filter; **Clear all** appears when any filter is set. Filters and sort live in the address.
 - **Table**: Protocol (code and version, links to the record, with the title under it), Product, State, Approved (date). Approved is blank for drafts. Sort by Protocol (code then version, ascending by default), Product or Approved (sorts by creation time, not approval time). Sortable headers toggle ascending/descending.

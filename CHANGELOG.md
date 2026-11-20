@@ -94,6 +94,18 @@ What changed in OpenBGA QM LIMS, newest first: grouped by month, then ranked by 
   > - Pages `planning:figures` and `planning:reviewed` (`?export=csv` streams the filtered list as CSV). Both are read-only and need the reviewer, quality, auditor or admin role; an analyst without one of those roles receives 403 and does not see the tabs.
   > - No migration and no new table: the figures are computed when the page is opened from the review signatures (meaning `reviewed`), the `test.returned` audit events, corrected observations, the lineage of retests, resamples, reruns and repeats, and the due dates of the work list. A period is at most 366 days and dates are local days of `TIME_ZONE`.
 
+- **Added**: Shelf-life evaluation from stability data · Stability · 2026-11-19 · [#69](https://github.com/openbga/qm-lims/pull/69)
+
+  Under **Stability**, **Shelf life**, quality evaluates the shelf life one test supports at one storage condition, from the results of the studies of a protocol in one container closure. Each study's results are fitted by a straight line on months on stability, an analysis of covariance decides whether the studies are pooled, and the estimate is where the 95 % confidence limit of the mean meets the acceptance criterion, the method of ICH Q1E; the page draws the results with the lines and the limit. Another quality person, who neither drafted the evaluation nor produced its results, concludes it with a signature that records the shelf life, no longer than the estimate, and freezes the data and figures.
+
+  In the application: **Shelf-life evaluations**
+
+  > **Technical notes**
+  >
+  > - Migrations `stability.0006` and `stability.0007` add `stability_shelflifeevaluation` and `stability_shelflifestudy` with database guards: nothing is deleted, what an evaluation was drafted from never changes, every change advances its revision, a concluded or withdrawn evaluation never changes, and studies are linked or unlinked only while it is a draft and only of its protocol code and container closure. No existing row changes.
+  > - The statistics (`stability/regression.py`) work in `Decimal` to 50 significant digits, with Student's t and F distributions from the incomplete beta function; they are checked against the NIST Norris dataset and the published t table.
+  > - The conclusion (meaning `concluded`) freezes `oq.shelf-life/1` and is refused when the results changed since the page was opened. New audit actions: `shelf_life.drafted`, `shelf_life.changed` and `shelf_life.withdrawn`. New lookup `shelf-life-studies`; the stability section gains the **Shelf life** tab.
+
 - **Added**: Trend charts of release results with approved limits and out-of-trend alerts · Trends · 2026-11-19 · [#68](https://github.com/openbga/qm-lims/pull/68)
 
   Under **Trends**, quality keeps a chart for each test it follows, of a material at a stage: the reviewed release results of its lots, in the order their reviews were signed. Limits are computed from a baseline of results (mean ± 3σ) or entered, with the run, trend and zone rules quality chooses, and another quality person approves each version with a signature. A result that meets its specification and breaks a rule raises an out-of-trend alert, shown on the chart, in **Reminders** and as a notice where the lot's disposition is signed; quality evaluates alerts in an **Out-of-trend evaluation** concluded with a signature by someone who recorded none of its findings or of the results' data.

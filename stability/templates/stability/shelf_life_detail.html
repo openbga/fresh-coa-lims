@@ -1,0 +1,8 @@
+{% extends "ops/record.html" %}
+{% load ui %}
+{% comment %}A shelf-life evaluation's record page: ops/record.html with the results over time drawn after the details. Context from stability.shelf_life_views.shelf_life_detail: the record page's, plus drawing (stability.plot.geometry, or None) and drawing_note.{% endcomment %}
+{% block record_lead %}
+{% panel title="Results over time" heading_id="chart-heading" class="mb-3" %}
+  {% if drawing %}{% shelf_life_chart chart=drawing label="chart-heading" %}{% else %}{% empty_state kind="empty" title="No result yet" body=drawing_note %}{% endif %}
+{% endpanel %}
+{% endblock %}

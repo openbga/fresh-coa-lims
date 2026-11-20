@@ -15,7 +15,7 @@ data.
 """
 
 from analytical import outcomes
-from analytical.gates import data_author_ids, investigation_author_ids
+from analytical.gates import data_author_ids, investigation_author_ids, tests_author_ids
 from analytical.models import AnalyticalTest, Investigation
 
 RESULTS_SCHEMA = "stability.pull-results/1"
@@ -151,3 +151,9 @@ def pull_testing_in_progress(pull):
     return _work_in_progress(
         AnalyticalTest.objects.filter(pull=pull), Investigation.objects.filter(test__pull=pull)
     )
+
+
+def results_author_ids(tests):
+    """Users who produced data of any of ``tests`` (a shelf-life evaluation's results): none of
+    them concludes the evaluation. Reviewing a result or accepting a pull is not authorship."""
+    return tests_author_ids(tests)
